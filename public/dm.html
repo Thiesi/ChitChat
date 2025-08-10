@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en" data-theme="auto">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ChitChat — DM Viewer</title>
+  <style>
+    :root{ --bg:#0b0c10; --panel:#111827; --panel2:#0f172a; --border:#1f2937; --fg:#e5e7eb; --muted:#9ca3af; }
+    [data-theme="light"]{ --bg:#f7fafc; --panel:#ffffff; --panel2:#f1f5f9; --border:#e5e7eb; --fg:#0f172a; --muted:#475569; }
+    body{ margin:0; font-family: system-ui,-apple-system,Segoe UI,Roboto,Ubuntu; background:var(--bg); color:var(--fg); }
+    header{ padding:10px 14px; background:var(--panel); border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
+    .wrap{ max-width:1100px; margin:0 auto; padding:14px; }
+    .card{ background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:12px; margin-bottom:12px; }
+    input,select,button{ font-size:14px; padding:8px 10px; border-radius:8px; border:1px solid #374151; background:var(--bg); color:var(--fg); }
+    button{ cursor:pointer }
+    .list .item{ padding:8px; border:1px solid var(--border); border-radius:8px; margin-bottom:8px; background:var(--bg); }
+  </style>
+</head>
+<body>
+<header>
+  <div><strong>ChitChat — DM Viewer</strong></div>
+  <nav><a href="./index.html" style="color:var(--fg); text-decoration:none">Back to app</a></nav>
+</header>
+<div class="wrap">
+  <div class="card">
+    <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center">
+      <input id="from" placeholder="from @">
+      <input id="to" placeholder="to @">
+      <input id="fromDate" type="date">
+      <input id="toDate" type="date">
+      <input id="limit" type="number" value="100" style="width:100px">
+      <button id="fetch">Fetch</button>
+      <button id="export-json">Export JSON</button>
+      <button id="export-csv">Export CSV</button>
+    </div>
+  </div>
+  <div class="card list" id="list"></div>
+</div>
+<script type="module">
+import { toast } from './js/toast.js';
+import { api, setCsrf } from './js/api.js';
+import { $, $$ } from './js/ui.js';
+
+async function me(){ const d=await api.get('me.php'); setCsrf(d.csrf); return d; }
+function row(m){ const div=document.createElement('div'); div.className='item'; div.textContent=`[${m.created_at}] #${m.id} @${m.from} → @${m.to} — ${m.text}`; return div; }
+
+document.getElementById('fetch').onclick=async()=>{
+  try{
+    const q={ from:$('#from').value.replace(/^@/,''), to:$('#to').value.replace(/^@/,''), from_date:$('#fromDate').value, to_date:$('#toDate').value, limit: parseInt($('#limit').value||'100',10)};
+    const rows = await api.post('dm_admin.php?action=list', q);
+    const list = $('#list'); list.innerHTML=''; rows.forEach(m=> list.appendChild(row(m)) );
+    toast.success(`Fetched ${rows.length}`);
+  }catch(e){}
+};
+document.getElementById('export-json').onclick=async()=>{
+  try{
+    const q={ from:$('#from').value.replace(/^@/,''), to:$('#to').value.replace(/^@/,''), from_date:$('#fromDate').value, to_date:$('#toDate').value };
+    const blob = await api.post('dm_admin.php?action=export_json', q);
+    toast.info('Export started (server will log the export).');
+  }catch(e){}
+};
+document.getElementById('export-csv').onclick=async()=>{
+  try{
+    const q={ from:$('#from').value.replace(/^@/,''), to:$('#to').value.replace(/^@/,''), from_date:$('#fromDate').value, to_date:$('#toDate').value };
+    const blob = await api.post('dm_admin.php?action=export_csv', q);
+    toast.info('Export started (server will log the export).');
+  }catch(e){}
+};
+
+(async()=>{
+  const d=await me();
+  const meUser=d.user||{};
+  if(!(meUser.is_chat_admin||meUser.is_admin||meUser.is_super_admin)){
+    toast.error('Forbidden'); setTimeout(()=>location.href='index.html', 800); return;
+  }
+})();
+</script>
+</body>
+</html>

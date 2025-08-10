@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en" data-theme="auto">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ChitChat — User Editor</title>
+  <style>
+    :root{ --bg:#0b0c10; --panel:#111827; --panel2:#0f172a; --border:#1f2937; --fg:#e5e7eb; --muted:#9ca3af; }
+    [data-theme="light"]{ --bg:#f7fafc; --panel:#ffffff; --panel2:#f1f5f9; --border:#e5e7eb; --fg:#0f172a; --muted:#475569; }
+    body{ margin:0; font-family: system-ui,-apple-system,Segoe UI,Roboto,Ubuntu; background:var(--bg); color:var(--fg); }
+    header{ padding:10px 14px; background:var(--panel); border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
+    .wrap{ max-width:1100px; margin:0 auto; padding:14px; }
+    .card{ background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:12px; margin-bottom:12px; }
+    input,select,button{ font-size:14px; padding:8px 10px; border-radius:8px; border:1px solid #374151; background:var(--bg); color:var(--fg); }
+    button{ cursor:pointer }
+    .grid{ display:grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .meta{ color: var(--muted); font-size: 12px; }
+  </style>
+</head>
+<body>
+<header>
+  <div><strong>ChitChat — User Editor</strong></div>
+  <nav><a href="./index.html" style="color:var(--fg); text-decoration:none">Back to app</a></nav>
+</header>
+<div class="wrap">
+  <div class="card">
+    <input id="search" placeholder="Search @username">
+    <button id="load">Load</button>
+    <span class="meta">Admins can edit; Chat Admins see read-only.</span>
+  </div>
+  <div class="card grid" id="panels" style="display:none">
+    <div class="card">
+      <div><strong>Account</strong></div>
+      <div id="acct"></div>
+    </div>
+    <div class="card">
+      <div><strong>Profile</strong></div>
+      <div id="profile"></div>
+    </div>
+    <div class="card" style="grid-column:1 / span 2">
+    <div class="card" style="grid-column:1 / span 2">
+      <div><strong>Moderation</strong> <span class="meta">(Kick/Ban/Unban)</span></div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center">
+        <button id="md-kick">Kick</button>
+        <input id="md-days" type="number" placeholder="ban days (optional)" style="width:160px">
+        <input id="md-reason" placeholder="reason (optional)" style="min-width:240px">
+        <button id="md-ban">Ban</button>
+        <button id="md-unban">Unban</button>
+      </div>
+    </div>
+
+      <div><strong>Room Roles</strong></div>
+      <div id="roles"></div>
+    </div>
+  </div>
+</div>
+<script type="module">
+import { toast } from './js/toast.js';
+import { api, setCsrf } from './js/api.js';
+import { $, $$ } from './js/ui.js';
+
+let perms=null, readOnly=true, currentUser=null;
+
+function ro(disabled){
+  $$('#panels input, #panels select, #panels button').forEach(el=>{
+    if(el.id==='load') return;
+    if(el.dataset.role==='link') return;
+    el.disabled = disabled;
+  });
+}
+
+async function me(){ const d=await api.get('me.php'); setCsrf(d.csrf); return d; }
+async function loadUser(username){
+  const u = await api.post('user_admin.php?action=get', { username });
+  currentUser = u;
+  $('#panels').style.display='grid';
+  // Account pane
+  $('#acct').innerHTML = `
+    <div>@${u.username}</div>
+    <label><input type="checkbox" id="acc-sa" ${u.is_super_admin?'checked':''}> Super-Admin</label>
+    <label><input type="checkbox" id="acc-admin" ${u.is_admin?'checked':''}> Admin</label>
+    <label><input type="checkbox" id="acc-cadmin" ${u.is_chat_admin?'checked':''}> Chat Admin</label>
+    <label><input type="checkbox" id="acc-gmod" ${u.is_global_mod?'checked':''}> Global Moderator</label>
+    <div><input type="password" id="acc-pass" placeholder="Set password"> <button id="acc-pass-save">Update</button></div>
+    <div class="meta">Last active: ${u.last_active_human} (full DOB and last active visible to Chat Admin+)</div>
+  `;
+  // Profile
+  $('#profile').innerHTML = `
+    <div><label>Location <input id="pr-location" value="${u.location||''}"></label></div>
+    <div><label>Sex <select id="pr-sex">
+      <option value="" ${!u.sex?'selected':''}>(unset)</option>
+      <option ${u.sex==='male'?'selected':''}>male</option>
+      <option ${u.sex==='female'?'selected':''}>female</option>
+      <option ${u.sex==='other'?'selected':''}>other</option>
+    </select></label></div>
+    <div><label>Birthday <input id="pr-bday" type="date" value="${u.birthday||''}"></label></div>
+    <div>
+      <label><input type="checkbox" id="pr-pl" ${u.pub_location?'checked':''}> Show location publicly</label>
+      <label><input type="checkbox" id="pr-ps" ${u.pub_sex?'checked':''}> Show sex publicly</label>
+      <label>Birthday <select id="pr-pb">
+        <option ${u.pub_birthday==='hidden'?'selected':''} value="hidden">Hidden</option>
+        <option ${u.pub_birthday==='age'?'selected':''} value="age">Show age only</option>
+        <option ${u.pub_birthday==='full'?'selected':''} value="full">Show full date</option>
+      </select></label>
+    </div>
+    <div><button id="pr-save">Save profile</button></div>
+  `;
+  // Roles
+  const list = (u.room_roles||[]).map(r=>`<div>#${r.room_id} — ${r.room_name} — role=${r.role}</div>`).join('') || '<div class="meta">No room roles</div>';
+  $('#roles').innerHTML = `
+    <div>${list}</div>
+    <div style="margin-top:8px">
+      <input id="rr-room" placeholder="room_id" style="width:120px">
+      <select id="rr-role">
+        <option value="member">Room Member</option>
+        <option value="mod">Room Moderator</option>
+        <option value="owner">Room Owner</option>
+      </select>
+      <button id="rr-set">Set</button>
+      <button id="rr-remove">Remove</button>
+    </div>
+  `;
+  // Wire events
+  $('#acc-pass-save').onclick=async()=>{
+    const p = $('#acc-pass').value; if(!p) return toast.warn('Enter a password');
+    try{ await api.post('user_admin.php?action=set_password', { user_id: u.id, password: p }); toast.success('Password updated'); }catch(e){}
+  };
+  $('#pr-save').onclick=async()=>{
+    try{
+      await api.post('user_admin.php?action=update_profile', {
+        user_id: u.id, location: $('#pr-location').value, sex: $('#pr-sex').value, birthday: $('#pr-bday').value,
+        pub_location: $('#pr-pl').checked, pub_sex: $('#pr-ps').checked, pub_birthday: $('#pr-pb').value
+      });
+      toast.success('Profile saved');
+    }catch(e){}
+  };
+  $('#rr-set').onclick=async()=>{
+    const rid=parseInt($('#rr-room').value||'0',10); const role=$('#rr-role').value;
+    if(!rid) return toast.warn('Enter room_id');
+    try{ await api.post('user_admin.php?action=set_room_role',{ user_id:u.id, room_id:rid, role }); toast.success('Role set'); }catch(e){}
+  };
+  $('#rr-remove').onclick=async()=>{
+    const rid=parseInt($('#rr-room').value||'0',10); if(!rid) return toast.warn('Enter room_id');
+    try{ await api.post('user_admin.php?action=remove_room_role',{ user_id:u.id, room_id:rid }); toast.success('Role removed'); }catch(e){}
+  };
+
+  // Moderation
+  const kick = document.getElementById('md-kick'), ban = document.getElementById('md-ban'), unban = document.getElementById('md-unban');
+  if(kick){ kick.onclick=async()=>{ try{ await api.post('moderation_admin.php',{action:'kick', username: u.username}); toast.success('Kicked'); }catch(e){} }; }
+  if(ban){ ban.onclick=async()=>{ try{ await api.post('moderation_admin.php',{action:'ban', username: u.username, days: parseInt(document.getElementById('md-days').value||'0',10)||null, reason: document.getElementById('md-reason').value||'' }); toast.success('Banned'); }catch(e){} }; }
+  if(unban){ unban.onclick=async()=>{ try{ await api.post('moderation_admin.php',{action:'unban', username: u.username}); toast.success('Unbanned'); }catch(e){} }; }
+
+  // Permissions: disable inputs if read-only
+  ro(readOnly);
+}
+
+document.getElementById('load').onclick=async()=>{
+  const u = document.getElementById('search').value.trim().replace(/^@/,''); if(!u) return toast.warn('Enter a username');
+  try{ await loadUser(u); }catch(e){}
+};
+
+(async()=>{
+  const d=await me(); const meUser = d.user||{};
+  if(!(meUser.is_chat_admin||meUser.is_admin||meUser.is_super_admin)){
+    toast.error('Forbidden'); setTimeout(()=>location.href='index.html', 800); return;
+  }
+  readOnly = !!(meUser.is_chat_admin && !meUser.is_admin && !meUser.is_super_admin);
+  await 0;
+})();
+</script>
+</body>
+</html>
