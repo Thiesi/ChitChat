@@ -40,8 +40,8 @@ final readonly class Config
             throw new InvalidArgumentException('LOGIN_LOCK_MINUTES must be at least 1.');
         }
 
-        if ($this->presenceLeaseSeconds < 15 || $this->presenceLeaseSeconds > 300) {
-            throw new InvalidArgumentException('PRESENCE_LEASE_SECONDS must be between 15 and 300.');
+        if ($this->presenceLeaseSeconds < 30 || $this->presenceLeaseSeconds > 300) {
+            throw new InvalidArgumentException('PRESENCE_LEASE_SECONDS must be between 30 and 300.');
         }
 
         if ($this->inactivityWarningSeconds < 10 || $this->inactivityWarningSeconds > 3600) {
