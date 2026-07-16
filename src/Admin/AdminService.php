@@ -150,30 +150,35 @@ SQL);
             }
         }
 
-        $target = $this->users->findAuthenticatedById($targetUserId);
-        if ($target === null) {
-            throw new ApiException(404, 'user_not_found', 'Target user not found.');
-        }
-        if ($target->hasRole('super_admin') && !$actor->hasRole('super_admin')) {
-            throw new ApiException(403, 'forbidden', 'Only a Super-Administrator may manage another Super-Administrator.');
-        }
-
-        $changesSuperAdmin = in_array('super_admin', $roles, true) !== $target->hasRole('super_admin');
-        if ($changesSuperAdmin && !$actor->hasRole('super_admin')) {
-            throw new ApiException(403, 'forbidden', 'Only a Super-Administrator may grant or revoke that role.');
-        }
-        if ($target->hasRole('super_admin') && !in_array('super_admin', $roles, true)) {
-            $count = $this->pdo->query("SELECT COUNT(*) FROM user_roles WHERE role = 'super_admin'");
-            if ($count === false) {
-                throw new RuntimeException('Unable to count Super-Administrators.');
-            }
-            if ((int) $count->fetchColumn() <= 1) {
-                throw new ApiException(409, 'last_super_admin', 'The final Super-Administrator role cannot be removed.');
-            }
-        }
-
         $this->pdo->beginTransaction();
         try {
+            $lock = $this->pdo->query('SELECT id FROM system_settings WHERE id = 1 FOR UPDATE');
+            if ($lock === false || $lock->fetchColumn() === false) {
+                throw new RuntimeException('Unable to serialize global role changes.');
+            }
+
+            $target = $this->users->findAuthenticatedById($targetUserId);
+            if ($target === null) {
+                throw new ApiException(404, 'user_not_found', 'Target user not found.');
+            }
+            if ($target->hasRole('super_admin') && !$actor->hasRole('super_admin')) {
+                throw new ApiException(403, 'forbidden', 'Only a Super-Administrator may manage another Super-Administrator.');
+            }
+
+            $changesSuperAdmin = in_array('super_admin', $roles, true) !== $target->hasRole('super_admin');
+            if ($changesSuperAdmin && !$actor->hasRole('super_admin')) {
+                throw new ApiException(403, 'forbidden', 'Only a Super-Administrator may grant or revoke that role.');
+            }
+            if ($target->hasRole('super_admin') && !in_array('super_admin', $roles, true)) {
+                $count = $this->pdo->query("SELECT COUNT(*) FROM user_roles WHERE role = 'super_admin'");
+                if ($count === false) {
+                    throw new RuntimeException('Unable to count Super-Administrators.');
+                }
+                if ((int) $count->fetchColumn() <= 1) {
+                    throw new ApiException(409, 'last_super_admin', 'The final Super-Administrator role cannot be removed.');
+                }
+            }
+
             $delete = $this->pdo->prepare('DELETE FROM user_roles WHERE user_id = :user_id');
             if ($delete === false) {
                 throw new RuntimeException('Unable to prepare role replacement.');
