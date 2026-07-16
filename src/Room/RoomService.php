@@ -24,7 +24,7 @@ final class RoomService
         $this->audit = new AuditLogger($pdo);
     }
 
-    /** @return list<array{id:int, key:string, name:string, info_line:string, visibility:string, minimum_age:int, created_by:int, member_role:?string, invited:bool}> */
+    /** @return list<array{id:int, key:string, name:string, info_line:string, visibility:string, minimum_age:int, inactivity_timeout_seconds:int, created_by:int, member_role:?string, invited:bool}> */
     public function list(AuthenticatedUser $actor): array
     {
         $includeAll = RoomAuthorization::canModerateAnyRoom($actor);
@@ -48,6 +48,7 @@ final class RoomService
         string $infoInput,
         string $visibility,
         int $minimumAge,
+        int $inactivityTimeoutSeconds,
         string $ipAddress,
     ): Room {
         RoomAuthorization::requireCreate($actor);
@@ -56,12 +57,29 @@ final class RoomService
         $info = $this->validateInfo($infoInput);
         $visibility = $this->validateVisibility($visibility);
         $minimumAge = $this->validateMinimumAge($minimumAge);
+        $inactivityTimeoutSeconds = $this->validateInactivityTimeout($inactivityTimeoutSeconds);
 
         $this->pdo->beginTransaction();
         try {
             $statement = $this->pdo->prepare(<<<'SQL'
-INSERT INTO rooms (room_key, name, info_line, visibility, minimum_age, created_by)
-VALUES (:room_key, :name, :info_line, :visibility, :minimum_age, :created_by)
+INSERT INTO rooms (
+    room_key,
+    name,
+    info_line,
+    visibility,
+    minimum_age,
+    inactivity_timeout_seconds,
+    created_by
+)
+VALUES (
+    :room_key,
+    :name,
+    :info_line,
+    :visibility,
+    :minimum_age,
+    :inactivity_timeout_seconds,
+    :created_by
+)
 RETURNING id
 SQL);
             if ($statement === false) {
@@ -73,6 +91,7 @@ SQL);
                 'info_line' => $info,
                 'visibility' => $visibility,
                 'minimum_age' => $minimumAge,
+                'inactivity_timeout_seconds' => $inactivityTimeoutSeconds,
                 'created_by' => $actor->id,
             ]);
             $roomIdValue = $statement->fetchColumn();
@@ -94,7 +113,12 @@ SQL);
                 'room.create',
                 'room',
                 (string) $roomId,
-                ['key' => $key, 'visibility' => $visibility, 'minimum_age' => $minimumAge],
+                [
+                    'key' => $key,
+                    'visibility' => $visibility,
+                    'minimum_age' => $minimumAge,
+                    'inactivity_timeout_seconds' => $inactivityTimeoutSeconds,
+                ],
                 $ipAddress,
             );
             $this->pdo->commit();
@@ -193,6 +217,7 @@ SQL);
         string $infoInput,
         string $visibility,
         int $minimumAge,
+        int $inactivityTimeoutSeconds,
         string $ipAddress,
     ): Room {
         $room = $this->requireRoom($actor, $roomId);
@@ -201,6 +226,7 @@ SQL);
         $info = $this->validateInfo($infoInput);
         $visibility = $this->validateVisibility($visibility);
         $minimumAge = $this->validateMinimumAge($minimumAge);
+        $inactivityTimeoutSeconds = $this->validateInactivityTimeout($inactivityTimeoutSeconds);
 
         $statement = $this->pdo->prepare(<<<'SQL'
 UPDATE rooms
@@ -208,6 +234,7 @@ SET name = :name,
     info_line = :info_line,
     visibility = :visibility,
     minimum_age = :minimum_age,
+    inactivity_timeout_seconds = :inactivity_timeout_seconds,
     updated_at = NOW()
 WHERE id = :room_id AND deleted_at IS NULL
 SQL);
@@ -219,6 +246,7 @@ SQL);
             'info_line' => $info,
             'visibility' => $visibility,
             'minimum_age' => $minimumAge,
+            'inactivity_timeout_seconds' => $inactivityTimeoutSeconds,
             'room_id' => $roomId,
         ]);
 
@@ -227,7 +255,11 @@ SQL);
             'room.update',
             'room',
             (string) $roomId,
-            ['visibility' => $visibility, 'minimum_age' => $minimumAge],
+            [
+                'visibility' => $visibility,
+                'minimum_age' => $minimumAge,
+                'inactivity_timeout_seconds' => $inactivityTimeoutSeconds,
+            ],
             $ipAddress,
         );
 
@@ -398,6 +430,19 @@ SQL);
         }
 
         return $minimumAge;
+    }
+
+    private function validateInactivityTimeout(int $seconds): int
+    {
+        if ($seconds !== 0 && ($seconds < 120 || $seconds > 86400)) {
+            throw new ApiException(
+                400,
+                'invalid_inactivity_timeout',
+                'inactivity_timeout_seconds must be 0 or between 120 and 86400.',
+            );
+        }
+
+        return $seconds;
     }
 
     private function rollBack(): void
