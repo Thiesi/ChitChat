@@ -5,13 +5,19 @@ declare(strict_types=1);
 namespace ChitChat\Tests\Unit;
 
 use ChitChat\Config;
+use InvalidArgumentException;
 use PHPUnit\Framework\TestCase;
 
 final class ConfigTest extends TestCase
 {
     protected function tearDown(): void
     {
-        foreach (['APP_DEBUG', 'DB_PORT'] as $name) {
+        foreach ([
+            'APP_DEBUG',
+            'DB_PORT',
+            'PRESENCE_LEASE_SECONDS',
+            'INACTIVITY_WARNING_SECONDS',
+        ] as $name) {
             putenv($name);
             unset($_ENV[$name], $_SERVER[$name]);
         }
@@ -23,6 +29,8 @@ final class ConfigTest extends TestCase
 
         self::assertSame('ChitChat', $config->applicationName);
         self::assertSame(5432, $config->databasePort);
+        self::assertSame(45, $config->presenceLeaseSeconds);
+        self::assertSame(60, $config->inactivityWarningSeconds);
     }
 
     public function testBooleanEnvironmentValuesAreParsed(): void
@@ -30,5 +38,14 @@ final class ConfigTest extends TestCase
         putenv('APP_DEBUG=yes');
 
         self::assertTrue(Config::fromEnvironment()->debug);
+    }
+
+    public function testPresenceLeaseRangeIsValidated(): void
+    {
+        putenv('PRESENCE_LEASE_SECONDS=10');
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('PRESENCE_LEASE_SECONDS');
+        Config::fromEnvironment();
     }
 }
