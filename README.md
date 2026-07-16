@@ -6,7 +6,7 @@ ChitChat is being reconstructed as a small, self-hosted browser chat application
 
 The former `v0.10.25` source snapshot is incomplete and is not considered runnable or production-ready. It is preserved on the `legacy/v0.10.25` branch for reference.
 
-Development of the new application takes place on `agent/reconstruction-v1` until the v1 foundation is ready to merge.
+The clean v1 foundation is now on `main`. Feature work is developed on reviewable branches and merged through CI-backed pull requests.
 
 ## v1 architecture
 
@@ -23,17 +23,23 @@ The architectural decisions are recorded in [`docs/architecture/`](docs/architec
 
 ## Current milestone
 
-This branch currently provides the application skeleton:
+The application currently provides:
 
 - environment-based configuration;
-- PDO connection handling;
 - PostgreSQL migrations;
 - health and readiness endpoints;
-- PHPUnit and PHPStan configuration;
-- CI against PostgreSQL.
+- user registration and case-insensitive login;
+- atomic first-user Super-Administrator promotion;
+- secure session cookies and CSRF protection;
+- password changes and administrator password resets;
+- database-backed login throttling;
+- kicks, temporary or indefinite bans, and unbans;
+- session-version invalidation for active sessions;
+- audit records for sensitive account actions;
+- PHPUnit, PHPStan, and PostgreSQL-backed CI.
 
-Authentication and chat functionality are intentionally not present yet.
+Room chat and realtime message delivery remain the next major milestones.
 
 ## Development
 
-See [INSTALL.md](INSTALL.md).
+See [INSTALL.md](INSTALL.md). The authentication API is documented in [docs/api/authentication.md](docs/api/authentication.md).
