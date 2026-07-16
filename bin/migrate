@@ -27,6 +27,11 @@ sort($migrations, SORT_STRING);
 $appliedStatement = $pdo->prepare('SELECT 1 FROM schema_migrations WHERE version = :version');
 $recordStatement = $pdo->prepare('INSERT INTO schema_migrations (version) VALUES (:version)');
 
+if ($appliedStatement === false || $recordStatement === false) {
+    fwrite(STDERR, "Unable to prepare migration statements.\n");
+    exit(1);
+}
+
 foreach ($migrations as $migration) {
     $version = basename($migration);
     $appliedStatement->execute(['version' => $version]);
