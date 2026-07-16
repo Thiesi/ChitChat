@@ -1,7 +1,6 @@
 <?php
 
 declare(strict_types=1);
-
 /** @var ChitChat\Config $config */
 $config = require dirname(__DIR__) . '/bootstrap/app.php';
 $appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
@@ -102,11 +101,23 @@ $appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUT
 
       <div id="composer-wrap" class="composer-wrap hidden">
         <form id="composer-form" class="composer">
-          <label class="visually-hidden" for="composer-input">Message</label>
-          <textarea id="composer-input" name="message" maxlength="4000" rows="2" placeholder="Write a message…" required></textarea>
+          <div class="attachment-picker">
+            <label class="secondary-button attachment-button" for="attachment-input">Attach file</label>
+            <input
+              id="attachment-input"
+              class="visually-hidden"
+              name="file"
+              type="file"
+              accept="image/jpeg,image/png,image/gif,image/webp,application/pdf,text/plain,text/csv,application/json,application/zip"
+            >
+            <span id="attachment-name" class="attachment-name" aria-live="polite"></span>
+            <button id="attachment-clear" class="secondary-button hidden" type="button">Remove</button>
+          </div>
+          <label class="visually-hidden" for="composer-input">Message or attachment caption</label>
+          <textarea id="composer-input" name="message" maxlength="4000" rows="2" placeholder="Write a message…"></textarea>
           <button id="send-button" class="primary-button" type="submit">Send</button>
         </form>
-        <p class="composer-help">Enter sends · Shift+Enter adds a line · Commands: <code>/me</code>, <code>/ping username</code></p>
+        <p class="composer-help">Enter sends · Shift+Enter adds a line · Attachments may include an optional caption · Commands: <code>/me</code>, <code>/ping username</code></p>
       </div>
     </section>
   </main>
