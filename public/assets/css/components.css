@@ -51,6 +51,52 @@ select:focus {
   line-height: 1;
 }
 
+.presence-panel {
+  border-top: 1px solid var(--border);
+  padding-bottom: 0.75rem;
+}
+
+.presence-list {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0 1rem;
+  list-style: none;
+}
+
+.presence-user {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  color: var(--text);
+  font-size: 0.86rem;
+}
+
+.presence-user::before {
+  width: 0.5rem;
+  height: 0.5rem;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--success);
+  content: "";
+}
+
+.presence-name {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.presence-idle {
+  color: var(--muted);
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+
 .room-header {
   grid-row: 1;
 }
@@ -102,4 +148,10 @@ code {
 
 #load-older-button {
   align-self: center;
+}
+
+@media (max-width: 34rem) {
+  .presence-panel {
+    display: none;
+  }
 }
