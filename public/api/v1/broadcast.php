@@ -22,10 +22,11 @@ Endpoint::run($config, static function () use ($config): ApiResult {
     $service = new BroadcastService($pdo);
     $roomId = Request::optionalInteger($payload, 'room_id');
     $message = Request::string($payload, 'message');
+    $ipAddress = Request::clientIp();
 
     $event = $roomId === null
-        ? $service->global($actor, $message)
-        : $service->room($actor, $roomId, $message);
+        ? $service->global($actor, $message, $ipAddress)
+        : $service->room($actor, $roomId, $message, $ipAddress);
 
     return ApiResult::created(['event' => $event->toArray()]);
 });
