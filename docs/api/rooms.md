@@ -146,7 +146,11 @@ Requires room membership.
 }
 ```
 
-Messages may contain up to 4000 characters. `/me waves` creates an `emote` message with body `waves`. Other slash commands are rejected until their corresponding features exist.
+Messages may contain up to 4000 characters. `/me waves` creates an `emote` message with body `waves`.
+
+`/ping Alice please look` does not create a persistent room message. It creates a targeted realtime event for Alice, who must currently be a member of the same room. The optional ping text may contain up to 500 characters. The sender cannot ping themselves.
+
+Successful ordinary sends return a `message` object. Successful `/ping` commands return a `ping` event object. Other slash commands are rejected.
 
 ### `POST /api/v1/rooms/delete-message.php`
 
@@ -158,4 +162,4 @@ Requires a room owner, room moderator, or global room moderation role.
 }
 ```
 
-Deletion is soft and is recorded in the audit log.
+Deletion is soft, is recorded in the audit log, and emits a `message_deleted` realtime event to current room subscribers.
