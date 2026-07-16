@@ -25,7 +25,7 @@ final class UserRepository
 
         $statement->execute(['username' => $canonical]);
         $row = $statement->fetch();
-        if ($row === false) {
+        if (!is_array($row)) {
             return null;
         }
 
@@ -49,7 +49,7 @@ final class UserRepository
 
         $statement->execute(['id' => $userId]);
         $row = $statement->fetch();
-        if ($row === false) {
+        if (!is_array($row)) {
             return null;
         }
 
@@ -70,7 +70,7 @@ final class UserRepository
 
         $statement->execute(['id' => $userId]);
         $row = $statement->fetch();
-        if ($row === false) {
+        if (!is_array($row)) {
             return null;
         }
 
@@ -115,7 +115,7 @@ SQL);
 
         $statement->execute(['id' => $userId]);
         $row = $statement->fetch();
-        if ($row === false) {
+        if (!is_array($row)) {
             return null;
         }
 
