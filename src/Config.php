@@ -8,6 +8,7 @@ use InvalidArgumentException;
 
 final readonly class Config
 {
+    /** @param 'Lax'|'Strict'|'None' $sessionCookieSameSite */
     public function __construct(
         public string $environment,
         public bool $debug,
@@ -19,14 +20,31 @@ final readonly class Config
         public string $databaseUser,
         public string $databasePassword,
         public string $databaseSslMode,
+        public string $sessionName,
+        public bool $sessionCookieSecure,
+        public string $sessionCookieSameSite,
+        public int $loginMaxAttempts,
+        public int $loginLockMinutes,
     ) {
         if ($this->databasePort < 1 || $this->databasePort > 65535) {
             throw new InvalidArgumentException('DB_PORT must be between 1 and 65535.');
         }
 
-        foreach ([$this->databaseHost, $this->databaseName, $this->databaseUser] as $required) {
+        if ($this->loginMaxAttempts < 1) {
+            throw new InvalidArgumentException('LOGIN_MAX_ATTEMPTS must be at least 1.');
+        }
+
+        if ($this->loginLockMinutes < 1) {
+            throw new InvalidArgumentException('LOGIN_LOCK_MINUTES must be at least 1.');
+        }
+
+        if ($this->sessionCookieSameSite === 'None' && !$this->sessionCookieSecure) {
+            throw new InvalidArgumentException('SameSite=None requires a secure session cookie.');
+        }
+
+        foreach ([$this->databaseHost, $this->databaseName, $this->databaseUser, $this->sessionName] as $required) {
             if ($required === '') {
-                throw new InvalidArgumentException('Required database configuration is missing.');
+                throw new InvalidArgumentException('Required application configuration is missing.');
             }
         }
     }
@@ -44,6 +62,11 @@ final readonly class Config
             databaseUser: self::env('DB_USER', 'chitchat'),
             databasePassword: self::env('DB_PASSWORD', ''),
             databaseSslMode: self::env('DB_SSLMODE', 'prefer'),
+            sessionName: self::env('SESSION_NAME', 'CHITCHATSESSID'),
+            sessionCookieSecure: self::envBool('SESSION_COOKIE_SECURE', true),
+            sessionCookieSameSite: self::envSameSite('SESSION_COOKIE_SAMESITE', 'Lax'),
+            loginMaxAttempts: self::envInt('LOGIN_MAX_ATTEMPTS', 10),
+            loginLockMinutes: self::envInt('LOGIN_LOCK_MINUTES', 15),
         );
     }
 
@@ -118,5 +141,16 @@ final readonly class Config
             '0', 'false', 'no', 'off' => false,
             default => throw new InvalidArgumentException($name . ' must be a boolean value.'),
         };
+    }
+
+    /** @return 'Lax'|'Strict'|'None' */
+    private static function envSameSite(string $name, string $default): string
+    {
+        $value = ucfirst(strtolower(self::env($name, $default)));
+        if (!in_array($value, ['Lax', 'Strict', 'None'], true)) {
+            throw new InvalidArgumentException($name . ' must be Lax, Strict, or None.');
+        }
+
+        return $value;
     }
 }

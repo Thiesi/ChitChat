@@ -11,7 +11,34 @@ permissions:
   contents: read
 
 jobs:
-  test:
+  static:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, pdo_pgsql
+          coverage: none
+          tools: composer:v2
+
+      - run: composer install --no-interaction --prefer-dist
+      - run: composer lint
+      - name: Run PHPStan
+        run: |
+          set -o pipefail
+          composer analyse -- --error-format=raw 2>&1 | tee phpstan-output.txt
+      - name: Upload PHPStan diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phpstan-output
+          path: phpstan-output.txt
+          retention-days: 7
+
+  integration:
     runs-on: ubuntu-latest
 
     services:
@@ -45,12 +72,10 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
-          extensions: pdo_pgsql
+          extensions: mbstring, pdo_pgsql
           coverage: none
           tools: composer:v2
 
       - run: composer install --no-interaction --prefer-dist
-      - run: composer lint
       - run: composer migrate
       - run: composer test
-      - run: composer analyse
