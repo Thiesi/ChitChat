@@ -8,6 +8,7 @@ use InvalidArgumentException;
 
 final readonly class Config
 {
+    /** @param 'Lax'|'Strict'|'None' $sessionCookieSameSite */
     public function __construct(
         public string $environment,
         public bool $debug,
@@ -146,9 +147,14 @@ final readonly class Config
         };
     }
 
+    /** @return 'Lax'|'Strict'|'None' */
     private static function envSameSite(string $name, string $default): string
     {
-        $value = self::env($name, $default);
-        return ucfirst(strtolower($value));
+        $value = ucfirst(strtolower(self::env($name, $default)));
+        if (!in_array($value, ['Lax', 'Strict', 'None'], true)) {
+            throw new InvalidArgumentException($name . ' must be Lax, Strict, or None.');
+        }
+
+        return $value;
     }
 }
