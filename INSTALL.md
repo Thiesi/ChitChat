@@ -56,7 +56,16 @@ The first successfully registered account is promoted to `super_admin` inside th
 
 - `/health.php` reports whether the PHP process is alive.
 - `/ready.php` verifies that the application can connect to PostgreSQL.
-- Authentication and account-control endpoints are documented in `docs/api/authentication.md`.
+- `/api/v1/events/stream.php` provides the authenticated SSE stream.
+- API contracts are documented in `docs/api/`.
+
+## Server-Sent Events
+
+The SSE endpoint holds each connection for approximately 25 seconds and then lets the client reconnect with its last event ID. The reverse proxy timeout must therefore exceed 25 seconds.
+
+Response buffering must be disabled for `/api/v1/events/stream.php`. The application sends `X-Accel-Buffering: no`, but the proxy configuration must also avoid buffering or caching the stream. The endpoint releases the PHP session lock before polling, allowing concurrent requests from the same login session.
+
+Capacity planning must account for one PHP worker per currently open SSE request. The short reconnect window bounds worker lifetime but does not remove that concurrency requirement.
 
 ## Production web-root rule
 
@@ -70,4 +79,4 @@ Use HTTPS, set `SESSION_COOKIE_SECURE=1`, and leave `SESSION_COOKIE_SAMESITE=Lax
 composer check
 ```
 
-The integration suite expects a migrated PostgreSQL database described by the current environment variables. It clears authentication-related tables between tests and must never be pointed at a database containing valuable data.
+The integration suite expects a migrated PostgreSQL database described by the current environment variables. It clears application tables between tests and must never be pointed at a database containing valuable data.

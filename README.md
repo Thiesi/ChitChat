@@ -38,12 +38,15 @@ The application currently provides:
 - public, unlisted, and invitation-only private rooms;
 - room owners, moderators, members, and minimum-age enforcement;
 - persistent room-message history with pagination;
-- text and `/me` messages;
+- text, `/me`, and targeted `/ping` commands;
+- database-backed ordered realtime events and SSE cursor reconnection;
+- room and global broadcasts;
+- forced-disconnect event delivery for account-control actions;
 - audited soft deletion of messages by authorized moderators;
 - audit records for sensitive account and room actions;
 - PHPUnit, PHPStan, and PostgreSQL-backed CI.
 
-Realtime delivery, `/ping`, attachments, direct messages, and the browser chat interface remain future milestones.
+Attachments, direct messages, presence, and the browser chat interface remain future milestones.
 
 ## Development
 

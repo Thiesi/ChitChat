@@ -78,4 +78,14 @@ jobs:
 
       - run: composer install --no-interaction --prefer-dist
       - run: composer migrate
-      - run: composer test
+      - name: Run PHPUnit
+        run: |
+          set -o pipefail
+          composer test 2>&1 | tee phpunit-output.txt
+      - name: Upload PHPUnit diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phpunit-output
+          path: phpunit-output.txt
+          retention-days: 7

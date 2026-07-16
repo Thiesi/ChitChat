@@ -8,6 +8,8 @@ use ChitChat\Database;
 use ChitChat\Http\ApiResult;
 use ChitChat\Http\Endpoint;
 use ChitChat\Http\Request;
+use ChitChat\Realtime\PingCommand;
+use ChitChat\Realtime\PingService;
 use ChitChat\Room\MessageService;
 
 /** @var ChitChat\Config $config */
@@ -19,11 +21,22 @@ Endpoint::run($config, static function () use ($config): ApiResult {
     $payload = Request::json();
     $pdo = Database::connect($config);
     $actor = SessionManager::requireUser(new UserRepository($pdo));
-    $message = (new MessageService($pdo))->send(
-        $actor,
-        Request::integer($payload, 'room_id'),
-        Request::string($payload, 'body'),
-    );
+    $roomId = Request::integer($payload, 'room_id');
+    $body = Request::string($payload, 'body');
+    $ping = PingCommand::parse($body);
+
+    if ($ping !== null) {
+        $event = (new PingService($pdo))->send(
+            $actor,
+            $roomId,
+            $ping['username'],
+            $ping['message'],
+        );
+
+        return ApiResult::created(['ping' => $event->toArray()]);
+    }
+
+    $message = (new MessageService($pdo))->send($actor, $roomId, $body);
 
     return ApiResult::created(['message' => $message]);
 });
