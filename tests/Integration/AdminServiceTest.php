@@ -90,6 +90,28 @@ final class AdminServiceTest extends DatabaseTestCase
         self::assertTrue($root->hasRole('super_admin'));
     }
 
+    public function testStaleAdministrativeSessionCannotChangeRoles(): void
+    {
+        $auth = new AuthService($this->pdo, $this->config);
+        $root = $auth->register('Root', 'a very secure password', '127.0.0.1');
+        $target = $auth->register('Target', 'another secure password', '127.0.0.2');
+        $this->pdo->exec("UPDATE users SET session_version = session_version + 1 WHERE id = {$root->id}");
+
+        try {
+            (new AdminService($this->pdo))->setRoles(
+                $root,
+                $target->id,
+                ['admin'],
+                '127.0.0.1',
+            );
+            self::fail('Expected stale administrative session rejection.');
+        } catch (ApiException $exception) {
+            self::assertSame('authentication_required', $exception->errorCode);
+        }
+
+        self::assertSame([], (new UserRepository($this->pdo))->rolesForUser($target->id));
+    }
+
     public function testUserSearchAndAuditPaginationAreBounded(): void
     {
         $auth = new AuthService($this->pdo, $this->config);
