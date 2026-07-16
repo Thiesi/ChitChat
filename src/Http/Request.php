@@ -82,6 +82,17 @@ final class Request
         return $value;
     }
 
+    /** @param array<string, mixed> $payload */
+    public static function boolean(array $payload, string $key): bool
+    {
+        $value = $payload[$key] ?? null;
+        if (!is_bool($value)) {
+            throw new ApiException(400, 'validation_error', $key . ' must be a boolean.');
+        }
+
+        return $value;
+    }
+
     public static function queryInteger(string $key): int
     {
         $value = $_GET[$key] ?? null;
