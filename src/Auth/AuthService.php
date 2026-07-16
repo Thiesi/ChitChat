@@ -25,10 +25,15 @@ final class AuthService
         $this->audit = new AuditLogger($pdo);
     }
 
-    public function register(string $usernameInput, string $password, string $ipAddress): AuthenticatedUser
-    {
+    public function register(
+        string $usernameInput,
+        string $password,
+        string $ipAddress,
+        ?string $birthDate = null,
+    ): AuthenticatedUser {
         $username = Username::display($usernameInput);
         $canonical = Username::canonical($usernameInput);
+        $normalizedBirthDate = BirthDate::normalize($birthDate);
         PasswordPolicy::validate($password, $username);
 
         $userId = null;
@@ -58,8 +63,8 @@ final class AuthService
             $isFirstUser = (int) $countResult->fetchColumn() === 0;
 
             $statement = $this->pdo->prepare(<<<'SQL'
-INSERT INTO users (username, username_canonical, password_hash)
-VALUES (:username, :canonical, :password_hash)
+INSERT INTO users (username, username_canonical, password_hash, birth_date)
+VALUES (:username, :canonical, :password_hash, :birth_date)
 RETURNING id
 SQL);
             if ($statement === false) {
@@ -70,6 +75,7 @@ SQL);
                 'username' => $username,
                 'canonical' => $canonical,
                 'password_hash' => password_hash($password, PASSWORD_DEFAULT),
+                'birth_date' => $normalizedBirthDate,
             ]);
 
             $insertedId = $statement->fetchColumn();

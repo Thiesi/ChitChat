@@ -37,9 +37,12 @@ Send the token in the `X-CSRF-Token` header for every POST endpoint below.
 ```json
 {
   "username": "Alice",
-  "password": "correct horse battery staple"
+  "password": "correct horse battery staple",
+  "birth_date": "1990-05-12"
 }
 ```
+
+`birth_date` is optional. When supplied, it uses `YYYY-MM-DD`, cannot be in the future, and is used to enforce room minimum ages.
 
 Usernames are 3-32 ASCII characters. They begin with a letter or number and may additionally contain `.`, `_`, and `-`. Uniqueness is case-insensitive.
 

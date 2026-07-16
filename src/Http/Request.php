@@ -43,6 +43,64 @@ final class Request
         return $value;
     }
 
+    /** @param array<string, mixed> $payload */
+    public static function optionalString(array $payload, string $key): ?string
+    {
+        $value = $payload[$key] ?? null;
+        if ($value === null) {
+            return null;
+        }
+        if (!is_string($value)) {
+            throw new ApiException(400, 'validation_error', $key . ' must be a string or null.');
+        }
+
+        return $value;
+    }
+
+    /** @param array<string, mixed> $payload */
+    public static function integer(array $payload, string $key): int
+    {
+        $value = $payload[$key] ?? null;
+        if (!is_int($value)) {
+            throw new ApiException(400, 'validation_error', $key . ' must be an integer.');
+        }
+
+        return $value;
+    }
+
+    /** @param array<string, mixed> $payload */
+    public static function optionalInteger(array $payload, string $key): ?int
+    {
+        $value = $payload[$key] ?? null;
+        if ($value === null) {
+            return null;
+        }
+        if (!is_int($value)) {
+            throw new ApiException(400, 'validation_error', $key . ' must be an integer or null.');
+        }
+
+        return $value;
+    }
+
+    public static function queryInteger(string $key): int
+    {
+        $value = $_GET[$key] ?? null;
+        if (!is_string($value) || filter_var($value, FILTER_VALIDATE_INT) === false) {
+            throw new ApiException(400, 'validation_error', $key . ' must be an integer query parameter.');
+        }
+
+        return (int) $value;
+    }
+
+    public static function optionalQueryInteger(string $key): ?int
+    {
+        if (!array_key_exists($key, $_GET)) {
+            return null;
+        }
+
+        return self::queryInteger($key);
+    }
+
     public static function csrfHeader(): string
     {
         return trim((string) ($_SERVER['HTTP_X_CSRF_TOKEN'] ?? ''));
