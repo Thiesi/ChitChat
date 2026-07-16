@@ -157,6 +157,17 @@ SQL);
                 throw new RuntimeException('Unable to serialize global role changes.');
             }
 
+            $currentActor = $this->users->findAuthenticatedById($actor->id);
+            if (
+                $currentActor === null
+                || $currentActor->sessionVersion !== $actor->sessionVersion
+                || !$currentActor->canManageUsers()
+                || $this->users->activeBan($actor->id) !== null
+            ) {
+                throw new ApiException(401, 'authentication_required', 'Your administrative session is no longer valid.');
+            }
+            $actor = $currentActor;
+
             $target = $this->users->findAuthenticatedById($targetUserId);
             if ($target === null) {
                 throw new ApiException(404, 'user_not_found', 'Target user not found.');
