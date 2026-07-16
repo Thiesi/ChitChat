@@ -43,7 +43,7 @@ The deployed browser client has no Node.js runtime dependency and uses no npm pa
 
 8. Open `http://127.0.0.1:8080/`.
 
-The first account created through the browser becomes Super-Administrator. That account can use the **+** button beside the room list to create the first room.
+The first account created through the browser becomes Super-Administrator. That account can use the **+** button beside the room list to create the first room and the **Administration** link for user, room, and audit management.
 
 ## Authentication bootstrap
 
@@ -59,7 +59,8 @@ The first successfully registered account is promoted to `super_admin` inside th
 
 ## Endpoints
 
-- `/` serves the browser client.
+- `/` serves the browser chat client.
+- `/admin.php` serves the permission-aware administration console.
 - `/health.php` reports whether the PHP process is alive.
 - `/ready.php` verifies that the application can connect to PostgreSQL.
 - `/api/v1/events/stream.php` provides the authenticated SSE stream.
@@ -82,6 +83,12 @@ Each browser tab uses a distinct UUID and renews its lease every 20 seconds. `PR
 Presence is distinct from room membership. Lease expiry, an unclean disconnect, or room inactivity removes the tab from the active-user list but does not remove the account's persistent room membership or room role.
 
 Presence heartbeats and room-presence reads remove stale leases and emit invalidation events. Because every active browser already sends heartbeats, the initial single-server deployment does not require a cron job or extra cleanup work in each SSE worker. A future horizontally scaled deployment may move cleanup into a dedicated worker.
+
+## Administration
+
+The console is not a privileged server-side bypass. It uses the same authenticated JSON endpoints and CSRF requirements as any other client. User and audit controls are visible only to Super-Administrators and Administrators. Room controls are visible to Super-Administrators, Administrators, Chat Admins, and owners of the selected room.
+
+Global role changes, kicks, bans, and administrator password resets invalidate active sessions. Sensitive actions are written to the audit log.
 
 ## Production web-root rule
 
