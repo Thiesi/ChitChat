@@ -20,7 +20,7 @@ abstract class DatabaseTestCase extends TestCase
         $this->config = Config::fromEnvironment();
         $this->pdo = Database::connect($this->config);
         $this->pdo->exec(
-            'TRUNCATE TABLE room_messages, room_invitations, room_members, rooms, audit_log, user_bans, login_attempts, user_roles, users RESTART IDENTITY CASCADE',
+            'TRUNCATE TABLE room_presence, realtime_events, room_messages, room_invitations, room_members, rooms, audit_log, user_bans, login_attempts, user_roles, users RESTART IDENTITY CASCADE',
         );
         $this->pdo->exec('UPDATE system_settings SET registration_enabled = TRUE WHERE id = 1');
     }
@@ -43,6 +43,8 @@ abstract class DatabaseTestCase extends TestCase
             sessionCookieSameSite: $this->config->sessionCookieSameSite,
             loginMaxAttempts: $attempts,
             loginLockMinutes: $minutes,
+            presenceLeaseSeconds: $this->config->presenceLeaseSeconds,
+            inactivityWarningSeconds: $this->config->inactivityWarningSeconds,
         );
     }
 }
