@@ -51,6 +51,19 @@ select:focus {
   line-height: 1;
 }
 
+.room-header {
+  grid-row: 1;
+}
+
+.empty-state,
+.message-list {
+  grid-row: 2;
+}
+
+.composer-wrap {
+  grid-row: 3;
+}
+
 .room-dialog {
   width: min(32rem, calc(100vw - 2rem));
   padding: 0;
