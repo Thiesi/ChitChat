@@ -74,6 +74,11 @@ $appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUT
       </div>
       <nav id="room-list" class="room-list" aria-label="Chat rooms"></nav>
 
+      <section id="presence-panel" class="presence-panel hidden" aria-labelledby="presence-heading">
+        <h2 id="presence-heading" class="rooms-heading">Online here</h2>
+        <ul id="presence-list" class="presence-list"></ul>
+      </section>
+
       <footer class="sidebar-footer">
         <div class="current-user"><span class="current-user-label">Signed in as </span><strong id="current-user"></strong></div>
         <button id="logout-button" class="secondary-button" type="button">Sign out</button>
@@ -134,6 +139,10 @@ $appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUT
       <label>
         Minimum age
         <input id="room-minimum-age" name="minimum_age" type="number" min="0" max="120" value="0" required>
+      </label>
+      <label>
+        Inactivity timeout in seconds <span class="optional-label">0 disables; minimum 120</span>
+        <input id="room-inactivity-timeout" name="inactivity_timeout_seconds" type="number" min="0" max="86400" step="60" value="0" required>
       </label>
       <p id="room-dialog-error" class="error-text" role="alert"></p>
       <button class="primary-button" type="submit">Create room</button>
