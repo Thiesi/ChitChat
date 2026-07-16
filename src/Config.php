@@ -1,7 +1,6 @@
 <?php
 
 declare(strict_types=1);
-
 namespace ChitChat;
 
 use InvalidArgumentException;
@@ -27,6 +26,8 @@ final readonly class Config
         public int $loginLockMinutes,
         public int $presenceLeaseSeconds,
         public int $inactivityWarningSeconds,
+        public string $attachmentStoragePath,
+        public int $attachmentMaxBytes,
     ) {
         if ($this->databasePort < 1 || $this->databasePort > 65535) {
             throw new InvalidArgumentException('DB_PORT must be between 1 and 65535.');
@@ -46,6 +47,20 @@ final readonly class Config
 
         if ($this->inactivityWarningSeconds < 10 || $this->inactivityWarningSeconds > 3600) {
             throw new InvalidArgumentException('INACTIVITY_WARNING_SECONDS must be between 10 and 3600.');
+        }
+
+        if ($this->attachmentMaxBytes < 1024 || $this->attachmentMaxBytes > 104_857_600) {
+            throw new InvalidArgumentException('ATTACHMENT_MAX_BYTES must be between 1024 and 104857600.');
+        }
+
+        if (!self::isAbsolutePath($this->attachmentStoragePath)) {
+            throw new InvalidArgumentException('ATTACHMENT_STORAGE_PATH must be an absolute path.');
+        }
+
+        $storagePath = self::normalizePath($this->attachmentStoragePath);
+        $publicPath = self::normalizePath(dirname(__DIR__) . '/public');
+        if ($storagePath === $publicPath || str_starts_with($storagePath, $publicPath . '/')) {
+            throw new InvalidArgumentException('ATTACHMENT_STORAGE_PATH must be outside the public web root.');
         }
 
         if ($this->sessionCookieSameSite === 'None' && !$this->sessionCookieSecure) {
@@ -79,6 +94,8 @@ final readonly class Config
             loginLockMinutes: self::envInt('LOGIN_LOCK_MINUTES', 15),
             presenceLeaseSeconds: self::envInt('PRESENCE_LEASE_SECONDS', 45),
             inactivityWarningSeconds: self::envInt('INACTIVITY_WARNING_SECONDS', 60),
+            attachmentStoragePath: self::env('ATTACHMENT_STORAGE_PATH', dirname(__DIR__) . '/var/uploads'),
+            attachmentMaxBytes: self::envInt('ATTACHMENT_MAX_BYTES', 10_485_760),
         );
     }
 
@@ -164,5 +181,17 @@ final readonly class Config
         }
 
         return $value;
+    }
+
+    private static function isAbsolutePath(string $path): bool
+    {
+        return str_starts_with($path, '/')
+            || preg_match('/\A[A-Za-z]:[\\\\\/]/', $path) === 1
+            || str_starts_with($path, '\\\\');
+    }
+
+    private static function normalizePath(string $path): string
+    {
+        return rtrim(str_replace('\\', '/', $path), '/');
     }
 }

@@ -7,7 +7,7 @@ This document applies to the v1 reconstruction. The application is not yet featu
 - PHP 8.2 or newer
 - Composer 2
 - PostgreSQL 15 or newer
-- PHP extensions: `pdo`, `pdo_pgsql`, `json`, `mbstring`
+- PHP extensions: `pdo`, `pdo_pgsql`, `json`, `mbstring`, `fileinfo`
 - Node.js 24 or newer for the CI-equivalent browser JavaScript syntax check
 
 The deployed browser client has no Node.js runtime dependency and uses no npm packages.
@@ -35,13 +35,20 @@ The deployed browser client has no Node.js runtime dependency and uses no npm pa
    composer migrate
    ```
 
-7. Start PHP's built-in server with `public/` as the document root:
+7. Ensure the attachment storage directory is writable by the PHP process. By default ChitChat uses `var/uploads`, which is outside the served `public/` tree:
+
+   ```sh
+   mkdir -p var/uploads
+   chmod 700 var/uploads
+   ```
+
+8. Start PHP's built-in server with `public/` as the document root:
 
    ```sh
    php -S 127.0.0.1:8080 -t public
    ```
 
-8. Open `http://127.0.0.1:8080/`.
+9. Open `http://127.0.0.1:8080/`.
 
 The first account created through the browser becomes Super-Administrator. That account can use the **+** button beside the room list to create the first room and the **Administration** link for user, room, and audit management.
 
@@ -66,6 +73,9 @@ The first successfully registered account is promoted to `super_admin` inside th
 - `/api/v1/events/stream.php` provides the authenticated SSE stream.
 - `/api/v1/presence/heartbeat.php` renews a browser tab's presence lease.
 - `/api/v1/rooms/presence.php` lists active users in an authorized room.
+- `/api/v1/attachments/upload.php` accepts CSRF-protected multipart room uploads.
+- `/api/v1/attachments/download.php` streams an attachment after rechecking room and age authorization.
+- `/api/v1/attachments/metadata.php` returns bounded metadata for attachment cards in visible messages.
 - API contracts are documented in `docs/api/`.
 
 ## Server-Sent Events
@@ -90,6 +100,16 @@ The console is not a privileged server-side bypass. It uses the same authenticat
 
 Global role changes, kicks, bans, and administrator password resets invalidate active sessions. Sensitive actions are written to the audit log.
 
+## Attachments
+
+`ATTACHMENT_STORAGE_PATH` defaults to the repository's absolute `var/uploads` directory. A custom value must be an absolute path outside `public/`. Files are stored with random extensionless keys in two-level shard directories and are never addressed directly by the web server.
+
+`ATTACHMENT_MAX_BYTES` defaults to 10 MiB and accepts values from 1 KiB through 100 MiB. PHP and the reverse proxy must permit at least the same request size. In particular, set `upload_max_filesize` and `post_max_size` to values at or above the configured ChitChat limit, with `post_max_size` slightly larger to allow multipart overhead.
+
+The initial MIME allowlist is deliberately conservative: JPEG, PNG, GIF, WebP, PDF, plain text, CSV, JSON, and ZIP. SVG, HTML, scripts, executables, and unknown binary types are rejected. Only the four raster image formats may be served inline; everything else is forced to download with `nosniff`, a sandboxed content policy, and same-origin resource isolation.
+
+Message deletion immediately marks linked attachment metadata deleted and revokes future downloads. The physical file is retained initially for moderation evidence and later retention cleanup. A process crash between moving a file and committing its database record can leave an orphaned opaque file; automated orphan cleanup is a future operational task.
+
 ## Production web-root rule
 
 The web server document root must be the repository's `public/` directory. Do not expose `src/`, `bootstrap/`, `migrations/`, `.env`, `var/`, or Composer metadata.
@@ -103,4 +123,4 @@ composer check
 find public/assets/js -type f -name '*.js' -print0 | xargs -0 -n1 node --check
 ```
 
-The integration suite expects a migrated PostgreSQL database described by the current environment variables. It clears application tables between tests and must never be pointed at a database containing valuable data.
+The integration suite expects a migrated PostgreSQL database described by the current environment variables. It clears application tables between tests and must never be pointed at a database containing valuable data. Attachment tests create and remove isolated temporary storage directories.

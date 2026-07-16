@@ -150,8 +150,80 @@ code {
   align-self: center;
 }
 
+.attachment-picker {
+  display: flex;
+  min-width: 0;
+  grid-column: 1 / -1;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.attachment-button {
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.attachment-name {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.82rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attachment-card {
+  display: grid;
+  width: min(34rem, 100%);
+  gap: 0.65rem;
+  margin-top: 0.35rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 0.8rem;
+  background: var(--surface-2);
+}
+
+.attachment-preview {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  max-height: 24rem;
+  border-radius: 0.55rem;
+  object-fit: contain;
+}
+
+.attachment-details {
+  display: grid;
+  min-width: 0;
+  gap: 0.2rem;
+}
+
+.attachment-download {
+  overflow: hidden;
+  color: var(--accent-strong);
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attachment-metadata {
+  color: var(--muted);
+  font-size: 0.76rem;
+  overflow-wrap: anywhere;
+}
+
 @media (max-width: 34rem) {
   .presence-panel {
     display: none;
+  }
+
+  .attachment-picker {
+    flex-wrap: wrap;
+  }
+
+  .attachment-name {
+    flex-basis: 100%;
+    order: 3;
   }
 }

@@ -1,3 +1,4 @@
+import './attachments.js';
 import { apiGet } from './api.js';
 
 window.addEventListener('DOMContentLoaded', () => {

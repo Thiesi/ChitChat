@@ -16,6 +16,17 @@ try {
     }
     $statement->fetchColumn();
 
+    $storagePath = $config->attachmentStoragePath;
+    if (is_link($storagePath)) {
+        throw new RuntimeException('Attachment storage must not be a symbolic link.');
+    }
+    if (!is_dir($storagePath)) {
+        throw new RuntimeException('Attachment storage directory does not exist.');
+    }
+    if (!is_readable($storagePath) || !is_writable($storagePath)) {
+        throw new RuntimeException('Attachment storage directory is not readable and writable.');
+    }
+
     JsonResponse::send(['status' => 'ready']);
 } catch (\Throwable $exception) {
     $payload = ['status' => 'not_ready'];
