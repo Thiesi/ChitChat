@@ -7,7 +7,6 @@ use ChitChat\Auth\UserRepository;
 use ChitChat\Database;
 use ChitChat\Http\ApiException;
 use ChitChat\Http\Request;
-use ChitChat\Presence\PresenceService;
 use ChitChat\Realtime\EventRepository;
 use ChitChat\Realtime\SseEncoder;
 use Throwable;
@@ -53,18 +52,10 @@ try {
     flush();
 
     $events = new EventRepository($pdo);
-    $presence = new PresenceService($pdo, $config);
     $deadline = microtime(true) + 25.0;
     $lastHeartbeat = 0.0;
-    $lastPresenceSweep = 0.0;
 
     while (microtime(true) < $deadline && connection_aborted() === 0) {
-        $now = microtime(true);
-        if ($now - $lastPresenceSweep >= 5.0) {
-            $presence->expireStale();
-            $lastPresenceSweep = $now;
-        }
-
         $batch = $events->visibleAfter($actor, $afterId, 100);
         foreach ($batch as $event) {
             echo SseEncoder::event($event);
