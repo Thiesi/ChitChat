@@ -102,16 +102,13 @@ SQL);
         $visibility = $isGlobalModerator
             ? <<<'SQL'
 (
-    e.target_user_id = :user_id
-    OR (
-        e.target_user_id IS NULL
-        AND (e.room_id IS NULL OR e.room_id IS NOT NULL)
-    )
+    e.target_user_id = :target_user_id
+    OR e.target_user_id IS NULL
 )
 SQL
             : <<<'SQL'
 (
-    e.target_user_id = :user_id
+    e.target_user_id = :target_user_id
     OR (
         e.target_user_id IS NULL
         AND e.room_id IS NULL
@@ -123,7 +120,7 @@ SQL
             SELECT 1
             FROM room_members rm
             WHERE rm.room_id = e.room_id
-              AND rm.user_id = :user_id
+              AND rm.user_id = :member_user_id
         )
     )
 )
@@ -148,7 +145,10 @@ SQL);
             throw new RuntimeException('Unable to prepare realtime event lookup.');
         }
         $statement->bindValue(':after_id', $afterId, PDO::PARAM_INT);
-        $statement->bindValue(':user_id', $actor->id, PDO::PARAM_INT);
+        $statement->bindValue(':target_user_id', $actor->id, PDO::PARAM_INT);
+        if (!$isGlobalModerator) {
+            $statement->bindValue(':member_user_id', $actor->id, PDO::PARAM_INT);
+        }
         $statement->bindValue(':limit', $limit, PDO::PARAM_INT);
         $statement->execute();
 
