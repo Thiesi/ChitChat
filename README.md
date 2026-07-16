@@ -43,10 +43,11 @@ The application currently provides:
 - room and global broadcasts;
 - forced-disconnect event delivery for account-control actions;
 - audited soft deletion of messages by authorized moderators;
+- a responsive browser client for registration, login, room creation and joining, history, live messages, commands, and logout;
 - audit records for sensitive account and room actions;
-- PHPUnit, PHPStan, and PostgreSQL-backed CI.
+- PHPUnit, PHPStan, JavaScript syntax checks, and PostgreSQL-backed CI.
 
-Attachments, direct messages, presence, and the browser chat interface remain future milestones.
+Attachments, direct messages, presence, inactivity leases, and administration screens remain future milestones.
 
 ## Development
 
