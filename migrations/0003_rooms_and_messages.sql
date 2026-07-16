@@ -1,6 +1,5 @@
 ALTER TABLE users
-    ADD COLUMN birth_date DATE NULL,
-    ADD CONSTRAINT users_birth_date_not_future CHECK (birth_date IS NULL OR birth_date <= CURRENT_DATE);
+    ADD COLUMN birth_date DATE NULL;
 
 CREATE TABLE rooms (
     id BIGSERIAL PRIMARY KEY,
