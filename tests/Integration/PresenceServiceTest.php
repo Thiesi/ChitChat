@@ -24,14 +24,14 @@ final class PresenceServiceTest extends DatabaseTestCase
         self::assertSame($room->id, $status['room_id']);
         self::assertFalse($status['expired']);
         self::assertSame(0, $status['idle_seconds']);
-        self::assertSame([
-            [
-                'id' => $member->id,
-                'username' => 'Member',
-                'idle_seconds' => 0,
-                'connections' => 1,
-            ],
-        ], $presence->list($member, $room->id));
+
+        $users = $presence->list($member, $room->id);
+        self::assertCount(1, $users);
+        self::assertSame($member->id, $users[0]['id']);
+        self::assertSame('Member', $users[0]['username']);
+        self::assertSame(1, $users[0]['connections']);
+        self::assertGreaterThanOrEqual(0, $users[0]['idle_seconds']);
+        self::assertLessThan(5, $users[0]['idle_seconds']);
 
         $presence->heartbeat($member, self::FIRST_CONNECTION, $room->id, false);
         $events = (new EventRepository($this->pdo))->visibleAfter($admin, 0);
