@@ -8,6 +8,9 @@ This document applies to the v1 reconstruction. The application is not yet featu
 - Composer 2
 - PostgreSQL 15 or newer
 - PHP extensions: `pdo`, `pdo_pgsql`, `json`, `mbstring`
+- Node.js 24 or newer for the CI-equivalent browser JavaScript syntax check
+
+The deployed browser client has no Node.js runtime dependency and uses no npm packages.
 
 ## Setup
 
@@ -40,6 +43,8 @@ This document applies to the v1 reconstruction. The application is not yet featu
 
 8. Open `http://127.0.0.1:8080/`.
 
+The first account created through the browser becomes Super-Administrator. That account can use the **+** button beside the room list to create the first room.
+
 ## Authentication bootstrap
 
 API clients begin by requesting:
@@ -54,6 +59,7 @@ The first successfully registered account is promoted to `super_admin` inside th
 
 ## Endpoints
 
+- `/` serves the browser client.
 - `/health.php` reports whether the PHP process is alive.
 - `/ready.php` verifies that the application can connect to PostgreSQL.
 - `/api/v1/events/stream.php` provides the authenticated SSE stream.
@@ -77,6 +83,7 @@ Use HTTPS, set `SESSION_COOKIE_SECURE=1`, and leave `SESSION_COOKIE_SAMESITE=Lax
 
 ```sh
 composer check
+find public/assets/js -type f -name '*.js' -print0 | xargs -0 -n1 node --check
 ```
 
 The integration suite expects a migrated PostgreSQL database described by the current environment variables. It clears application tables between tests and must never be pointed at a database containing valuable data.
