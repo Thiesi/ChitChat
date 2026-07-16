@@ -156,12 +156,24 @@ async function enhanceVisibleMessages() {
   }
 
   for (const article of articles) {
-    article.querySelector('.attachment-card')?.remove();
+    const existingCard = article.querySelector('.attachment-card');
     const messageId = Number.parseInt(article.dataset.messageId ?? '', 10);
     const attachment = metadata.get(messageId);
-    if (attachment) {
-      article.append(buildAttachmentCard(attachment));
+    if (!attachment) {
+      if (existingCard) {
+        existingCard.remove();
+      }
+      delete article.dataset.attachmentId;
+      continue;
     }
+
+    const attachmentId = String(attachment.id);
+    if (existingCard && article.dataset.attachmentId === attachmentId) {
+      continue;
+    }
+    existingCard?.remove();
+    article.dataset.attachmentId = attachmentId;
+    article.append(buildAttachmentCard(attachment));
   }
 }
 
