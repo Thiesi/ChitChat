@@ -39,6 +39,9 @@ final class EventRepository
         if (!in_array($type, self::TYPES, true)) {
             throw new ApiException(400, 'invalid_event_type', 'Unsupported realtime event type.');
         }
+        if ($type === 'presence_changed' && $expiresAt === null) {
+            $expiresAt = new DateTimeImmutable('+1 hour');
+        }
 
         try {
             $encodedPayload = json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
