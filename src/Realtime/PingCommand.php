@@ -22,7 +22,7 @@ final class PingCommand
         }
 
         $parts = preg_split('/\s+/', $arguments, 2);
-        if ($parts === false || $parts === []) {
+        if ($parts === false) {
             throw new ApiException(400, 'invalid_ping_command', 'Usage: /ping username [message].');
         }
 
