@@ -118,7 +118,7 @@ final class SessionManager
             $params = session_get_cookie_params();
             if (ini_get('session.use_cookies')) {
                 $sessionName = session_name();
-                if (!is_string($sessionName) || $sessionName === '') {
+                if ($sessionName === false) {
                     throw new ApiException(500, 'session_unavailable', 'Unable to resolve the session cookie name.');
                 }
 
