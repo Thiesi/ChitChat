@@ -1,39 +1,55 @@
-# ChitChat — Full Source (v0.10.25)
+# ChitChat development installation
 
-This bundle is ready for **fresh installations** on vanilla systems.
+This document applies to the v1 reconstruction branch. The application is not yet feature-complete or suitable for production use.
 
 ## Requirements
-- Apache or any PHP-capable web server (PHP 8.1+ recommended)
-- MySQL 8+ or PostgreSQL 13+
-- PHP extensions: pdo, pdo_mysql and/or pdo_pgsql, mbstring, json
+
+- PHP 8.2 or newer
+- Composer 2
+- PostgreSQL 15 or newer
+- PHP extensions: `pdo`, `pdo_pgsql`, `json`
 
 ## Setup
-1. **Unpack** to your web root (or a vhost docroot).
-2. **Create DB**:
-   - **MySQL**
-     ```sql
-     CREATE DATABASE chitchat CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-     ```
-     Then run: `sql/mysql_schema_full.sql`
-   - **PostgreSQL**
-     ```sql
-     CREATE DATABASE chitchat;
-     ```
-     Then run: `sql/pgsql_schema_full.sql`
-3. **Configure DB** via environment (preferred) or `backend/config.php`:
-   - Env examples:
-     - MySQL: `DB_DRIVER=mysql`, `DB_HOST=localhost`, `DB_PORT=3306`, `DB_NAME=chitchat`, `DB_USERNAME=...`, `DB_PASSWORD=...`
-     - PostgreSQL: `DB_DRIVER=pgsql`, `DB_HOST=localhost`, `DB_PORT=5432`, `DB_NAME=chitchat`, `DB_USERNAME=...`, `DB_PASSWORD=...`
-4. **First login**: register the first account — it becomes **Super-Admin** automatically (existing feature).
-5. Optional: apply patch SQLs in `sql/` if upgrading from older versions.
 
-## Paths
-- Frontend: `public/`
-- Backend endpoints: `backend/`
-- SQL: `sql/`
+1. Create a PostgreSQL database and account.
+2. Copy the example environment file:
 
-## Notes
-- Default system name: **ChitChat**
-- Password policy defaults to **low** and always enforces “does not contain username”.
-- You can manage policies, messages and toggles in **public/sa.html** (Super-Admin only).
+   ```sh
+   cp .env.example .env
+   ```
 
+3. Adjust the database values in `.env`.
+4. Install dependencies:
+
+   ```sh
+   composer install
+   ```
+
+5. Apply the migrations:
+
+   ```sh
+   composer migrate
+   ```
+
+6. For local development, start PHP's built-in server with `public/` as the document root:
+
+   ```sh
+   php -S 127.0.0.1:8080 -t public
+   ```
+
+7. Open `http://127.0.0.1:8080/`.
+
+## Endpoints
+
+- `/health.php` reports whether the PHP process is alive.
+- `/ready.php` verifies that the application can connect to PostgreSQL.
+
+## Production web-root rule
+
+The web server document root must be the repository's `public/` directory. Do not expose `src/`, `bootstrap/`, `migrations/`, `.env`, `var/`, or Composer metadata.
+
+## Tests and checks
+
+```sh
+composer check
+```
