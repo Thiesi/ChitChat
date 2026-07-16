@@ -17,7 +17,7 @@ final class EventRepositoryTest extends DatabaseTestCase
         $member = $auth->register('Member', 'another secure password', '127.0.0.2');
         $outsider = $auth->register('Outsider', 'different secure password', '127.0.0.3');
         $rooms = new RoomService($this->pdo);
-        $room = $rooms->create($admin, 'general', 'General', '', 'public', 0, '127.0.0.1');
+        $room = $rooms->create($admin, 'general', 'General', '', 'public', 0, 0, '127.0.0.1');
         $rooms->join($member, $room->id, '127.0.0.2');
         $events = new EventRepository($this->pdo);
 

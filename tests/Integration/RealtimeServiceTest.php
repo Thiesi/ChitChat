@@ -21,7 +21,7 @@ final class RealtimeServiceTest extends DatabaseTestCase
         $member = $auth->register('Member', 'another secure password', '127.0.0.2');
         $outsider = $auth->register('Outsider', 'different secure password', '127.0.0.3');
         $rooms = new RoomService($this->pdo);
-        $room = $rooms->create($admin, 'general', 'General', '', 'public', 0, '127.0.0.1');
+        $room = $rooms->create($admin, 'general', 'General', '', 'public', 0, 0, '127.0.0.1');
         $rooms->join($member, $room->id, '127.0.0.2');
 
         $event = (new PingService($this->pdo))->send($admin, $room->id, 'member', 'Please look');
@@ -46,7 +46,7 @@ final class RealtimeServiceTest extends DatabaseTestCase
         $member = $auth->register('Member', 'another secure password', '127.0.0.2');
         $outsider = $auth->register('Outsider', 'different secure password', '127.0.0.3');
         $rooms = new RoomService($this->pdo);
-        $room = $rooms->create($admin, 'general', 'General', '', 'public', 0, '127.0.0.1');
+        $room = $rooms->create($admin, 'general', 'General', '', 'public', 0, 0, '127.0.0.1');
         $rooms->join($member, $room->id, '127.0.0.2');
         $broadcasts = new BroadcastService($this->pdo);
 
@@ -81,7 +81,7 @@ final class RealtimeServiceTest extends DatabaseTestCase
         $admin = $auth->register('Admin', 'a very secure password', '127.0.0.1');
         $member = $auth->register('Member', 'another secure password', '127.0.0.2');
         $rooms = new RoomService($this->pdo);
-        $room = $rooms->create($admin, 'general', 'General', '', 'public', 0, '127.0.0.1');
+        $room = $rooms->create($admin, 'general', 'General', '', 'public', 0, 0, '127.0.0.1');
         $rooms->join($member, $room->id, '127.0.0.2');
         $messages = new MessageService($this->pdo);
 

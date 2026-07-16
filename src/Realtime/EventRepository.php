@@ -20,6 +20,7 @@ final class EventRepository
         'room_broadcast',
         'global_broadcast',
         'forced_logout',
+        'presence_changed',
     ];
 
     public function __construct(private readonly PDO $pdo)
@@ -37,6 +38,9 @@ final class EventRepository
     ): RealtimeEvent {
         if (!in_array($type, self::TYPES, true)) {
             throw new ApiException(400, 'invalid_event_type', 'Unsupported realtime event type.');
+        }
+        if ($type === 'presence_changed' && $expiresAt === null) {
+            $expiresAt = new DateTimeImmutable('+1 hour');
         }
 
         try {

@@ -30,11 +30,14 @@ Room objects contain:
   "info_line": "General discussion",
   "visibility": "public",
   "minimum_age": 0,
+  "inactivity_timeout_seconds": 0,
   "created_by": 1,
   "member_role": "member",
   "invited": false
 }
 ```
+
+`inactivity_timeout_seconds` is 0 when disabled. Otherwise it is 120-86400 seconds and applies only to active presence, not persistent membership.
 
 ## Room management
 
@@ -48,11 +51,12 @@ Requires Super-Administrator, Administrator, or Chat Admin.
   "name": "General",
   "info_line": "General discussion",
   "visibility": "public",
-  "minimum_age": 0
+  "minimum_age": 0,
+  "inactivity_timeout_seconds": 0
 }
 ```
 
-The creator becomes the immutable room owner. Room keys are lowercase, unique, and contain 3-48 letters, numbers, underscores, or hyphens.
+The inactivity field is optional and defaults to 0. The creator becomes the immutable room owner. Room keys are lowercase, unique, and contain 3-48 letters, numbers, underscores, or hyphens.
 
 ### `POST /api/v1/rooms/update.php`
 
@@ -64,9 +68,12 @@ Requires a global room administrator or the room owner. The request supplies the
   "name": "General discussion",
   "info_line": "Be kind.",
   "visibility": "unlisted",
-  "minimum_age": 16
+  "minimum_age": 16,
+  "inactivity_timeout_seconds": 900
 }
 ```
+
+The inactivity field is optional for backward-compatible API clients. When omitted, the room's existing inactivity policy is preserved.
 
 ### `POST /api/v1/rooms/delete.php`
 
@@ -146,11 +153,7 @@ Requires room membership.
 }
 ```
 
-Messages may contain up to 4000 characters. `/me waves` creates an `emote` message with body `waves`.
-
-`/ping Alice please look` does not create a persistent room message. It creates a targeted realtime event for Alice, who must currently be a member of the same room. The optional ping text may contain up to 500 characters. The sender cannot ping themselves.
-
-Successful ordinary sends return a `message` object. Successful `/ping` commands return a `ping` event object. Other slash commands are rejected.
+Messages may contain up to 4000 characters. `/me waves` creates an `emote` message with body `waves`. `/ping username [message]` sends a targeted realtime notification to another current room member. Other slash commands are rejected.
 
 ### `POST /api/v1/rooms/delete-message.php`
 
@@ -162,4 +165,4 @@ Requires a room owner, room moderator, or global room moderation role.
 }
 ```
 
-Deletion is soft, is recorded in the audit log, and emits a `message_deleted` realtime event to current room subscribers.
+Deletion is soft and is recorded in the audit log.

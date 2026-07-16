@@ -25,6 +25,8 @@ final readonly class Config
         public string $sessionCookieSameSite,
         public int $loginMaxAttempts,
         public int $loginLockMinutes,
+        public int $presenceLeaseSeconds,
+        public int $inactivityWarningSeconds,
     ) {
         if ($this->databasePort < 1 || $this->databasePort > 65535) {
             throw new InvalidArgumentException('DB_PORT must be between 1 and 65535.');
@@ -36,6 +38,14 @@ final readonly class Config
 
         if ($this->loginLockMinutes < 1) {
             throw new InvalidArgumentException('LOGIN_LOCK_MINUTES must be at least 1.');
+        }
+
+        if ($this->presenceLeaseSeconds < 30 || $this->presenceLeaseSeconds > 300) {
+            throw new InvalidArgumentException('PRESENCE_LEASE_SECONDS must be between 30 and 300.');
+        }
+
+        if ($this->inactivityWarningSeconds < 10 || $this->inactivityWarningSeconds > 3600) {
+            throw new InvalidArgumentException('INACTIVITY_WARNING_SECONDS must be between 10 and 3600.');
         }
 
         if ($this->sessionCookieSameSite === 'None' && !$this->sessionCookieSecure) {
@@ -67,6 +77,8 @@ final readonly class Config
             sessionCookieSameSite: self::envSameSite('SESSION_COOKIE_SAMESITE', 'Lax'),
             loginMaxAttempts: self::envInt('LOGIN_MAX_ATTEMPTS', 10),
             loginLockMinutes: self::envInt('LOGIN_LOCK_MINUTES', 15),
+            presenceLeaseSeconds: self::envInt('PRESENCE_LEASE_SECONDS', 45),
+            inactivityWarningSeconds: self::envInt('INACTIVITY_WARNING_SECONDS', 60),
         );
     }
 

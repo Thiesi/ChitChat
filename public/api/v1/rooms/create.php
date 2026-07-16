@@ -26,6 +26,7 @@ Endpoint::run($config, static function () use ($config): ApiResult {
         Request::string($payload, 'info_line'),
         Request::string($payload, 'visibility'),
         Request::integer($payload, 'minimum_age'),
+        Request::optionalInteger($payload, 'inactivity_timeout_seconds') ?? 0,
         Request::clientIp(),
     );
 

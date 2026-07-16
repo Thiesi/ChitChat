@@ -8,7 +8,7 @@ use ChitChat\Database;
 use ChitChat\Http\ApiResult;
 use ChitChat\Http\Endpoint;
 use ChitChat\Http\Request;
-use ChitChat\Room\RoomService;
+use ChitChat\Presence\PresenceService;
 
 /** @var ChitChat\Config $config */
 $config = require dirname(__DIR__, 4) . '/bootstrap/http.php';
@@ -19,20 +19,12 @@ Endpoint::run($config, static function () use ($config): ApiResult {
     $payload = Request::json();
     $pdo = Database::connect($config);
     $actor = SessionManager::requireUser(new UserRepository($pdo));
-    $service = new RoomService($pdo);
-    $roomId = Request::integer($payload, 'room_id');
-    $existing = $service->get($actor, $roomId);
-    $room = $service->update(
+    $presence = (new PresenceService($pdo, $config))->heartbeat(
         $actor,
-        $roomId,
-        Request::string($payload, 'name'),
-        Request::string($payload, 'info_line'),
-        Request::string($payload, 'visibility'),
-        Request::integer($payload, 'minimum_age'),
-        Request::optionalInteger($payload, 'inactivity_timeout_seconds')
-            ?? $existing->inactivityTimeoutSeconds,
-        Request::clientIp(),
+        Request::string($payload, 'connection_id'),
+        Request::optionalInteger($payload, 'room_id'),
+        Request::boolean($payload, 'interacted'),
     );
 
-    return ApiResult::ok(['room' => $room->toArray()]);
+    return ApiResult::ok(['presence' => $presence]);
 });

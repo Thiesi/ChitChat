@@ -18,7 +18,7 @@ final class MessageServiceTest extends DatabaseTestCase
         $admin = $auth->register('Admin', 'a very secure password', '127.0.0.1');
         $guest = $auth->register('Guest', 'another secure password', '127.0.0.2');
         $rooms = new RoomService($this->pdo);
-        $room = $rooms->create($admin, 'general', 'General', '', 'public', 0, '127.0.0.1');
+        $room = $rooms->create($admin, 'general', 'General', '', 'public', 0, 0, '127.0.0.1');
         $rooms->join($guest, $room->id, '127.0.0.2');
         $messages = new MessageService($this->pdo);
 
@@ -42,6 +42,7 @@ final class MessageServiceTest extends DatabaseTestCase
             'General',
             '',
             'public',
+            0,
             0,
             '127.0.0.1',
         );
@@ -71,6 +72,7 @@ final class MessageServiceTest extends DatabaseTestCase
             '',
             'public',
             18,
+            0,
             '127.0.0.1',
         );
         $messages = new MessageService($this->pdo);
@@ -91,7 +93,7 @@ final class MessageServiceTest extends DatabaseTestCase
         $moderator = $auth->register('Moderator', 'another secure password', '127.0.0.2');
         $member = $auth->register('Member', 'different secure password', '127.0.0.3');
         $rooms = new RoomService($this->pdo);
-        $room = $rooms->create($admin, 'general', 'General', '', 'public', 0, '127.0.0.1');
+        $room = $rooms->create($admin, 'general', 'General', '', 'public', 0, 0, '127.0.0.1');
         $rooms->join($moderator, $room->id, '127.0.0.2');
         $rooms->join($member, $room->id, '127.0.0.3');
         $rooms->setRole($admin, $room->id, $moderator->id, 'moderator', '127.0.0.1');
@@ -120,6 +122,7 @@ final class MessageServiceTest extends DatabaseTestCase
             'General',
             '',
             'public',
+            0,
             0,
             '127.0.0.1',
         );

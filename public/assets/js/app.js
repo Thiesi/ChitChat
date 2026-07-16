@@ -1,4 +1,5 @@
 import { ApiError, apiGet, apiPost, setCsrfToken } from './api.js';
+import { createPresenceClient } from './presence.js';
 
 const state = {
   user: null,
@@ -11,10 +12,18 @@ const state = {
 };
 
 const elements = {};
+let presence = null;
 
 window.addEventListener('DOMContentLoaded', () => {
   bindElements();
   bindEvents();
+  presence = createPresenceClient({
+    getCurrentRoom: () => state.currentRoom,
+    canOccupy: canUsePresence,
+    onExpired: handlePresenceExpired,
+    onUnauthorized: () => forceSignedOut('Your session has ended. Please sign in again.'),
+    toast,
+  });
   bootstrap().catch(handleFatalError);
 });
 
@@ -56,6 +65,7 @@ function bindElements() {
     'room-info-line',
     'room-visibility',
     'room-minimum-age',
+    'room-inactivity-timeout',
     'room-dialog-error',
     'room-dialog-cancel',
   ]) {
@@ -107,6 +117,7 @@ async function enterApplication(user) {
   elements['current-user'].textContent = user.username;
   elements['new-room-button'].classList.toggle('hidden', !canCreateRooms(user));
   clearAuthError();
+  presence.start();
   startEventStream();
   await loadRooms();
 }
@@ -189,6 +200,7 @@ async function loadRooms(preferredRoomId = null) {
     } else {
       state.currentRoom = null;
       renderNoRoom();
+      await presence.enterCurrentRoom(true);
     }
   } catch (error) {
     handleApiFailure(error);
@@ -250,6 +262,7 @@ async function selectRoom(room) {
   renderRoomList();
   renderRoomHeader();
   renderMessages();
+  await presence.enterCurrentRoom(true);
 
   if (!canReadHistory(room)) {
     showEmptyState('Join this private room to view its history.');
@@ -275,6 +288,9 @@ function renderRoomHeader() {
   if (room.minimum_age > 0) {
     details.push(`${room.minimum_age}+`);
   }
+  if (room.inactivity_timeout_seconds > 0) {
+    details.push(`inactive after ${formatDuration(room.inactivity_timeout_seconds)}`);
+  }
   elements['room-info'].textContent = details.join(' · ');
 
   const isMember = room.member_role !== null;
@@ -292,6 +308,7 @@ function renderNoRoom() {
   state.messages = [];
   state.messageIds = new Set();
   renderMessages();
+  presence?.clear();
   showEmptyState(
     canCreateRooms(state.user)
       ? 'Create a room to begin chatting.'
@@ -448,6 +465,7 @@ async function submitMessage(event) {
       body,
     });
     elements['composer-input'].value = '';
+    await presence.interact();
 
     if (response.message) {
       appendMessage(response.message, true);
@@ -538,6 +556,14 @@ function startEventStream() {
     }
   });
 
+  source.addEventListener('presence_changed', (event) => {
+    const envelope = parseEvent(event);
+    const roomId = envelope?.payload?.room_id;
+    if (Number.isInteger(roomId)) {
+      presence.handleChanged(roomId).catch(handleApiFailure);
+    }
+  });
+
   source.addEventListener('forced_logout', (event) => {
     let reason = 'Your session was invalidated.';
     const envelope = parseEvent(event);
@@ -576,6 +602,7 @@ function openRoomDialog() {
   elements['room-create-form'].reset();
   elements['room-visibility'].value = 'public';
   elements['room-minimum-age'].value = '0';
+  elements['room-inactivity-timeout'].value = '0';
   elements['room-dialog-error'].textContent = '';
   elements['room-dialog'].showModal();
   elements['room-key'].focus();
@@ -593,6 +620,7 @@ async function createRoom(event) {
       info_line: elements['room-info-line'].value,
       visibility: elements['room-visibility'].value,
       minimum_age: Number.parseInt(elements['room-minimum-age'].value, 10),
+      inactivity_timeout_seconds: Number.parseInt(elements['room-inactivity-timeout'].value, 10),
     });
     elements['room-dialog'].close();
     await loadRooms(response.room.id);
@@ -623,6 +651,21 @@ function canCreateRooms(user) {
   return user.roles.some((role) => ['super_admin', 'admin', 'chat_admin'].includes(role));
 }
 
+function canUsePresence(room) {
+  if (!room || !state.user) {
+    return false;
+  }
+  if (room.member_role !== null) {
+    return true;
+  }
+  return state.user.roles?.some((role) => [
+    'super_admin',
+    'admin',
+    'chat_admin',
+    'global_moderator',
+  ].includes(role)) ?? false;
+}
+
 function canReadHistory(room) {
   if (room.visibility !== 'private' || room.member_role !== null) {
     return true;
@@ -633,6 +676,16 @@ function canReadHistory(room) {
     'chat_admin',
     'global_moderator',
   ].includes(role)) ?? false;
+}
+
+function handlePresenceExpired(room) {
+  if (state.currentRoom?.id !== room.id) {
+    return;
+  }
+  state.currentRoom = null;
+  renderRoomList();
+  renderNoRoom();
+  toast(`You left #${room.name} after being inactive. Select it again to return.`, 'warning');
 }
 
 function setFormBusy(form, busy) {
@@ -675,6 +728,13 @@ function formatDateTime(value) {
   }).format(date);
 }
 
+function formatDuration(seconds) {
+  if (seconds < 3600) {
+    return `${Math.round(seconds / 60)}m`;
+  }
+  return `${Math.round(seconds / 3600)}h`;
+}
+
 function errorMessage(error) {
   return error instanceof Error ? error.message : 'An unexpected error occurred.';
 }
@@ -689,6 +749,7 @@ function handleApiFailure(error) {
 
 function forceSignedOut(message) {
   stopEventStream();
+  presence?.stop();
   state.user = null;
   state.rooms = [];
   state.currentRoom = null;
