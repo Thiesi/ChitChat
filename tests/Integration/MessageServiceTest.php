@@ -8,6 +8,7 @@ use ChitChat\Auth\AuthService;
 use ChitChat\Http\ApiException;
 use ChitChat\Room\MessageService;
 use ChitChat\Room\RoomService;
+use DateTimeImmutable;
 
 final class MessageServiceTest extends DatabaseTestCase
 {
@@ -57,6 +58,32 @@ final class MessageServiceTest extends DatabaseTestCase
         }
     }
 
+    public function testMinimumAgeAlsoProtectsPublicHistory(): void
+    {
+        $auth = new AuthService($this->pdo, $this->config);
+        $admin = $auth->register('Admin', 'a very secure password', '127.0.0.1');
+        $minorDate = (new DateTimeImmutable('today'))->modify('-15 years')->format('Y-m-d');
+        $minor = $auth->register('Minor', 'another secure password', '127.0.0.2', $minorDate);
+        $room = (new RoomService($this->pdo))->create(
+            $admin,
+            'adults',
+            'Adults',
+            '',
+            'public',
+            18,
+            '127.0.0.1',
+        );
+        $messages = new MessageService($this->pdo);
+        $messages->send($admin, $room->id, 'Adults only');
+
+        try {
+            $messages->history($minor, $room->id);
+            self::fail('Expected minimum-age history rejection.');
+        } catch (ApiException $exception) {
+            self::assertSame('minimum_age_not_met', $exception->errorCode);
+        }
+    }
+
     public function testRoomModeratorCanSoftDeleteMessage(): void
     {
         $auth = new AuthService($this->pdo, $this->config);
@@ -76,10 +103,9 @@ final class MessageServiceTest extends DatabaseTestCase
 
         self::assertTrue($history[0]['deleted']);
         self::assertNull($history[0]['body']);
-        self::assertSame(
-            1,
-            (int) $this->pdo->query("SELECT COUNT(*) FROM audit_log WHERE action = 'room.message_deleted'")?->fetchColumn(),
-        );
+        $auditResult = $this->pdo->query("SELECT COUNT(*) FROM audit_log WHERE action = 'room.message_deleted'");
+        self::assertNotFalse($auditResult);
+        self::assertSame(1, (int) $auditResult->fetchColumn());
     }
 
     public function testUnknownCommandIsRejected(): void
