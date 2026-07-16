@@ -104,7 +104,9 @@ final class MessageServiceTest extends DatabaseTestCase
         self::assertTrue($history[0]['deleted']);
         self::assertNull($history[0]['body']);
         $auditResult = $this->pdo->query("SELECT COUNT(*) FROM audit_log WHERE action = 'room.message_deleted'");
-        self::assertNotFalse($auditResult);
+        if ($auditResult === false) {
+            self::fail('Unable to query message deletion audit record.');
+        }
         self::assertSame(1, (int) $auditResult->fetchColumn());
     }
 
