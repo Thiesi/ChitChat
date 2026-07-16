@@ -81,6 +81,7 @@ $appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUT
 
       <footer class="sidebar-footer">
         <div class="current-user"><span class="current-user-label">Signed in as </span><strong id="current-user"></strong></div>
+        <a id="admin-link" class="secondary-button hidden" href="/admin.php">Administration</a>
         <button id="logout-button" class="secondary-button" type="button">Sign out</button>
       </footer>
     </aside>
@@ -152,5 +153,6 @@ $appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUT
   <div id="toast-region" class="toast-region" aria-live="assertive"></div>
 
   <script type="module" src="/assets/js/app.js"></script>
+  <script type="module" src="/assets/js/admin-link.js"></script>
 </body>
 </html>
