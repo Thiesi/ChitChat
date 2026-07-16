@@ -38,10 +38,6 @@ final readonly class Config
             throw new InvalidArgumentException('LOGIN_LOCK_MINUTES must be at least 1.');
         }
 
-        if (!in_array($this->sessionCookieSameSite, ['Lax', 'Strict', 'None'], true)) {
-            throw new InvalidArgumentException('SESSION_COOKIE_SAMESITE must be Lax, Strict, or None.');
-        }
-
         if ($this->sessionCookieSameSite === 'None' && !$this->sessionCookieSecure) {
             throw new InvalidArgumentException('SameSite=None requires a secure session cookie.');
         }
