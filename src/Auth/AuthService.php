@@ -115,10 +115,6 @@ SQL);
             throw $exception;
         }
 
-        if (!is_int($userId)) {
-            throw new RuntimeException('Registration did not produce a valid user ID.');
-        }
-
         $user = $this->users->findAuthenticatedById($userId);
         if ($user === null) {
             throw new RuntimeException('Registered user could not be reloaded.');
