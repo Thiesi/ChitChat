@@ -28,6 +28,16 @@ export async function apiPost(path, body = {}) {
   });
 }
 
+export async function apiUpload(path, formData) {
+  return request(path, {
+    method: 'POST',
+    headers: {
+      'X-CSRF-Token': csrfToken,
+    },
+    body: formData,
+  });
+}
+
 async function request(path, options) {
   const response = await fetch(path, {
     credentials: 'same-origin',
