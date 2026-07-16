@@ -63,7 +63,7 @@ Room members receive a `presence_changed` SSE event whenever a connection enters
 
 ## Configuration
 
-- `PRESENCE_LEASE_SECONDS` defaults to 45 and may be 15-300.
+- `PRESENCE_LEASE_SECONDS` defaults to 45 and may be 30-300.
 - `INACTIVITY_WARNING_SECONDS` defaults to 60 and may be 10-3600.
 
 The browser renews its lease every 20 seconds. Heartbeats and presence-list requests remove stale leases and publish invalidations, so no cron job is required for the initial single-server deployment. Active clients naturally perform cleanup without adding work to every SSE connection.
