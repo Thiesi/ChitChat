@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - agent/**
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: chitchat_test
+          POSTGRES_USER: chitchat
+          POSTGRES_PASSWORD: chitchat
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U chitchat -d chitchat_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      APP_ENV: test
+      APP_DEBUG: 1
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_NAME: chitchat_test
+      DB_USER: chitchat
+      DB_PASSWORD: chitchat
+      DB_SSLMODE: disable
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_pgsql
+          coverage: none
+          tools: composer:v2
+
+      - run: composer install --no-interaction --prefer-dist
+      - run: composer lint
+      - run: composer migrate
+      - run: composer test
+      - run: composer analyse

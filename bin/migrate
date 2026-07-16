@@ -1,0 +1,66 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use ChitChat\Database;
+
+/** @var ChitChat\Config $config */
+$config = require dirname(__DIR__) . '/bootstrap/app.php';
+$pdo = Database::connect($config);
+
+$pdo->exec(<<<'SQL'
+CREATE TABLE IF NOT EXISTS schema_migrations (
+    version VARCHAR(255) PRIMARY KEY,
+    applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+)
+SQL);
+
+$migrations = glob(dirname(__DIR__) . '/migrations/*.sql');
+if ($migrations === false) {
+    fwrite(STDERR, "Unable to enumerate migrations.\n");
+    exit(1);
+}
+
+sort($migrations, SORT_STRING);
+
+$appliedStatement = $pdo->prepare('SELECT 1 FROM schema_migrations WHERE version = :version');
+$recordStatement = $pdo->prepare('INSERT INTO schema_migrations (version) VALUES (:version)');
+
+if ($appliedStatement === false || $recordStatement === false) {
+    fwrite(STDERR, "Unable to prepare migration statements.\n");
+    exit(1);
+}
+
+foreach ($migrations as $migration) {
+    $version = basename($migration);
+    $appliedStatement->execute(['version' => $version]);
+    if ($appliedStatement->fetchColumn() !== false) {
+        fwrite(STDOUT, "skip  {$version}\n");
+        continue;
+    }
+
+    $sql = file_get_contents($migration);
+    if ($sql === false) {
+        fwrite(STDERR, "Unable to read {$version}.\n");
+        exit(1);
+    }
+
+    fwrite(STDOUT, "apply {$version}\n");
+    $pdo->beginTransaction();
+
+    try {
+        $pdo->exec($sql);
+        $recordStatement->execute(['version' => $version]);
+        $pdo->commit();
+    } catch (\Throwable $exception) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+
+        fwrite(STDERR, "Migration {$version} failed: {$exception->getMessage()}\n");
+        exit(1);
+    }
+}
+
+fwrite(STDOUT, "Database is up to date.\n");

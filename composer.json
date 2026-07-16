@@ -1,0 +1,39 @@
+{
+  "name": "thiesi/chitchat",
+  "description": "A small self-hosted browser chat application",
+  "type": "project",
+  "require": {
+    "php": "^8.2 || ^8.3 || ^8.4",
+    "ext-json": "*",
+    "ext-pdo": "*",
+    "ext-pdo_pgsql": "*"
+  },
+  "require-dev": {
+    "phpstan/phpstan": "^2.1",
+    "phpunit/phpunit": "^11.5"
+  },
+  "autoload": {
+    "psr-4": {
+      "ChitChat\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "ChitChat\\Tests\\": "tests/"
+    }
+  },
+  "scripts": {
+    "migrate": "php bin/migrate",
+    "test": "phpunit",
+    "analyse": "phpstan analyse",
+    "lint": "find bootstrap public src tests -type f -name '*.php' -print0 | xargs -0 -n1 php -l && php -l bin/migrate",
+    "check": [
+      "@lint",
+      "@test",
+      "@analyse"
+    ]
+  },
+  "config": {
+    "sort-packages": true
+  }
+}
