@@ -20,7 +20,10 @@ final class ModerationServiceTest extends DatabaseTestCase
         (new ModerationService($this->pdo))->kick($admin, $target->id, 'Testing', '127.0.0.1');
         $reloaded = (new UserRepository($this->pdo))->findAuthenticatedById($target->id);
 
-        self::assertNotNull($reloaded);
+        if ($reloaded === null) {
+            self::fail('Target user disappeared after kick.');
+        }
+
         self::assertGreaterThan($target->sessionVersion, $reloaded->sessionVersion);
     }
 
