@@ -10,7 +10,11 @@ $config = require dirname(__DIR__) . '/bootstrap/app.php';
 
 try {
     $pdo = Database::connect($config);
-    $pdo->query('SELECT 1')->fetchColumn();
+    $statement = $pdo->query('SELECT 1');
+    if ($statement === false) {
+        throw new RuntimeException('Database readiness query could not be prepared.');
+    }
+    $statement->fetchColumn();
 
     JsonResponse::send(['status' => 'ready']);
 } catch (\Throwable $exception) {
