@@ -19,6 +19,7 @@ The clean v1 implementation is developed on reviewable branches and merged throu
 - Database-backed expiring presence leases
 - A single application server as the initial deployment target
 - Only `public/` exposed by the web server
+- Opaque attachment storage outside the public web root
 
 The architectural decisions are recorded in [`docs/architecture/`](docs/architecture/).
 
@@ -46,12 +47,13 @@ The application currently provides:
 - tab-scoped presence leases with aggregated online-user lists;
 - inactivity warnings and active-room expiry without membership removal;
 - audited soft deletion of messages by authorized moderators;
-- a responsive browser client for registration, login, room creation and joining, history, live messages, commands, presence, and logout;
+- room attachments with MIME and size allowlists, SHA-256 metadata, safe image previews, and authorization-aware downloads;
+- a responsive browser client for registration, login, room creation and joining, history, live messages, commands, presence, attachments, and logout;
 - a permission-aware browser administration console for users, roles, bans, room settings, membership, invitations, and audit visibility;
-- audit records for sensitive account and room actions;
+- audit records for sensitive account, room, and attachment actions;
 - PHPUnit, PHPStan, JavaScript syntax checks, and PostgreSQL-backed CI.
 
-Attachments and direct messages remain future milestones.
+Direct messages remain a future milestone.
 
 ## Development
 
