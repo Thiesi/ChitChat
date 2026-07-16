@@ -1,0 +1,260 @@
+.admin-shell {
+  width: min(88rem, calc(100% - 2rem));
+  margin: 0 auto;
+  padding: 1.25rem 0 3rem;
+}
+
+.admin-header,
+.panel-heading,
+.action-row,
+.inline-form,
+.admin-card-header,
+.admin-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.admin-header,
+.panel-heading,
+.admin-card-header {
+  justify-content: space-between;
+}
+
+.admin-header {
+  padding: 1rem 0 1.25rem;
+}
+
+.admin-header h1,
+.panel-heading h2,
+.admin-card h3,
+.admin-card-header h3 {
+  margin: 0;
+}
+
+.admin-eyebrow,
+.admin-muted,
+.panel-heading p,
+.admin-card-meta {
+  color: var(--muted);
+}
+
+.admin-eyebrow {
+  margin: 0 0 0.25rem;
+  font-size: 0.8rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.admin-header h1 {
+  margin: 0;
+  font-size: clamp(2rem, 5vw, 3rem);
+}
+
+.admin-link-button {
+  text-decoration: none;
+}
+
+.admin-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  padding: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 0.9rem;
+  background: var(--surface);
+}
+
+.admin-tabs button {
+  padding: 0.7rem 1rem;
+  border: 1px solid transparent;
+  border-radius: 0.7rem;
+  background: transparent;
+  color: var(--muted);
+}
+
+.admin-tabs button[aria-selected="true"] {
+  border-color: var(--accent);
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.admin-panel {
+  display: grid;
+  gap: 1rem;
+}
+
+.panel-heading {
+  align-items: end;
+  padding: 1rem 0;
+}
+
+.panel-heading p {
+  margin: 0.35rem 0 0;
+}
+
+.inline-form {
+  align-items: end;
+}
+
+.inline-form label {
+  min-width: min(22rem, 55vw);
+}
+
+.admin-card-list,
+.audit-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.admin-card-list.compact {
+  margin-top: 0.75rem;
+}
+
+.admin-card,
+.admin-list-item,
+.audit-entry,
+.admin-empty {
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.9rem;
+  background: var(--surface);
+}
+
+.admin-list-item {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.admin-card-meta {
+  margin: 0;
+  font-size: 0.82rem;
+}
+
+.role-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.role-badge {
+  padding: 0.2rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-2);
+  font-size: 0.76rem;
+}
+
+.ban-badge {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.room-admin-grid {
+  display: grid;
+  grid-template-columns: minmax(17rem, 0.85fr) minmax(20rem, 1fr) minmax(20rem, 1fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.room-picker-label {
+  min-width: min(24rem, 55vw);
+}
+
+.admin-row-actions {
+  flex-wrap: wrap;
+}
+
+.admin-row-actions select {
+  width: auto;
+  min-width: 9rem;
+}
+
+.danger-button {
+  padding: 0.7rem 0.9rem;
+  border: 1px solid var(--danger);
+  border-radius: 0.75rem;
+  background: transparent;
+  color: var(--danger);
+}
+
+.role-fieldset {
+  display: grid;
+  gap: 0.55rem;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.8rem;
+}
+
+.role-fieldset label {
+  display: flex;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.role-fieldset input {
+  width: auto;
+}
+
+.admin-user-dialog {
+  width: min(38rem, calc(100vw - 2rem));
+}
+
+.audit-entry {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.audit-entry pre {
+  max-width: 100%;
+  margin: 0;
+  padding: 0.75rem;
+  overflow: auto;
+  border-radius: 0.6rem;
+  background: var(--bg);
+  font-size: 0.78rem;
+}
+
+.admin-empty {
+  color: var(--muted);
+  text-align: center;
+}
+
+@media (max-width: 70rem) {
+  .room-admin-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .room-admin-grid > :first-child {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 46rem) {
+  .admin-header,
+  .panel-heading,
+  .inline-form,
+  .admin-card-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .admin-tabs {
+    overflow-x: auto;
+  }
+
+  .inline-form label,
+  .room-picker-label {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .room-admin-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .room-admin-grid > :first-child {
+    grid-column: auto;
+  }
+}
