@@ -26,6 +26,7 @@ final class RoomServiceTest extends DatabaseTestCase
                 '',
                 'public',
                 0,
+                0,
                 '127.0.0.2',
             );
             self::fail('Expected room creation to be forbidden.');
@@ -40,7 +41,7 @@ final class RoomServiceTest extends DatabaseTestCase
         $admin = $auth->register('Admin', 'a very secure password', '127.0.0.1');
         $guest = $auth->register('Guest', 'another secure password', '127.0.0.2');
         $rooms = new RoomService($this->pdo);
-        $room = $rooms->create($admin, 'private-room', 'Private', '', 'private', 0, '127.0.0.1');
+        $room = $rooms->create($admin, 'private-room', 'Private', '', 'private', 0, 0, '127.0.0.1');
 
         try {
             $rooms->get($guest, $room->id);
@@ -74,7 +75,7 @@ final class RoomServiceTest extends DatabaseTestCase
         $minor = $auth->register('Minor', 'different secure password', '127.0.0.3', $minorDate);
         $unknown = $auth->register('Unknown', 'further secure password', '127.0.0.4');
         $rooms = new RoomService($this->pdo);
-        $room = $rooms->create($admin, 'adults', 'Adults', '', 'public', 18, '127.0.0.1');
+        $room = $rooms->create($admin, 'adults', 'Adults', '', 'public', 18, 0, '127.0.0.1');
 
         self::assertSame('member', $rooms->join($adult, $room->id, '127.0.0.2')->memberRole);
 
@@ -94,9 +95,9 @@ final class RoomServiceTest extends DatabaseTestCase
         $admin = $auth->register('Admin', 'a very secure password', '127.0.0.1');
         $guest = $auth->register('Guest', 'another secure password', '127.0.0.2');
         $rooms = new RoomService($this->pdo);
-        $public = $rooms->create($admin, 'public-room', 'Public', '', 'public', 0, '127.0.0.1');
-        $rooms->create($admin, 'unlisted-room', 'Unlisted', '', 'unlisted', 0, '127.0.0.1');
-        $private = $rooms->create($admin, 'private-room', 'Private', '', 'private', 0, '127.0.0.1');
+        $public = $rooms->create($admin, 'public-room', 'Public', '', 'public', 0, 0, '127.0.0.1');
+        $rooms->create($admin, 'unlisted-room', 'Unlisted', '', 'unlisted', 0, 0, '127.0.0.1');
+        $private = $rooms->create($admin, 'private-room', 'Private', '', 'private', 0, 0, '127.0.0.1');
 
         self::assertSame([$public->id], array_column($rooms->list($guest), 'id'));
 
@@ -105,5 +106,23 @@ final class RoomServiceTest extends DatabaseTestCase
             [$private->id, $public->id],
             array_column($rooms->list($guest), 'id'),
         );
+    }
+
+    public function testRoomInactivityTimeoutIsValidatedAndReturned(): void
+    {
+        $auth = new AuthService($this->pdo, $this->config);
+        $admin = $auth->register('Admin', 'a very secure password', '127.0.0.1');
+        $rooms = new RoomService($this->pdo);
+        $room = $rooms->create($admin, 'timed', 'Timed', '', 'public', 0, 600, '127.0.0.1');
+
+        self::assertSame(600, $room->inactivityTimeoutSeconds);
+        self::assertSame(600, $room->toArray()['inactivity_timeout_seconds']);
+
+        try {
+            $rooms->create($admin, 'too-short', 'Too short', '', 'public', 0, 60, '127.0.0.1');
+            self::fail('Expected inactivity timeout validation.');
+        } catch (ApiException $exception) {
+            self::assertSame('invalid_inactivity_timeout', $exception->errorCode);
+        }
     }
 }
