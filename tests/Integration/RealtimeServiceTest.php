@@ -39,7 +39,7 @@ final class RealtimeServiceTest extends DatabaseTestCase
         }
     }
 
-    public function testBroadcastPermissionsAndScopes(): void
+    public function testBroadcastPermissionsScopesAndAuditing(): void
     {
         $auth = new AuthService($this->pdo, $this->config);
         $admin = $auth->register('Admin', 'a very secure password', '127.0.0.1');
@@ -50,8 +50,8 @@ final class RealtimeServiceTest extends DatabaseTestCase
         $rooms->join($member, $room->id, '127.0.0.2');
         $broadcasts = new BroadcastService($this->pdo);
 
-        $roomEvent = $broadcasts->room($admin, $room->id, 'Room notice');
-        $globalEvent = $broadcasts->global($admin, 'Global notice');
+        $roomEvent = $broadcasts->room($admin, $room->id, 'Room notice', '127.0.0.1');
+        $globalEvent = $broadcasts->global($admin, 'Global notice', '127.0.0.1');
         $events = new EventRepository($this->pdo);
 
         self::assertSame(
@@ -62,9 +62,13 @@ final class RealtimeServiceTest extends DatabaseTestCase
             [$globalEvent->id],
             array_column($this->eventArrays($events->visibleAfter($outsider, 0)), 'id'),
         );
+        self::assertSame(
+            2,
+            (int) $this->pdo->query("SELECT COUNT(*) FROM audit_log WHERE action LIKE 'realtime.%broadcast'")?->fetchColumn(),
+        );
 
         try {
-            $broadcasts->room($member, $room->id, 'Unauthorized');
+            $broadcasts->room($member, $room->id, 'Unauthorized', '127.0.0.2');
             self::fail('Expected room broadcast permission rejection.');
         } catch (ApiException $exception) {
             self::assertSame('permission_denied', $exception->errorCode);
