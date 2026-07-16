@@ -56,18 +56,16 @@ SQL);
                 throw new RuntimeException('Unable to prepare presence lookup.');
             }
             $lookup->execute(['connection_id' => $connectionId]);
-            $existing = $lookup->fetch();
-            if ($existing !== false && !is_array($existing)) {
-                throw new RuntimeException('Presence lookup returned an invalid row.');
-            }
-            if (is_array($existing) && (int) $existing['user_id'] !== $actor->id) {
+            $row = $lookup->fetch();
+            $existing = is_array($row) ? $row : null;
+            if ($existing !== null && (int) $existing['user_id'] !== $actor->id) {
                 throw new ApiException(409, 'presence_connection_conflict', 'That presence connection belongs to another user.');
             }
 
-            $oldRoomId = is_array($existing) && $existing['room_id'] !== null
+            $oldRoomId = $existing !== null && $existing['room_id'] !== null
                 ? (int) $existing['room_id']
                 : null;
-            $idleSeconds = is_array($existing) ? (int) $existing['idle_seconds'] : 0;
+            $idleSeconds = $existing !== null ? (int) $existing['idle_seconds'] : 0;
             $effectiveRoomId = $room?->id;
             $expired = false;
 
@@ -83,10 +81,10 @@ SQL);
             }
 
             $touchInteraction = $interacted
-                || $existing === false
+                || $existing === null
                 || $oldRoomId !== $effectiveRoomId;
 
-            if ($existing === false) {
+            if ($existing === null) {
                 $insert = $this->pdo->prepare(<<<'SQL'
 INSERT INTO room_presence (
     connection_id,
@@ -198,7 +196,7 @@ JOIN users u ON u.id = p.user_id
 WHERE p.room_id = :room_id
   AND p.lease_expires_at > NOW()
   AND (
-      :inactivity_timeout = 0
+      CAST(:inactivity_timeout AS integer) = 0
       OR p.last_interaction_at > NOW() - CAST(:inactivity_window AS integer) * INTERVAL '1 second'
   )
 GROUP BY u.id, u.username
@@ -214,15 +212,15 @@ SQL);
         ]);
 
         $users = [];
-        foreach ($statement->fetchAll() as $row) {
-            if (!is_array($row)) {
+        foreach ($statement->fetchAll() as $presenceRow) {
+            if (!is_array($presenceRow)) {
                 continue;
             }
             $users[] = [
-                'id' => (int) $row['id'],
-                'username' => (string) $row['username'],
-                'idle_seconds' => (int) $row['idle_seconds'],
-                'connections' => (int) $row['connections'],
+                'id' => (int) $presenceRow['id'],
+                'username' => (string) $presenceRow['username'],
+                'idle_seconds' => (int) $presenceRow['idle_seconds'],
+                'connections' => (int) $presenceRow['connections'],
             ];
         }
 
@@ -247,17 +245,18 @@ SQL);
             }
             $statement->execute();
 
+            /** @var array<string, array{int, int}> $changed */
             $changed = [];
-            foreach ($statement->fetchAll() as $row) {
-                if (!is_array($row) || $row['room_id'] === null) {
+            foreach ($statement->fetchAll() as $expiredRow) {
+                if (!is_array($expiredRow) || $expiredRow['room_id'] === null) {
                     continue;
                 }
-                $key = (int) $row['room_id'] . ':' . (int) $row['user_id'];
-                $changed[$key] = [(int) $row['room_id'], (int) $row['user_id']];
+                $key = (int) $expiredRow['room_id'] . ':' . (int) $expiredRow['user_id'];
+                $changed[$key] = [(int) $expiredRow['room_id'], (int) $expiredRow['user_id']];
             }
 
-            foreach ($changed as [$roomId, $userId]) {
-                $this->publishChanged($roomId, $userId);
+            foreach ($changed as [$changedRoomId, $changedUserId]) {
+                $this->publishChanged($changedRoomId, $changedUserId);
             }
             $this->pdo->commit();
         } catch (Throwable $exception) {
