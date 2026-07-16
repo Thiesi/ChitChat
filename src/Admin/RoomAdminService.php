@@ -44,7 +44,7 @@ SELECT u.id,
        u.username,
        rm.role,
        rm.joined_at,
-       COUNT(p.connection_id) FILTER (WHERE p.lease_expires_at > NOW())::integer AS active_connections
+       (COUNT(p.connection_id) FILTER (WHERE p.lease_expires_at > NOW()))::integer AS active_connections
 FROM room_members rm
 JOIN users u ON u.id = rm.user_id
 LEFT JOIN room_presence p
@@ -171,7 +171,7 @@ SQL);
         int $targetUserId,
         string $ipAddress,
     ): void {
-        $room = $this->requireManagedRoom($actor, $roomId);
+        $this->requireManagedRoom($actor, $roomId);
         $role = $this->rooms->membershipRole($roomId, $targetUserId);
         if ($role === null) {
             throw new ApiException(404, 'membership_not_found', 'Target user is not a room member.');
@@ -231,24 +231,33 @@ SQL);
         string $ipAddress,
     ): void {
         $this->requireManagedRoom($actor, $roomId);
-        $statement = $this->pdo->prepare(
-            'DELETE FROM room_invitations WHERE room_id = :room_id AND user_id = :user_id',
-        );
-        if ($statement === false) {
-            throw new RuntimeException('Unable to prepare invitation revocation.');
+        $this->pdo->beginTransaction();
+        try {
+            $statement = $this->pdo->prepare(
+                'DELETE FROM room_invitations WHERE room_id = :room_id AND user_id = :user_id',
+            );
+            if ($statement === false) {
+                throw new RuntimeException('Unable to prepare invitation revocation.');
+            }
+            $statement->execute(['room_id' => $roomId, 'user_id' => $targetUserId]);
+            if ($statement->rowCount() !== 1) {
+                throw new ApiException(404, 'invitation_not_found', 'Pending invitation not found.');
+            }
+            $this->audit->log(
+                actorUserId: $actor->id,
+                action: 'room.invitation_revoked',
+                subjectType: 'room',
+                subjectId: (string) $roomId,
+                metadata: ['target_user_id' => $targetUserId],
+                ipAddress: $ipAddress,
+            );
+            $this->pdo->commit();
+        } catch (Throwable $exception) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $exception;
         }
-        $statement->execute(['room_id' => $roomId, 'user_id' => $targetUserId]);
-        if ($statement->rowCount() !== 1) {
-            throw new ApiException(404, 'invitation_not_found', 'Pending invitation not found.');
-        }
-        $this->audit->log(
-            actorUserId: $actor->id,
-            action: 'room.invitation_revoked',
-            subjectType: 'room',
-            subjectId: (string) $roomId,
-            metadata: ['target_user_id' => $targetUserId],
-            ipAddress: $ipAddress,
-        );
     }
 
     private function requireManagedRoom(AuthenticatedUser $actor, int $roomId): Room
