@@ -73,7 +73,7 @@ Requires a global room administrator or the room owner. The request supplies the
 }
 ```
 
-The inactivity field is optional for backward-compatible API clients and defaults to 0 when omitted.
+The inactivity field is optional for backward-compatible API clients. When omitted, the room's existing inactivity policy is preserved.
 
 ### `POST /api/v1/rooms/delete.php`
 
