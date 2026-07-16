@@ -164,7 +164,7 @@ SQL);
         }
 
         $warningSeconds = null;
-        if ($effectiveRoomId !== null && $room !== null && $room->inactivityTimeoutSeconds > 0) {
+        if ($effectiveRoomId !== null && $room->inactivityTimeoutSeconds > 0) {
             $remaining = max(0, $room->inactivityTimeoutSeconds - $idleSeconds);
             if ($remaining <= $this->config->inactivityWarningSeconds) {
                 $warningSeconds = $remaining;
