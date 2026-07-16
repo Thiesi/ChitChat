@@ -30,6 +30,7 @@ final class MessageService
     ): array {
         $room = $this->requireRoom($actor, $roomId);
         RoomAuthorization::requireHistory($actor, $room);
+        (new RoomEligibility($this->rooms))->requireMinimumAge($actor, $room);
         if ($beforeId !== null && $beforeId < 1) {
             throw new ApiException(400, 'validation_error', 'before_id must be positive.');
         }
