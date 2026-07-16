@@ -47,10 +47,11 @@ The application currently provides:
 - inactivity warnings and active-room expiry without membership removal;
 - audited soft deletion of messages by authorized moderators;
 - a responsive browser client for registration, login, room creation and joining, history, live messages, commands, presence, and logout;
+- a permission-aware browser administration console for users, roles, bans, room settings, membership, invitations, and audit visibility;
 - audit records for sensitive account and room actions;
 - PHPUnit, PHPStan, JavaScript syntax checks, and PostgreSQL-backed CI.
 
-Attachments, direct messages, and administration screens remain future milestones.
+Attachments and direct messages remain future milestones.
 
 ## Development
 
