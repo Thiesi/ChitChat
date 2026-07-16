@@ -25,7 +25,7 @@ data: {"id":1235,"type":"room_message",...}
 
 The stream sends heartbeat comments at least every ten seconds and closes after approximately 25 seconds. Browser `EventSource` reconnects automatically. The server requests a one-second retry interval.
 
-The stream releases the PHP session lock before polling, so the same browser session can continue making API requests while SSE is open. It also performs opportunistic cleanup of expired presence leases.
+The stream releases the PHP session lock before polling, so the same browser session can continue making API requests while SSE is open.
 
 ## Visibility
 
@@ -110,7 +110,7 @@ Emitted when a presence connection enters a room, changes rooms, leaves through 
 }
 ```
 
-The event is an invalidation signal, not a complete online/offline transition. Because one user may have several tabs, clients must reload `GET /api/v1/rooms/presence.php` to obtain authoritative aggregated state.
+The event is an invalidation signal, not a complete online/offline transition. Because one user may have several tabs, clients must reload `GET /api/v1/rooms/presence.php` to obtain authoritative aggregated state. These transient invalidations expire from the event ledger after one hour.
 
 ### `forced_logout`
 
