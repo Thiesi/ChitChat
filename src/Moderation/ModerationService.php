@@ -9,6 +9,7 @@ use ChitChat\Auth\AuthenticatedUser;
 use ChitChat\Auth\PasswordPolicy;
 use ChitChat\Auth\UserRepository;
 use ChitChat\Http\ApiException;
+use ChitChat\Realtime\EventRepository;
 use DateTimeImmutable;
 use Exception;
 use PDO;
@@ -19,11 +20,13 @@ final class ModerationService
 {
     private readonly UserRepository $users;
     private readonly AuditLogger $audit;
+    private readonly EventRepository $events;
 
     public function __construct(private readonly PDO $pdo)
     {
         $this->users = new UserRepository($pdo);
         $this->audit = new AuditLogger($pdo);
+        $this->events = new EventRepository($pdo);
     }
 
     public function kick(
@@ -33,17 +36,25 @@ final class ModerationService
         string $ipAddress,
     ): void {
         $target = $this->assertCanManageTarget($actor, $targetUserId);
+        $reason = trim($reason);
 
         $this->pdo->beginTransaction();
         try {
-            $this->users->bumpSessionVersion($targetUserId);
+            $sessionVersion = $this->users->bumpSessionVersion($targetUserId);
             $this->audit->log(
                 actorUserId: $actor->id,
                 action: 'moderation.kick',
                 subjectType: 'user',
                 subjectId: (string) $targetUserId,
-                metadata: ['username' => $target->username, 'reason' => trim($reason)],
+                metadata: ['username' => $target->username, 'reason' => $reason],
                 ipAddress: $ipAddress,
+            );
+            $this->publishForcedLogout(
+                $actor,
+                $targetUserId,
+                'kick',
+                $reason,
+                $sessionVersion,
             );
             $this->pdo->commit();
         } catch (Throwable $exception) {
@@ -97,7 +108,7 @@ SQL);
                 'expires_at' => $normalizedExpiry,
             ]);
 
-            $this->users->bumpSessionVersion($targetUserId);
+            $sessionVersion = $this->users->bumpSessionVersion($targetUserId);
             $this->audit->log(
                 actorUserId: $actor->id,
                 action: 'moderation.ban',
@@ -109,6 +120,13 @@ SQL);
                     'expires_at' => $normalizedExpiry,
                 ],
                 ipAddress: $ipAddress,
+            );
+            $this->publishForcedLogout(
+                $actor,
+                $targetUserId,
+                'ban',
+                $reason,
+                $sessionVersion,
             );
             $this->pdo->commit();
         } catch (Throwable $exception) {
@@ -130,7 +148,7 @@ SQL);
 
         $this->pdo->beginTransaction();
         try {
-            $this->users->updatePassword(
+            $sessionVersion = $this->users->updatePassword(
                 $targetUserId,
                 password_hash($newPassword, PASSWORD_DEFAULT),
             );
@@ -141,6 +159,13 @@ SQL);
                 subjectId: (string) $targetUserId,
                 metadata: ['username' => $target->username],
                 ipAddress: $ipAddress,
+            );
+            $this->publishForcedLogout(
+                $actor,
+                $targetUserId,
+                'password_reset',
+                'Your password was reset by an administrator.',
+                $sessionVersion,
             );
             $this->pdo->commit();
         } catch (Throwable $exception) {
@@ -187,6 +212,26 @@ SQL);
             }
             throw $exception;
         }
+    }
+
+    private function publishForcedLogout(
+        AuthenticatedUser $actor,
+        int $targetUserId,
+        string $action,
+        string $reason,
+        int $sessionVersion,
+    ): void {
+        $this->events->publish(
+            type: 'forced_logout',
+            payload: [
+                'action' => $action,
+                'reason' => $reason,
+                'session_version' => $sessionVersion,
+            ],
+            targetUserId: $targetUserId,
+            actorUserId: $actor->id,
+            expiresAt: new DateTimeImmutable('+5 minutes'),
+        );
     }
 
     private function assertCanManageTarget(AuthenticatedUser $actor, int $targetUserId): AuthenticatedUser
