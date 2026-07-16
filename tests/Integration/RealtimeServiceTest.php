@@ -71,7 +71,7 @@ final class RealtimeServiceTest extends DatabaseTestCase
             $broadcasts->room($member, $room->id, 'Unauthorized', '127.0.0.2');
             self::fail('Expected room broadcast permission rejection.');
         } catch (ApiException $exception) {
-            self::assertSame('permission_denied', $exception->errorCode);
+            self::assertSame('forbidden', $exception->errorCode);
         }
     }
 
