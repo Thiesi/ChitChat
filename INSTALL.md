@@ -81,7 +81,7 @@ Each browser tab uses a distinct UUID and renews its lease every 20 seconds. `PR
 
 Presence is distinct from room membership. Lease expiry, an unclean disconnect, or room inactivity removes the tab from the active-user list but does not remove the account's persistent room membership or room role.
 
-The SSE polling loop removes stale leases every few seconds and emits presence invalidation events. Presence requests also perform cleanup, so the initial single-server deployment does not require a cron job. A future horizontally scaled deployment may move this cleanup into a dedicated worker.
+Presence heartbeats and room-presence reads remove stale leases and emit invalidation events. Because every active browser already sends heartbeats, the initial single-server deployment does not require a cron job or extra cleanup work in each SSE worker. A future horizontally scaled deployment may move cleanup into a dedicated worker.
 
 ## Production web-root rule
 
