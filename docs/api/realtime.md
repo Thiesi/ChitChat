@@ -25,12 +25,12 @@ data: {"id":1235,"type":"room_message",...}
 
 The stream sends heartbeat comments at least every ten seconds and closes after approximately 25 seconds. Browser `EventSource` reconnects automatically. The server requests a one-second retry interval.
 
-The stream releases the PHP session lock before polling, so the same browser session can continue making API requests while SSE is open.
+The stream releases the PHP session lock before polling, so the same browser session can continue making API requests while SSE is open. It also performs opportunistic cleanup of expired presence leases.
 
 ## Visibility
 
 - `global_broadcast`: visible to every authenticated user.
-- `room_message`, `message_deleted`, and `room_broadcast`: visible to current room members and global room moderators.
+- `room_message`, `message_deleted`, `room_broadcast`, and `presence_changed`: visible to current room members and global room moderators.
 - `ping`: visible only to the targeted user.
 - `forced_logout`: visible only to the targeted user.
 
@@ -98,6 +98,19 @@ Created through `POST /api/v1/broadcast.php`:
 ```
 
 Omit `room_id` for a global broadcast. Room broadcasts require room moderation permission. Global broadcasts require Super-Administrator, Administrator, or Chat Admin.
+
+### `presence_changed`
+
+Emitted when a presence connection enters a room, changes rooms, leaves through inactivity, or expires after an unclean disconnect.
+
+```json
+{
+  "room_id": 42,
+  "user_id": 17
+}
+```
+
+The event is an invalidation signal, not a complete online/offline transition. Because one user may have several tabs, clients must reload `GET /api/v1/rooms/presence.php` to obtain authoritative aggregated state.
 
 ### `forced_logout`
 
