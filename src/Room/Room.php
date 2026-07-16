@@ -13,6 +13,7 @@ final readonly class Room
         public string $infoLine,
         public string $visibility,
         public int $minimumAge,
+        public int $inactivityTimeoutSeconds,
         public int $createdBy,
         public ?string $memberRole,
         public bool $invited,
@@ -24,7 +25,7 @@ final readonly class Room
         return $this->memberRole !== null;
     }
 
-    /** @return array{id:int, key:string, name:string, info_line:string, visibility:string, minimum_age:int, created_by:int, member_role:?string, invited:bool} */
+    /** @return array{id:int, key:string, name:string, info_line:string, visibility:string, minimum_age:int, inactivity_timeout_seconds:int, created_by:int, member_role:?string, invited:bool} */
     public function toArray(): array
     {
         return [
@@ -34,6 +35,7 @@ final readonly class Room
             'info_line' => $this->infoLine,
             'visibility' => $this->visibility,
             'minimum_age' => $this->minimumAge,
+            'inactivity_timeout_seconds' => $this->inactivityTimeoutSeconds,
             'created_by' => $this->createdBy,
             'member_role' => $this->memberRole,
             'invited' => $this->invited,
