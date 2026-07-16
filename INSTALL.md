@@ -63,6 +63,8 @@ The first successfully registered account is promoted to `super_admin` inside th
 - `/health.php` reports whether the PHP process is alive.
 - `/ready.php` verifies that the application can connect to PostgreSQL.
 - `/api/v1/events/stream.php` provides the authenticated SSE stream.
+- `/api/v1/presence/heartbeat.php` renews a browser tab's presence lease.
+- `/api/v1/rooms/presence.php` lists active users in an authorized room.
 - API contracts are documented in `docs/api/`.
 
 ## Server-Sent Events
@@ -72,6 +74,14 @@ The SSE endpoint holds each connection for approximately 25 seconds and then let
 Response buffering must be disabled for `/api/v1/events/stream.php`. The application sends `X-Accel-Buffering: no`, but the proxy configuration must also avoid buffering or caching the stream. The endpoint releases the PHP session lock before polling, allowing concurrent requests from the same login session.
 
 Capacity planning must account for one PHP worker per currently open SSE request. The short reconnect window bounds worker lifetime but does not remove that concurrency requirement.
+
+## Presence leases
+
+Each browser tab uses a distinct UUID and renews its lease every 20 seconds. `PRESENCE_LEASE_SECONDS` defaults to 45 and must remain greater than the browser renewal interval; supported values are 15-300 seconds. `INACTIVITY_WARNING_SECONDS` defaults to 60 and controls when the browser warns that a room's configured inactivity timeout is approaching.
+
+Presence is distinct from room membership. Lease expiry, an unclean disconnect, or room inactivity removes the tab from the active-user list but does not remove the account's persistent room membership or room role.
+
+The SSE polling loop removes stale leases every few seconds and emits presence invalidation events. Presence requests also perform cleanup, so the initial single-server deployment does not require a cron job. A future horizontally scaled deployment may move this cleanup into a dedicated worker.
 
 ## Production web-root rule
 
