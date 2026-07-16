@@ -14,6 +14,7 @@ $appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUT
   <meta name="description" content="<?= $appName ?> self-hosted browser chat">
   <title><?= $appName ?></title>
   <link rel="stylesheet" href="/assets/css/app.css">
+  <link rel="stylesheet" href="/assets/css/components.css">
 </head>
 <body>
   <div id="app-loading" class="app-loading" role="status">Loading <?= $appName ?>…</div>
