@@ -117,13 +117,18 @@ final class SessionManager
         if (session_status() === PHP_SESSION_ACTIVE) {
             $params = session_get_cookie_params();
             if (ini_get('session.use_cookies')) {
-                setcookie(session_name(), '', [
+                $sessionName = session_name();
+                if (!is_string($sessionName) || $sessionName === '') {
+                    throw new ApiException(500, 'session_unavailable', 'Unable to resolve the session cookie name.');
+                }
+
+                setcookie($sessionName, '', [
                     'expires' => time() - 42000,
                     'path' => $params['path'],
                     'domain' => $params['domain'],
                     'secure' => $params['secure'],
                     'httponly' => $params['httponly'],
-                    'samesite' => $params['samesite'] ?? 'Lax',
+                    'samesite' => $params['samesite'],
                 ]);
             }
             session_destroy();
