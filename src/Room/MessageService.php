@@ -1,13 +1,13 @@
 <?php
 
 declare(strict_types=1);
-
 namespace ChitChat\Room;
 
 use ChitChat\Audit\AuditLogger;
 use ChitChat\Auth\AuthenticatedUser;
 use ChitChat\Http\ApiException;
 use ChitChat\Realtime\EventRepository;
+use ChitChat\Upload\AttachmentPolicy;
 use PDO;
 use RuntimeException;
 use Throwable;
@@ -25,7 +25,19 @@ final class MessageService
         $this->events = new EventRepository($pdo);
     }
 
-    /** @return list<array{id:int, room_id:int, sender_id:?int, username:?string, type:string, body:?string, deleted:bool, created_at:string}> */
+    /**
+     * @return list<array{
+     *   id:int,
+     *   room_id:int,
+     *   sender_id:?int,
+     *   username:?string,
+     *   type:string,
+     *   body:?string,
+     *   attachment:?array{id:int, name:string, mime_type:string, size_bytes:int, sha256:string, previewable:bool},
+     *   deleted:bool,
+     *   created_at:string
+     * }>
+     */
     public function history(
         AuthenticatedUser $actor,
         int $roomId,
@@ -50,9 +62,16 @@ SELECT m.id,
        m.message_type,
        m.body,
        m.created_at,
-       (m.deleted_at IS NOT NULL)::int AS deleted
+       (m.deleted_at IS NOT NULL)::int AS deleted,
+       a.id AS attachment_id,
+       a.original_name AS attachment_name,
+       a.mime_type AS attachment_mime_type,
+       a.size_bytes AS attachment_size_bytes,
+       a.sha256 AS attachment_sha256,
+       a.deleted_at AS attachment_deleted_at
 FROM room_messages m
 LEFT JOIN users u ON u.id = m.sender_id
+LEFT JOIN attachments a ON a.message_id = m.id
 WHERE m.room_id = :room_id
 SQL;
         if ($beforeId !== null) {
@@ -81,7 +100,19 @@ SQL;
         return $messages;
     }
 
-    /** @return array{id:int, room_id:int, sender_id:?int, username:?string, type:string, body:?string, deleted:bool, created_at:string} */
+    /**
+     * @return array{
+     *   id:int,
+     *   room_id:int,
+     *   sender_id:?int,
+     *   username:?string,
+     *   type:string,
+     *   body:?string,
+     *   attachment:?array{id:int, name:string, mime_type:string, size_bytes:int, sha256:string, previewable:bool},
+     *   deleted:bool,
+     *   created_at:string
+     * }
+     */
     public function send(
         AuthenticatedUser $actor,
         int $roomId,
@@ -114,7 +145,7 @@ SQL);
                 throw new RuntimeException('Message send did not return an ID.');
             }
 
-            $message = $this->requireMessage((int) $messageId);
+            $message = $this->storedMessage((int) $messageId);
             $this->events->publish(
                 type: 'room_message',
                 payload: ['message' => $message],
@@ -169,6 +200,19 @@ SQL);
                 throw new ApiException(409, 'message_already_deleted', 'Message is already deleted.');
             }
 
+            $attachmentStatement = $this->pdo->prepare(<<<'SQL'
+UPDATE attachments
+SET deleted_at = NOW(), deleted_by = :deleted_by
+WHERE message_id = :message_id AND deleted_at IS NULL
+SQL);
+            if ($attachmentStatement === false) {
+                throw new RuntimeException('Unable to prepare attachment deletion.');
+            }
+            $attachmentStatement->execute([
+                'deleted_by' => $actor->id,
+                'message_id' => $messageId,
+            ]);
+
             $this->audit->log(
                 $actor->id,
                 'room.message_deleted',
@@ -194,6 +238,53 @@ SQL);
             }
             throw $exception;
         }
+    }
+
+    /**
+     * @return array{
+     *   id:int,
+     *   room_id:int,
+     *   sender_id:?int,
+     *   username:?string,
+     *   type:string,
+     *   body:?string,
+     *   attachment:?array{id:int, name:string, mime_type:string, size_bytes:int, sha256:string, previewable:bool},
+     *   deleted:bool,
+     *   created_at:string
+     * }
+     */
+    public function storedMessage(int $messageId): array
+    {
+        $statement = $this->pdo->prepare(<<<'SQL'
+SELECT m.id,
+       m.room_id,
+       m.sender_id,
+       u.username,
+       m.message_type,
+       m.body,
+       m.created_at,
+       (m.deleted_at IS NOT NULL)::int AS deleted,
+       a.id AS attachment_id,
+       a.original_name AS attachment_name,
+       a.mime_type AS attachment_mime_type,
+       a.size_bytes AS attachment_size_bytes,
+       a.sha256 AS attachment_sha256,
+       a.deleted_at AS attachment_deleted_at
+FROM room_messages m
+LEFT JOIN users u ON u.id = m.sender_id
+LEFT JOIN attachments a ON a.message_id = m.id
+WHERE m.id = :id
+SQL);
+        if ($statement === false) {
+            throw new RuntimeException('Unable to prepare stored-message lookup.');
+        }
+        $statement->execute(['id' => $messageId]);
+        $row = $statement->fetch();
+        if (!is_array($row)) {
+            throw new RuntimeException('Stored message could not be reloaded.');
+        }
+
+        return $this->hydrateMessage($row);
     }
 
     private function requireRoom(AuthenticatedUser $actor, int $roomId): Room
@@ -236,41 +327,39 @@ SQL);
         return [$messageType, $body];
     }
 
-    /** @return array{id:int, room_id:int, sender_id:?int, username:?string, type:string, body:?string, deleted:bool, created_at:string} */
-    private function requireMessage(int $messageId): array
-    {
-        $statement = $this->pdo->prepare(<<<'SQL'
-SELECT m.id,
-       m.room_id,
-       m.sender_id,
-       u.username,
-       m.message_type,
-       m.body,
-       m.created_at,
-       (m.deleted_at IS NOT NULL)::int AS deleted
-FROM room_messages m
-LEFT JOIN users u ON u.id = m.sender_id
-WHERE m.id = :id
-SQL);
-        if ($statement === false) {
-            throw new RuntimeException('Unable to prepare sent-message lookup.');
-        }
-        $statement->execute(['id' => $messageId]);
-        $row = $statement->fetch();
-        if (!is_array($row)) {
-            throw new RuntimeException('Sent message could not be reloaded.');
-        }
-
-        return $this->hydrateMessage($row);
-    }
-
     /**
      * @param array<string, mixed> $row
-     * @return array{id:int, room_id:int, sender_id:?int, username:?string, type:string, body:?string, deleted:bool, created_at:string}
+     * @return array{
+     *   id:int,
+     *   room_id:int,
+     *   sender_id:?int,
+     *   username:?string,
+     *   type:string,
+     *   body:?string,
+     *   attachment:?array{id:int, name:string, mime_type:string, size_bytes:int, sha256:string, previewable:bool},
+     *   deleted:bool,
+     *   created_at:string
+     * }
      */
     private function hydrateMessage(array $row): array
     {
         $deleted = (int) $row['deleted'] === 1;
+        $attachment = null;
+        if (
+            !$deleted
+            && $row['attachment_id'] !== null
+            && $row['attachment_deleted_at'] === null
+        ) {
+            $mimeType = (string) $row['attachment_mime_type'];
+            $attachment = [
+                'id' => (int) $row['attachment_id'],
+                'name' => (string) $row['attachment_name'],
+                'mime_type' => $mimeType,
+                'size_bytes' => (int) $row['attachment_size_bytes'],
+                'sha256' => (string) $row['attachment_sha256'],
+                'previewable' => AttachmentPolicy::isPreviewable($mimeType),
+            ];
+        }
 
         return [
             'id' => (int) $row['id'],
@@ -279,6 +368,7 @@ SQL);
             'username' => $row['username'] === null ? null : (string) $row['username'],
             'type' => (string) $row['message_type'],
             'body' => $deleted ? null : (string) $row['body'],
+            'attachment' => $attachment,
             'deleted' => $deleted,
             'created_at' => (string) $row['created_at'],
         ];
