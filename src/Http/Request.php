@@ -93,6 +93,25 @@ final class Request
         return $value;
     }
 
+    public static function queryString(string $key): string
+    {
+        $value = $_GET[$key] ?? null;
+        if (!is_string($value)) {
+            throw new ApiException(400, 'validation_error', $key . ' must be a string query parameter.');
+        }
+
+        return $value;
+    }
+
+    public static function optionalQueryString(string $key): ?string
+    {
+        if (!array_key_exists($key, $_GET)) {
+            return null;
+        }
+
+        return self::queryString($key);
+    }
+
     public static function queryInteger(string $key): int
     {
         $value = $_GET[$key] ?? null;
