@@ -19,14 +19,18 @@ Endpoint::run($config, static function () use ($config): ApiResult {
     $payload = Request::json();
     $pdo = Database::connect($config);
     $actor = SessionManager::requireUser(new UserRepository($pdo));
-    $room = (new RoomService($pdo))->update(
+    $service = new RoomService($pdo);
+    $roomId = Request::integer($payload, 'room_id');
+    $existing = $service->get($actor, $roomId);
+    $room = $service->update(
         $actor,
-        Request::integer($payload, 'room_id'),
+        $roomId,
         Request::string($payload, 'name'),
         Request::string($payload, 'info_line'),
         Request::string($payload, 'visibility'),
         Request::integer($payload, 'minimum_age'),
-        Request::optionalInteger($payload, 'inactivity_timeout_seconds') ?? 0,
+        Request::optionalInteger($payload, 'inactivity_timeout_seconds')
+            ?? $existing->inactivityTimeoutSeconds,
         Request::clientIp(),
     );
 
