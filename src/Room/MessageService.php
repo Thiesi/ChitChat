@@ -7,18 +7,22 @@ namespace ChitChat\Room;
 use ChitChat\Audit\AuditLogger;
 use ChitChat\Auth\AuthenticatedUser;
 use ChitChat\Http\ApiException;
+use ChitChat\Realtime\EventRepository;
 use PDO;
 use RuntimeException;
+use Throwable;
 
 final class MessageService
 {
     private readonly RoomRepository $rooms;
     private readonly AuditLogger $audit;
+    private readonly EventRepository $events;
 
     public function __construct(private readonly PDO $pdo)
     {
         $this->rooms = new RoomRepository($pdo);
         $this->audit = new AuditLogger($pdo);
+        $this->events = new EventRepository($pdo);
     }
 
     /** @return list<array{id:int, room_id:int, sender_id:?int, username:?string, type:string, body:?string, deleted:bool, created_at:string}> */
@@ -89,26 +93,43 @@ SQL;
         }
 
         [$messageType, $body] = $this->parseMessage($bodyInput);
-        $statement = $this->pdo->prepare(<<<'SQL'
+        $this->pdo->beginTransaction();
+        try {
+            $statement = $this->pdo->prepare(<<<'SQL'
 INSERT INTO room_messages (room_id, sender_id, message_type, body)
 VALUES (:room_id, :sender_id, :message_type, :body)
 RETURNING id
 SQL);
-        if ($statement === false) {
-            throw new RuntimeException('Unable to prepare message send.');
-        }
-        $statement->execute([
-            'room_id' => $roomId,
-            'sender_id' => $actor->id,
-            'message_type' => $messageType,
-            'body' => $body,
-        ]);
-        $messageId = $statement->fetchColumn();
-        if ($messageId === false) {
-            throw new RuntimeException('Message send did not return an ID.');
-        }
+            if ($statement === false) {
+                throw new RuntimeException('Unable to prepare message send.');
+            }
+            $statement->execute([
+                'room_id' => $roomId,
+                'sender_id' => $actor->id,
+                'message_type' => $messageType,
+                'body' => $body,
+            ]);
+            $messageId = $statement->fetchColumn();
+            if ($messageId === false) {
+                throw new RuntimeException('Message send did not return an ID.');
+            }
 
-        return $this->requireMessage((int) $messageId);
+            $message = $this->requireMessage((int) $messageId);
+            $this->events->publish(
+                type: 'room_message',
+                payload: ['message' => $message],
+                roomId: $roomId,
+                actorUserId: $actor->id,
+            );
+            $this->pdo->commit();
+
+            return $message;
+        } catch (Throwable $exception) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $exception;
+        }
     }
 
     public function delete(
@@ -133,27 +154,46 @@ SQL);
         $room = $this->requireRoom($actor, $roomId);
         RoomAuthorization::requireModerate($actor, $room);
 
-        $deleteStatement = $this->pdo->prepare(<<<'SQL'
+        $this->pdo->beginTransaction();
+        try {
+            $deleteStatement = $this->pdo->prepare(<<<'SQL'
 UPDATE room_messages
 SET deleted_at = NOW(), deleted_by = :deleted_by
 WHERE id = :id AND deleted_at IS NULL
 SQL);
-        if ($deleteStatement === false) {
-            throw new RuntimeException('Unable to prepare message deletion.');
-        }
-        $deleteStatement->execute(['deleted_by' => $actor->id, 'id' => $messageId]);
-        if ($deleteStatement->rowCount() === 0) {
-            throw new ApiException(409, 'message_already_deleted', 'Message is already deleted.');
-        }
+            if ($deleteStatement === false) {
+                throw new RuntimeException('Unable to prepare message deletion.');
+            }
+            $deleteStatement->execute(['deleted_by' => $actor->id, 'id' => $messageId]);
+            if ($deleteStatement->rowCount() === 0) {
+                throw new ApiException(409, 'message_already_deleted', 'Message is already deleted.');
+            }
 
-        $this->audit->log(
-            $actor->id,
-            'room.message_deleted',
-            'room_message',
-            (string) $messageId,
-            ['room_id' => $roomId],
-            $ipAddress,
-        );
+            $this->audit->log(
+                $actor->id,
+                'room.message_deleted',
+                'room_message',
+                (string) $messageId,
+                ['room_id' => $roomId],
+                $ipAddress,
+            );
+            $this->events->publish(
+                type: 'message_deleted',
+                payload: [
+                    'message_id' => $messageId,
+                    'room_id' => $roomId,
+                    'deleted_by' => $actor->toArray(),
+                ],
+                roomId: $roomId,
+                actorUserId: $actor->id,
+            );
+            $this->pdo->commit();
+        } catch (Throwable $exception) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $exception;
+        }
     }
 
     private function requireRoom(AuthenticatedUser $actor, int $roomId): Room
@@ -186,7 +226,7 @@ SQL);
                 throw new ApiException(400, 'empty_message', 'The /me command requires an action.');
             }
         } elseif (str_starts_with($body, '/')) {
-            throw new ApiException(400, 'unknown_command', 'Unknown command. The /ping command will be added with realtime events.');
+            throw new ApiException(400, 'unknown_command', 'Unknown command. Supported commands are /me and /ping.');
         }
 
         if (mb_strlen($body, 'UTF-8') > 4000) {
