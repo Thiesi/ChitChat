@@ -59,11 +59,11 @@ Expired leases and users beyond the room inactivity timeout are omitted.
 
 ## Realtime invalidation
 
-Room members receive a `presence_changed` SSE event whenever a connection enters, leaves, expires, or changes rooms. The event payload contains `room_id` and `user_id`. Clients should reload the presence list rather than infer final online state from the event, because one user may have multiple connections.
+Room members receive a `presence_changed` SSE event whenever a connection enters, leaves, expires, or changes rooms. The event payload contains `room_id` and `user_id`. Clients should reload the presence list rather than infer final online state from the event, because one user may have multiple connections. Presence invalidation events expire from the event ledger after one hour.
 
 ## Configuration
 
 - `PRESENCE_LEASE_SECONDS` defaults to 45 and may be 15-300.
 - `INACTIVITY_WARNING_SECONDS` defaults to 60 and may be 10-3600.
 
-The browser renews its lease every 20 seconds. Stale leases are removed opportunistically by the SSE polling loop and by presence requests, so no cron job is required for the initial single-server deployment.
+The browser renews its lease every 20 seconds. Heartbeats and presence-list requests remove stale leases and publish invalidations, so no cron job is required for the initial single-server deployment. Active clients naturally perform cleanup without adding work to every SSE connection.
