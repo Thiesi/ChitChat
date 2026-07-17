@@ -13,19 +13,19 @@ async function expectNamedElements(locator) {
 }
 
 async function expectUniqueIds(page) {
-  const elements = page.locator('[id]');
-  const count = await elements.count();
-  const seen = new Set();
-  const duplicates = new Set();
+  const duplicates = await page.locator('[id]').evaluateAll((elements) => {
+    const seen = new Set();
+    const repeated = new Set();
+    for (const element of elements) {
+      const id = element.getAttribute('id');
+      if (id === null || id === '') continue;
+      if (seen.has(id)) repeated.add(id);
+      seen.add(id);
+    }
+    return [...repeated];
+  });
 
-  for (let index = 0; index < count; index += 1) {
-    const id = await elements.nth(index).getAttribute('id');
-    if (id === null || id === '') continue;
-    if (seen.has(id)) duplicates.add(id);
-    seen.add(id);
-  }
-
-  expect([...duplicates]).toEqual([]);
+  expect(duplicates).toEqual([]);
 }
 
 async function expectAccessibleStructure(page) {
