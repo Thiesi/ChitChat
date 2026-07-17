@@ -27,10 +27,20 @@ async function selectRoom(page, name) {
 }
 
 async function selectPeer(page, username) {
-  await page.locator('#dm-user-search').fill(username);
-  await page.getByRole('button', { name: 'Search' }).click();
-  await page.locator('.dm-user-button', { hasText: username }).click();
-  await expect(page.locator('#dm-peer-name')).toHaveText(username);
+  const peerName = page.locator('#dm-peer-name');
+  if ((await peerName.textContent()) !== username) {
+    const conversation = page.locator('.conversation-button', { hasText: username }).first();
+    if (await conversation.count() > 0) {
+      await conversation.click();
+    } else {
+      await page.locator('#dm-user-search').fill(username);
+      await page.getByRole('button', { name: 'Search' }).click();
+      const result = page.locator('.dm-user-button', { hasText: username }).first();
+      await expect(result).toBeVisible();
+      await result.click();
+    }
+  }
+  await expect(peerName).toHaveText(username);
   await expect(page.locator('#dm-composer')).toBeVisible();
 }
 
