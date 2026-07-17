@@ -7,12 +7,15 @@ use ChitChat\Auth\UserRepository;
 use ChitChat\Database;
 use ChitChat\Http\ApiException;
 use ChitChat\Http\Request;
+use ChitChat\Observability\SseConnectionTracker;
 use ChitChat\Realtime\EventRepository;
 use ChitChat\Realtime\SseEncoder;
 use Throwable;
 
 /** @var ChitChat\Config $config */
 $config = require dirname(__DIR__, 4) . '/bootstrap/http.php';
+$tracker = null;
+$connectionId = null;
 
 try {
     Request::requireMethod('GET');
@@ -44,6 +47,9 @@ try {
     ini_set('zlib.output_compression', '0');
     session_write_close();
 
+    $tracker = new SseConnectionTracker($pdo, $config->sseConnectionLeaseSeconds);
+    $connectionId = $tracker->open($actor->id);
+
     while (ob_get_level() > 0) {
         ob_end_flush();
     }
@@ -54,6 +60,7 @@ try {
     $events = new EventRepository($pdo);
     $deadline = microtime(true) + 25.0;
     $lastHeartbeat = 0.0;
+    $lastLeaseRefresh = microtime(true);
 
     while (microtime(true) < $deadline && connection_aborted() === 0) {
         $batch = $events->visibleAfter($actor, $afterId, 100);
@@ -74,6 +81,10 @@ try {
         }
 
         $now = microtime(true);
+        if ($now - $lastLeaseRefresh >= 10.0) {
+            $tracker->touch($connectionId);
+            $lastLeaseRefresh = $now;
+        }
         if ($batch !== [] || $now - $lastHeartbeat >= 10.0) {
             if ($batch === []) {
                 echo SseEncoder::heartbeat();
@@ -107,5 +118,13 @@ try {
     } else {
         echo "event: error\ndata: {\"code\":\"internal_error\"}\n\n";
         flush();
+    }
+} finally {
+    if ($tracker instanceof SseConnectionTracker && is_string($connectionId)) {
+        try {
+            $tracker->close($connectionId);
+        } catch (Throwable $exception) {
+            error_log($exception->__toString());
+        }
     }
 }
