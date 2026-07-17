@@ -19,7 +19,8 @@ Endpoint::run($config, static function () use ($config): ApiResult {
     $payload = Request::json();
     $ipAddress = Request::clientIp();
     $pdo = Database::connect($config);
-    $user = (new AuthService($pdo, $config))->login(
+    $auth = new AuthService($pdo, $config);
+    $user = $auth->authenticatePassword(
         Request::string($payload, 'username'),
         Request::string($payload, 'password'),
         $ipAddress,
@@ -34,6 +35,7 @@ Endpoint::run($config, static function () use ($config): ApiResult {
         ], 202);
     }
 
+    $auth->completeLogin($user, $ipAddress);
     SessionManager::login($user);
     return ApiResult::ok([
         'csrf_token' => SessionManager::csrfToken(),
