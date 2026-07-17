@@ -1,0 +1,33 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use ChitChat\Database;
+use ChitChat\Maintenance\MaintenanceService;
+
+if (PHP_SAPI !== 'cli') {
+    fwrite(STDERR, "This command may only run from the CLI.\n");
+    exit(1);
+}
+
+/** @var ChitChat\Config $config */
+$config = require dirname(__DIR__) . '/bootstrap/app.php';
+$arguments = array_slice($argv, 1);
+$unknown = array_values(array_diff($arguments, ['--dry-run']));
+if ($unknown !== []) {
+    fwrite(STDERR, 'Unknown option: ' . $unknown[0] . "\n");
+    fwrite(STDERR, "Usage: php bin/maintenance-cleanup [--dry-run]\n");
+    exit(2);
+}
+
+try {
+    $result = (new MaintenanceService(Database::connect($config), $config))->run(
+        in_array('--dry-run', $arguments, true),
+    );
+    fwrite(STDOUT, json_encode($result, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT) . "\n");
+    exit((int) ($result['file_removal_failures'] ?? 0) === 0 ? 0 : 3);
+} catch (Throwable $exception) {
+    fwrite(STDERR, $exception->getMessage() . "\n");
+    exit(1);
+}
