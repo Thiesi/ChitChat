@@ -15,11 +15,13 @@ final class DirectMessageService
 {
     private readonly UserRepository $users;
     private readonly EventRepository $events;
+    private readonly DirectMessageBlockService $blocks;
 
     public function __construct(private readonly PDO $pdo)
     {
         $this->users = new UserRepository($pdo);
         $this->events = new EventRepository($pdo);
+        $this->blocks = new DirectMessageBlockService($pdo);
     }
 
     /** @return list<array{id:int, username:string}> */
@@ -54,13 +56,12 @@ SQL);
 
         $result = [];
         foreach ($statement->fetchAll() as $row) {
-            if (!is_array($row)) {
-                continue;
+            if (is_array($row)) {
+                $result[] = [
+                    'id' => (int) $row['id'],
+                    'username' => (string) $row['username'],
+                ];
             }
-            $result[] = [
-                'id' => (int) $row['id'],
-                'username' => (string) $row['username'],
-            ];
         }
 
         return $result;
@@ -247,6 +248,9 @@ SQL;
 
         $this->pdo->beginTransaction();
         try {
+            $this->blocks->lockPair($actor->id, $recipientUserId);
+            $this->blocks->requireMessagingAvailable($actor, $recipientUserId);
+
             $statement = $this->pdo->prepare(<<<'SQL'
 INSERT INTO direct_messages (sender_user_id, recipient_user_id, body)
 VALUES (:sender_user_id, :recipient_user_id, :body)
