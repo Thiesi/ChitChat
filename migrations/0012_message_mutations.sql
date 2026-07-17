@@ -12,12 +12,9 @@ ALTER TABLE direct_messages
     DROP CONSTRAINT IF EXISTS direct_messages_body_check;
 
 ALTER TABLE direct_messages
-    ALTER COLUMN body DROP NOT NULL;
-
-ALTER TABLE direct_messages
     ADD CONSTRAINT direct_messages_body_check CHECK (
-        (deleted_at IS NULL AND body IS NOT NULL AND char_length(body) BETWEEN 1 AND 4000)
-        OR (deleted_at IS NOT NULL AND body IS NULL)
+        (deleted_at IS NULL AND char_length(body) BETWEEN 1 AND 4000)
+        OR (deleted_at IS NOT NULL AND body = 'Message deleted.')
     );
 
 ALTER TABLE direct_message_attachments
