@@ -70,9 +70,27 @@ GET /api/v1/session.php
 
 The response contains a `csrf_token`. Send that value in the `X-CSRF-Token` header for every state-changing request, including registration and login.
 
-It also contains whether public registration is enabled, the direct-message privacy policy, and the independently configured message-revision review policy. Browser clients must disclose that DMs are not end-to-end encrypted, state the active retention period, and state whether administrative inspection is enabled and for which role. The bundled DM interface also discloses that edits and deletions preserve historical bodies until message retention removes them.
+It also contains whether public registration is enabled, the direct-message privacy policy, the independently configured message-revision review policy, and current privileged step-up state under `security.privileged_step_up`. Browser clients must disclose that DMs are not end-to-end encrypted, state the active retention period, and state whether administrative inspection is enabled and for which role. The bundled DM interface also discloses that edits and deletions preserve historical bodies until message retention removes them.
 
 The first successfully registered account is promoted to `super_admin` inside the same database transaction that creates it. Concurrent first registrations are serialized by locking the single system-settings row.
+
+### Privileged step-up
+
+Sensitive administrative actions require recent current-password verification in addition to session authentication, CSRF, role authorization, and action-specific audits.
+
+```text
+POST /api/v1/step-up.php
+X-CSRF-Token: <session token>
+Content-Type: application/json
+
+{"password":"current account password"}
+```
+
+`PRIVILEGED_STEP_UP_MAX_AGE_SECONDS` defaults to `600` and accepts 60-3600 seconds. Elevation is bound to the current account and session version. It expires or is cleared after login rotation, logout, password changes, kicks, bans, administrator resets of the current account, and any other session invalidation.
+
+The browser displays a current-password dialog after a protected endpoint returns `step_up_required`, verifies the password, and retries the original JSON POST exactly once. Incorrect passwords are audited and limited together with successful attempts to ten attempts per account and source IP in fifteen minutes.
+
+This is password reauthentication, not MFA. It does not grant roles or bypass any content, target, policy, reason, or audit restriction.
 
 ## Endpoints
 
@@ -86,6 +104,7 @@ The first successfully registered account is promoted to `super_admin` inside th
 - `/health.php` reports whether the PHP process is alive.
 - `/ready.php` verifies that the application can connect to PostgreSQL and use attachment storage.
 - `/metrics.php` serves optional bearer-protected Prometheus metrics when explicitly enabled.
+- `/api/v1/step-up.php` verifies the current password and creates short-lived privileged elevation.
 - `/api/v1/events/stream.php` provides the authenticated SSE stream.
 - `/api/v1/presence/heartbeat.php` renews a browser tab's presence lease.
 - `/api/v1/rooms/presence.php` lists active users in an authorized room.
@@ -118,6 +137,16 @@ Presence is distinct from room membership. Lease expiry, an unclean disconnect, 
 ## Administration, retention, and maintenance
 
 User, audit, and system-status controls are visible only to Super-Administrators and Administrators. Room controls are visible to Super-Administrators, Administrators, Chat Admins, and owners of the selected room. Only Super-Administrators may change registration or retention policy.
+
+The following operations additionally require active privileged step-up:
+
+- global role replacement;
+- administrator password reset;
+- direct-message inspection POSTs;
+- message-revision review POSTs;
+- registration and retention-policy updates.
+
+Coarse role and feature-policy checks occur before step-up, so an unauthorized account is denied without receiving a password prompt. Successful verification and the later protected action create separate audit records.
 
 Room-message, direct-message, and audit retention default to `0`, meaning permanent retention. Nonzero policies become effective only when maintenance runs:
 
@@ -160,17 +189,17 @@ Direct messages are ordinary server-side PostgreSQL records. They are **not end-
 
 `DM_ADMIN_INSPECTION_ENABLED` defaults to `1`. Set it to `0` to disable administrative canonical-content access. `DM_ADMIN_INSPECTION_ROLE` defaults to `super_admin`; `admin` permits both Administrators and Super-Administrators. Chat Admins, Global Moderators and room owners never receive DM inspection through these settings.
 
-Every successful inspection page is audited before content is returned. Audit metadata includes the actor, IP, reason, selected users, pagination details and returned ID range, but not copied message bodies.
+Every successful inspection page requires active step-up and is audited before content is returned. Audit metadata includes the actor, IP, reason, selected users, pagination details and returned ID range, but not copied message bodies or passwords.
 
 Edits and deletions create append-only revision rows containing historical bodies. `MESSAGE_REVISION_REVIEW_ENABLED` defaults to `0`; enabling it is an explicit operator decision. `MESSAGE_REVISION_REVIEW_ROLE` defaults to `super_admin`; `admin` permits Administrators and Super-Administrators. This policy does not inherit from DM inspection or moderation permissions.
 
-Revision review accepts only an exact room or direct-message ID that already has retained revisions. Every successful request requires a 10-500 character reason and is audited with the reviewer, IP, message context, and returned revision IDs and actions. Historical bodies are not copied into audit JSON. ChitChat does not notify participants when a review occurs; operators must disclose the capability in their own privacy, moderation, employment, and legal policies.
+Revision review accepts only an exact room or direct-message ID that already has retained revisions. Every successful request requires active step-up, a 10-500 character reason, and a separate audit containing the reviewer, IP, message context, and returned revision IDs and actions. Historical bodies and passwords are not copied into audit JSON. ChitChat does not notify participants when a review occurs; operators must disclose the capability in their own privacy, moderation, employment, and legal policies.
 
 ## Browser security and rate limits
 
 All PHP responses use a restrictive Content Security Policy, clickjacking protection, `nosniff`, no-referrer behavior, a restrictive Permissions Policy, same-origin opener/resource policies, and `Cache-Control: no-store`. When `SESSION_COOKIE_SECURE=1`, ChitChat also emits one-year HSTS.
 
-Database-backed fixed-window limits are shared by all PHP workers: five registrations per source IP per hour, thirty room sends per user per minute, ten attachment uploads per user per hour, and thirty direct messages per user per minute. Login has its existing configurable credential throttle.
+Database-backed fixed-window limits are shared by all PHP workers: five registrations per source IP per hour, thirty room sends per user per minute, ten attachment uploads per user per hour, thirty direct messages per user per minute, and ten privileged password-verification attempts per account and source IP per fifteen minutes. Login has its existing configurable credential throttle.
 
 ## Backup, restore and upgrade rehearsal
 
@@ -194,4 +223,4 @@ npm run test:e2e -- --project=chromium
 npm run test:e2e -- --project=firefox
 ```
 
-The integration and browser suites require disposable migrated PostgreSQL databases. They create and clear application data and must never be pointed at a database containing valuable information. Attachment, maintenance, observability, release-rehearsal and reverse-proxy tests use isolated temporary storage directories.
+The integration and browser suites require disposable migrated PostgreSQL databases. They create and clear application data and must never be pointed at a database containing valuable information. Attachment, maintenance, observability, step-up, release-rehearsal and reverse-proxy tests use isolated temporary storage or database state.
