@@ -338,7 +338,7 @@ final class BackupManager
             }
 
             if (!rename($extractedPath, $targetAttachments)) {
-                if ($previousAttachments !== null && !file_exists($targetAttachments)) {
+                if ($previousAttachments !== null) {
                     @rename($previousAttachments, $targetAttachments);
                     $previousAttachments = null;
                 }
