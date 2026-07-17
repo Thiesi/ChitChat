@@ -45,8 +45,6 @@ final class DirectMessageMutationService
         [$placeholders, $parameters] = $this->idParameters($messageIds);
         $parameters['actor_sender'] = $actor->id;
         $parameters['actor_recipient'] = $actor->id;
-        $parameters['actor_block_first'] = $actor->id;
-        $parameters['actor_block_second'] = $actor->id;
         $statement = $this->pdo->prepare(<<<SQL
 SELECT dm.id,
        dm.sender_user_id,
