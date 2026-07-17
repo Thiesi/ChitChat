@@ -8,7 +8,7 @@ ChitChat is a small, self-hosted browser chat application. The clean reconstruct
 
 The former `v0.10.25` source snapshot is incomplete and is not considered runnable or a supported upgrade predecessor. It is preserved on the `legacy/v0.10.25` branch for reference.
 
-See [CHANGELOG.md](CHANGELOG.md) and the [v1.1.0 release notes](docs/releases/v1.1.0.md).
+See [CHANGELOG.md](CHANGELOG.md), the [v1.1.0 release notes](docs/releases/v1.1.0.md), and the [project roadmap](docs/roadmap.md).
 
 ## v1 architecture
 
