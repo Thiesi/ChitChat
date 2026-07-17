@@ -27,14 +27,14 @@ The architectural decisions are recorded in [`docs/architecture/`](docs/architec
 
 The application currently provides:
 
-- environment-based configuration and PostgreSQL migrations;
+- environment-based configuration and forward-only PostgreSQL migrations;
 - health and readiness endpoints;
 - user registration and case-insensitive login;
 - optional validated birth dates for age-restricted rooms;
 - atomic first-user Super-Administrator promotion;
-- secure session cookies and CSRF protection;
+- secure session cookies, CSRF protection, a restrictive CSP, HSTS on secure deployments, and related browser security headers;
 - password changes and administrator password resets;
-- database-backed login throttling;
+- database-backed login and request throttling shared by all PHP workers;
 - kicks, temporary or indefinite bans, and unbans;
 - session-version invalidation for active sessions;
 - public, unlisted, and invitation-only private rooms;
@@ -48,16 +48,19 @@ The application currently provides:
 - inactivity warnings and active-room expiry without membership removal;
 - audited soft deletion of messages by authorized moderators;
 - room attachments with MIME and size allowlists, SHA-256 metadata, safe image previews, and authorization-aware downloads;
-- permanent two-party direct-message history, unread counts, cursor pagination and targeted realtime events;
+- permanent-by-default two-party direct-message history, unread counts, cursor pagination and targeted realtime events;
 - an unavoidable direct-message privacy notice stating that messages are not end-to-end encrypted;
 - configurable administrative DM inspection, restricted to Super-Administrators by default and audited on every successful page access;
+- Super-Administrator management of registration and retention policy;
+- dry-run-capable cleanup for retained content, deleted and orphaned attachments, events, presence, login attempts, and throttle rows;
 - a responsive browser client for registration, login, rooms, history, live messages, commands, presence, attachments, direct messages, and logout;
-- a permission-aware browser administration console for users, roles, bans, room settings, membership, invitations, audit visibility, and eligible DM inspection;
-- audit records for sensitive account, room, attachment, and inspection actions;
+- a permission-aware browser administration console for users, roles, bans, room settings, membership, invitations, audit visibility, eligible DM inspection, and operational settings;
+- backup, restore, maintenance, and deployment documentation;
+- audit records for sensitive account, room, attachment, inspection, settings, and maintenance actions;
 - PHPUnit, PHPStan, JavaScript syntax checks, and PostgreSQL-backed CI.
 
-Direct-message attachments, configurable retention cleanup, and broader production hardening remain future milestones.
+Direct-message attachments, browser-driven end-to-end tests, configurable per-limit throttles, and horizontal scaling remain future milestones.
 
 ## Development
 
-See [INSTALL.md](INSTALL.md). API contracts are documented in [`docs/api/`](docs/api/).
+See [INSTALL.md](INSTALL.md). API contracts are documented in [`docs/api/`](docs/api/), and operating procedures in [`docs/operations/`](docs/operations/).
