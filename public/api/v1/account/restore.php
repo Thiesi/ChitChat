@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use ChitChat\Account\AccountClosureService;
+use ChitChat\Auth\MfaService;
 use ChitChat\Auth\SessionManager;
 use ChitChat\Database;
 use ChitChat\Http\ApiResult;
@@ -16,17 +17,29 @@ Endpoint::run($config, static function () use ($config): ApiResult {
     Request::requireMethod('POST');
     SessionManager::requireCsrf(Request::csrfHeader());
     $payload = Request::json();
-
-    $user = (new AccountClosureService(Database::connect($config), $config))->restore(
+    $ipAddress = Request::clientIp();
+    $pdo = Database::connect($config);
+    $user = (new AccountClosureService($pdo, $config))->restore(
         Request::string($payload, 'username'),
         Request::string($payload, 'password'),
-        Request::clientIp(),
+        $ipAddress,
     );
-    SessionManager::login($user);
 
+    if ((new MfaService($pdo, $config))->requiresMfaForLogin($user)) {
+        SessionManager::beginMfaLogin($user, $ipAddress, $config->mfaPendingLoginTtlSeconds);
+        return new ApiResult([
+            'csrf_token' => SessionManager::csrfToken(),
+            'restored' => true,
+            'mfa_required' => true,
+            'methods' => ['passkey', 'recovery_code'],
+        ], 202);
+    }
+
+    SessionManager::login($user);
     return ApiResult::ok([
         'csrf_token' => SessionManager::csrfToken(),
         'user' => $user->toSessionArray(),
         'restored' => true,
+        'mfa_required' => false,
     ]);
 });
