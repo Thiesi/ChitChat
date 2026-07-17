@@ -28,7 +28,7 @@ async function initialize() {
 async function restoreAccount(event) {
   event.preventDefault();
   error.textContent = '';
-  status.textContent = 'Restoring your account…';
+  status.textContent = 'Checking account-restoration eligibility…';
   setFormBusy(true);
 
   try {
@@ -38,7 +38,7 @@ async function restoreAccount(event) {
     });
     form.reset();
     if (response.mfa_required) {
-      status.textContent = 'The account is restored. Complete multi-factor authentication to sign in.';
+      status.textContent = 'Password accepted. Complete multi-factor authentication before the account is restored.';
       form.classList.add('hidden');
       panel.root.classList.remove('hidden');
       (panel.passkey.disabled ? panel.code : panel.passkey).focus();
@@ -60,9 +60,9 @@ function buildMfaPanel() {
   root.setAttribute('aria-labelledby', 'restore-mfa-title');
   const title = document.createElement('h2');
   title.id = 'restore-mfa-title';
-  title.textContent = 'Complete restored sign-in';
+  title.textContent = 'Complete account restoration';
   const explanation = document.createElement('p');
-  explanation.textContent = 'Use a registered passkey or one of the account’s one-time recovery codes.';
+  explanation.textContent = 'Use a registered passkey or one of the account’s one-time recovery codes. The closure remains pending until this succeeds.';
   const passkey = document.createElement('button');
   passkey.type = 'button';
   passkey.className = 'primary-button';
