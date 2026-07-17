@@ -59,9 +59,12 @@ The application currently provides:
 - a permission-aware browser administration console for users, roles, bans, room settings, membership, invitations, audit visibility, eligible DM inspection, and operational settings;
 - backup, restore, maintenance, deployment, release, and browser-testing documentation;
 - audit records for sensitive account, room, attachment, inspection, settings, and maintenance actions;
-- PHP lint, PHPStan level 8, JavaScript syntax checks, PostgreSQL-backed integration tests, maintenance validation, and a real two-session Chromium journey in CI.
+- PHP lint, PHPStan level 8, JavaScript syntax checks, PostgreSQL-backed integration tests and maintenance validation;
+- independent two-session Chromium and Firefox browser journeys;
+- published-release archive installation, backup/restore and forward-upgrade rehearsal;
+- real Nginx/PHP-FPM validation of authenticated, unbuffered SSE delivery.
 
-Direct-message attachments, configurable per-limit throttles, wider browser coverage, and horizontal scaling remain future milestones.
+Direct-message attachments, configurable per-limit throttles, WebKit browser coverage, and horizontal scaling remain future milestones.
 
 ## Development and evaluation
 
