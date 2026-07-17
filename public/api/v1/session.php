@@ -45,6 +45,13 @@ SQL);
                     : sprintf('for up to %d days', $dmRetentionDays),
                 'retention_days' => $dmRetentionDays,
             ],
+            'message_revisions' => [
+                'admin_review_enabled' => $config->messageRevisionReviewEnabled,
+                'admin_review_role' => $config->messageRevisionReviewRole,
+                'reason_required' => true,
+                'audit_each_review' => true,
+                'participant_notification' => false,
+            ],
         ],
     ]);
 });
