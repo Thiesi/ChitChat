@@ -43,6 +43,39 @@ CREATE INDEX mfa_recovery_codes_available
     ON mfa_recovery_codes (user_id, id)
     WHERE used_at IS NULL;
 
+CREATE FUNCTION enforce_admin_role_mfa_policy()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    IF NEW.role IN ('super_admin', 'admin', 'chat_admin', 'global_moderator')
+       AND (SELECT mfa_required_for_admin_roles FROM system_settings WHERE id = 1)
+       AND NOT EXISTS (
+           SELECT 1
+           FROM users u
+           WHERE u.id = NEW.user_id
+             AND u.account_state = 'active'
+             AND u.mfa_enabled_at IS NOT NULL
+             AND EXISTS (SELECT 1 FROM webauthn_credentials wc WHERE wc.user_id = u.id)
+             AND EXISTS (
+                 SELECT 1 FROM mfa_recovery_codes rc
+                 WHERE rc.user_id = u.id AND rc.used_at IS NULL
+             )
+       )
+    THEN
+        RAISE EXCEPTION USING
+            ERRCODE = '23514',
+            MESSAGE = 'mfa_required_for_role';
+    END IF;
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER user_roles_enforce_admin_mfa
+BEFORE INSERT OR UPDATE OF role ON user_roles
+FOR EACH ROW
+EXECUTE FUNCTION enforce_admin_role_mfa_policy();
+
 CREATE FUNCTION clear_mfa_on_account_tombstone()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -67,5 +100,7 @@ COMMENT ON TABLE webauthn_credentials IS
     'WebAuthn public credentials. Private key material never reaches or resides on the ChitChat server.';
 COMMENT ON TABLE mfa_recovery_codes IS
     'One-time MFA recovery-code hashes. Plaintext recovery codes are returned once and never stored.';
+COMMENT ON FUNCTION enforce_admin_role_mfa_policy() IS
+    'Database-level invariant preventing protected role grants to accounts without complete MFA while enforcement is enabled.';
 COMMENT ON FUNCTION clear_mfa_on_account_tombstone() IS
     'Irreversibly destroys passkeys, recovery codes, and MFA identity material whenever account closure reaches the closed state.';
