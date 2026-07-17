@@ -56,11 +56,22 @@ function acceptDialog(page, value = null) {
   });
 }
 
-async function reviewMessage(page, kind, messageId, reason) {
+async function reviewMessage(page, kind, messageId, reason, password = null) {
   await page.locator('#revision-review-kind').selectOption(kind);
   await page.locator('#revision-review-message-id').fill(String(messageId));
   await page.locator('#revision-review-reason').fill(reason);
   await page.getByRole('button', { name: 'Review revisions and write audit record' }).click();
+
+  const stepUpDialog = page.locator('.step-up-dialog');
+  if (password !== null) {
+    await expect(stepUpDialog).toBeVisible();
+    await stepUpDialog.locator('#step-up-password').fill(password);
+    await stepUpDialog.getByRole('button', { name: 'Verify password' }).click();
+    await expect(stepUpDialog).toBeHidden();
+  } else {
+    await expect(stepUpDialog).toBeHidden();
+  }
+
   await expect(page.locator('#revision-review-results')).toBeVisible();
   await expect(page.locator('#revision-review-summary')).toContainText(String(messageId));
 }
@@ -96,6 +107,7 @@ test('Super-Administrator reviews exact room and DM revision chains with a reaso
       'room',
       roomMessage.id,
       'Reviewing the reported room-message edit history',
+      admin.password,
     );
     await expect(reviewPage.locator('#revision-review-context')).toContainText('General E2E');
     await expect(reviewPage.locator('.revision-card')).toHaveCount(1);
