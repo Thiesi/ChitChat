@@ -4,7 +4,7 @@ ChitChat uses Playwright to exercise the deployed browser interface against real
 
 ## Covered journey
 
-The Chromium suite currently verifies:
+The same release journey runs in current Chromium and Firefox and verifies:
 
 - hardened HTTP response headers and anonymous API rejection;
 - first-account Super-Administrator bootstrap;
@@ -19,6 +19,8 @@ The Chromium suite currently verifies:
 
 The test uses separate browser contexts for the two accounts. Cookies, sessions, and realtime streams are therefore isolated in the same way as two independent browsers.
 
+Chromium and Firefox run as separate CI jobs with separate PostgreSQL service containers and attachment directories. A failure in one engine does not cancel or contaminate the other engine's run.
+
 ## Local prerequisites
 
 Install PHP and Composer dependencies, migrate an empty test database, and install the locked Node dependencies:
@@ -27,7 +29,7 @@ Install PHP and Composer dependencies, migrate an empty test database, and insta
 composer install
 composer migrate
 npm ci
-npx playwright install chromium
+npx playwright install chromium firefox
 ```
 
 Use a disposable PostgreSQL database. The browser test creates accounts, rooms, messages, attachments, DMs, audit entries, and policy changes.
@@ -60,23 +62,32 @@ export CHITCHAT_BASE_URL=http://127.0.0.1:8080
 npm run test:e2e
 ```
 
+Run one browser explicitly with:
+
+```sh
+npm run test:e2e -- --project=chromium
+npm run test:e2e -- --project=firefox
+```
+
 For an interactive inspector:
 
 ```sh
-npm run test:e2e:debug
+npm run test:e2e:debug -- --project=chromium
 ```
 
-The default configuration uses one Chromium worker and runs tests serially because the full journey intentionally builds on a fresh database.
+The configuration uses one worker per browser project and runs tests serially because the full journey intentionally builds on a fresh database. Do not run both projects against the same database concurrently outside the CI matrix.
 
 ## Failure diagnostics
 
-CI retains these only when the browser job fails:
+CI retains these only when a browser job fails:
 
 - the PHP development-server log;
 - Playwright traces;
 - screenshots;
 - videos;
 - the HTML report.
+
+Artifacts are named for the browser project, such as `browser-diagnostics-chromium` and `browser-diagnostics-firefox`.
 
 Open a trace locally with:
 
@@ -85,3 +96,7 @@ npx playwright show-trace test-results/<test-directory>/trace.zip
 ```
 
 Browser failures should be fixed against the exact trace and server log. Do not merely increase timeouts unless the trace proves the application completed correctly but exceeded a legitimate operational bound.
+
+## Scope
+
+These are deep release-smoke journeys, not visual-regression tests and not exhaustive accessibility audits. WebKit/Safari remains a manual release-candidate evaluation target until a reliable CI gate is added.
