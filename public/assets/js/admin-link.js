@@ -61,6 +61,7 @@ window.addEventListener('DOMContentLoaded', () => {
     }
   };
 
+  window.addEventListener('chitchat:session-changed', schedule);
   new MutationObserver(schedule).observe(shell, { attributes: true, attributeFilter: ['class'] });
   new MutationObserver(schedule).observe(currentUser, { childList: true, subtree: true });
   schedule();
