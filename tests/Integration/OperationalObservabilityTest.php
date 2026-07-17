@@ -1,13 +1,13 @@
 <?php
 
 declare(strict_types=1);
-
 namespace ChitChat\Tests\Integration;
 
 use ChitChat\Auth\AuthService;
 use ChitChat\Config;
 use ChitChat\Database;
 use ChitChat\Http\ApiException;
+use ChitChat\Http\RateLimiter;
 use ChitChat\Maintenance\MaintenanceCoordinator;
 use ChitChat\Observability\SseConnectionTracker;
 use ChitChat\Observability\SystemStatusService;
@@ -61,6 +61,9 @@ final class OperationalObservabilityTest extends DatabaseTestCase
 INSERT INTO login_attempts (username_canonical, ip_address, successful, reason)
 VALUES ('member', '127.0.0.2', FALSE, 'invalid_credentials')
 SQL);
+        $limiter = new RateLimiter($this->pdo, $config->rateLimits);
+        $limiter->recordDecision('login', true);
+        $limiter->recordDecision('login', false);
 
         $result = (new MaintenanceCoordinator($this->pdo, $config))->run(false);
         self::assertFalse($result['dry_run']);
@@ -73,6 +76,11 @@ SQL);
         self::assertTrue($status['attachments']['storage_available']);
         self::assertSame(1, $status['realtime']['active_sse_connections']);
         self::assertSame(1, $status['security']['failed_logins_24h']);
+        self::assertSame(30, $status['security']['rate_limit_policies']['room_send']['maximum_attempts']);
+        self::assertSame(60, $status['security']['rate_limit_policies']['room_send']['window_seconds']);
+        self::assertSame('login', $status['security']['rate_limit_decisions'][0]['policy']);
+        self::assertSame(1, $status['security']['rate_limit_decisions'][0]['allowed']);
+        self::assertSame(1, $status['security']['rate_limit_decisions'][0]['rejected']);
         self::assertFalse($status['maintenance']['overdue']);
         self::assertSame('success', $status['maintenance']['latest_run']['status']);
         self::assertFalse($status['maintenance']['latest_run']['dry_run']);
