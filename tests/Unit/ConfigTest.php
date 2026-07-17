@@ -20,6 +20,7 @@ final class ConfigTest extends TestCase
             'SSE_CONNECTION_LEASE_SECONDS',
             'METRICS_BEARER_TOKEN',
             'MAINTENANCE_MAX_AGE_HOURS',
+            'PRIVILEGED_STEP_UP_MAX_AGE_SECONDS',
             'ATTACHMENT_STORAGE_PATH',
             'ATTACHMENT_MAX_BYTES',
             'DM_ADMIN_INSPECTION_ENABLED',
@@ -46,6 +47,7 @@ final class ConfigTest extends TestCase
         self::assertSame(40, $config->sseConnectionLeaseSeconds);
         self::assertSame('', $config->metricsBearerToken);
         self::assertSame(26, $config->maintenanceMaxAgeHours);
+        self::assertSame(600, $config->privilegedStepUpMaxAgeSeconds);
         self::assertSame(10_485_760, $config->attachmentMaxBytes);
         self::assertStringEndsWith('/var/uploads', str_replace('\\', '/', $config->attachmentStoragePath));
         self::assertTrue($config->directMessageInspectionEnabled);
@@ -99,6 +101,15 @@ final class ConfigTest extends TestCase
 
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('MAINTENANCE_MAX_AGE_HOURS');
+        Config::fromEnvironment();
+    }
+
+    public function testPrivilegedStepUpMaximumAgeRangeIsValidated(): void
+    {
+        putenv('PRIVILEGED_STEP_UP_MAX_AGE_SECONDS=30');
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('PRIVILEGED_STEP_UP_MAX_AGE_SECONDS');
         Config::fromEnvironment();
     }
 

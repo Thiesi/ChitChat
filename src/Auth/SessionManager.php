@@ -6,6 +6,7 @@ namespace ChitChat\Auth;
 
 use ChitChat\Config;
 use ChitChat\Http\ApiException;
+use DateTimeImmutable;
 
 final class SessionManager
 {
@@ -64,6 +65,7 @@ final class SessionManager
             'session_version' => $user->sessionVersion,
             'authenticated_at' => time(),
         ];
+        unset($_SESSION['privileged_step_up']);
         $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
     }
 
@@ -104,9 +106,80 @@ final class SessionManager
         return $user;
     }
 
+    public static function establishPrivilegedStepUp(AuthenticatedUser $user): void
+    {
+        $_SESSION['privileged_step_up'] = [
+            'user_id' => $user->id,
+            'session_version' => $user->sessionVersion,
+            'verified_at' => time(),
+            'method' => 'password',
+        ];
+    }
+
+    /** @return array{active:bool, method:?string, verified_at:?string, expires_at:?string, max_age_seconds:int} */
+    public static function privilegedStepUpStatus(AuthenticatedUser $user, Config $config): array
+    {
+        $state = $_SESSION['privileged_step_up'] ?? null;
+        if (!is_array($state)) {
+            return self::inactivePrivilegedStepUpStatus($config);
+        }
+
+        $userId = $state['user_id'] ?? null;
+        $sessionVersion = $state['session_version'] ?? null;
+        $verifiedAt = $state['verified_at'] ?? null;
+        $method = $state['method'] ?? null;
+        $now = time();
+        if (
+            !is_int($userId)
+            || !is_int($sessionVersion)
+            || !is_int($verifiedAt)
+            || !is_string($method)
+            || $userId !== $user->id
+            || $sessionVersion !== $user->sessionVersion
+            || $method !== 'password'
+            || $verifiedAt > $now
+            || $verifiedAt + $config->privilegedStepUpMaxAgeSeconds <= $now
+        ) {
+            unset($_SESSION['privileged_step_up']);
+            return self::inactivePrivilegedStepUpStatus($config);
+        }
+
+        $expiresAt = $verifiedAt + $config->privilegedStepUpMaxAgeSeconds;
+        return [
+            'active' => true,
+            'method' => 'password',
+            'verified_at' => (new DateTimeImmutable('@' . $verifiedAt))->format(DATE_ATOM),
+            'expires_at' => (new DateTimeImmutable('@' . $expiresAt))->format(DATE_ATOM),
+            'max_age_seconds' => $config->privilegedStepUpMaxAgeSeconds,
+        ];
+    }
+
+    public static function requirePrivilegedStepUp(AuthenticatedUser $user, Config $config): void
+    {
+        if (!self::privilegedStepUpStatus($user, $config)['active']) {
+            throw new ApiException(
+                403,
+                'step_up_required',
+                'Re-enter your current password to continue with this sensitive action.',
+            );
+        }
+    }
+
+    /** @return array{active:false, method:null, verified_at:null, expires_at:null, max_age_seconds:int} */
+    private static function inactivePrivilegedStepUpStatus(Config $config): array
+    {
+        return [
+            'active' => false,
+            'method' => null,
+            'verified_at' => null,
+            'expires_at' => null,
+            'max_age_seconds' => $config->privilegedStepUpMaxAgeSeconds,
+        ];
+    }
+
     private static function clearAuthentication(): void
     {
-        unset($_SESSION['auth']);
+        unset($_SESSION['auth'], $_SESSION['privileged_step_up']);
         $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
     }
 

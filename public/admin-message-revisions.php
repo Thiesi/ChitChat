@@ -33,7 +33,7 @@ $appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUT
 
     <section class="revision-review-warning" aria-labelledby="revision-review-warning-heading">
       <h2 id="revision-review-warning-heading">Restricted historical-content access</h2>
-      <p>This workflow is separate from direct-message inspection. Each successful request records your identity, IP address, exact message kind and ID, stated reason, and returned revision IDs. Historical bodies remain in the revision ledger and are not copied into audit metadata.</p>
+      <p>This workflow is separate from direct-message inspection and requires recent current-password verification. Each successful review separately records your identity, IP address, exact message kind and ID, stated reason, and returned revision IDs. Passwords and historical bodies are not copied into audit metadata.</p>
       <p>ChitChat does not notify message participants when a review occurs. Operators are responsible for disclosing this capability in their privacy and moderation policy.</p>
     </section>
 

@@ -37,9 +37,10 @@ The application currently provides:
 - atomic first-user Super-Administrator promotion;
 - secure session cookies, CSRF protection, a restrictive CSP, HSTS on secure deployments, and related browser security headers;
 - password changes and administrator password resets;
-- database-backed login and request throttling shared by all PHP workers;
+- short-lived, session-version-bound current-password step-up authentication for sensitive administrative actions;
+- database-backed login, step-up, and request throttling shared by all PHP workers;
 - kicks, temporary or indefinite bans, and unbans;
-- session-version invalidation for active sessions;
+- session-version invalidation for active sessions and privileged elevation;
 - public, unlisted, and invitation-only private rooms;
 - room owners, moderators, members, minimum-age enforcement, and optional inactivity policies;
 - persistent room-message history with pagination;
@@ -53,21 +54,21 @@ The application currently provides:
 - room attachments with MIME and size allowlists, SHA-256 metadata, safe image previews, authorization-aware downloads, editable captions, and retained deletion evidence;
 - permanent-by-default two-party direct-message history, unread counts, cursor pagination, targeted realtime events, blocking, editing, delete-for-everyone, and file attachments;
 - an unavoidable direct-message privacy notice stating that messages are not end-to-end encrypted and that edits and deletions retain historical bodies until message retention removes them;
-- configurable administrative DM inspection, restricted to Super-Administrators by default and audited on every successful page access;
-- separately configurable, disabled-by-default administrative review of exact room or DM revision chains, with a required reason and a successful-access audit that never duplicates historical bodies;
-- Super-Administrator management of registration and retention policy;
+- configurable administrative DM inspection, restricted to Super-Administrators by default, protected by recent step-up, and audited on every successful page access;
+- separately configurable, disabled-by-default administrative review of exact room or DM revision chains, with recent step-up, a required reason, and a successful-access audit that never duplicates historical bodies;
+- Super-Administrator management of registration and retention policy, protected by recent step-up for changes;
 - dry-run-capable cleanup for retained content, deleted and orphaned room/DM attachments, events, presence, SSE leases, login attempts, and throttle rows;
 - durable success/failure records for maintenance invocations and ready-to-adapt `systemd` service/timer units;
 - a responsive browser client for registration, login, rooms, history, live messages, commands, presence, attachments, direct messages, and logout;
 - a permission-aware browser administration console for users, roles, bans, room settings, membership, invitations, audit visibility, eligible DM inspection, exact-ID revision review, operational settings, and system status;
 - backup, restore, maintenance, observability, deployment, release, and browser-testing documentation;
-- audit records for sensitive account, room, message, attachment, inspection, revision-review, settings, and maintenance actions;
+- audit records for sensitive account, authentication, room, message, attachment, inspection, revision-review, settings, and maintenance actions;
 - PHP lint, PHPStan level 8, JavaScript syntax checks, PostgreSQL-backed integration tests and maintenance validation;
 - independent two-session Chromium and Firefox browser journeys;
 - published-release archive installation, backup/restore and forward-upgrade rehearsal;
 - real Nginx/PHP-FPM validation of authenticated, unbuffered SSE delivery.
 
-Configurable per-limit throttles, WebKit browser coverage, horizontal scaling, participant-facing review notifications, privileged step-up authentication, and richer compliance/reporting workflows remain future milestones.
+Multi-factor authentication, configurable per-limit throttles, WebKit browser coverage, horizontal scaling, participant-facing review notifications, and richer compliance/reporting workflows remain future milestones.
 
 ## Installation and operation
 

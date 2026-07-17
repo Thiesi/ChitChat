@@ -33,6 +33,10 @@ Endpoint::run($config, static function () use ($config): ApiResult {
 
     $pdo = Database::connect($config);
     $actor = SessionManager::requireUser(new UserRepository($pdo));
+    if (!$actor->canManageUsers()) {
+        throw new ApiException(403, 'forbidden', 'User administration requires Administrator access.');
+    }
+    SessionManager::requirePrivilegedStepUp($actor, $config);
     (new AdminService($pdo))->setRoles(
         $actor,
         Request::integer($payload, 'target_user_id'),

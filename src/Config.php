@@ -35,6 +35,7 @@ final readonly class Config
         public int $sseConnectionLeaseSeconds = 40,
         public string $metricsBearerToken = '',
         public int $maintenanceMaxAgeHours = 26,
+        public int $privilegedStepUpMaxAgeSeconds = 600,
     ) {
         if ($this->databasePort < 1 || $this->databasePort > 65535) {
             throw new InvalidArgumentException('DB_PORT must be between 1 and 65535.');
@@ -70,6 +71,10 @@ final readonly class Config
 
         if ($this->maintenanceMaxAgeHours < 1 || $this->maintenanceMaxAgeHours > 720) {
             throw new InvalidArgumentException('MAINTENANCE_MAX_AGE_HOURS must be between 1 and 720.');
+        }
+
+        if ($this->privilegedStepUpMaxAgeSeconds < 60 || $this->privilegedStepUpMaxAgeSeconds > 3600) {
+            throw new InvalidArgumentException('PRIVILEGED_STEP_UP_MAX_AGE_SECONDS must be between 60 and 3600.');
         }
 
         if (!self::isAbsolutePath($this->attachmentStoragePath)) {
@@ -130,6 +135,7 @@ final readonly class Config
             sseConnectionLeaseSeconds: self::envInt('SSE_CONNECTION_LEASE_SECONDS', 40),
             metricsBearerToken: self::env('METRICS_BEARER_TOKEN', ''),
             maintenanceMaxAgeHours: self::envInt('MAINTENANCE_MAX_AGE_HOURS', 26),
+            privilegedStepUpMaxAgeSeconds: self::envInt('PRIVILEGED_STEP_UP_MAX_AGE_SECONDS', 600),
         );
     }
 

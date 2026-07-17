@@ -32,7 +32,7 @@ $appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUT
 
     <section class="inspection-warning" aria-labelledby="inspection-warning-heading">
       <h2 id="inspection-warning-heading">Sensitive administrative access</h2>
-      <p>Every inspection, including each older-history page, records your identity, IP address, stated reason, selected users, cursor and returned message range. Message bodies are not copied into the audit log.</p>
+      <p>Opening content requires recent current-password verification. Every inspection, including each older-history page, separately records your identity, IP address, stated reason, selected users, cursor and returned message range. Passwords and message bodies are not copied into audit metadata.</p>
     </section>
 
     <p id="inspection-error" class="error-text" role="alert"></p>

@@ -2,6 +2,8 @@
 
 Both endpoints require an authenticated Super-Administrator. Ordinary Administrators are deliberately excluded because these settings can disable account creation or permanently delete retained content.
 
+Reading settings requires ordinary Super-Administrator authentication. Updating them additionally requires active privileged step-up authentication; see `docs/api/authentication.md`.
+
 ## Read settings
 
 ```text
@@ -36,6 +38,8 @@ Content-Type: application/json
 X-CSRF-Token: <session token>
 ```
 
+Requires active privileged step-up. Without recent verification the endpoint returns HTTP 403 with `step_up_required`; no setting or audit record is changed. The bundled browser asks for the current password and retries the update once after successful verification.
+
 The request must include every field returned above except `updated_at`:
 
 ```json
@@ -51,7 +55,7 @@ The request must include every field returned above except `updated_at`:
 }
 ```
 
-The response returns the complete updated settings object. The old and new snapshots are written to the audit log in the same transaction.
+The response returns the complete updated settings object. The old and new snapshots are written to the audit log in the same transaction. The earlier step-up success has its own authentication audit record; it does not replace the settings-change audit.
 
 Changing settings does not immediately delete data. The operator must run `php bin/maintenance-cleanup`; see `docs/operations/maintenance.md`.
 
@@ -65,6 +69,7 @@ The session response includes:
 
 - `registration_enabled`, used by the browser to hide closed registration;
 - the effective direct-message retention description and number of days;
-- the direct-message administrative-inspection policy.
+- the direct-message administrative-inspection policy;
+- current privileged step-up status and configured maximum age under `security.privileged_step_up`.
 
-The server still enforces registration and retention policy regardless of what a client displays.
+The server still enforces registration, retention, role authorization, and step-up freshness regardless of what a client displays.

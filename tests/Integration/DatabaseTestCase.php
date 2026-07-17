@@ -65,6 +65,7 @@ SQL);
             sseConnectionLeaseSeconds: $this->config->sseConnectionLeaseSeconds,
             metricsBearerToken: $this->config->metricsBearerToken,
             maintenanceMaxAgeHours: $this->config->maintenanceMaxAgeHours,
+            privilegedStepUpMaxAgeSeconds: $this->config->privilegedStepUpMaxAgeSeconds,
         );
     }
 }

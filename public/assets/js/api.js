@@ -2,6 +2,7 @@ let csrfToken = '';
 let sessionRequest = null;
 
 const SESSION_ENDPOINT = '/api/v1/session.php';
+const STEP_UP_ENDPOINT = '/api/v1/step-up.php';
 const SESSION_CHANGE_ENDPOINTS = new Set([
   '/api/v1/login.php',
   '/api/v1/register.php',
@@ -35,7 +36,7 @@ export function apiGet(path) {
 }
 
 export async function apiPost(path, body = {}) {
-  return request(path, {
+  const send = () => request(path, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -43,6 +44,22 @@ export async function apiPost(path, body = {}) {
     },
     body: JSON.stringify(body),
   });
+
+  try {
+    return await send();
+  } catch (error) {
+    if (
+      path === STEP_UP_ENDPOINT
+      || !(error instanceof ApiError)
+      || error.code !== 'step_up_required'
+    ) {
+      throw error;
+    }
+  }
+
+  const { verifyCurrentPassword } = await import('./step-up.js');
+  await verifyCurrentPassword();
+  return send();
 }
 
 export async function apiUpload(path, formData) {

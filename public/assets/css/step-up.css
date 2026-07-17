@@ -1,0 +1,41 @@
+.step-up-dialog {
+  width: min(30rem, calc(100vw - 2rem));
+  border: 1px solid var(--border-color);
+  border-radius: 0.9rem;
+  padding: 0;
+  background: var(--panel-background, Canvas);
+  color: inherit;
+  box-shadow: 0 1.5rem 4rem rgb(0 0 0 / 35%);
+}
+
+.step-up-dialog::backdrop {
+  background: rgb(0 0 0 / 60%);
+}
+
+.step-up-form {
+  display: grid;
+  gap: 1rem;
+  padding: 1.25rem;
+}
+
+.step-up-form h2,
+.step-up-form p {
+  margin: 0;
+}
+
+.step-up-form label {
+  font-weight: 700;
+}
+
+.step-up-form input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.step-up-error:empty {
+  display: none;
+}
+
+.step-up-actions {
+  justify-content: flex-end;
+}

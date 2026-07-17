@@ -35,6 +35,17 @@ SQL);
         'csrf_token' => SessionManager::csrfToken(),
         'user' => $user?->toArray(),
         'registration_enabled' => (int) $policy['registration_enabled'] === 1,
+        'security' => [
+            'privileged_step_up' => $user === null
+                ? [
+                    'active' => false,
+                    'method' => null,
+                    'verified_at' => null,
+                    'expires_at' => null,
+                    'max_age_seconds' => $config->privilegedStepUpMaxAgeSeconds,
+                ]
+                : SessionManager::privilegedStepUpStatus($user, $config),
+        ],
         'privacy' => [
             'direct_messages' => [
                 'end_to_end_encrypted' => false,
