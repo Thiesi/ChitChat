@@ -34,6 +34,7 @@ Values are validated at application startup. Invalid integers and values outside
 | `registration` | 5 / 3600 s | Account registration by source IP |
 | `privileged_step_up` | 10 / 900 s | Current-password step-up by account and IP |
 | `personal_data_export` | 5 / 3600 s | Personal-data export |
+| `account_restore` | 5 / 3600 s | Explicit cooling-off restoration by canonical username and source IP |
 | `room_send` | 30 / 60 s | Ordinary room messages |
 | `room_ping` | 30 / 60 s | `/ping` commands, counted independently from ordinary messages |
 | `room_message_mutation` | 30 / 60 s | Author room-message edits and deletions |
@@ -78,8 +79,8 @@ The `policy` label has a fixed application-defined vocabulary, so it does not cr
 
 - Increase limits only after checking rejected counters and confirming legitimate traffic is affected.
 - Prefer increasing the maximum modestly before shortening a window.
-- Keep registration, uploads, step-up, exports, and administrative content access substantially tighter than ordinary message sends.
-- Treat sudden increases in rejected login, step-up, inspection, or revision-review decisions as a security signal.
+- Keep registration, restoration, uploads, step-up, exports, and administrative content access substantially tighter than ordinary message sends.
+- Treat sudden increases in rejected login, restoration, step-up, inspection, or revision-review decisions as a security signal.
 - Do not disable a policy by setting zero; zero is rejected at startup.
 
 Rate limiting is defense in depth. It does not replace authorization, CSRF validation, block relationships, upload validation, privileged step-up, required reasons, or audit logging.
