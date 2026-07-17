@@ -1,0 +1,27 @@
+[Unit]
+Description=Create and verify a ChitChat backup set
+Documentation=file:/srv/chitchat/docs/operations/backup-restore.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=www-data
+Group=www-data
+WorkingDirectory=/srv/chitchat
+ExecStart=/usr/bin/php /srv/chitchat/bin/chitchat-backup --destination /srv/backups/chitchat
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/srv/backups/chitchat
+UMask=0077
+TimeoutStartSec=6h
+
+# Create /srv/backups/chitchat with mode 0700 before enabling this unit.
+# Adapt User, Group, WorkingDirectory, PHP path, and destination to the installation.
+# The example creates a live backup. For the strongest offline backup, add a
+# site-specific write-drain/stop hook, add --application-stopped to ExecStart,
+# and use an ExecStopPost hook that always resumes the application.
