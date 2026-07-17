@@ -7,6 +7,8 @@ const SESSION_CHANGE_ENDPOINTS = new Set([
   '/api/v1/login.php',
   '/api/v1/register.php',
   '/api/v1/logout.php',
+  '/api/v1/account/close.php',
+  '/api/v1/account/restore.php',
 ]);
 
 export class ApiError extends Error {
