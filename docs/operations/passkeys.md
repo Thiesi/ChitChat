@@ -62,15 +62,17 @@ Once enabled, new protected-role grants require enabled MFA with at least one re
 
 An administrator may consume the final recovery code without losing their role or passkey access. The account page exposes the remaining count and allows a replacement set after privileged authentication.
 
-## Account closure
+## Account closure and restoration
 
-A closure-pending account retains its passkeys and recovery-code hashes so an explicit restoration preserves the original authentication policy. After username and password restore the account state, an MFA-enabled account remains unauthenticated until it completes the ordinary passkey or recovery-code sign-in step.
+A closure-pending account retains its passkeys and recovery-code hashes so restoration preserves its existing authentication policy. Username and password validate that restoration may begin, but they do not change the account state. An MFA-enabled account remains `closure_pending` until a registered passkey or unused recovery code succeeds.
+
+The final restoration transaction rechecks the deadline and the administrative-MFA policy currently in force. Protected roles from the closure snapshot are restored only when the account still has enabled passkey MFA. If policy changed while the account was pending and the account no longer qualifies, the account is restored safely without those roles; the audit record lists the withheld role names.
 
 When maintenance irreversibly tombstones the account, a database trigger deletes all WebAuthn credentials and recovery-code rows and clears the WebAuthn user handle and MFA timestamp. Shared message history and other retained evidence remain governed by their existing retention rules.
 
 ## Recovery and support
 
-There is no administrator bypass that converts an MFA-enabled login into password-only authentication. Recovery options are deliberately limited to:
+There is no administrator bypass that converts an MFA-enabled login or restoration into password-only authentication. Recovery options are deliberately limited to:
 
 - another registered passkey;
 - an unused recovery code;
