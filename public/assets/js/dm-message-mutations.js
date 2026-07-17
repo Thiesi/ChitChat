@@ -1,6 +1,5 @@
 import { ApiError, apiGet, apiPost } from './api.js';
 
-const metadata = new Map();
 let enhancementQueued = false;
 let generation = 0;
 let eventSource = null;
@@ -15,7 +14,6 @@ window.addEventListener('DOMContentLoaded', () => {
 
   new MutationObserver(queueEnhancement).observe(messageList, { childList: true, subtree: true });
   new MutationObserver(() => {
-    metadata.clear();
     generation += 1;
     queueEnhancement();
   }).observe(conversationList, {
@@ -60,15 +58,23 @@ async function enhanceVisibleMessages() {
   }
 
   if (requestGeneration !== generation) return;
-  metadata.clear();
-  for (const [id, state] of fresh) metadata.set(id, state);
   for (const article of articles) applyState(article, fresh.get(Number(article.dataset.messageId)) ?? null);
 }
 
 function applyState(article, state) {
+  if (!state) return;
+  const signature = JSON.stringify([
+    state.body,
+    state.edited_at,
+    state.deleted,
+    state.can_edit,
+    state.can_delete,
+  ]);
+  if (article.dataset.mutationSignature === signature) return;
+  article.dataset.mutationSignature = signature;
+
   article.querySelector('.message-mutation-actions')?.remove();
   article.querySelector('.message-edited-indicator')?.remove();
-  if (!state) return;
 
   const body = article.querySelector('.dm-message-body');
   const meta = article.querySelector('.dm-message-meta');
@@ -109,7 +115,7 @@ async function editMessage(article, state) {
       message_id: state.id,
       body: replacement,
     });
-    metadata.set(state.id, response.message);
+    delete article.dataset.mutationSignature;
     applyState(article, response.message);
     toast('Direct message edited.');
   } catch (error) {
@@ -124,7 +130,7 @@ async function deleteMessage(article, state) {
   setBusy(article, true);
   try {
     const response = await apiPost('/api/v1/direct-messages/delete.php', { message_id: state.id });
-    metadata.set(state.id, response.message);
+    delete article.dataset.mutationSignature;
     applyState(article, response.message);
     toast('Direct message deleted.');
   } catch (error) {
