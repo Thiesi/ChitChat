@@ -19,6 +19,7 @@ Endpoint::run($config, static function () use ($config): ApiResult {
     $payload = Request::json();
     $pdo = Database::connect($config);
     $actor = SessionManager::requireUser(new UserRepository($pdo));
+    SessionManager::requirePrivilegedStepUp($actor, $config);
 
     $settings = (new SystemSettingsService($pdo))->update(
         actor: $actor,
