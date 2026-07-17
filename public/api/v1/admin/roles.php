@@ -42,11 +42,15 @@ Endpoint::run($config, static function () use ($config): ApiResult {
     $targetUserId = Request::integer($payload, 'target_user_id');
     $protectedRole = array_intersect($roles, ['super_admin', 'admin', 'chat_admin', 'global_moderator']) !== [];
     $mfa = new MfaRepository($pdo);
-    if ($protectedRole && $mfa->policyRequiresMfaForAdminRoles() && !$mfa->hasCompleteMfa($targetUserId)) {
+    if (
+        $protectedRole
+        && $mfa->policyRequiresMfaForAdminRoles()
+        && (!$mfa->isEnabled($targetUserId) || $mfa->credentialCount($targetUserId) < 1)
+    ) {
         throw new ApiException(
             409,
             'mfa_required_for_role',
-            'The target account must enroll a passkey and retain an unused recovery code before receiving an administrative role.',
+            'The target account must enable MFA with at least one passkey before receiving an administrative role.',
         );
     }
 
@@ -62,7 +66,7 @@ Endpoint::run($config, static function () use ($config): ApiResult {
             throw new ApiException(
                 409,
                 'mfa_required_for_role',
-                'The target account must enroll a passkey and retain an unused recovery code before receiving an administrative role.',
+                'The target account must enable MFA with at least one passkey before receiving an administrative role.',
             );
         }
         throw $exception;
