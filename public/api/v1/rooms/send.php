@@ -22,10 +22,13 @@ Endpoint::run($config, static function () use ($config): ApiResult {
     $payload = Request::json();
     $pdo = Database::connect($config);
     $actor = SessionManager::requireUser(new UserRepository($pdo));
-    (new RateLimiter($pdo))->consume('room_send', 'user:' . $actor->id, 30, 60);
     $roomId = Request::integer($payload, 'room_id');
     $body = Request::string($payload, 'body');
     $ping = PingCommand::parse($body);
+    (new RateLimiter($pdo, $config->rateLimits))->consume(
+        $ping === null ? 'room_send' : 'room_ping',
+        'user:' . $actor->id,
+    );
 
     if ($ping !== null) {
         $event = (new PingService($pdo))->send(
