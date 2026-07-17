@@ -48,7 +48,14 @@ Replace disposable publication pull requests with a permanent manually dispatche
 
 ### 4. First-class backup tooling
 
-Provide supported commands for backup, verification, and restore. A backup set should bind PostgreSQL and attachment storage through a manifest containing application version, migration state, timestamps, checksums, and restore metadata. Supply ready-to-adapt `systemd` service and timer units.
+**Status:** implemented.
+
+- Provide supported backup, verification, and restore commands that bind PostgreSQL and attachment storage into one versioned backup set.
+- Record application version, ordered migration state, timestamps, database metadata, attachment inventory, external tool versions, exact sizes, and SHA-256 checksums in `manifest.json`.
+- Verify dump readability and reject attachment archives containing traversal paths, links, or special files.
+- Restore into staged attachment storage and a newly created database by default, then compare restored inventory and migration state before publishing the target path.
+- Require explicit flags for destructive replacement and configured production targets; preserve replaced attachment storage instead of deleting it.
+- Exercise the exact commands in dedicated backup-rehearsal CI and provide ready-to-adapt daily `systemd` service/timer units.
 
 ## Next: account and authentication lifecycle
 
