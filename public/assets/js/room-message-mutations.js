@@ -1,9 +1,9 @@
 import { ApiError, apiGet, apiPost } from './api.js';
+import './realtime-bridge.js';
 
 let enhancementQueued = false;
 let generation = 0;
 let lastRoomId = null;
-let eventSource = null;
 let elements = null;
 
 window.addEventListener('DOMContentLoaded', () => {
@@ -28,16 +28,22 @@ window.addEventListener('DOMContentLoaded', () => {
     attributes: true,
     attributeFilter: ['class'],
   });
-  new MutationObserver(syncEventStream).observe(chatShell, {
-    attributes: true,
-    attributeFilter: ['class'],
-  });
 
-  syncEventStream();
   queueEnhancement();
 });
 
-window.addEventListener('beforeunload', closeEventStream);
+window.addEventListener('chitchat:realtime', (event) => {
+  const type = event.detail?.type;
+  const sourceEvent = event.detail?.event;
+  if (!(sourceEvent instanceof MessageEvent)) return;
+  const envelope = parseEvent(sourceEvent);
+  if (type === 'room_message' && envelope?.payload?.message?.room_id === currentRoomId()) {
+    queueEnhancement();
+  }
+  if (type === 'message_deleted' && envelope?.payload?.room_id === currentRoomId()) {
+    queueEnhancement();
+  }
+});
 
 function currentRoomId() {
   const active = elements?.roomList.querySelector('.room-button.active');
@@ -179,29 +185,6 @@ function setBusy(article, busy) {
   for (const button of article.querySelectorAll('.message-mutation-button')) button.disabled = busy;
 }
 
-function syncEventStream() {
-  if (!elements || elements.chatShell.classList.contains('hidden')) {
-    closeEventStream();
-    return;
-  }
-  if (eventSource) return;
-
-  eventSource = new EventSource('/api/v1/events/stream.php', { withCredentials: true });
-  eventSource.addEventListener('room_message', (event) => {
-    const envelope = parseEvent(event);
-    if (envelope?.payload?.message?.room_id === currentRoomId()) queueEnhancement();
-  });
-  eventSource.addEventListener('message_deleted', (event) => {
-    const envelope = parseEvent(event);
-    if (envelope?.payload?.room_id === currentRoomId()) queueEnhancement();
-  });
-}
-
-function closeEventStream() {
-  eventSource?.close();
-  eventSource = null;
-}
-
 function parseEvent(event) {
   try { return JSON.parse(event.data); } catch { return null; }
 }
@@ -224,7 +207,6 @@ function toast(message, kind = 'info') {
 
 function handleFailure(error) {
   if (error instanceof ApiError && error.status === 401) {
-    closeEventStream();
     window.location.assign('/');
     return;
   }
