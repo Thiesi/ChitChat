@@ -19,7 +19,8 @@ Use this checklist for every ChitChat pre-release and stable release.
 - [ ] Every migration applies to an empty PostgreSQL database.
 - [ ] The full PHPUnit suite passes.
 - [ ] `composer maintenance:dry-run` succeeds.
-- [ ] The complete two-session journey passes independently in Chromium and Firefox.
+- [ ] The complete two-session journey passes independently in Chromium, Firefox, and WebKit.
+- [ ] Structural and keyboard accessibility regression checks pass in all three browser engines.
 - [ ] The previous supported release archive installs in a clean directory with production Composer dependencies.
 - [ ] PostgreSQL and attachment backups pass checksum and structural verification.
 - [ ] The backup restores under new database and storage names and current migrations apply successfully.
@@ -34,6 +35,7 @@ Use this checklist for every ChitChat pre-release and stable release.
 - [ ] Attachment storage is outside the web root with restrictive ownership and permissions.
 - [ ] PHP and proxy upload limits match the configured application limit.
 - [ ] DM inspection is explicitly accepted or disabled, and user disclosure matches the policy.
+- [ ] Historical revision review is explicitly accepted or remains disabled, and the participant-notification limitation is documented.
 - [ ] Retention values are intentional; `0` means permanent retention.
 - [ ] The maintenance schedule and alerting for nonzero exit status are configured.
 - [ ] Backup encryption, access control, retention, and restore ownership are documented.
