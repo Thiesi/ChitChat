@@ -17,6 +17,9 @@ final class ConfigTest extends TestCase
             'DB_PORT',
             'PRESENCE_LEASE_SECONDS',
             'INACTIVITY_WARNING_SECONDS',
+            'SSE_CONNECTION_LEASE_SECONDS',
+            'METRICS_BEARER_TOKEN',
+            'MAINTENANCE_MAX_AGE_HOURS',
             'ATTACHMENT_STORAGE_PATH',
             'ATTACHMENT_MAX_BYTES',
             'DM_ADMIN_INSPECTION_ENABLED',
@@ -40,6 +43,9 @@ final class ConfigTest extends TestCase
         self::assertSame(5432, $config->databasePort);
         self::assertSame(45, $config->presenceLeaseSeconds);
         self::assertSame(60, $config->inactivityWarningSeconds);
+        self::assertSame(40, $config->sseConnectionLeaseSeconds);
+        self::assertSame('', $config->metricsBearerToken);
+        self::assertSame(26, $config->maintenanceMaxAgeHours);
         self::assertSame(10_485_760, $config->attachmentMaxBytes);
         self::assertStringEndsWith('/var/uploads', str_replace('\\', '/', $config->attachmentStoragePath));
         self::assertTrue($config->directMessageInspectionEnabled);
@@ -66,6 +72,33 @@ final class ConfigTest extends TestCase
 
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('PRESENCE_LEASE_SECONDS');
+        Config::fromEnvironment();
+    }
+
+    public function testSseConnectionLeaseRangeIsValidated(): void
+    {
+        putenv('SSE_CONNECTION_LEASE_SECONDS=10');
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('SSE_CONNECTION_LEASE_SECONDS');
+        Config::fromEnvironment();
+    }
+
+    public function testMetricsTokenMustBeLongWhenEnabled(): void
+    {
+        putenv('METRICS_BEARER_TOKEN=too-short');
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('METRICS_BEARER_TOKEN');
+        Config::fromEnvironment();
+    }
+
+    public function testMaintenanceMaximumAgeRangeIsValidated(): void
+    {
+        putenv('MAINTENANCE_MAX_AGE_HOURS=0');
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('MAINTENANCE_MAX_AGE_HOURS');
         Config::fromEnvironment();
     }
 
