@@ -8,6 +8,7 @@ use ChitChat\Database;
 use ChitChat\Http\ApiException;
 use ChitChat\Http\ApiResult;
 use ChitChat\Http\Endpoint;
+use ChitChat\Http\RateLimiter;
 use ChitChat\Http\Request;
 use ChitChat\Upload\AttachmentService;
 use ChitChat\Upload\IncomingFile;
@@ -20,6 +21,7 @@ Endpoint::run($config, static function () use ($config): ApiResult {
     SessionManager::requireCsrf(Request::csrfHeader());
     $pdo = Database::connect($config);
     $actor = SessionManager::requireUser(new UserRepository($pdo));
+    (new RateLimiter($pdo))->consume('attachment_upload', 'user:' . $actor->id, 10, 3600);
 
     $roomIdValue = $_POST['room_id'] ?? null;
     if (!is_string($roomIdValue) || filter_var($roomIdValue, FILTER_VALIDATE_INT) === false) {
