@@ -27,6 +27,7 @@ $appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUT
         <p id="admin-identity" class="admin-muted"></p>
       </div>
       <div class="action-row">
+        <a id="system-settings-link" class="secondary-button admin-link-button hidden" href="/admin-settings.php">Operational settings</a>
         <a id="dm-inspection-link" class="secondary-button admin-link-button hidden" href="/admin-messages.php">DM inspection</a>
         <a class="secondary-button admin-link-button" href="/">Back to chat</a>
       </div>
