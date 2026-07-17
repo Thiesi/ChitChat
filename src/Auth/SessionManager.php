@@ -120,24 +120,28 @@ final class SessionManager
     public static function privilegedStepUpStatus(AuthenticatedUser $user, Config $config): array
     {
         $state = $_SESSION['privileged_step_up'] ?? null;
-        $verifiedAt = is_array($state) ? ($state['verified_at'] ?? null) : null;
-        $valid = is_array($state)
-            && ($state['user_id'] ?? null) === $user->id
-            && ($state['session_version'] ?? null) === $user->sessionVersion
-            && is_int($verifiedAt)
-            && $verifiedAt <= time()
-            && $verifiedAt + $config->privilegedStepUpMaxAgeSeconds > time()
-            && ($state['method'] ?? null) === 'password';
+        if (!is_array($state)) {
+            return self::inactivePrivilegedStepUpStatus($config);
+        }
 
-        if (!$valid) {
+        $userId = $state['user_id'] ?? null;
+        $sessionVersion = $state['session_version'] ?? null;
+        $verifiedAt = $state['verified_at'] ?? null;
+        $method = $state['method'] ?? null;
+        $now = time();
+        if (
+            !is_int($userId)
+            || !is_int($sessionVersion)
+            || !is_int($verifiedAt)
+            || !is_string($method)
+            || $userId !== $user->id
+            || $sessionVersion !== $user->sessionVersion
+            || $method !== 'password'
+            || $verifiedAt > $now
+            || $verifiedAt + $config->privilegedStepUpMaxAgeSeconds <= $now
+        ) {
             unset($_SESSION['privileged_step_up']);
-            return [
-                'active' => false,
-                'method' => null,
-                'verified_at' => null,
-                'expires_at' => null,
-                'max_age_seconds' => $config->privilegedStepUpMaxAgeSeconds,
-            ];
+            return self::inactivePrivilegedStepUpStatus($config);
         }
 
         $expiresAt = $verifiedAt + $config->privilegedStepUpMaxAgeSeconds;
@@ -159,6 +163,18 @@ final class SessionManager
                 'Re-enter your current password to continue with this sensitive action.',
             );
         }
+    }
+
+    /** @return array{active:false, method:null, verified_at:null, expires_at:null, max_age_seconds:int} */
+    private static function inactivePrivilegedStepUpStatus(Config $config): array
+    {
+        return [
+            'active' => false,
+            'method' => null,
+            'verified_at' => null,
+            'expires_at' => null,
+            'max_age_seconds' => $config->privilegedStepUpMaxAgeSeconds,
+        ];
     }
 
     private static function clearAuthentication(): void
