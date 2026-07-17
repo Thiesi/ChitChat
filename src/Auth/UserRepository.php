@@ -110,6 +110,33 @@ SQL);
         );
     }
 
+    public function findClosurePendingById(int $userId): ?AuthenticatedUser
+    {
+        $statement = $this->pdo->prepare(<<<'SQL'
+SELECT id, username, session_version
+FROM users
+WHERE id = :id
+  AND account_state = 'closure_pending'
+  AND closure_finalizes_at > NOW()
+SQL);
+        if ($statement === false) {
+            throw new RuntimeException('Unable to prepare closure-pending user lookup.');
+        }
+
+        $statement->execute(['id' => $userId]);
+        $row = $statement->fetch();
+        if (!is_array($row)) {
+            return null;
+        }
+
+        return new AuthenticatedUser(
+            id: (int) $row['id'],
+            username: (string) $row['username'],
+            roles: [],
+            sessionVersion: (int) $row['session_version'],
+        );
+    }
+
     /** @return list<string> */
     public function rolesForUser(int $userId): array
     {
