@@ -91,6 +91,14 @@ Only after validation should production connection and storage paths be switched
 
 Restore with the same ChitChat commit or release that created the backup whenever possible. After the old version starts successfully, deploy the newer code and run `composer migrate` exactly once. Migrations are forward-only; do not restore a newer schema into older application code.
 
+## Automated rehearsal
+
+The stabilization CI follows this procedure using the published `v1.0.0-rc.1` source archive. It creates users, room messages, an attachment and a direct message through the HTTP API, stops the RC server, dumps PostgreSQL, archives attachment storage, verifies checksums and archive structure, and restores both under new names.
+
+Current source is then pointed at the restored database and storage path, migrations are run once, and the job verifies record counts, room history, direct-message history, attachment bytes, readiness and maintenance dry-run. The implementation is `tests/stabilization/rehearse-release.sh`; the full scope and local prerequisites are documented in `docs/operations/release-rehearsal.md`.
+
+Automated rehearsal complements rather than replaces production restore drills. CI cannot test site-specific encryption, storage snapshots, database size, service orchestration, credentials, network controls or recovery-time objectives.
+
 ## Security
 
 - encrypt backups at rest and in transit;
