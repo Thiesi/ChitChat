@@ -14,7 +14,7 @@ This roadmap records the agreed direction after the `v1.1.0` release. It is dire
 
 ### 1. Permanent release publication workflow
 
-**Status:** implemented by the roadmap's first development change.
+**Status:** implemented.
 
 Replace disposable publication pull requests with a permanent manually dispatched workflow that:
 
@@ -28,10 +28,13 @@ Replace disposable publication pull requests with a permanent manually dispatche
 
 ### 2. Dependency and security automation
 
-- Run Composer and npm vulnerability audits in CI and on a schedule.
-- Enable Dependabot for Composer, npm, and GitHub Actions.
-- Evaluate CodeQL for the PHP and JavaScript code paths.
+**Status:** implemented.
+
+- Run locked Composer and npm vulnerability audits for pull requests, pushes to `main`, a weekly schedule, and manual dispatches.
+- Require the dependency audit on the exact release commit before publication.
+- Configure separate weekly Dependabot update streams for Composer, npm, and GitHub Actions.
 - Keep automated dependency updates small and independently reviewable.
+- Record the CodeQL evaluation: JavaScript and Actions are supported, but PHP is not, so whole-application CodeQL is deferred rather than presenting materially incomplete coverage as comprehensive analysis.
 
 ### 3. Configurable and observable throttling
 
