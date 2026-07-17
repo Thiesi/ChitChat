@@ -34,7 +34,18 @@ final class MaintenanceCoordinator
             $result = $this->cleanup->run($dryRun);
             $result['expired_sse_connections'] = $this->expiredSseConnections($dryRun);
             $result['maintenance_run_rows'] = $this->oldMaintenanceRuns($dryRun, $runId);
-            $this->runs->succeed($runId, $result, self::durationMs($started));
+            $durationMs = self::durationMs($started);
+            $fileFailures = (int) ($result['file_removal_failures'] ?? 0);
+            if ($fileFailures > 0) {
+                $this->runs->warn(
+                    $runId,
+                    $result,
+                    sprintf('%d attachment file removal operation(s) failed.', $fileFailures),
+                    $durationMs,
+                );
+            } else {
+                $this->runs->succeed($runId, $result, $durationMs);
+            }
 
             return $result;
         } catch (Throwable $exception) {
