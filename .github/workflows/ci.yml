@@ -294,3 +294,115 @@ jobs:
           path: ${{ runner.temp }}/chitchat-nginx-rehearsal/
           if-no-files-found: ignore
           retention-days: 7
+
+  browser-webkit-publication:
+    if: github.event_name == 'pull_request' && github.head_ref == 'release/publish-v1.1.0'
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: chitchat_webkit_publication
+          POSTGRES_USER: chitchat
+          POSTGRES_PASSWORD: chitchat
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U chitchat -d chitchat_webkit_publication"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      APP_ENV: test
+      APP_DEBUG: 1
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_NAME: chitchat_webkit_publication
+      DB_USER: chitchat
+      DB_PASSWORD: chitchat
+      DB_SSLMODE: disable
+      SESSION_COOKIE_SECURE: 0
+      ATTACHMENT_STORAGE_PATH: /tmp/chitchat-browser-webkit-publication-uploads
+      CHITCHAT_BASE_URL: http://127.0.0.1:8080
+      MESSAGE_REVISION_REVIEW_ENABLED: 1
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: fileinfo, mbstring, pdo_pgsql
+          coverage: none
+          tools: composer:v2
+
+      - run: composer install --no-interaction --prefer-dist
+      - run: composer migrate
+      - run: npm ci --no-audit --no-fund
+      - run: npx playwright install --with-deps webkit
+      - name: Start ChitChat test server
+        run: |
+          mkdir -p "$ATTACHMENT_STORAGE_PATH"
+          chmod 700 "$ATTACHMENT_STORAGE_PATH"
+          PHP_CLI_SERVER_WORKERS=8 php -S 127.0.0.1:8080 -t public > php-server.log 2>&1 &
+          echo $! > php-server.pid
+          curl --fail --retry 30 --retry-delay 1 --retry-all-errors http://127.0.0.1:8080/ready.php
+      - name: Run WebKit end-to-end tests
+        run: npm run test:e2e -- --project=webkit
+      - name: Upload WebKit diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-diagnostics-webkit-publication
+          path: |
+            php-server.log
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  publish-release:
+    if: github.event_name == 'pull_request' && github.head_ref == 'release/publish-v1.1.0'
+    needs:
+      - static
+      - integration
+      - browser
+      - release-rehearsal
+      - reverse-proxy
+      - browser-webkit-publication
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 343666197f403a7783dd6c014048761b7b516a86
+          fetch-depth: 0
+
+      - name: Create annotated tag and stable release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "$(git rev-parse HEAD)" = '343666197f403a7783dd6c014048761b7b516a86'
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git tag -a v1.1.0 -m 'ChitChat v1.1.0'
+          git push origin v1.1.0
+          gh release create v1.1.0 \
+            --verify-tag \
+            --title 'ChitChat v1.1.0' \
+            --notes-file docs/releases/v1.1.0.md \
+            --latest
+
+      - name: Remove publication branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: git push origin --delete release/publish-v1.1.0
