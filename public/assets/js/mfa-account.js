@@ -272,7 +272,7 @@ function showRecoveryCodes(codes) {
 
 function setBusy(busy) {
   for (const control of card.root.querySelectorAll('button, input')) control.disabled = busy;
-  if (!busy && status?.required_by_admin_policy) card.disable.disabled = true;
+  if (!busy && status) render(status);
 }
 
 function formatDate(value) {
