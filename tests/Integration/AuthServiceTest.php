@@ -50,6 +50,29 @@ final class AuthServiceTest extends DatabaseTestCase
         self::assertSame($registered->id, $loggedIn->id);
     }
 
+    public function testPasswordAcceptanceDoesNotRecordSuccessfulLoginUntilCompletion(): void
+    {
+        $auth = new AuthService($this->pdo, $this->config);
+        $registered = $auth->register('Alice', 'a very secure password', '127.0.0.1');
+
+        $pending = $auth->authenticatePassword('Alice', 'a very secure password', '127.0.0.1');
+        self::assertSame($registered->id, $pending->id);
+        self::assertNull($this->pdo->query(
+            "SELECT last_login_at FROM users WHERE id = {$registered->id}",
+        )->fetchColumn());
+        self::assertSame(0, (int) $this->pdo->query(
+            "SELECT COUNT(*) FROM login_attempts WHERE successful = TRUE AND username_canonical = 'alice'",
+        )->fetchColumn());
+
+        $auth->completeLogin($pending, '127.0.0.1');
+        self::assertNotFalse($this->pdo->query(
+            "SELECT last_login_at FROM users WHERE id = {$registered->id}",
+        )->fetchColumn());
+        self::assertSame(1, (int) $this->pdo->query(
+            "SELECT COUNT(*) FROM login_attempts WHERE successful = TRUE AND username_canonical = 'alice'",
+        )->fetchColumn());
+    }
+
     public function testRepeatedFailuresThrottleLogin(): void
     {
         $config = $this->configWithThrottle(2);
