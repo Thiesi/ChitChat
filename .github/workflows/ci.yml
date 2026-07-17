@@ -170,3 +170,54 @@ jobs:
             test-results/
           if-no-files-found: ignore
           retention-days: 7
+
+  publish-release:
+    if: github.event_name == 'pull_request' && github.head_ref == 'release/publish-v1.0.0-rc.1'
+    needs:
+      - static
+      - integration
+      - browser
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      RELEASE_COMMIT: d6fe489c0aba4bd5248de02c9a1a7a4b371c22e1
+      RELEASE_TAG: v1.0.0-rc.1
+      SOURCE_BRANCH: ${{ github.head_ref }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: d6fe489c0aba4bd5248de02c9a1a7a4b371c22e1
+          fetch-depth: 0
+
+      - name: Create annotated tag and pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if git ls-remote --exit-code --tags origin "refs/tags/${RELEASE_TAG}" >/dev/null 2>&1; then
+            resolved=$(git ls-remote origin "refs/tags/${RELEASE_TAG}^{}" | awk '{print $1}')
+            if [ -z "$resolved" ]; then
+              resolved=$(git ls-remote origin "refs/tags/${RELEASE_TAG}" | awk '{print $1}')
+            fi
+            test "$resolved" = "$RELEASE_COMMIT"
+          else
+            git tag -a "$RELEASE_TAG" "$RELEASE_COMMIT" -m "ChitChat ${RELEASE_TAG}"
+            git push origin "refs/tags/${RELEASE_TAG}"
+          fi
+
+          if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release create "$RELEASE_TAG" \
+              --verify-tag \
+              --prerelease \
+              --title "ChitChat v1.0.0-rc.1" \
+              --notes-file docs/releases/v1.0.0-rc.1.md
+          fi
+
+      - name: Remove publication branch
+        if: success()
+        run: git push origin --delete "$SOURCE_BRANCH"
