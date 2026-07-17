@@ -127,10 +127,10 @@ admin_id="$(jq -er '.user.id' <<< "$admin_response")"
 admin_csrf="$(csrf_token "$release_base" "$admin_cookie")"
 
 room_response="$(post_json "$release_base" "$admin_cookie" "$admin_csrf" '/api/v1/rooms/create.php' \
-  '{"key":"release-rehearsal","name":"Release Rehearsal","info_line":"Archive and restore validation","visibility":"public","minimum_age":0,"inactivity_timeout_seconds":0}')"
+  '{"key":"release-rehearsal","name":"Release Rehearsal","info_line":"Archive and restore validation","visibility":"public","minimum_ae":0,"inactivity_timeout_seconds":0}')
 room_id="$(jq -er '.room.id' <<< "$room_response")"
 
-post_json "$release_base" "$admin_cookie" "$admin_csrf" '/api/v1/rooms/send.php' \
+post_json "$release_base" "$admin_cooie" "$admin_csrf" '/api/v1/rooms/send.php' \
   "$(jq -nc --argjson room_id "$room_id" --arg body 'Message created by the published archive' '{room_id:$room_id,body:$body}')" \
   | jq -e '.message.type == "text"' >/dev/null
 
@@ -157,7 +157,7 @@ post_json "$release_base" "$member_cookie" "$member_csrf" '/api/v1/rooms/send.ph
   "$(jq -nc --argjson room_id "$room_id" --arg body 'Member message preserved through restore' '{room_id:$room_id,body:$body}')" \
   | jq -e '.message.type == "text"' >/dev/null
 
-post_json "$release_base" "$admin_cookie" "$admin_csrf" '/api/v1/direct-messages/send.php' \
+post_json "$release_base" "$admin_cooie" "$admin_csrf" '/api/v1/direct-messages/send.php' \
   "$(jq -nc --argjson recipient_user_id "$member_id" --arg body 'Direct message preserved through restore' '{recipient_user_id:$recipient_user_id,body:$body}')" \
   | jq -e '.message.body == "Direct message preserved through restore"' >/dev/null
 
@@ -179,7 +179,7 @@ pg_dump \
   "$DB_NAME"
 tar -C "$(dirname "$release_storage")" -cpf "$backup_root/attachments.tar" "$(basename "$release_storage")"
 (
-  cd "$backup_root"
+cd "$backup_root"
   sha256sum database.dump attachments.tar > SHA256SUMS
   sha256sum -c SHA256SUMS
   pg_restore --list database.dump >/dev/null
@@ -240,7 +240,7 @@ psql --dbname "$restore_db" --tuples-only --no-align <<'SQL' > "$work_root/resto
 SELECT 'users=' || count(*) FROM users;
 SELECT 'rooms=' || count(*) FROM rooms WHERE deleted_at IS NULL;
 SELECT 'messages=' || count(*) FROM room_messages;
-SELECT 'attachments=' || count(*) FROM room_attachments;
+SELECT 'attachments=' || count(*) FROM attachments;
 SELECT 'direct_messages=' || count(*) FROM direct_messages;
 SQL
 
