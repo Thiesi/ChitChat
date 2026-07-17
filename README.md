@@ -1,14 +1,14 @@
 # ChitChat
 
-ChitChat is a small, self-hosted browser chat application. The clean reconstruction has reached **v1.0.0**, its first stable release.
+ChitChat is a small, self-hosted browser chat application. The clean reconstruction has reached **v1.1.0**, its second stable release.
 
 ## Repository status
 
-`v1.0.0` is the supported baseline for fresh single-server deployments. Operators should review the documented privacy defaults, resource requirements, maintenance schedule, backup procedure, and known limitations before exposing an installation to users.
+`v1.1.0` is the supported baseline for fresh single-server deployments and in-place upgrades from stable `v1.0.0`. Operators should review the documented privacy defaults, forward-only migrations, resource requirements, maintenance schedule, backup procedure, and known limitations before exposing an installation to users.
 
 The former `v0.10.25` source snapshot is incomplete and is not considered runnable or a supported upgrade predecessor. It is preserved on the `legacy/v0.10.25` branch for reference.
 
-See [CHANGELOG.md](CHANGELOG.md) and the [v1.0.0 release notes](docs/releases/v1.0.0.md).
+See [CHANGELOG.md](CHANGELOG.md) and the [v1.1.0 release notes](docs/releases/v1.1.0.md).
 
 ## v1 architecture
 

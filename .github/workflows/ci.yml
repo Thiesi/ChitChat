@@ -208,7 +208,7 @@ jobs:
       DB_PASSWORD: chitchat
       DB_SSLMODE: disable
       SESSION_COOKIE_SECURE: 0
-      CHITCHAT_RELEASE_TAG: v1.0.0-rc.1
+      CHITCHAT_RELEASE_TAG: v1.0.0
       GH_TOKEN: ${{ github.token }}
 
     steps:

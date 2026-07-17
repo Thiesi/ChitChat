@@ -1,6 +1,6 @@
 # ChitChat installation and operation
 
-This document applies to stable `v1.0.0` of the clean reconstruction. The supported initial deployment model is one application server backed by PostgreSQL; review the privacy defaults, known limitations, backup procedure, and worker-capacity requirements before serving users.
+This document applies to stable `v1.1.0` of the clean reconstruction. The supported initial deployment model is one application server backed by PostgreSQL; review the privacy defaults, forward-only migrations, known limitations, backup procedure, and worker-capacity requirements before serving users.
 
 ## Requirements
 
@@ -60,6 +60,27 @@ The first account created through the browser becomes Super-Administrator. That 
 
 For a production-like single-server deployment, use Nginx and PHP-FPM as described in `docs/operations/nginx-php-fpm.md`; do not use PHP's development server.
 
+## Upgrade from v1.0.0
+
+`v1.1.0` applies forward-only migrations `0010` through `0013`. Do not run older ChitChat source against the database after migration.
+
+1. Stop or drain application writes.
+2. Back up PostgreSQL and the complete attachment-storage directory together.
+3. Preserve `.env` and the configured attachment-storage path.
+4. Deploy `v1.1.0` source.
+5. Run:
+
+   ```sh
+   composer install --no-dev --classmap-authoritative
+   composer migrate
+   composer maintenance:dry-run
+   ```
+
+6. Review the new optional revision-review and Prometheus settings before enabling either feature.
+7. Verify `/health.php`, `/ready.php`, login, retained room and direct-message history, attachment downloads, SSE through the production reverse proxy, account export, and the Administrator system-status page.
+
+Rollback requires restoring a matching pre-upgrade PostgreSQL and attachment backup. There is no down-migration path.
+
 ## Authentication bootstrap
 
 API clients begin by requesting:
@@ -96,6 +117,7 @@ This is password reauthentication, not MFA. It does not grant roles or bypass an
 
 - `/` serves the browser chat client.
 - `/messages.php` serves the direct-message inbox and its fixed privacy notice.
+- `/account.php` serves the signed-in account and personal-data export page.
 - `/admin.php` serves the permission-aware administration console.
 - `/admin-messages.php` serves audited direct-message inspection for eligible administrators.
 - `/admin-message-revisions.php` serves exact-ID, reason-required revision review when separately enabled.
@@ -105,11 +127,12 @@ This is password reauthentication, not MFA. It does not grant roles or bypass an
 - `/ready.php` verifies that the application can connect to PostgreSQL and use attachment storage.
 - `/metrics.php` serves optional bearer-protected Prometheus metrics when explicitly enabled.
 - `/api/v1/step-up.php` verifies the current password and creates short-lived privileged elevation.
+- `/api/v1/account/export.php` creates a step-up-protected retained-data JSON export for the signed-in account.
 - `/api/v1/events/stream.php` provides the authenticated SSE stream.
 - `/api/v1/presence/heartbeat.php` renews a browser tab's presence lease.
 - `/api/v1/rooms/presence.php` lists active users in an authorized room.
 - `/api/v1/attachments/` contains upload, protected download, and bounded metadata endpoints.
-- `/api/v1/direct-messages/` contains user search, conversation, history, send and read-acknowledgement endpoints.
+- `/api/v1/direct-messages/` contains user search, conversation, history, blocking, mutation, attachment, send, and read-acknowledgement endpoints.
 - `/api/v1/admin/direct-messages/` contains inspection user search and audited inspection endpoints.
 - `/api/v1/admin/message-revisions/` contains the audited exact-message revision-review endpoint.
 - `/api/v1/admin/settings/` contains Super-Administrator settings read and update endpoints.
@@ -144,7 +167,8 @@ The following operations additionally require active privileged step-up:
 - administrator password reset;
 - direct-message inspection POSTs;
 - message-revision review POSTs;
-- registration and retention-policy updates.
+- registration and retention-policy updates;
+- personal-data export generation.
 
 Coarse role and feature-policy checks occur before step-up, so an unauthorized account is denied without receiving a password prompt. Successful verification and the later protected action create separate audit records.
 
@@ -181,7 +205,7 @@ Protect `/metrics.php` with HTTPS and reverse-proxy or network restrictions in a
 
 The allowlist is JPEG, PNG, GIF, WebP, PDF, plain text, CSV, JSON, and ZIP. SVG, HTML, scripts, executables, and unknown binary types are rejected. Only raster image formats may be served inline.
 
-Moderator deletion immediately revokes downloads. Physical files remain until the configured deleted-attachment retention expires. Failed upload transactions may leave opaque files; maintenance removes them after the orphan grace period.
+Moderator or author deletion immediately revokes downloads. Physical files remain until the configured deleted-attachment retention expires. Failed upload transactions may leave opaque files; maintenance removes them after the orphan grace period.
 
 ## Direct messages, revisions, and privacy
 
@@ -189,38 +213,8 @@ Direct messages are ordinary server-side PostgreSQL records. They are **not end-
 
 `DM_ADMIN_INSPECTION_ENABLED` defaults to `1`. Set it to `0` to disable administrative canonical-content access. `DM_ADMIN_INSPECTION_ROLE` defaults to `super_admin`; `admin` permits both Administrators and Super-Administrators. Chat Admins, Global Moderators and room owners never receive DM inspection through these settings.
 
-Every successful inspection page requires active step-up and is audited before content is returned. Audit metadata includes the actor, IP, reason, selected users, pagination details and returned ID range, but not copied message bodies or passwords.
+Historical message revision review is independent from canonical DM inspection. `MESSAGE_REVISION_REVIEW_ENABLED` defaults to `0`; enabling it still requires `super_admin` unless `MESSAGE_REVISION_REVIEW_ROLE=admin` is explicitly configured. Every successful review requires recent step-up and a fresh reason, is limited to an exact message ID with retained revisions, and is audited without copying historical bodies into audit metadata. ChitChat does not automatically notify participants when review occurs.
 
-Edits and deletions create append-only revision rows containing historical bodies. `MESSAGE_REVISION_REVIEW_ENABLED` defaults to `0`; enabling it is an explicit operator decision. `MESSAGE_REVISION_REVIEW_ROLE` defaults to `super_admin`; `admin` permits Administrators and Super-Administrators. This policy does not inherit from DM inspection or moderation permissions.
+A direct-message block in either direction prevents new text and attachment sends while preserving retained history. The public relationship response reveals whether the current user created a block and only a generic messaging-availability flag; it does not identify whether the other participant blocked the account.
 
-Revision review accepts only an exact room or direct-message ID that already has retained revisions. Every successful request requires active step-up, a 10-500 character reason, and a separate audit containing the reviewer, IP, message context, and returned revision IDs and actions. Historical bodies and passwords are not copied into audit JSON. ChitChat does not notify participants when a review occurs; operators must disclose the capability in their own privacy, moderation, employment, and legal policies.
-
-## Browser security and rate limits
-
-All PHP responses use a restrictive Content Security Policy, clickjacking protection, `nosniff`, no-referrer behavior, a restrictive Permissions Policy, same-origin opener/resource policies, and `Cache-Control: no-store`. When `SESSION_COOKIE_SECURE=1`, ChitChat also emits one-year HSTS.
-
-Database-backed fixed-window limits are shared by all PHP workers: five registrations per source IP per hour, thirty room sends per user per minute, ten attachment uploads per user per hour, thirty direct messages per user per minute, and ten privileged password-verification attempts per account and source IP per fifteen minutes. Login has its existing configurable credential throttle.
-
-## Backup, restore and upgrade rehearsal
-
-Back up PostgreSQL and attachment storage together. The database contains password hashes, chat and DM history, revision bodies, audit data, IP addresses and policy settings. See `docs/operations/backup-restore.md` for the operator procedure.
-
-CI installs the previous supported `v1.0.0-rc.1` archive into an empty directory, seeds it through the HTTP API, creates and verifies a database plus attachment backup, restores both under new names, runs stable-source migrations, and checks that users, messages, DMs and attachment bytes remain intact. See `docs/operations/release-rehearsal.md`.
-
-## Production web-root rule
-
-The web server document root must be the repository's `public/` directory. Do not expose `src/`, `bootstrap/`, `migrations/`, `.env`, `var/`, Composer metadata, database dumps, or backup archives.
-
-Use HTTPS, set `SESSION_COOKIE_SECURE=1`, and leave `SESSION_COOKIE_SAMESITE=Lax` unless deployment requirements justify a stricter setting. Do not use `SameSite=None` without secure cookies.
-
-## Tests and checks
-
-```sh
-composer check
-find public/assets/js tests/e2e -type f -name '*.js' -print0 | xargs -0 -n1 node --check
-find tests/stabilization -type f -name '*.sh' -print0 | xargs -0 -n1 bash -n
-npm run test:e2e -- --project=chromium
-npm run test:e2e -- --project=firefox
-```
-
-The integration and browser suites require disposable migrated PostgreSQL databases. They create and clear application data and must never be pointed at a database containing valuable information. Attachment, maintenance, observability, step-up, release-rehearsal and reverse-proxy tests use isolated temporary storage or database state.
+Personal-data exports are machine-readable snapshots of retained data associated with the signed-in account. They require recent step-up, are rate-limited and audited, and deliberately exclude credentials, session state, attachment bytes and storage keys, incoming block identities, hidden revisions authored by other users, and audit entries belonging only to another actor.

@@ -40,7 +40,7 @@ final class ConfigTest extends TestCase
         $config = Config::fromEnvironment();
 
         self::assertSame('ChitChat', $config->applicationName);
-        self::assertSame('1.0.0', $config->applicationVersion);
+        self::assertSame('1.1.0', $config->applicationVersion);
         self::assertSame(5432, $config->databasePort);
         self::assertSame(45, $config->presenceLeaseSeconds);
         self::assertSame(60, $config->inactivityWarningSeconds);

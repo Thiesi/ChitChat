@@ -9,7 +9,7 @@ set -euo pipefail
 : "${DB_USER:?DB_USER is required}"
 : "${DB_PASSWORD:?DB_PASSWORD is required}"
 
-release_tag="${CHITCHAT_RELEASE_TAG:-v1.0.0-rc.1}"
+release_tag="${CHITCHAT_RELEASE_TAG:-v1.0.0}"
 current_root="$(pwd)"
 current_version="$(
   cd "$current_root"
