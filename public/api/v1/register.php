@@ -8,6 +8,7 @@ use ChitChat\Database;
 use ChitChat\Http\ApiException;
 use ChitChat\Http\ApiResult;
 use ChitChat\Http\Endpoint;
+use ChitChat\Http\RateLimiter;
 use ChitChat\Http\Request;
 
 /** @var ChitChat\Config $config */
@@ -22,11 +23,14 @@ Endpoint::run($config, static function () use ($config): ApiResult {
         throw new ApiException(400, 'validation_error', 'birth_date must be a string or null.');
     }
 
-    $auth = new AuthService(Database::connect($config), $config);
+    $pdo = Database::connect($config);
+    $ipAddress = Request::clientIp();
+    (new RateLimiter($pdo))->consume('registration', 'ip:' . $ipAddress, 5, 3600);
+    $auth = new AuthService($pdo, $config);
     $user = $auth->register(
         Request::string($payload, 'username'),
         Request::string($payload, 'password'),
-        Request::clientIp(),
+        $ipAddress,
         $birthDate,
     );
     SessionManager::login($user);
