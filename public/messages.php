@@ -16,6 +16,7 @@ $appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUT
   <link rel="stylesheet" href="/assets/css/app.css">
   <link rel="stylesheet" href="/assets/css/components.css">
   <link rel="stylesheet" href="/assets/css/messages.css">
+  <link rel="stylesheet" href="/assets/css/messages-blocking.css">
 </head>
 <body>
   <div id="messages-loading" class="app-loading" role="status">Loading messages…</div>
@@ -58,6 +59,7 @@ $appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUT
             <h2 id="dm-peer-name">Choose a conversation</h2>
             <p id="dm-peer-status" class="messages-muted">Search for a user or choose an existing conversation.</p>
           </div>
+          <button id="dm-block-toggle" class="secondary-button dm-block-toggle hidden" type="button">Block user</button>
         </header>
 
         <div id="dm-empty-state" class="dm-empty-state">No conversation selected.</div>

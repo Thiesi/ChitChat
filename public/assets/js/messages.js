@@ -5,6 +5,7 @@ const state = {
   privacy: null,
   conversations: [],
   selectedUser: null,
+  relationship: null,
   messages: [],
   messageIds: new Set(),
   oldestMessageId: null,
@@ -22,9 +23,9 @@ function bindElements() {
   for (const id of [
     'messages-loading', 'messages-shell', 'messages-identity', 'dm-privacy-text',
     'messages-error', 'dm-user-search-form', 'dm-user-search', 'dm-user-results',
-    'dm-conversation-list', 'dm-peer-name', 'dm-peer-status', 'dm-empty-state',
-    'dm-message-list', 'dm-load-older', 'dm-composer', 'dm-message-input',
-    'dm-send', 'toast-region',
+    'dm-conversation-list', 'dm-peer-name', 'dm-peer-status', 'dm-block-toggle',
+    'dm-empty-state', 'dm-message-list', 'dm-load-older', 'dm-composer',
+    'dm-message-input', 'dm-send', 'toast-region',
   ]) {
     const element = document.getElementById(id);
     if (!element) throw new Error(`Missing direct-message interface element: ${id}`);
@@ -36,6 +37,7 @@ function bindEvents() {
   elements['dm-user-search-form'].addEventListener('submit', searchUsers);
   elements['dm-load-older'].addEventListener('click', loadOlder);
   elements['dm-composer'].addEventListener('submit', sendMessage);
+  elements['dm-block-toggle'].addEventListener('click', toggleBlock);
   elements['dm-message-input'].addEventListener('keydown', (event) => {
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
@@ -172,16 +174,87 @@ function renderUserResults(users) {
 
 async function selectUser(user) {
   state.selectedUser = user;
+  state.relationship = null;
   state.messages = [];
   state.messageIds = new Set();
   state.oldestMessageId = null;
   elements['dm-peer-name'].textContent = user.username;
-  elements['dm-peer-status'].textContent = 'Direct conversation';
-  elements['dm-composer'].classList.remove('hidden');
+  elements['dm-peer-status'].textContent = 'Loading conversation…';
+  elements['dm-composer'].classList.add('hidden');
+  elements['dm-block-toggle'].classList.add('hidden');
   renderConversations();
   renderMessages();
-  await loadHistory({ replace: true });
+  await Promise.all([
+    loadHistory({ replace: true }),
+    loadRelationship(user),
+  ]);
   await markRead();
+}
+
+async function loadRelationship(user = state.selectedUser) {
+  if (!user) return;
+  try {
+    const parameters = new URLSearchParams({ user_id: String(user.id) });
+    const response = await apiGet(`/api/v1/direct-messages/block-status.php?${parameters.toString()}`);
+    if (state.selectedUser?.id !== user.id) return;
+    state.relationship = response.relationship ?? null;
+    renderRelationship();
+  } catch (error) {
+    handleApiFailure(error);
+  }
+}
+
+function renderRelationship() {
+  const user = state.selectedUser;
+  const relationship = state.relationship;
+  if (!user || !relationship) {
+    elements['dm-block-toggle'].classList.add('hidden');
+    elements['dm-composer'].classList.add('hidden');
+    return;
+  }
+
+  const blockedByMe = Boolean(relationship.blocked_by_me);
+  const available = Boolean(relationship.messaging_available);
+  const button = elements['dm-block-toggle'];
+  button.classList.remove('hidden');
+  button.dataset.blocked = blockedByMe ? 'true' : 'false';
+  button.textContent = blockedByMe ? 'Unblock user' : 'Block user';
+  button.setAttribute('aria-label', `${blockedByMe ? 'Unblock' : 'Block'} ${user.username}`);
+
+  if (available) {
+    elements['dm-peer-status'].textContent = 'Direct conversation';
+    elements['dm-composer'].classList.remove('hidden');
+    elements['dm-message-input'].disabled = false;
+    elements['dm-send'].disabled = false;
+  } else {
+    elements['dm-peer-status'].textContent = blockedByMe
+      ? 'You blocked this user. Existing history remains available.'
+      : 'Direct messaging is unavailable. Existing history remains available.';
+    elements['dm-composer'].classList.add('hidden');
+  }
+}
+
+async function toggleBlock() {
+  const user = state.selectedUser;
+  const relationship = state.relationship;
+  if (!user || !relationship) return;
+  const button = elements['dm-block-toggle'];
+  button.disabled = true;
+  clearError();
+  try {
+    const path = relationship.blocked_by_me
+      ? '/api/v1/direct-messages/unblock.php'
+      : '/api/v1/direct-messages/block.php';
+    const response = await apiPost(path, { user_id: user.id });
+    if (state.selectedUser?.id !== user.id) return;
+    state.relationship = response.relationship ?? null;
+    renderRelationship();
+    toast(state.relationship?.blocked_by_me ? `${user.username} blocked.` : `${user.username} unblocked.`);
+  } catch (error) {
+    handleApiFailure(error);
+  } finally {
+    button.disabled = false;
+  }
 }
 
 async function loadHistory({ replace = false, beforeId = null } = {}) {
@@ -252,7 +325,7 @@ async function sendMessage(event) {
   event.preventDefault();
   const user = state.selectedUser;
   const body = elements['dm-message-input'].value.trim();
-  if (!user || !body) return;
+  if (!user || !body || !state.relationship?.messaging_available) return;
   elements['dm-send'].disabled = true;
   try {
     const response = await apiPost('/api/v1/direct-messages/send.php', {
@@ -263,10 +336,13 @@ async function sendMessage(event) {
     appendMessage(response.message, true);
     await loadConversations(user.id);
   } catch (error) {
+    if (error instanceof ApiError && error.code === 'direct_message_unavailable') {
+      await loadRelationship(user);
+    }
     handleApiFailure(error);
   } finally {
     elements['dm-send'].disabled = false;
-    elements['dm-message-input'].focus();
+    if (state.relationship?.messaging_available) elements['dm-message-input'].focus();
   }
 }
 

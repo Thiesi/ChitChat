@@ -27,7 +27,7 @@ Query parameters:
 - `search`: 2-32 supported username characters;
 - `limit`: optional, 1-50, default 20.
 
-Returns prefix matches excluding the current account. This endpoint is for starting a conversation and is not an unrestricted export.
+Returns prefix matches excluding the current account. This endpoint is for starting a conversation and is not an unrestricted export. Blocking does not remove an account from search, so a user can reopen the conversation header and reverse their own block.
 
 ## `GET /api/v1/direct-messages/conversations.php`
 
@@ -59,7 +59,46 @@ Query parameters:
 - `before_id`: optional exclusive cursor;
 - `limit`: optional, 1-100, default 50.
 
-Only conversations involving the authenticated account can be read. Results are returned oldest-to-newest within the requested page.
+Only conversations involving the authenticated account can be read. Results are returned oldest-to-newest within the requested page. Blocking does not delete, hide or rewrite existing history.
+
+## Blocking relationship
+
+Blocking is directional state, but a block in either direction makes new messaging unavailable in both directions. Bilateral blocks are independent: removing your own block does not remove the other participant's block.
+
+The public relationship object deliberately exposes only:
+
+```json
+{
+  "blocked_by_me": true,
+  "messaging_available": false
+}
+```
+
+It never returns a separate `blocked_by_other` field. A user who has not set their own block sees only generic message unavailability.
+
+### `GET /api/v1/direct-messages/block-status.php`
+
+Required query parameter: `user_id`.
+
+Returns the relationship object for the authenticated user and the other participant.
+
+### `POST /api/v1/direct-messages/block.php`
+
+```json
+{"user_id": 7}
+```
+
+Creates the authenticated user's block idempotently and returns the resulting relationship object.
+
+### `POST /api/v1/direct-messages/unblock.php`
+
+```json
+{"user_id": 7}
+```
+
+Removes only the authenticated user's block idempotently and returns the resulting relationship object.
+
+Block, unblock and send operations serialize on the same PostgreSQL advisory lock for the unordered user pair. A send therefore cannot race past a block operation that has already completed.
 
 ## `POST /api/v1/direct-messages/send.php`
 
@@ -70,7 +109,7 @@ Only conversations involving the authenticated account can be read. Results are 
 }
 ```
 
-The body must contain 1-4,000 characters after trimming. Self-messaging is rejected. The insert and both targeted `direct_message` events are one transaction. The response is HTTP 201.
+The body must contain 1-4,000 characters after trimming. Self-messaging is rejected. If either participant has blocked the other, the endpoint returns HTTP 403 with `direct_message_unavailable`; the error does not identify who set the block. Otherwise the insert and both targeted `direct_message` events are one transaction. The successful response is HTTP 201.
 
 ## `POST /api/v1/direct-messages/read.php`
 
@@ -78,7 +117,7 @@ The body must contain 1-4,000 characters after trimming. Self-messaging is rejec
 {"user_id": 7}
 ```
 
-Marks all unread messages from that user to the authenticated recipient as read and returns the number changed.
+Marks all unread messages from that user to the authenticated recipient as read and returns the number changed. Read acknowledgement and history remain available while blocked.
 
 ## Realtime delivery
 
@@ -94,6 +133,8 @@ The existing authenticated SSE stream emits `direct_message` events targeted sep
   }
 }
 ```
+
+No direct-message event is created for a blocked send.
 
 ## Privacy disclosure in `GET /api/v1/session.php`
 
@@ -113,6 +154,8 @@ The existing authenticated SSE stream emits `direct_message` events targeted sep
 ## Administrative inspection
 
 Inspection is disabled when `DM_ADMIN_INSPECTION_ENABLED=0`. Otherwise the permitted role is configured as `super_admin` or `admin`; the latter includes both Administrators and Super-Administrators.
+
+User blocking controls future participant sends. It does not alter the configured retention policy or administrative inspection of retained history.
 
 ### `GET /api/v1/admin/direct-messages/users.php`
 

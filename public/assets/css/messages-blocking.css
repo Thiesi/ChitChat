@@ -1,0 +1,25 @@
+.conversation-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.dm-block-toggle {
+  flex: 0 0 auto;
+}
+
+.dm-block-toggle[data-blocked="false"] {
+  border-color: var(--warning);
+}
+
+.dm-block-toggle[data-blocked="true"] {
+  border-color: var(--accent);
+}
+
+@media (max-width: 34rem) {
+  .conversation-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
