@@ -3,6 +3,7 @@ let sessionRequest = null;
 
 const SESSION_ENDPOINT = '/api/v1/session.php';
 const STEP_UP_ENDPOINT = '/api/v1/step-up.php';
+const SESSION_VERSION_MARKER = Symbol.for('chitchat.sessionVersion');
 const SESSION_CHANGE_ENDPOINTS = new Set([
   '/api/v1/login.php',
   '/api/v1/register.php',
@@ -98,6 +99,12 @@ async function request(path, options) {
 
   if (payload && typeof payload.csrf_token === 'string') {
     setCsrfToken(payload.csrf_token);
+  }
+
+  if (Number.isInteger(payload?.user?.session_version)) {
+    window[SESSION_VERSION_MARKER] = payload.user.session_version;
+  } else if (options.method === 'POST' && SESSION_CHANGE_ENDPOINTS.has(path)) {
+    window[SESSION_VERSION_MARKER] = null;
   }
 
   if (options.method === 'POST' && SESSION_CHANGE_ENDPOINTS.has(path)) {
