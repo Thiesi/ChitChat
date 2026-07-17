@@ -25,6 +25,8 @@ archive="$work_root/release.tar.gz"
 fixture="$work_root/rehearsal-attachment.txt"
 admin_cookie="$work_root/admin.cookies"
 member_cookie="$work_root/member.cookies"
+admin_password="Rehearsal-Admin-$(date +%s%N)-Aa1!"
+member_password="Rehearsal-Member-$(date +%s%N)-Bb2!"
 release_log="$work_root/release-server.log"
 upgraded_log="$work_root/upgraded-server.log"
 restore_db="${DB_NAME}_restore"
@@ -122,15 +124,15 @@ curl --fail --silent "$release_base/health.php" \
 
 admin_csrf="$(csrf_token "$release_base" "$admin_cookie")"
 admin_response="$(post_json "$release_base" "$admin_cookie" "$admin_csrf" '/api/v1/register.php' \
-  '{"username":"ArchiveAdmin","password":"Correct Horse Battery Staple 2026!","birth_date":"1990-01-01"}')"
+  "$(jq -nc --arg password "$admin_password" '{username:"ArchiveAdmin",password:$password,birth_date:"1990-01-01"}')")"
 admin_id="$(jq -er '.user.id' <<< "$admin_response")"
 admin_csrf="$(csrf_token "$release_base" "$admin_cookie")"
 
 room_response="$(post_json "$release_base" "$admin_cookie" "$admin_csrf" '/api/v1/rooms/create.php' \
-  '{"key":"release-rehearsal","name":"Release Rehearsal","info_line":"Archive and restore validation","visibility":"public","minimum_ae":0,"inactivity_timeout_seconds":0}')
+  '{"key":"release-rehearsal","name":"Release Rehearsal","info_line":"Archive and restore validation","visibility":"public","minimum_age":0,"inactivity_timeout_seconds":0}')"
 room_id="$(jq -er '.room.id' <<< "$room_response")"
 
-post_json "$release_base" "$admin_cooie" "$admin_csrf" '/api/v1/rooms/send.php' \
+post_json "$release_base" "$admin_cookie" "$admin_csrf" '/api/v1/rooms/send.php' \
   "$(jq -nc --argjson room_id "$room_id" --arg body 'Message created by the published archive' '{room_id:$room_id,body:$body}')" \
   | jq -e '.message.type == "text"' >/dev/null
 
@@ -145,7 +147,7 @@ attachment_id="$(jq -er '.message.attachment.id' <<< "$upload_response")"
 
 member_csrf="$(csrf_token "$release_base" "$member_cookie")"
 member_response="$(post_json "$release_base" "$member_cookie" "$member_csrf" '/api/v1/register.php' \
-  '{"username":"ArchiveMember","password":"Another Correct Horse Battery Staple 2026!","birth_date":"1991-02-02"}')"
+  "$(jq -nc --arg password "$member_password" '{username:"ArchiveMember",password:$password,birth_date:"1991-02-02"}')")"
 member_id="$(jq -er '.user.id' <<< "$member_response")"
 member_csrf="$(csrf_token "$release_base" "$member_cookie")"
 
@@ -157,7 +159,7 @@ post_json "$release_base" "$member_cookie" "$member_csrf" '/api/v1/rooms/send.ph
   "$(jq -nc --argjson room_id "$room_id" --arg body 'Member message preserved through restore' '{room_id:$room_id,body:$body}')" \
   | jq -e '.message.type == "text"' >/dev/null
 
-post_json "$release_base" "$admin_cooie" "$admin_csrf" '/api/v1/direct-messages/send.php' \
+post_json "$release_base" "$admin_cookie" "$admin_csrf" '/api/v1/direct-messages/send.php' \
   "$(jq -nc --argjson recipient_user_id "$member_id" --arg body 'Direct message preserved through restore' '{recipient_user_id:$recipient_user_id,body:$body}')" \
   | jq -e '.message.body == "Direct message preserved through restore"' >/dev/null
 
@@ -179,7 +181,7 @@ pg_dump \
   "$DB_NAME"
 tar -C "$(dirname "$release_storage")" -cpf "$backup_root/attachments.tar" "$(basename "$release_storage")"
 (
-cd "$backup_root"
+  cd "$backup_root"
   sha256sum database.dump attachments.tar > SHA256SUMS
   sha256sum -c SHA256SUMS
   pg_restore --list database.dump >/dev/null
@@ -214,7 +216,7 @@ rm -f "$admin_cookie"
 touch "$admin_cookie"
 admin_csrf="$(csrf_token "$upgraded_base" "$admin_cookie")"
 post_json "$upgraded_base" "$admin_cookie" "$admin_csrf" '/api/v1/login.php' \
-  '{"username":"ArchiveAdmin","password":"Correct Horse Battery Staple 2026!"}' \
+  "$(jq -nc --arg password "$admin_password" '{username:"ArchiveAdmin",password:$password}')" \
   | jq -e --argjson admin_id "$admin_id" '.user.id == $admin_id' >/dev/null
 admin_csrf="$(csrf_token "$upgraded_base" "$admin_cookie")"
 
@@ -236,7 +238,7 @@ curl --fail-with-body --silent --show-error \
   > "$work_root/download-after-restore.txt"
 cmp "$fixture" "$work_root/download-after-restore.txt"
 
-psql --dbname "$restore_db" --tuples-only --no-align <<'SQL' > "$work_root/restored-counts.txt"
+psql --set ON_ERROR_STOP=1 --dbname "$restore_db" --tuples-only --no-align <<'SQL' > "$work_root/restored-counts.txt"
 SELECT 'users=' || count(*) FROM users;
 SELECT 'rooms=' || count(*) FROM rooms WHERE deleted_at IS NULL;
 SELECT 'messages=' || count(*) FROM room_messages;
