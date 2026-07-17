@@ -24,7 +24,7 @@ Endpoint::run($config, static function () use ($config): ApiResult {
         throw new ApiException(400, 'validation_error', 'message_ids must be a comma-separated list.');
     }
     $parts = explode(',', $raw);
-    if (count($parts) < 1 || count($parts) > 100) {
+    if (count($parts) > 100) {
         throw new ApiException(400, 'validation_error', 'message_ids must contain 1-100 message IDs.');
     }
     $messageIds = [];
