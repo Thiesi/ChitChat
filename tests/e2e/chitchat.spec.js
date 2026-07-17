@@ -74,11 +74,12 @@ test.describe.serial('ChitChat browser release checks', () => {
       await expect(adminPage.locator('#admin-link')).toBeVisible();
 
       await adminPage.locator('#new-room-button').click();
-      await expect(adminPage.locator('#room-dialog')).toBeVisible();
-      await adminPage.locator('#room-key').fill('general-e2e');
-      await adminPage.locator('#room-name').fill('General E2E');
-      await adminPage.locator('#room-info-line').fill('Browser release validation');
-      await adminPage.getByRole('button', { name: 'Create room' }).click();
+      const roomDialog = adminPage.locator('#room-dialog');
+      await expect(roomDialog).toBeVisible();
+      await roomDialog.locator('#room-key').fill('general-e2e');
+      await roomDialog.locator('#room-name').fill('General E2E');
+      await roomDialog.locator('#room-info-line').fill('Browser release validation');
+      await roomDialog.getByRole('button', { name: 'Create room' }).click();
       await expect(adminPage.locator('#room-title')).toHaveText('# General E2E');
 
       const memberPage = await memberContext.newPage();
@@ -94,11 +95,11 @@ test.describe.serial('ChitChat browser release checks', () => {
 
       await memberPage.locator('#composer-input').fill('Hello from the member browser');
       await memberPage.locator('#send-button').click();
-      await expect(adminPage.locator('.message-body')).toContainText('Hello from the member browser');
+      await expect(adminPage.locator('.message-body', { hasText: 'Hello from the member browser' })).toBeVisible();
 
       await adminPage.locator('#composer-input').fill('/me confirms realtime delivery');
       await adminPage.locator('#send-button').click();
-      await expect(memberPage.locator('.message.emote .message-body')).toContainText('confirms realtime delivery');
+      await expect(memberPage.locator('.message.emote .message-body', { hasText: 'confirms realtime delivery' })).toBeVisible();
 
       await adminPage.locator('#composer-input').fill(`/ping ${member.username} Browser ping`);
       await adminPage.locator('#send-button').click();
@@ -133,11 +134,11 @@ test.describe.serial('ChitChat browser release checks', () => {
       await selectDirectMessagePeer(memberMessages, admin.username);
       await memberMessages.locator('#dm-message-input').fill('Private browser hello');
       await memberMessages.locator('#dm-send').click();
-      await expect(adminMessages.locator('.dm-message-body')).toContainText('Private browser hello');
+      await expect(adminMessages.locator('.dm-message-body', { hasText: 'Private browser hello' })).toBeVisible();
 
       await adminMessages.locator('#dm-message-input').fill('Private browser reply');
       await adminMessages.locator('#dm-send').click();
-      await expect(memberMessages.locator('.dm-message-body')).toContainText('Private browser reply');
+      await expect(memberMessages.locator('.dm-message-body', { hasText: 'Private browser reply' })).toBeVisible();
 
       const adminConsole = await adminContext.newPage();
       await adminConsole.goto('/admin.php');
