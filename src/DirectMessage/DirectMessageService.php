@@ -264,19 +264,25 @@ SQL);
             if ($messageIdValue === false) {
                 throw new RuntimeException('Direct-message send did not return an ID.');
             }
-            $message = $this->messageById((int) $messageIdValue, $actor->id);
+            $messageId = (int) $messageIdValue;
+            $senderMessage = $this->messageById($messageId, $actor->id);
+            $recipientMessage = $this->messageById($messageId, $recipientUserId);
 
-            foreach ([$actor->id, $recipientUserId] as $targetUserId) {
-                $this->events->publish(
-                    type: 'direct_message',
-                    payload: ['message' => $message],
-                    targetUserId: $targetUserId,
-                    actorUserId: $actor->id,
-                );
-            }
+            $this->events->publish(
+                type: 'direct_message',
+                payload: ['message' => $senderMessage],
+                targetUserId: $actor->id,
+                actorUserId: $actor->id,
+            );
+            $this->events->publish(
+                type: 'direct_message',
+                payload: ['message' => $recipientMessage],
+                targetUserId: $recipientUserId,
+                actorUserId: $actor->id,
+            );
             $this->pdo->commit();
 
-            return $message;
+            return $senderMessage;
         } catch (Throwable $exception) {
             if ($this->pdo->inTransaction()) {
                 $this->pdo->rollBack();
