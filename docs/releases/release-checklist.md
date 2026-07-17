@@ -16,6 +16,7 @@ Use this checklist for every ChitChat pre-release and stable release.
 - [ ] PHP lint passes.
 - [ ] Every browser, Playwright, and stabilization script passes syntax validation.
 - [ ] PHPStan level 8 passes without new suppressions.
+- [ ] Locked Composer and npm dependency audits pass at the documented release-blocking thresholds.
 - [ ] Every migration applies to an empty PostgreSQL database.
 - [ ] The full PHPUnit suite passes.
 - [ ] `composer maintenance:dry-run` succeeds.
@@ -44,7 +45,7 @@ Use this checklist for every ChitChat pre-release and stable release.
 
 - [ ] Merge the release PR without changing the validated head.
 - [ ] Confirm the merged source tree matches the fully validated release head.
-- [ ] Wait for the `main` push runs of CI and the independent WebKit workflow to finish successfully.
+- [ ] Wait for the `main` push runs of CI, Security, and the independent WebKit workflow to finish successfully.
 - [ ] Copy the full 40-character merge commit SHA.
 - [ ] Confirm the repository has a `release` GitHub Actions environment with required reviewers and deployment restricted to `main`.
 - [ ] Run **Publish release** from `main` in `validate-only` mode with the version and exact merge commit SHA.

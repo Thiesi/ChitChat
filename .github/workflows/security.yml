@@ -1,0 +1,73 @@
+name: Security
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  schedule:
+    - cron: '17 3 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dependency-audit:
+    name: dependency-audit
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: fileinfo, mbstring, pdo_pgsql
+          coverage: none
+          tools: composer:v2
+
+      - name: Require dependency lockfiles
+        run: |
+          test -f composer.lock
+          test -f package-lock.json
+
+      - name: Audit locked Composer dependencies
+        id: composer-audit
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          composer audit --locked --no-interaction --abandoned=report --format=json \
+            | tee composer-audit.json
+
+      - name: Audit locked npm dependencies
+        id: npm-audit
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          npm audit --audit-level=high --json | tee npm-audit.json
+
+      - name: Upload dependency audit diagnostics
+        if: ${{ always() && (steps.composer-audit.outcome == 'failure' || steps.npm-audit.outcome == 'failure') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-audit-diagnostics
+          path: |
+            composer-audit.json
+            npm-audit.json
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Enforce dependency audit policy
+        if: always()
+        env:
+          COMPOSER_OUTCOME: ${{ steps.composer-audit.outcome }}
+          NPM_OUTCOME: ${{ steps.npm-audit.outcome }}
+        run: |
+          test "$COMPOSER_OUTCOME" = success
+          test "$NPM_OUTCOME" = success
