@@ -5,7 +5,7 @@ declare(strict_types=1);
 use ChitChat\Auth\SessionManager;
 use ChitChat\Auth\UserRepository;
 use ChitChat\Database;
-use ChitChat\DirectMessage\DirectMessageAttachmentService;
+use ChitChat\DirectMessage\DirectMessageAttachmentAccessService;
 use ChitChat\Http\ApiException;
 use ChitChat\Http\JsonResponse;
 use ChitChat\Http\Request;
@@ -19,7 +19,7 @@ try {
     Request::requireMethod('GET');
     $pdo = Database::connect($config);
     $actor = SessionManager::requireUser(new UserRepository($pdo));
-    $attachment = (new DirectMessageAttachmentService($pdo, $config))->authorizeDownload(
+    $attachment = (new DirectMessageAttachmentAccessService($pdo, $config))->authorizeDownload(
         $actor,
         Request::queryInteger('id'),
     );
