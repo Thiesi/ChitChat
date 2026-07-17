@@ -1,0 +1,161 @@
+import { expect, test } from '@playwright/test';
+
+const baseURL = process.env.CHITCHAT_BASE_URL ?? 'http://127.0.0.1:8080';
+const admin = {
+  username: 'RootE2E',
+  password: 'Correct Horse Battery Staple 2026!',
+};
+const member = {
+  username: 'MemberE2E',
+  password: 'Another Correct Horse Battery Staple 2026!',
+};
+
+async function register(page, account) {
+  await page.goto('/');
+  await expect(page.locator('#auth-shell')).toBeVisible();
+  await page.locator('#register-tab').click();
+  await expect(page.locator('#register-form')).toBeVisible();
+  await page.locator('#register-username').fill(account.username);
+  await page.locator('#register-password').fill(account.password);
+  await page.getByRole('button', { name: 'Create account' }).click();
+  await expect(page.locator('#chat-shell')).toBeVisible();
+  await expect(page.locator('#current-user')).toHaveText(account.username);
+  await expect(page.locator('#connection-status')).toHaveText('Live', { timeout: 20_000 });
+}
+
+async function selectDirectMessagePeer(page, username) {
+  await page.locator('#dm-user-search').fill(username);
+  await page.getByRole('button', { name: 'Search' }).click();
+  await page.locator('.dm-user-button', { hasText: username }).click();
+  await expect(page.locator('#dm-peer-name')).toHaveText(username);
+  await expect(page.locator('#dm-composer')).toBeVisible();
+}
+
+test.describe.serial('ChitChat browser release checks', () => {
+  test('emits hardened HTTP headers and protects anonymous APIs', async ({ request }) => {
+    const pageResponse = await request.get('/');
+    expect(pageResponse.status()).toBe(200);
+    const headers = pageResponse.headers();
+    expect(headers['content-security-policy']).toContain("default-src 'self'");
+    expect(headers['content-security-policy']).toContain("frame-ancestors 'none'");
+    expect(headers['cache-control']).toContain('no-store');
+    expect(headers['x-content-type-options']).toBe('nosniff');
+    expect(headers['x-frame-options']).toBe('DENY');
+    expect(headers['referrer-policy']).toBe('no-referrer');
+    expect(headers['permissions-policy']).toContain('microphone=()');
+
+    const protectedResponse = await request.get('/api/v1/direct-messages/conversations.php');
+    expect(protectedResponse.status()).toBe(401);
+  });
+
+  test('supports rooms, realtime chat, attachments, DMs and operational settings', async ({ browser }) => {
+    const adminContext = await browser.newContext({ baseURL });
+    const memberContext = await browser.newContext({ baseURL });
+    let anonymousContext = null;
+
+    try {
+      const adminPage = await adminContext.newPage();
+      await register(adminPage, admin);
+      await expect(adminPage.locator('#admin-link')).toBeVisible();
+
+      await adminPage.locator('#new-room-button').click();
+      await expect(adminPage.locator('#room-dialog')).toBeVisible();
+      await adminPage.locator('#room-key').fill('general-e2e');
+      await adminPage.locator('#room-name').fill('General E2E');
+      await adminPage.locator('#room-info-line').fill('Browser release validation');
+      await adminPage.getByRole('button', { name: 'Create room' }).click();
+      await expect(adminPage.locator('#room-title')).toHaveText('# General E2E');
+
+      const memberPage = await memberContext.newPage();
+      await register(memberPage, member);
+      await expect(memberPage.locator('#room-title')).toHaveText('# General E2E');
+      await expect(memberPage.locator('#join-button')).toBeVisible();
+      await memberPage.locator('#join-button').click();
+      await expect(memberPage.locator('#composer-wrap')).toBeVisible();
+      await expect(memberPage.locator('#admin-link')).toBeHidden();
+
+      await expect(adminPage.locator('#presence-list')).toContainText(member.username, { timeout: 20_000 });
+      await expect(memberPage.locator('#presence-list')).toContainText(admin.username, { timeout: 20_000 });
+
+      await memberPage.locator('#composer-input').fill('Hello from the member browser');
+      await memberPage.locator('#send-button').click();
+      await expect(adminPage.locator('.message-body')).toContainText('Hello from the member browser');
+
+      await adminPage.locator('#composer-input').fill('/me confirms realtime delivery');
+      await adminPage.locator('#send-button').click();
+      await expect(memberPage.locator('.message.emote .message-body')).toContainText('confirms realtime delivery');
+
+      await adminPage.locator('#composer-input').fill(`/ping ${member.username} Browser ping`);
+      await adminPage.locator('#send-button').click();
+      await expect(memberPage.locator('#toast-region')).toContainText('Browser ping');
+
+      await memberPage.locator('#attachment-input').setInputFiles({
+        name: 'browser-e2e.txt',
+        mimeType: 'text/plain',
+        buffer: Buffer.from('attachment delivered through the browser\n'),
+      });
+      await memberPage.locator('#composer-input').fill('Release-test attachment');
+      await memberPage.locator('#send-button').click();
+      await expect(memberPage.locator('#toast-region')).toContainText('Attachment uploaded');
+      const adminDownload = adminPage.locator('a.attachment-download', { hasText: 'browser-e2e.txt' });
+      await expect(adminDownload).toBeVisible({ timeout: 20_000 });
+      const href = await adminDownload.getAttribute('href');
+      expect(href).not.toBeNull();
+      const downloadResponse = await adminContext.request.get(href);
+      expect(downloadResponse.status()).toBe(200);
+      expect(await downloadResponse.text()).toBe('attachment delivered through the browser\n');
+      expect(downloadResponse.headers()['content-disposition']).toContain('attachment');
+
+      const adminMessages = await adminContext.newPage();
+      await adminMessages.goto('/messages.php');
+      await expect(adminMessages.locator('#messages-shell')).toBeVisible();
+      await expect(adminMessages.locator('#dm-privacy-text')).toContainText('not end-to-end encrypted');
+      await selectDirectMessagePeer(adminMessages, member.username);
+
+      const memberMessages = await memberContext.newPage();
+      await memberMessages.goto('/messages.php');
+      await expect(memberMessages.locator('#messages-shell')).toBeVisible();
+      await selectDirectMessagePeer(memberMessages, admin.username);
+      await memberMessages.locator('#dm-message-input').fill('Private browser hello');
+      await memberMessages.locator('#dm-send').click();
+      await expect(adminMessages.locator('.dm-message-body')).toContainText('Private browser hello');
+
+      await adminMessages.locator('#dm-message-input').fill('Private browser reply');
+      await adminMessages.locator('#dm-send').click();
+      await expect(memberMessages.locator('.dm-message-body')).toContainText('Private browser reply');
+
+      const adminConsole = await adminContext.newPage();
+      await adminConsole.goto('/admin.php');
+      await expect(adminConsole.getByRole('heading', { name: 'Administration' })).toBeVisible();
+      await expect(adminConsole.locator('#system-settings-link')).toBeVisible();
+      await expect(adminConsole.locator('#dm-inspection-link')).toBeVisible();
+
+      const settingsPage = await adminContext.newPage();
+      await settingsPage.goto('/admin-settings.php');
+      await expect(settingsPage.locator('#settings-shell')).toBeVisible();
+      await expect(settingsPage.locator('#registration-enabled')).toHaveValue('1');
+      await expect(settingsPage.locator('#room-retention')).toHaveValue('0');
+      await expect(settingsPage.locator('#dm-retention')).toHaveValue('0');
+
+      settingsPage.once('dialog', (dialog) => dialog.accept());
+      await settingsPage.locator('#registration-enabled').selectOption('0');
+      await settingsPage.locator('#save-settings').click();
+      await expect(settingsPage.locator('#toast-region')).toContainText('Operational settings saved');
+
+      anonymousContext = await browser.newContext({ baseURL });
+      const anonymousPage = await anonymousContext.newPage();
+      await anonymousPage.goto('/');
+      await expect(anonymousPage.locator('#auth-shell')).toBeVisible();
+      await expect(anonymousPage.locator('#register-tab')).toBeHidden();
+
+      settingsPage.once('dialog', (dialog) => dialog.accept());
+      await settingsPage.locator('#registration-enabled').selectOption('1');
+      await settingsPage.locator('#save-settings').click();
+      await expect(settingsPage.locator('#toast-region')).toContainText('Operational settings saved');
+    } finally {
+      await anonymousContext?.close();
+      await memberContext.close();
+      await adminContext.close();
+    }
+  });
+});
