@@ -32,7 +32,8 @@ $appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUT
 
     <p class="admin-card warning-text">
       These policies control destructive maintenance. A retention value of <strong>0</strong> means permanent retention.
-      Changes are audited, but cleanup occurs only when <code>php bin/maintenance-cleanup</code> runs.
+      Changes require recent current-password verification and are audited, but cleanup occurs only when
+      <code>php bin/maintenance-cleanup</code> runs.
     </p>
     <p id="settings-error" class="error-text" role="alert"></p>
 
