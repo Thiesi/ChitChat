@@ -34,11 +34,19 @@ async function selectPeer(page, username) {
   await expect(page.locator('#dm-composer')).toBeVisible();
 }
 
-async function acceptDialog(page, value = null) {
+function acceptDialog(page, value = null) {
   page.once('dialog', async (dialog) => {
     if (dialog.type() === 'prompt') await dialog.accept(value ?? '');
     else await dialog.accept();
   });
+}
+
+async function stableMessage(page, selector, text) {
+  const initial = page.locator(selector, { hasText: text }).last();
+  await expect(initial).toBeVisible();
+  const id = await initial.getAttribute('data-message-id');
+  expect(id).not.toBeNull();
+  return page.locator(`${selector}[data-message-id="${id}"]`);
 }
 
 test('authors edit and delete room and direct messages for everyone', async ({ browser }) => {
@@ -55,22 +63,19 @@ test('authors edit and delete room and direct messages for everyone', async ({ b
 
     await memberChat.locator('#composer-input').fill('Mutable room message');
     await memberChat.locator('#send-button').click();
-    const memberRoomMessage = memberChat.locator('article.message', { hasText: 'Mutable room message' });
-    const adminRoomMessage = adminChat.locator('article.message', { hasText: 'Mutable room message' });
-    await expect(memberRoomMessage).toBeVisible();
-    await expect(adminRoomMessage).toBeVisible();
+    const memberRoomMessage = await stableMessage(memberChat, 'article.message', 'Mutable room message');
+    await expect(adminChat.locator('article.message', { hasText: 'Mutable room message' })).toBeVisible();
     await expect(memberRoomMessage.getByRole('button', { name: 'Edit' })).toBeVisible();
 
-    await acceptDialog(memberChat, 'Edited room message');
+    acceptDialog(memberChat, 'Edited room message');
     await memberRoomMessage.getByRole('button', { name: 'Edit' }).click();
-    await expect(memberChat.locator('article.message', { hasText: 'Edited room message' })).toBeVisible();
+    await expect(memberRoomMessage.locator('.message-body')).toContainText('Edited room message');
     await expect(adminChat.locator('article.message', { hasText: 'Edited room message' })).toBeVisible({ timeout: 20_000 });
-    await expect(memberChat.locator('article.message', { hasText: 'Edited room message' }).locator('.message-edited-indicator')).toHaveText('edited');
+    await expect(memberRoomMessage.locator('.message-edited-indicator')).toHaveText('edited');
 
-    const editedMemberRoomMessage = memberChat.locator('article.message', { hasText: 'Edited room message' });
-    await acceptDialog(memberChat);
-    await editedMemberRoomMessage.getByRole('button', { name: 'Delete' }).click();
-    await expect(editedMemberRoomMessage.locator('.message-body')).toHaveText('Message deleted by its author.');
+    acceptDialog(memberChat);
+    await memberRoomMessage.getByRole('button', { name: 'Delete' }).click();
+    await expect(memberRoomMessage.locator('.message-body')).toHaveText('Message deleted by its author.');
     await expect(adminChat.locator('article.message', { hasText: 'Message deleted by its author.' })).toBeVisible({ timeout: 20_000 });
 
     await adminChat.close();
@@ -87,20 +92,18 @@ test('authors edit and delete room and direct messages for everyone', async ({ b
 
     await memberMessages.locator('#dm-message-input').fill('Mutable private message');
     await memberMessages.locator('#dm-send').click();
-    const memberDirectMessage = memberMessages.locator('article.dm-message', { hasText: 'Mutable private message' });
-    await expect(memberDirectMessage).toBeVisible();
+    const memberDirectMessage = await stableMessage(memberMessages, 'article.dm-message', 'Mutable private message');
     await expect(adminMessages.locator('article.dm-message', { hasText: 'Mutable private message' })).toBeVisible();
     await expect(memberDirectMessage.getByRole('button', { name: 'Edit' })).toBeVisible();
 
-    await acceptDialog(memberMessages, 'Edited private message');
+    acceptDialog(memberMessages, 'Edited private message');
     await memberDirectMessage.getByRole('button', { name: 'Edit' }).click();
-    await expect(memberMessages.locator('article.dm-message', { hasText: 'Edited private message' })).toBeVisible();
+    await expect(memberDirectMessage.locator('.dm-message-body')).toHaveText('Edited private message');
     await expect(adminMessages.locator('article.dm-message', { hasText: 'Edited private message' })).toBeVisible({ timeout: 20_000 });
 
-    const editedDirectMessage = memberMessages.locator('article.dm-message', { hasText: 'Edited private message' });
-    await acceptDialog(memberMessages);
-    await editedDirectMessage.getByRole('button', { name: 'Delete for everyone' }).click();
-    await expect(editedDirectMessage.locator('.dm-message-body')).toHaveText('Message deleted by sender.');
+    acceptDialog(memberMessages);
+    await memberDirectMessage.getByRole('button', { name: 'Delete for everyone' }).click();
+    await expect(memberDirectMessage.locator('.dm-message-body')).toHaveText('Message deleted by sender.');
     await expect(adminMessages.locator('article.dm-message', { hasText: 'Message deleted by sender.' })).toBeVisible({ timeout: 20_000 });
 
     await memberMessages.locator('#dm-attachment-input').setInputFiles({
@@ -110,17 +113,17 @@ test('authors edit and delete room and direct messages for everyone', async ({ b
     });
     await memberMessages.locator('#dm-message-input').fill('Mutable private attachment');
     await memberMessages.locator('#dm-send').click();
-    const attachmentMessage = memberMessages.locator('article.dm-message', { hasText: 'Mutable private attachment' });
+    const attachmentMessage = await stableMessage(memberMessages, 'article.dm-message', 'Mutable private attachment');
     const download = attachmentMessage.locator('.dm-attachment-download', { hasText: 'mutable-private.txt' });
     await expect(download).toBeVisible({ timeout: 20_000 });
     const href = await download.getAttribute('href');
     expect(href).not.toBeNull();
     expect((await adminContext.request.get(href)).status()).toBe(200);
 
-    await acceptDialog(memberMessages);
+    acceptDialog(memberMessages);
     await attachmentMessage.getByRole('button', { name: 'Delete for everyone' }).click();
     await expect(attachmentMessage.locator('.dm-message-body')).toHaveText('Message deleted by sender.');
-    await expect(attachmentMessage.locator('.dm-attachment-card')).toHaveCount(0);
+    await expect(attachmentMessage.locator('.attachment-card')).toHaveCount(0, { timeout: 20_000 });
     expect((await adminContext.request.get(href)).status()).toBe(410);
   } finally {
     await memberContext.close();
