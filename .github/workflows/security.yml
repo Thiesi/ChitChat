@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   dependency-audit:
@@ -19,8 +19,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref }}
 
       - uses: actions/setup-node@v4
         with:
@@ -34,21 +32,10 @@ jobs:
           coverage: none
           tools: composer:v2
 
-      - name: Bootstrap missing Composer lockfile
-        id: composer-lock
-        if: ${{ hashFiles('composer.lock') == '' }}
-        run: composer update --no-install --no-interaction --prefer-dist
-
-      - name: Commit bootstrapped Composer lockfile
-        if: ${{ github.event_name == 'pull_request' && steps.composer-lock.outcome == 'success' }}
-        env:
-          HEAD_REF: ${{ github.head_ref }}
+      - name: Require dependency lockfiles
         run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add composer.lock
-          git commit -m 'Lock Composer dependencies'
-          git push origin "HEAD:${HEAD_REF}"
+          test -f composer.lock
+          test -f package-lock.json
 
       - name: Audit locked Composer dependencies
         id: composer-audit
