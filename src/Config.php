@@ -32,6 +32,9 @@ final readonly class Config
         public string $directMessageInspectionRole = 'super_admin',
         public bool $messageRevisionReviewEnabled = false,
         public string $messageRevisionReviewRole = 'super_admin',
+        public int $sseConnectionLeaseSeconds = 40,
+        public string $metricsBearerToken = '',
+        public int $maintenanceMaxAgeHours = 26,
     ) {
         if ($this->databasePort < 1 || $this->databasePort > 65535) {
             throw new InvalidArgumentException('DB_PORT must be between 1 and 65535.');
@@ -55,6 +58,18 @@ final readonly class Config
 
         if ($this->attachmentMaxBytes < 1024 || $this->attachmentMaxBytes > 104_857_600) {
             throw new InvalidArgumentException('ATTACHMENT_MAX_BYTES must be between 1024 and 104857600.');
+        }
+
+        if ($this->sseConnectionLeaseSeconds < 20 || $this->sseConnectionLeaseSeconds > 300) {
+            throw new InvalidArgumentException('SSE_CONNECTION_LEASE_SECONDS must be between 20 and 300.');
+        }
+
+        if ($this->metricsBearerToken !== '' && strlen($this->metricsBearerToken) < 24) {
+            throw new InvalidArgumentException('METRICS_BEARER_TOKEN must contain at least 24 characters when enabled.');
+        }
+
+        if ($this->maintenanceMaxAgeHours < 1 || $this->maintenanceMaxAgeHours > 720) {
+            throw new InvalidArgumentException('MAINTENANCE_MAX_AGE_HOURS must be between 1 and 720.');
         }
 
         if (!self::isAbsolutePath($this->attachmentStoragePath)) {
@@ -112,6 +127,9 @@ final readonly class Config
             directMessageInspectionRole: self::envAdministrativeRole('DM_ADMIN_INSPECTION_ROLE', 'super_admin'),
             messageRevisionReviewEnabled: self::envBool('MESSAGE_REVISION_REVIEW_ENABLED', false),
             messageRevisionReviewRole: self::envAdministrativeRole('MESSAGE_REVISION_REVIEW_ROLE', 'super_admin'),
+            sseConnectionLeaseSeconds: self::envInt('SSE_CONNECTION_LEASE_SECONDS', 40),
+            metricsBearerToken: self::env('METRICS_BEARER_TOKEN', ''),
+            maintenanceMaxAgeHours: self::envInt('MAINTENANCE_MAX_AGE_HOURS', 26),
         );
     }
 

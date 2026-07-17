@@ -21,6 +21,11 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 - Added separately configurable administrative review of retained room and direct-message revision chains.
 - Added an exact-message-ID, reason-required review endpoint and browser surface that expose only messages with retained revisions rather than providing user, room, conversation, date, or body search.
 - Added integration and Chromium/Firefox coverage for revision-chain rendering, independent role authorization, reason validation, and content-free audit metadata.
+- Added an Administrator system-status page backed by aggregate PostgreSQL, attachment-storage, realtime, security-ledger, and maintenance measurements.
+- Added a disabled-by-default Prometheus text endpoint protected by a configurable bearer token.
+- Added leased SSE-connection accounting and persistent maintenance invocation records for success, failure, duration, and result reporting.
+- Added ready-to-adapt hardened `systemd` service/timer units and observability operating documentation.
+- Added unit, PostgreSQL integration, and Chromium/Firefox coverage for status authorization, Prometheus encoding, maintenance freshness, and SSE lease lifecycle.
 
 ### Security and privacy
 
@@ -38,6 +43,7 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 - Successful review audits record the actor, IP, exact message context, reason, and returned revision IDs and actions without copying historical bodies into audit JSON.
 - Messages without retained revisions cannot be opened through the review workflow, limiting it to its stated historical-content purpose.
 - ChitChat does not notify participants when a revision review occurs; the administrative interface and operating documentation make that limitation and the operator's disclosure responsibility explicit.
+- Metrics remain unavailable while no bearer token is configured and expose aggregate operational values rather than usernames, message content, attachment names, IP addresses, credentials, or filesystem paths.
 
 ## [1.0.0] - 2026-07-17
 

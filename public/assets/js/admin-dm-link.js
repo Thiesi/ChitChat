@@ -4,7 +4,8 @@ window.addEventListener('DOMContentLoaded', async () => {
   const inspectionLink = document.getElementById('dm-inspection-link');
   const revisionLink = document.getElementById('revision-review-link');
   const settingsLink = document.getElementById('system-settings-link');
-  if (!inspectionLink && !revisionLink && !settingsLink) return;
+  const statusLink = createStatusLink(settingsLink);
+  if (!inspectionLink && !revisionLink && !settingsLink && !statusLink) return;
 
   try {
     const session = await apiGet('/api/v1/session.php');
@@ -19,15 +20,33 @@ window.addEventListener('DOMContentLoaded', async () => {
       roles,
       revisionPolicy.admin_review_role,
     );
+    const mayViewStatus = roles.some((candidate) => ['super_admin', 'admin'].includes(candidate));
     inspectionLink?.classList.toggle('hidden', !mayInspect);
     revisionLink?.classList.toggle('hidden', !mayReview);
     settingsLink?.classList.toggle('hidden', !roles.includes('super_admin'));
+    statusLink?.classList.toggle('hidden', !mayViewStatus);
   } catch {
     inspectionLink?.classList.add('hidden');
     revisionLink?.classList.add('hidden');
     settingsLink?.classList.add('hidden');
+    statusLink?.classList.add('hidden');
   }
 });
+
+function createStatusLink(settingsLink) {
+  const actionRow = settingsLink?.parentElement ?? document.querySelector('.admin-header .action-row');
+  if (!actionRow) return null;
+  const existing = document.getElementById('system-status-link');
+  if (existing) return existing;
+
+  const link = document.createElement('a');
+  link.id = 'system-status-link';
+  link.className = 'secondary-button admin-link-button hidden';
+  link.href = '/admin-status.php';
+  link.textContent = 'System status';
+  actionRow.prepend(link);
+  return link;
+}
 
 function mayUseRole(roles, role) {
   return role === 'super_admin'

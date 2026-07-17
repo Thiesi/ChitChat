@@ -56,7 +56,7 @@ The deployed browser client has no Node.js runtime dependency and uses no npm pa
 
 9. Open `http://127.0.0.1:8080/`.
 
-The first account created through the browser becomes Super-Administrator. That account can create the first room and use **Administration** for users, rooms, audit visibility, direct-message inspection policy, optional revision review, and operational settings.
+The first account created through the browser becomes Super-Administrator. That account can create the first room and use **Administration** for users, rooms, audit visibility, direct-message inspection policy, optional revision review, operational settings, and system status.
 
 For a production-like single-server deployment, use Nginx and PHP-FPM as described in `docs/operations/nginx-php-fpm.md`; do not use PHP's development server.
 
@@ -82,8 +82,10 @@ The first successfully registered account is promoted to `super_admin` inside th
 - `/admin-messages.php` serves audited direct-message inspection for eligible administrators.
 - `/admin-message-revisions.php` serves exact-ID, reason-required revision review when separately enabled.
 - `/admin-settings.php` serves Super-Administrator operational settings.
+- `/admin-status.php` serves aggregate system status for Administrators and Super-Administrators.
 - `/health.php` reports whether the PHP process is alive.
 - `/ready.php` verifies that the application can connect to PostgreSQL and use attachment storage.
+- `/metrics.php` serves optional bearer-protected Prometheus metrics when explicitly enabled.
 - `/api/v1/events/stream.php` provides the authenticated SSE stream.
 - `/api/v1/presence/heartbeat.php` renews a browser tab's presence lease.
 - `/api/v1/rooms/presence.php` lists active users in an authorized room.
@@ -92,6 +94,7 @@ The first successfully registered account is promoted to `super_admin` inside th
 - `/api/v1/admin/direct-messages/` contains inspection user search and audited inspection endpoints.
 - `/api/v1/admin/message-revisions/` contains the audited exact-message revision-review endpoint.
 - `/api/v1/admin/settings/` contains Super-Administrator settings read and update endpoints.
+- `/api/v1/admin/system-status.php` contains the Administrator status snapshot used by the browser page.
 - API contracts are documented in `docs/api/`.
 
 ## Server-Sent Events
@@ -102,7 +105,9 @@ Response buffering must be disabled for `/api/v1/events/stream.php`. The applica
 
 Capacity planning must account for one PHP worker per currently open SSE request. The short reconnect window bounds worker lifetime but does not remove that concurrency requirement.
 
-CI verifies this through real Nginx and PHP-FPM by opening an authenticated stream and requiring a room event to arrive before the stream closes. The tested reference configuration is documented in `docs/operations/nginx-php-fpm.md`.
+Each stream also maintains a leased row in `sse_connections`. `SSE_CONNECTION_LEASE_SECONDS` defaults to 40 and accepts 20-300 seconds. The stream refreshes the lease every ten seconds, deletes it on a clean close, and lets it expire after an unclean client, worker, or network failure. Maintenance removes expired rows.
+
+CI verifies SSE delivery through real Nginx and PHP-FPM by opening an authenticated stream and requiring a room event to arrive before the stream closes. The tested reference configuration is documented in `docs/operations/nginx-php-fpm.md`.
 
 ## Presence leases
 
@@ -110,9 +115,9 @@ Each browser tab uses a distinct UUID and renews its lease every 20 seconds. `PR
 
 Presence is distinct from room membership. Lease expiry, an unclean disconnect, or room inactivity removes the tab from the active-user list but does not remove the account's persistent room membership or room role.
 
-## Administration and retention
+## Administration, retention, and maintenance
 
-User and audit controls are visible only to Super-Administrators and Administrators. Room controls are visible to Super-Administrators, Administrators, Chat Admins, and owners of the selected room. Only Super-Administrators may change registration or retention policy.
+User, audit, and system-status controls are visible only to Super-Administrators and Administrators. Room controls are visible to Super-Administrators, Administrators, Chat Admins, and owners of the selected room. Only Super-Administrators may change registration or retention policy.
 
 Room-message, direct-message, and audit retention default to `0`, meaning permanent retention. Nonzero policies become effective only when maintenance runs:
 
@@ -121,9 +126,23 @@ composer maintenance:dry-run
 composer maintenance
 ```
 
-The command also removes expired presence, old realtime events and throttle ledgers, deleted attachment files, and opaque orphan files older than their grace period. Schedule it as the same operating-system account that owns attachment storage. See `docs/operations/maintenance.md`.
+The command also removes expired presence and SSE leases, old realtime events and throttle ledgers, deleted attachment files, and opaque orphan files older than their grace period. Every invocation is recorded with mode, status, duration, and result or failure information. A destructive run with attachment-file failures is recorded as a warning and does not count as a fresh clean success.
+
+`MAINTENANCE_MAX_AGE_HOURS` defaults to 26 and controls the overdue state on `/admin-status.php` and in Prometheus metrics. Schedule maintenance as the same operating-system account that owns attachment storage. Ready-to-adapt `systemd` service and timer files are provided under `deploy/systemd/`. See `docs/operations/maintenance.md`.
 
 Message revisions reference their canonical room or direct message with `ON DELETE CASCADE`. Soft deletion retains revisions; hard deletion by configured message retention removes the canonical message and revision chain together.
+
+## Operational status and metrics
+
+The Administrator status page reports aggregate application, PostgreSQL, attachment-storage, realtime, security-ledger, and maintenance information. It does not display usernames, message bodies, attachment names, IP addresses, credentials, or bearer secrets.
+
+Prometheus output is disabled while `METRICS_BEARER_TOKEN` is empty. To enable it, configure a random token containing at least 24 characters and send it as:
+
+```text
+Authorization: Bearer <token>
+```
+
+Protect `/metrics.php` with HTTPS and reverse-proxy or network restrictions in addition to the application bearer token. See `docs/operations/observability.md` for the metric list, scrape configuration, privacy boundary, and alert suggestions.
 
 ## Attachments
 
@@ -175,4 +194,4 @@ npm run test:e2e -- --project=chromium
 npm run test:e2e -- --project=firefox
 ```
 
-The integration and browser suites require disposable migrated PostgreSQL databases. They create and clear application data and must never be pointed at a database containing valuable information. Attachment, maintenance, release-rehearsal and reverse-proxy tests use isolated temporary storage directories.
+The integration and browser suites require disposable migrated PostgreSQL databases. They create and clear application data and must never be pointed at a database containing valuable information. Attachment, maintenance, observability, release-rehearsal and reverse-proxy tests use isolated temporary storage directories.
