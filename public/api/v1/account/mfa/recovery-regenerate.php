@@ -20,9 +20,10 @@ Endpoint::run($config, static function () use ($config): ApiResult {
     $actor = SessionManager::requireUser(new UserRepository($pdo));
     SessionManager::requirePrivilegedStepUp($actor, $config);
     $service = new MfaService($pdo, $config);
+    $recoveryCodes = $service->regenerateRecoveryCodes($actor, Request::clientIp());
 
     return ApiResult::ok([
         'mfa' => $service->status($actor),
-        'recovery_codes' => $service->regenerateRecoveryCodes($actor, Request::clientIp()),
+        'recovery_codes' => $recoveryCodes,
     ]);
 });
