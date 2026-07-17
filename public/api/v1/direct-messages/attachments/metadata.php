@@ -29,7 +29,7 @@ Endpoint::run($config, static function () use ($config): ApiResult {
     }
     $messageIds = [];
     foreach ($parts as $part) {
-        if ($part === '' || filter_var($part, FILTER_VALIDATE_INT) === false || (int) $part < 1) {
+        if (preg_match('/\A[1-9][0-9]*\z/D', $part) !== 1) {
             throw new ApiException(400, 'validation_error', 'message_ids must contain positive integers.');
         }
         $messageIds[] = (int) $part;
