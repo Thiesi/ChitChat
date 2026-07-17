@@ -1,0 +1,68 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use ChitChat\Backup\BackupException;
+use ChitChat\Backup\BackupManager;
+use ChitChat\Backup\CliArguments;
+use ChitChat\Backup\ProcessRunner;
+use ChitChat\Config;
+
+umask(0077);
+$root = dirname(__DIR__);
+require $root . '/vendor/autoload.php';
+Config::loadEnvFile($root . '/.env');
+
+$help = <<<'TEXT'
+Usage: bin/chitchat-verify-backup --backup PATH [--json]
+
+Verify manifest structure, file sizes, SHA-256 checksums, PostgreSQL dump
+readability, and safe regular-file-only attachment archive structure.
+
+Options:
+  --backup PATH   Absolute path to one backup-set directory.
+  --json          Emit machine-readable JSON.
+  --help          Show this help.
+TEXT;
+
+try {
+    /** @var list<string> $argv */
+    $options = CliArguments::parse($argv, [
+        'backup' => 'value',
+        'json' => 'flag',
+        'help' => 'flag',
+    ]);
+
+    if (CliArguments::flag($options, 'help')) {
+        fwrite(STDOUT, $help . "\n");
+        exit(0);
+    }
+
+    $config = Config::fromEnvironment();
+    $manager = new BackupManager($config, null, new ProcessRunner());
+    $backupPath = CliArguments::string($options, 'backup');
+    $manifest = $manager->verify($backupPath);
+
+    if (CliArguments::flag($options, 'json')) {
+        fwrite(STDOUT, json_encode([
+            'status' => 'ok',
+            'backup_path' => $backupPath,
+            'backup_id' => $manifest->backupId(),
+            'application_version' => $manifest->applicationVersion(),
+            'source_database' => $manifest->sourceDatabase(),
+            'migration_count' => count($manifest->migrations()),
+            'verified' => true,
+        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . "\n");
+        exit(0);
+    }
+
+    fwrite(STDOUT, 'Backup verified: ' . $backupPath . "\n");
+    fwrite(STDOUT, 'Application version: ' . $manifest->applicationVersion() . "\n");
+    fwrite(STDOUT, 'Source database: ' . $manifest->sourceDatabase() . "\n");
+    fwrite(STDOUT, 'Migrations: ' . count($manifest->migrations()) . "\n");
+} catch (Throwable $exception) {
+    $message = $exception instanceof BackupException ? $exception->getMessage() : 'Unexpected error: ' . $exception->getMessage();
+    fwrite(STDERR, 'Verification failed: ' . $message . "\n");
+    exit(1);
+}

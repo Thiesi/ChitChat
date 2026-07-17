@@ -1,0 +1,95 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use ChitChat\Backup\BackupException;
+use ChitChat\Backup\BackupManager;
+use ChitChat\Backup\CliArguments;
+use ChitChat\Backup\ProcessRunner;
+use ChitChat\Config;
+
+umask(0077);
+$root = dirname(__DIR__);
+require $root . '/vendor/autoload.php';
+Config::loadEnvFile($root . '/.env');
+
+$help = <<<'TEXT'
+Usage: bin/chitchat-restore --backup PATH --database NAME --attachments PATH [options]
+
+Verify and restore a backup into a target PostgreSQL database and attachment
+path. New target names are the safe default.
+
+Required:
+  --backup PATH                 Absolute backup-set directory.
+  --database NAME               Target database to create.
+  --attachments PATH            Absolute target attachment path.
+
+Destructive options:
+  --drop-existing-database      Drop the target database before recreation.
+  --replace-attachments         Preserve an existing target as *.pre-restore-*.
+  --allow-current-target        Permit configured production names/paths.
+
+Other:
+  --json                        Emit machine-readable JSON.
+  --help                        Show this help.
+
+The command never runs migrations or starts the application. Validate the
+restored installation with the manifest's recorded application version first;
+apply forward migrations separately when upgrading.
+TEXT;
+
+try {
+    /** @var list<string> $argv */
+    $options = CliArguments::parse($argv, [
+        'backup' => 'value',
+        'database' => 'value',
+        'attachments' => 'value',
+        'drop-existing-database' => 'flag',
+        'replace-attachments' => 'flag',
+        'allow-current-target' => 'flag',
+        'json' => 'flag',
+        'help' => 'flag',
+    ]);
+
+    if (CliArguments::flag($options, 'help')) {
+        fwrite(STDOUT, $help . "\n");
+        exit(0);
+    }
+
+    $config = Config::fromEnvironment();
+    $manager = new BackupManager($config, null, new ProcessRunner());
+    $result = $manager->restore(
+        CliArguments::string($options, 'backup'),
+        CliArguments::string($options, 'database'),
+        CliArguments::string($options, 'attachments'),
+        CliArguments::flag($options, 'drop-existing-database'),
+        CliArguments::flag($options, 'replace-attachments'),
+        CliArguments::flag($options, 'allow-current-target'),
+    );
+
+    if (CliArguments::flag($options, 'json')) {
+        fwrite(STDOUT, json_encode([
+            'status' => 'ok',
+            'database' => $result['database'],
+            'attachments' => $result['attachments'],
+            'previous_attachments' => $result['previous_attachments'],
+            'application_version' => $result['application_version'],
+            'migration_count' => count($result['migrations']),
+        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . "\n");
+        exit(0);
+    }
+
+    fwrite(STDOUT, 'Restore completed. Database: ' . $result['database'] . "\n");
+    fwrite(STDOUT, 'Attachment storage: ' . $result['attachments'] . "\n");
+    if ($result['previous_attachments'] !== null) {
+        fwrite(STDOUT, 'Previous attachment storage preserved at: ' . $result['previous_attachments'] . "\n");
+    }
+    fwrite(STDOUT, 'Recorded application version: ' . $result['application_version'] . "\n");
+    fwrite(STDOUT, 'Recorded migrations: ' . count($result['migrations']) . "\n");
+    fwrite(STDOUT, "The application was not started and migrations were not run.\n");
+} catch (Throwable $exception) {
+    $message = $exception instanceof BackupException ? $exception->getMessage() : 'Unexpected error: ' . $exception->getMessage();
+    fwrite(STDERR, 'Restore failed: ' . $message . "\n");
+    exit(1);
+}

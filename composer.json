@@ -28,9 +28,12 @@
     "migrate": "php bin/migrate",
     "maintenance": "php bin/maintenance-cleanup",
     "maintenance:dry-run": "php bin/maintenance-cleanup --dry-run",
+    "backup": "php bin/chitchat-backup",
+    "backup:verify": "php bin/chitchat-verify-backup",
+    "restore": "php bin/chitchat-restore",
     "test": "phpunit",
     "analyse": "phpstan analyse",
-    "lint": "find bootstrap public src tests -type f -name '*.php' -print0 | xargs -0 -n1 php -l && php -l bin/migrate && php -l bin/maintenance-cleanup",
+    "lint": "find bootstrap public src tests -type f -name '*.php' -print0 | xargs -0 -n1 php -l && find bin -maxdepth 1 -type f -print0 | xargs -0 -n1 php -l",
     "check": [
       "@lint",
       "@test",

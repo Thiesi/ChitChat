@@ -1,0 +1,71 @@
+name: Backup Rehearsal
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  backup-rehearsal:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: chitchat_backup
+          POSTGRES_USER: chitchat
+          POSTGRES_PASSWORD: chitchat
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U chitchat -d chitchat_backup"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      APP_ENV: test
+      APP_DEBUG: 1
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_NAME: chitchat_backup
+      DB_USER: chitchat
+      DB_PASSWORD: chitchat
+      DB_SSLMODE: disable
+      SESSION_COOKIE_SECURE: 0
+      ATTACHMENT_STORAGE_PATH: /tmp/chitchat-backup-source/uploads
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: fileinfo, mbstring, pdo_pgsql
+          coverage: none
+          tools: composer:v2
+
+      - name: Install PostgreSQL client tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq postgresql-client
+
+      - run: composer install --no-interaction --prefer-dist
+      - run: composer migrate
+
+      - name: Rehearse first-class backup, verification and restore
+        run: bash tests/stabilization/rehearse-backup-tools.sh
+
+      - name: Upload backup rehearsal diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backup-rehearsal-diagnostics
+          path: ${{ runner.temp }}/chitchat-backup-rehearsal/
+          if-no-files-found: ignore
+          retention-days: 7
