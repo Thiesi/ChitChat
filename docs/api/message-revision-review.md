@@ -2,6 +2,8 @@
 
 Message revision review is a separate, opt-in administrative capability for examining retained bodies from message edits and deletions. It does not inherit authorization from direct-message inspection, room moderation, Chat Admin, Global Moderator, or room-owner permissions.
 
+Every successful review also requires active privileged step-up authentication. Step-up does not replace the independently configured review role, CSRF protection, exact-message restriction, required reason, or successful-access audit.
+
 ## Policy
 
 ```text
@@ -25,6 +27,8 @@ POST /api/v1/admin/message-revisions/review.php
 X-CSRF-Token: <session token>
 Content-Type: application/json
 ```
+
+Requires active privileged step-up. Missing or expired elevation returns HTTP 403 with `step_up_required` before revision content is read or a successful-review audit is written. The bundled browser prompts for the current password through `POST /api/v1/step-up.php` and retries the review once.
 
 Request:
 
@@ -80,7 +84,9 @@ Room-message responses also include room metadata and the message type. Canonica
 
 ## Audit contract
 
-Every successful review writes `admin.message_revisions_reviewed` before content is returned. The audit subject is `message_revision_history` with an ID such as `room:123` or `direct:456`.
+Successful password reauthentication writes `auth.privileged_step_up_succeeded`. Every successful review then writes its separate `admin.message_revisions_reviewed` record before content is returned. The authentication audit does not replace the per-review audit.
+
+The review audit subject is `message_revision_history` with an ID such as `room:123` or `direct:456`.
 
 Audit metadata includes:
 
@@ -91,7 +97,7 @@ Audit metadata includes:
 - canonical creation, edit, and deletion timestamps;
 - the normal audit actor and request IP fields.
 
-Historical message bodies are never copied into audit JSON. Validation failures, disabled-policy denials, authorization denials, unknown messages, and messages without revisions do not return content or write a successful-review record.
+Historical message bodies and passwords are never copied into audit JSON. Validation failures, disabled-policy denials, role denials, missing step-up, unknown messages, and messages without revisions do not return content or write a successful-review record.
 
 ## Retention and disclosure
 
