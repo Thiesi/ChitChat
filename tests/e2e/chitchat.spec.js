@@ -28,7 +28,7 @@ async function selectDirectMessagePeer(page, username) {
   await page.getByRole('button', { name: 'Search' }).click();
   await page.locator('.dm-user-button', { hasText: username }).click();
   await expect(page.locator('#dm-peer-name')).toHaveText(username);
-  await expect(page.locator('#dm-composer')).toBeVisible();
+  await expect(page.locator('#dm-block-toggle')).toBeVisible();
 }
 
 async function setRegistrationPolicy(page, enabled) {
@@ -127,11 +127,13 @@ test.describe.serial('ChitChat browser release checks', () => {
       await expect(adminMessages.locator('#messages-shell')).toBeVisible();
       await expect(adminMessages.locator('#dm-privacy-text')).toContainText('not end-to-end encrypted');
       await selectDirectMessagePeer(adminMessages, member.username);
+      await expect(adminMessages.locator('#dm-composer')).toBeVisible();
 
       const memberMessages = await memberContext.newPage();
       await memberMessages.goto('/messages.php');
       await expect(memberMessages.locator('#messages-shell')).toBeVisible();
       await selectDirectMessagePeer(memberMessages, admin.username);
+      await expect(memberMessages.locator('#dm-composer')).toBeVisible();
       await memberMessages.locator('#dm-message-input').fill('Private browser hello');
       await memberMessages.locator('#dm-send').click();
       await expect(adminMessages.locator('.dm-message-body', { hasText: 'Private browser hello' })).toBeVisible();
@@ -139,6 +141,29 @@ test.describe.serial('ChitChat browser release checks', () => {
       await adminMessages.locator('#dm-message-input').fill('Private browser reply');
       await adminMessages.locator('#dm-send').click();
       await expect(memberMessages.locator('.dm-message-body', { hasText: 'Private browser reply' })).toBeVisible();
+
+      await memberMessages.locator('#dm-block-toggle').click();
+      await expect(memberMessages.locator('#dm-block-toggle')).toHaveText('Unblock user');
+      await expect(memberMessages.locator('#dm-peer-status')).toContainText('You blocked this user');
+      await expect(memberMessages.locator('#dm-composer')).toBeHidden();
+      await expect(memberMessages.locator('.dm-message-body', { hasText: 'Private browser reply' })).toBeVisible();
+
+      await adminMessages.locator('#dm-message-input').fill('This message must be blocked');
+      await adminMessages.locator('#dm-send').click();
+      await expect(adminMessages.locator('#messages-error')).toContainText('Direct messaging is unavailable');
+      await expect(adminMessages.locator('#dm-peer-status')).toContainText('Direct messaging is unavailable');
+      await expect(adminMessages.locator('#dm-composer')).toBeHidden();
+      await expect(memberMessages.locator('.dm-message-body', { hasText: 'This message must be blocked' })).toHaveCount(0);
+
+      await memberMessages.locator('#dm-block-toggle').click();
+      await expect(memberMessages.locator('#dm-block-toggle')).toHaveText('Block user');
+      await expect(memberMessages.locator('#dm-composer')).toBeVisible();
+
+      await selectDirectMessagePeer(adminMessages, member.username);
+      await expect(adminMessages.locator('#dm-composer')).toBeVisible();
+      await adminMessages.locator('#dm-message-input').fill('Messaging resumed after unblock');
+      await adminMessages.locator('#dm-send').click();
+      await expect(memberMessages.locator('.dm-message-body', { hasText: 'Messaging resumed after unblock' })).toBeVisible();
 
       const adminConsole = await adminContext.newPage();
       await adminConsole.goto('/admin.php');
