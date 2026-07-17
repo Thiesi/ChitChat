@@ -110,6 +110,9 @@ test.describe.serial('ChitChat browser release checks', () => {
 
       const memberPage = await memberContext.newPage();
       await register(memberPage, member);
+      const publicRoom = memberPage.locator('.room-button', { hasText: '# General E2E' });
+      await expect(publicRoom).toBeVisible();
+      await publicRoom.click();
       await expect(memberPage.locator('#room-title')).toHaveText('# General E2E');
       await expect(memberPage.locator('#join-button')).toBeVisible();
       await memberPage.locator('#join-button').click();
