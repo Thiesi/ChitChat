@@ -1,7 +1,6 @@
 <?php
 
 declare(strict_types=1);
-
 namespace ChitChat\Admin;
 
 use ChitChat\Audit\AuditLogger;
@@ -20,42 +19,18 @@ final class SystemSettingsService
         $this->audit = new AuditLogger($pdo);
     }
 
-    /**
-     * @return array{
-     *   registration_enabled:bool,
-     *   room_message_retention_days:int,
-     *   direct_message_retention_days:int,
-     *   audit_retention_days:int,
-     *   deleted_attachment_retention_days:int,
-     *   orphan_attachment_grace_hours:int,
-     *   realtime_event_retention_hours:int,
-     *   login_attempt_retention_days:int,
-     *   updated_at:string
-     * }
-     */
+    /** @return array<string, bool|int|string> */
     public function get(AuthenticatedUser $actor): array
     {
         $this->requireSuperAdministrator($actor);
-
         return $this->load();
     }
 
-    /**
-     * @return array{
-     *   registration_enabled:bool,
-     *   room_message_retention_days:int,
-     *   direct_message_retention_days:int,
-     *   audit_retention_days:int,
-     *   deleted_attachment_retention_days:int,
-     *   orphan_attachment_grace_hours:int,
-     *   realtime_event_retention_hours:int,
-     *   login_attempt_retention_days:int,
-     *   updated_at:string
-     * }
-     */
+    /** @return array<string, bool|int|string> */
     public function update(
         AuthenticatedUser $actor,
         bool $registrationEnabled,
+        bool $mfaRequiredForAdminRoles,
         int $roomMessageRetentionDays,
         int $directMessageRetentionDays,
         int $auditRetentionDays,
@@ -81,10 +56,13 @@ final class SystemSettingsService
                 throw new RuntimeException('Unable to lock system settings.');
             }
             $old = $this->load();
-
+            if ($mfaRequiredForAdminRoles && !$old['mfa_required_for_admin_roles']) {
+                $this->assertEveryAdministratorHasMfa();
+            }
             $statement = $this->pdo->prepare(<<<'SQL'
 UPDATE system_settings
 SET registration_enabled = :registration_enabled,
+    mfa_required_for_admin_roles = :mfa_required_for_admin_roles,
     room_message_retention_days = :room_message_retention_days,
     direct_message_retention_days = :direct_message_retention_days,
     audit_retention_days = :audit_retention_days,
@@ -99,6 +77,7 @@ SQL);
                 throw new RuntimeException('Unable to prepare system-settings update.');
             }
             $statement->bindValue(':registration_enabled', $registrationEnabled, PDO::PARAM_BOOL);
+            $statement->bindValue(':mfa_required_for_admin_roles', $mfaRequiredForAdminRoles, PDO::PARAM_BOOL);
             $statement->bindValue(':room_message_retention_days', $roomMessageRetentionDays, PDO::PARAM_INT);
             $statement->bindValue(':direct_message_retention_days', $directMessageRetentionDays, PDO::PARAM_INT);
             $statement->bindValue(':audit_retention_days', $auditRetentionDays, PDO::PARAM_INT);
@@ -107,7 +86,6 @@ SQL);
             $statement->bindValue(':realtime_event_retention_hours', $realtimeEventRetentionHours, PDO::PARAM_INT);
             $statement->bindValue(':login_attempt_retention_days', $loginAttemptRetentionDays, PDO::PARAM_INT);
             $statement->execute();
-
             $new = $this->load();
             $this->audit->log(
                 actorUserId: $actor->id,
@@ -118,7 +96,6 @@ SQL);
                 ipAddress: $ipAddress,
             );
             $this->pdo->commit();
-
             return $new;
         } catch (Throwable $exception) {
             if ($this->pdo->inTransaction()) {
@@ -128,23 +105,12 @@ SQL);
         }
     }
 
-    /**
-     * @return array{
-     *   registration_enabled:bool,
-     *   room_message_retention_days:int,
-     *   direct_message_retention_days:int,
-     *   audit_retention_days:int,
-     *   deleted_attachment_retention_days:int,
-     *   orphan_attachment_grace_hours:int,
-     *   realtime_event_retention_hours:int,
-     *   login_attempt_retention_days:int,
-     *   updated_at:string
-     * }
-     */
+    /** @return array<string, bool|int|string> */
     private function load(): array
     {
         $statement = $this->pdo->query(<<<'SQL'
 SELECT registration_enabled::int,
+       mfa_required_for_admin_roles::int,
        room_message_retention_days,
        direct_message_retention_days,
        audit_retention_days,
@@ -163,9 +129,9 @@ SQL);
         if (!is_array($row)) {
             throw new RuntimeException('System settings are missing.');
         }
-
         return [
             'registration_enabled' => (int) $row['registration_enabled'] === 1,
+            'mfa_required_for_admin_roles' => (int) $row['mfa_required_for_admin_roles'] === 1,
             'room_message_retention_days' => (int) $row['room_message_retention_days'],
             'direct_message_retention_days' => (int) $row['direct_message_retention_days'],
             'audit_retention_days' => (int) $row['audit_retention_days'],
@@ -177,6 +143,33 @@ SQL);
         ];
     }
 
+    private function assertEveryAdministratorHasMfa(): void
+    {
+        $statement = $this->pdo->query(<<<'SQL'
+SELECT COUNT(DISTINCT u.id)
+FROM users u
+JOIN user_roles ur ON ur.user_id = u.id
+WHERE u.account_state = 'active'
+  AND ur.role IN ('super_admin', 'admin', 'chat_admin', 'global_moderator')
+  AND NOT (
+      u.mfa_enabled_at IS NOT NULL
+      AND EXISTS (SELECT 1 FROM webauthn_credentials wc WHERE wc.user_id = u.id)
+      AND EXISTS (SELECT 1 FROM mfa_recovery_codes rc WHERE rc.user_id = u.id AND rc.used_at IS NULL)
+  )
+SQL);
+        if ($statement === false) {
+            throw new RuntimeException('Unable to validate administrative MFA enrollment.');
+        }
+        $missing = (int) $statement->fetchColumn();
+        if ($missing > 0) {
+            throw new ApiException(
+                409,
+                'administrators_missing_mfa',
+                sprintf('%d active administrative account(s) must enroll a passkey and retain a recovery code before this policy can be enabled.', $missing),
+            );
+        }
+    }
+
     private function requireSuperAdministrator(AuthenticatedUser $actor): void
     {
         if (!$actor->hasRole('super_admin')) {
@@ -186,18 +179,13 @@ SQL);
 
     private function validateDays(string $name, int $value, bool $allowZero): void
     {
-        $minimum = $allowZero ? 0 : 1;
-        $this->validateRange($name, $value, $minimum, 3650);
+        $this->validateRange($name, $value, $allowZero ? 0 : 1, 3650);
     }
 
     private function validateRange(string $name, int $value, int $minimum, int $maximum): void
     {
         if ($value < $minimum || $value > $maximum) {
-            throw new ApiException(
-                400,
-                'validation_error',
-                sprintf('%s must be between %d and %d.', $name, $minimum, $maximum),
-            );
+            throw new ApiException(400, 'validation_error', sprintf('%s must be between %d and %d.', $name, $minimum, $maximum));
         }
     }
 }
