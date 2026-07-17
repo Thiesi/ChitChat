@@ -21,6 +21,7 @@ use Throwable;
 final class AccountClosureService
 {
     public const COOLING_OFF_DAYS = 14;
+    private const ROLES = ['super_admin', 'admin', 'chat_admin', 'global_moderator'];
 
     private readonly UserRepository $users;
     private readonly AuditLogger $audit;
@@ -29,7 +30,7 @@ final class AccountClosureService
 
     public function __construct(
         private readonly PDO $pdo,
-        private readonly Config $config,
+        Config $config,
     ) {
         $this->users = new UserRepository($pdo);
         $this->audit = new AuditLogger($pdo);
@@ -42,8 +43,8 @@ final class AccountClosureService
     {
         $this->pdo->beginTransaction();
         try {
-            $row = $this->lockUser($actor->id);
-            if ((string) $row['account_state'] !== 'active') {
+            $user = $this->userForUpdate($actor->id);
+            if ((string) $user['account_state'] !== 'active') {
                 throw new ApiException(409, 'account_not_active', 'This account is already in a closure lifecycle.');
             }
 
@@ -56,36 +57,27 @@ final class AccountClosureService
                 );
             }
 
-            try {
-                $rolesJson = json_encode($roles, JSON_THROW_ON_ERROR);
-            } catch (JsonException $exception) {
-                throw new RuntimeException('Unable to encode account role snapshot.', 0, $exception);
-            }
-
-            $insert = $this->pdo->prepare(<<<'SQL'
+            $insert = $this->prepare(<<<'SQL'
 INSERT INTO account_closures (user_id, requested_at, finalizes_at, role_snapshot)
 VALUES (
     :user_id,
     NOW(),
-    NOW() + make_interval(days => CAST(:cooling_off_days AS double precision)),
+    NOW() + CAST(:cooling_off_days AS integer) * INTERVAL '1 day',
     CAST(:role_snapshot AS jsonb)
 )
-RETURNING requested_at, finalizes_at
-SQL);
-            if ($insert === false) {
-                throw new RuntimeException('Unable to prepare account-closure request.');
-            }
+RETURNING id, requested_at, finalizes_at
+SQL, 'account-closure request');
             $insert->execute([
                 'user_id' => $actor->id,
                 'cooling_off_days' => self::COOLING_OFF_DAYS,
-                'role_snapshot' => $rolesJson,
+                'role_snapshot' => $this->encodeRoles($roles),
             ]);
             $closure = $insert->fetch();
             if (!is_array($closure)) {
                 throw new RuntimeException('Account-closure request did not return lifecycle metadata.');
             }
 
-            $update = $this->pdo->prepare(<<<'SQL'
+            $update = $this->prepare(<<<'SQL'
 UPDATE users
 SET account_state = 'closure_pending',
     closure_requested_at = CAST(:requested_at AS timestamptz),
@@ -94,10 +86,7 @@ SET account_state = 'closure_pending',
     updated_at = NOW()
 WHERE id = :user_id
 RETURNING session_version
-SQL);
-            if ($update === false) {
-                throw new RuntimeException('Unable to prepare account-closure state update.');
-            }
+SQL, 'account-closure state update');
             $update->execute([
                 'requested_at' => (string) $closure['requested_at'],
                 'finalizes_at' => (string) $closure['finalizes_at'],
@@ -105,23 +94,24 @@ SQL);
             ]);
             $sessionVersion = $update->fetchColumn();
             if ($sessionVersion === false) {
-                throw new RuntimeException('Account-closure state update did not return a session version.');
+                throw new RuntimeException('Account closure did not return a session version.');
             }
 
-            $this->deleteByUser('user_roles', 'user_id', $actor->id);
-            $this->deleteByUser('room_presence', 'user_id', $actor->id);
-            $this->deleteByUser('sse_connections', 'user_id', $actor->id);
+            $this->deleteForUser('user_roles', 'user_id', $actor->id);
+            $this->deleteForUser('room_presence', 'user_id', $actor->id);
+            $this->deleteForUser('sse_connections', 'user_id', $actor->id);
 
             $this->audit->log(
-                actorUserId: $actor->id,
-                action: 'account.closure_requested',
-                subjectType: 'user',
-                subjectId: (string) $actor->id,
-                metadata: [
+                $actor->id,
+                'account.closure_requested',
+                'user',
+                (string) $actor->id,
+                [
+                    'closure_id' => (int) $closure['id'],
                     'cooling_off_days' => self::COOLING_OFF_DAYS,
                     'finalizes_at' => (string) $closure['finalizes_at'],
                 ],
-                ipAddress: $ipAddress,
+                $ipAddress,
             );
             $this->events->publish(
                 type: 'forced_logout',
@@ -134,7 +124,6 @@ SQL);
                 actorUserId: $actor->id,
                 expiresAt: new DateTimeImmutable('+5 minutes'),
             );
-
             $this->pdo->commit();
 
             return [
@@ -145,86 +134,59 @@ SQL);
                 'session_version' => (int) $sessionVersion,
             ];
         } catch (Throwable $exception) {
-            if ($this->pdo->inTransaction()) {
-                $this->pdo->rollBack();
-            }
+            $this->rollBack();
             throw $exception;
         }
     }
 
-    public function restore(
-        string $usernameInput,
-        string $password,
-        string $ipAddress,
-    ): AuthenticatedUser {
+    public function restore(string $usernameInput, string $password, string $ipAddress): AuthenticatedUser
+    {
         $canonical = Username::canonical($usernameInput);
         $this->rateLimiter->consume('account_restore', 'username:' . $canonical . '|ip:' . $ipAddress);
 
         $this->pdo->beginTransaction();
         try {
-            $statement = $this->pdo->prepare(<<<'SQL'
-SELECT id,
-       username,
-       password_hash,
-       account_state,
-       closure_finalizes_at
+            $lookup = $this->prepare(<<<'SQL'
+SELECT id, password_hash, account_state, closure_finalizes_at
 FROM users
 WHERE username_canonical = :canonical
 FOR UPDATE
-SQL);
-            if ($statement === false) {
-                throw new RuntimeException('Unable to prepare account-restoration lookup.');
-            }
-            $statement->execute(['canonical' => $canonical]);
-            $row = $statement->fetch();
-            if (!is_array($row) || !password_verify($password, (string) $row['password_hash'])) {
+SQL, 'account-restoration lookup');
+            $lookup->execute(['canonical' => $canonical]);
+            $user = $lookup->fetch();
+            if (!is_array($user) || !password_verify($password, (string) $user['password_hash'])) {
                 throw new ApiException(401, 'invalid_credentials', 'Invalid username or password.');
             }
-
-            $state = (string) $row['account_state'];
-            if ($state === 'closed') {
+            if ((string) $user['account_state'] === 'closed') {
                 throw new ApiException(410, 'account_closed', 'This account has already been permanently closed.');
             }
-            if ($state !== 'closure_pending') {
+            if ((string) $user['account_state'] !== 'closure_pending') {
                 throw new ApiException(409, 'account_not_pending', 'This account is not awaiting closure.');
             }
-
-            $finalizesAt = new DateTimeImmutable((string) $row['closure_finalizes_at']);
-            if ($finalizesAt <= new DateTimeImmutable()) {
-                throw new ApiException(
-                    410,
-                    'account_restoration_expired',
-                    'The account-restoration deadline has passed.',
-                );
+            if (new DateTimeImmutable((string) $user['closure_finalizes_at']) <= new DateTimeImmutable()) {
+                throw new ApiException(410, 'account_restoration_expired', 'The account-restoration deadline has passed.');
             }
 
-            $closureStatement = $this->pdo->prepare(<<<'SQL'
+            $closureLookup = $this->prepare(<<<'SQL'
 SELECT id, role_snapshot::text AS role_snapshot
 FROM account_closures
 WHERE user_id = :user_id
   AND restored_at IS NULL
   AND finalized_at IS NULL
 FOR UPDATE
-SQL);
-            if ($closureStatement === false) {
-                throw new RuntimeException('Unable to prepare account-closure lifecycle lookup.');
-            }
-            $closureStatement->execute(['user_id' => (int) $row['id']]);
-            $closure = $closureStatement->fetch();
+SQL, 'pending account-closure lookup');
+            $closureLookup->execute(['user_id' => (int) $user['id']]);
+            $closure = $closureLookup->fetch();
             if (!is_array($closure)) {
                 throw new RuntimeException('Pending account-closure lifecycle is missing.');
             }
-            $roles = $this->decodeRoles((string) $closure['role_snapshot']);
 
-            $restoreClosure = $this->pdo->prepare(
+            $this->execute(
                 'UPDATE account_closures SET restored_at = NOW() WHERE id = :id',
+                ['id' => (int) $closure['id']],
+                'closure restoration record',
             );
-            if ($restoreClosure === false) {
-                throw new RuntimeException('Unable to prepare closure restoration record.');
-            }
-            $restoreClosure->execute(['id' => (int) $closure['id']]);
-
-            $restoreUser = $this->pdo->prepare(<<<'SQL'
+            $this->execute(<<<'SQL'
 UPDATE users
 SET account_state = 'active',
     closure_requested_at = NULL,
@@ -233,44 +195,34 @@ SET account_state = 'active',
     session_version = session_version + 1,
     updated_at = NOW()
 WHERE id = :user_id
-SQL);
-            if ($restoreUser === false) {
-                throw new RuntimeException('Unable to prepare account restoration.');
-            }
-            $restoreUser->execute(['user_id' => (int) $row['id']]);
+SQL, ['user_id' => (int) $user['id']], 'account restoration');
 
-            if ($roles !== []) {
-                $insertRole = $this->pdo->prepare(
-                    'INSERT INTO user_roles (user_id, role) VALUES (:user_id, :role) ON CONFLICT DO NOTHING',
-                );
-                if ($insertRole === false) {
-                    throw new RuntimeException('Unable to prepare restored role assignment.');
-                }
-                foreach ($roles as $role) {
-                    $insertRole->execute(['user_id' => (int) $row['id'], 'role' => $role]);
-                }
+            $insertRole = $this->prepare(
+                'INSERT INTO user_roles (user_id, role) VALUES (:user_id, :role) ON CONFLICT DO NOTHING',
+                'restored role assignment',
+            );
+            foreach ($this->decodeRoles((string) $closure['role_snapshot']) as $role) {
+                $insertRole->execute(['user_id' => (int) $user['id'], 'role' => $role]);
             }
 
             $this->audit->log(
-                actorUserId: (int) $row['id'],
-                action: 'account.closure_restored',
-                subjectType: 'user',
-                subjectId: (string) $row['id'],
-                metadata: ['closure_id' => (int) $closure['id']],
-                ipAddress: $ipAddress,
+                (int) $user['id'],
+                'account.closure_restored',
+                'user',
+                (string) $user['id'],
+                ['closure_id' => (int) $closure['id']],
+                $ipAddress,
             );
             $this->pdo->commit();
 
-            $user = $this->users->findAuthenticatedById((int) $row['id']);
-            if ($user === null) {
+            $restored = $this->users->findAuthenticatedById((int) $user['id']);
+            if ($restored === null) {
                 throw new RuntimeException('Restored account could not be reloaded.');
             }
 
-            return $user;
+            return $restored;
         } catch (Throwable $exception) {
-            if ($this->pdo->inTransaction()) {
-                $this->pdo->rollBack();
-            }
+            $this->rollBack();
             throw $exception;
         }
     }
@@ -295,7 +247,7 @@ SQL);
     {
         $this->pdo->beginTransaction();
         try {
-            $statement = $this->pdo->query(<<<'SQL'
+            $due = $this->pdo->query(<<<'SQL'
 SELECT ac.id AS closure_id, ac.user_id, u.username_canonical
 FROM account_closures ac
 JOIN users u ON u.id = ac.user_id
@@ -306,23 +258,34 @@ WHERE ac.restored_at IS NULL
 ORDER BY ac.id
 FOR UPDATE OF ac, u
 SQL);
-            if ($statement === false) {
+            if ($due === false) {
                 throw new RuntimeException('Unable to query due account closures.');
             }
 
             $count = 0;
-            foreach ($statement->fetchAll() as $row) {
+            foreach ($due->fetchAll() as $row) {
                 if (!is_array($row)) {
                     continue;
                 }
-                $userId = (int) $row['user_id'];
-                $closureId = (int) $row['closure_id'];
-                $oldCanonical = (string) $row['username_canonical'];
-                $display = 'Closed account #' . $userId;
-                $canonical = sprintf('closed-%d-%s', $userId, bin2hex(random_bytes(4)));
-                $unusablePassword = password_hash(bin2hex(random_bytes(32)), PASSWORD_DEFAULT);
+                $this->finalizeOne(
+                    (int) $row['closure_id'],
+                    (int) $row['user_id'],
+                    (string) $row['username_canonical'],
+                );
+                $count++;
+            }
+            $this->pdo->commit();
 
-                $updateUser = $this->pdo->prepare(<<<'SQL'
+            return $count;
+        } catch (Throwable $exception) {
+            $this->rollBack();
+            throw $exception;
+        }
+    }
+
+    private function finalizeOne(int $closureId, int $userId, string $oldCanonical): void
+    {
+        $this->execute(<<<'SQL'
 UPDATE users
 SET username = :username,
     username_canonical = :canonical,
@@ -334,76 +297,46 @@ SET username = :username,
     session_version = session_version + 1,
     updated_at = NOW()
 WHERE id = :user_id
-SQL);
-                if ($updateUser === false) {
-                    throw new RuntimeException('Unable to prepare account tombstoning.');
-                }
-                $updateUser->execute([
-                    'username' => $display,
-                    'canonical' => $canonical,
-                    'password_hash' => $unusablePassword,
-                    'user_id' => $userId,
-                ]);
+SQL, [
+            'username' => 'Closed account #' . $userId,
+            'canonical' => sprintf('closed-%d-%s', $userId, bin2hex(random_bytes(4))),
+            'password_hash' => password_hash(bin2hex(random_bytes(32)), PASSWORD_DEFAULT),
+            'user_id' => $userId,
+        ], 'account tombstoning');
+        $this->execute(
+            'UPDATE account_closures SET finalized_at = NOW() WHERE id = :id',
+            ['id' => $closureId],
+            'closure finalization record',
+        );
 
-                $finish = $this->pdo->prepare(
-                    'UPDATE account_closures SET finalized_at = NOW() WHERE id = :id',
-                );
-                if ($finish === false) {
-                    throw new RuntimeException('Unable to prepare closure finalization record.');
-                }
-                $finish->execute(['id' => $closureId]);
-
-                $this->deleteByUser('user_roles', 'user_id', $userId);
-                $this->deleteByUser('room_invitations', 'user_id', $userId);
-                $this->deleteByUser('room_presence', 'user_id', $userId);
-                $this->deleteByUser('sse_connections', 'user_id', $userId);
-
-                $deleteBlocks = $this->pdo->prepare(<<<'SQL'
-DELETE FROM direct_message_blocks
-WHERE blocker_user_id = :user_id OR blocked_user_id = :user_id
-SQL);
-                if ($deleteBlocks === false) {
-                    throw new RuntimeException('Unable to prepare closed-account block cleanup.');
-                }
-                $deleteBlocks->execute(['user_id' => $userId]);
-
-                $deleteAttempts = $this->pdo->prepare(
-                    'DELETE FROM login_attempts WHERE username_canonical = :canonical',
-                );
-                if ($deleteAttempts === false) {
-                    throw new RuntimeException('Unable to prepare closed-account login-history cleanup.');
-                }
-                $deleteAttempts->execute(['canonical' => $oldCanonical]);
-
-                $this->audit->log(
-                    actorUserId: null,
-                    action: 'account.closure_finalized',
-                    subjectType: 'user',
-                    subjectId: (string) $userId,
-                    metadata: ['closure_id' => $closureId],
-                    ipAddress: '127.0.0.1',
-                );
-                $count++;
-            }
-
-            $this->pdo->commit();
-
-            return $count;
-        } catch (Throwable $exception) {
-            if ($this->pdo->inTransaction()) {
-                $this->pdo->rollBack();
-            }
-            throw $exception;
-        }
+        $this->deleteForUser('user_roles', 'user_id', $userId);
+        $this->deleteForUser('room_invitations', 'user_id', $userId);
+        $this->deleteForUser('room_presence', 'user_id', $userId);
+        $this->deleteForUser('sse_connections', 'user_id', $userId);
+        $this->execute(
+            'DELETE FROM direct_message_blocks WHERE blocker_user_id = :id OR blocked_user_id = :id',
+            ['id' => $userId],
+            'closed-account block cleanup',
+        );
+        $this->execute(
+            'DELETE FROM login_attempts WHERE username_canonical = :canonical',
+            ['canonical' => $oldCanonical],
+            'closed-account login-history cleanup',
+        );
+        $this->audit->log(
+            null,
+            'account.closure_finalized',
+            'user',
+            (string) $userId,
+            ['closure_id' => $closureId],
+            '127.0.0.1',
+        );
     }
 
     /** @return array<string, mixed> */
-    private function lockUser(int $userId): array
+    private function userForUpdate(int $userId): array
     {
-        $statement = $this->pdo->prepare('SELECT * FROM users WHERE id = :id FOR UPDATE');
-        if ($statement === false) {
-            throw new RuntimeException('Unable to prepare account lifecycle lock.');
-        }
+        $statement = $this->prepare('SELECT * FROM users WHERE id = :id FOR UPDATE', 'account lifecycle lock');
         $statement->execute(['id' => $userId]);
         $row = $statement->fetch();
         if (!is_array($row)) {
@@ -429,44 +362,77 @@ SQL);
         return (int) $statement->fetchColumn();
     }
 
-    private function deleteByUser(string $table, string $column, int $userId): void
+    private function deleteForUser(string $table, string $column, int $userId): void
     {
-        $allowed = [
+        if (!in_array($table . '.' . $column, [
             'user_roles.user_id',
             'room_invitations.user_id',
             'room_presence.user_id',
             'sse_connections.user_id',
-        ];
-        if (!in_array($table . '.' . $column, $allowed, true)) {
+        ], true)) {
             throw new RuntimeException('Unsupported account-lifecycle cleanup target.');
         }
-        $statement = $this->pdo->prepare(sprintf('DELETE FROM %s WHERE %s = :user_id', $table, $column));
-        if ($statement === false) {
-            throw new RuntimeException('Unable to prepare account-lifecycle cleanup.');
+        $this->execute(
+            sprintf('DELETE FROM %s WHERE %s = :user_id', $table, $column),
+            ['user_id' => $userId],
+            'account-lifecycle cleanup',
+        );
+    }
+
+    /** @param list<string> $roles */
+    private function encodeRoles(array $roles): string
+    {
+        try {
+            return json_encode($roles, JSON_THROW_ON_ERROR);
+        } catch (JsonException $exception) {
+            throw new RuntimeException('Unable to encode account role snapshot.', 0, $exception);
         }
-        $statement->execute(['user_id' => $userId]);
     }
 
     /** @return list<string> */
     private function decodeRoles(string $json): array
     {
         try {
-            $value = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
+            $roles = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
         } catch (JsonException $exception) {
             throw new RuntimeException('Stored role snapshot is invalid.', 0, $exception);
         }
-        if (!is_array($value) || !array_is_list($value)) {
+        if (!is_array($roles) || !array_is_list($roles)) {
             throw new RuntimeException('Stored role snapshot is not a list.');
         }
 
-        $roles = [];
-        foreach ($value as $role) {
-            if (!is_string($role) || !in_array($role, ['super_admin', 'admin', 'chat_admin', 'global_moderator'], true)) {
+        $result = [];
+        foreach ($roles as $role) {
+            if (!is_string($role) || !in_array($role, self::ROLES, true)) {
                 throw new RuntimeException('Stored role snapshot contains an invalid role.');
             }
-            $roles[] = $role;
+            $result[] = $role;
         }
 
-        return array_values(array_unique($roles));
+        return array_values(array_unique($result));
+    }
+
+    /** @param array<string, int|string> $parameters */
+    private function execute(string $sql, array $parameters, string $operation): void
+    {
+        $statement = $this->prepare($sql, $operation);
+        $statement->execute($parameters);
+    }
+
+    private function prepare(string $sql, string $operation): \PDOStatement
+    {
+        $statement = $this->pdo->prepare($sql);
+        if ($statement === false) {
+            throw new RuntimeException('Unable to prepare ' . $operation . '.');
+        }
+
+        return $statement;
+    }
+
+    private function rollBack(): void
+    {
+        if ($this->pdo->inTransaction()) {
+            $this->pdo->rollBack();
+        }
     }
 }
