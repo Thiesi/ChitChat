@@ -23,7 +23,7 @@ The credential private key remains in the authenticator. PostgreSQL stores the o
 
 Registration and assertion challenges are stored in the PHP session with the ceremony purpose, account ID, and expiry. Reading a challenge for verification consumes it before cryptographic validation, so a failed or successful response cannot replay the ceremony.
 
-Password-first MFA login uses a separate pending state rather than the authenticated `auth` session. The pending state is bound to account ID, current session version, source IP, expiry, and the rotated session cookie. A final successful factor rotates the session identifier again.
+Password-first MFA login uses a separate pending state rather than the authenticated `auth` session. The pending state is bound to account ID, current session version, source IP, expiry, and the rotated session cookie. It also records whether the factor is completing an ordinary login or an account restoration. A final successful factor rotates the session identifier again.
 
 ## Recovery codes
 
@@ -41,7 +41,11 @@ Enabling the administrative MFA policy locks the singleton settings row and vali
 
 ## Account closure
 
-Closure pending retains MFA material so restoration cannot silently weaken the account. Restoration returns to the pending-MFA login state. The final `closed` state invokes a PostgreSQL trigger that deletes credentials and recovery hashes and clears the WebAuthn user handle and MFA timestamp.
+Closure pending retains MFA material so restoration cannot silently weaken the account. Username and password establish only a pending restoration context; the account remains closure-pending and the closure record remains unrestored until the second factor succeeds.
+
+After the factor succeeds, the final restoration transaction rechecks the deadline and current administrative-MFA policy. Protected roles in the closure snapshot are restored only when the account still has passkey MFA. Otherwise the account returns as an ordinary user and the withheld roles are named in the audit metadata.
+
+The final `closed` state invokes a PostgreSQL trigger that deletes credentials and recovery hashes and clears the WebAuthn user handle and MFA timestamp.
 
 ## Deliberate limitations
 
