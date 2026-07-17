@@ -133,6 +133,16 @@ SQL);
 
     public function login(string $usernameInput, string $password, string $ipAddress): AuthenticatedUser
     {
+        $user = $this->authenticatePassword($usernameInput, $password, $ipAddress);
+        $this->completeLogin($user, $ipAddress);
+        return $user;
+    }
+
+    public function authenticatePassword(
+        string $usernameInput,
+        string $password,
+        string $ipAddress,
+    ): AuthenticatedUser {
         $canonical = Username::canonical($usernameInput);
         $policy = $this->config->rateLimitPolicy('login');
 
@@ -186,19 +196,31 @@ SQL);
             ]);
         }
 
-        $statement = $this->pdo->prepare('UPDATE users SET last_login_at = NOW() WHERE id = :id');
-        if ($statement === false) {
-            throw new RuntimeException('Unable to prepare last-login update.');
-        }
-        $statement->execute(['id' => $credentials['id']]);
-        $this->recordLoginAttempt($canonical, $ipAddress, true, 'success');
-
         $user = $this->users->findAuthenticatedById($credentials['id']);
         if ($user === null) {
             throw new RuntimeException('Authenticated user could not be loaded.');
         }
 
         return $user;
+    }
+
+    public function completeLogin(AuthenticatedUser $user, string $ipAddress): void
+    {
+        $current = $this->users->findAuthenticatedById($user->id);
+        if (
+            $current === null
+            || $current->sessionVersion !== $user->sessionVersion
+            || $this->users->activeBan($user->id) !== null
+        ) {
+            throw new ApiException(401, 'authentication_required', 'Authentication is required.');
+        }
+
+        $statement = $this->pdo->prepare('UPDATE users SET last_login_at = NOW() WHERE id = :id');
+        if ($statement === false) {
+            throw new RuntimeException('Unable to prepare last-login update.');
+        }
+        $statement->execute(['id' => $user->id]);
+        $this->recordLoginAttempt(Username::canonical($user->username), $ipAddress, true, 'success');
     }
 
     public function changePassword(
