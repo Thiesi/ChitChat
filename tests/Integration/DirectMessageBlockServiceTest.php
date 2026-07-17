@@ -93,7 +93,7 @@ final class DirectMessageBlockServiceTest extends DatabaseTestCase
             $operation();
             self::fail('Expected direct-message availability rejection.');
         } catch (ApiException $exception) {
-            self::assertSame(403, $exception->statusCode);
+            self::assertSame(403, $exception->status);
             self::assertSame('direct_message_unavailable', $exception->errorCode);
         }
     }
