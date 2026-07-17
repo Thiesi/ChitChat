@@ -63,7 +63,7 @@ SQL);
             return null;
         }
         $decoded = base64_decode((string) $encoded, true);
-        if ($decoded === false) {
+        if ($decoded === false || strlen($decoded) !== 32) {
             throw new RuntimeException('Stored WebAuthn user handle is invalid.');
         }
         return $decoded;
@@ -315,8 +315,7 @@ SQL);
     {
         $statement = $this->prepare(<<<'SQL'
 SELECT (u.mfa_enabled_at IS NOT NULL
-   AND EXISTS (SELECT 1 FROM webauthn_credentials wc WHERE wc.user_id = u.id)
-   AND EXISTS (SELECT 1 FROM mfa_recovery_codes rc WHERE rc.user_id = u.id AND rc.used_at IS NULL))::int
+   AND EXISTS (SELECT 1 FROM webauthn_credentials wc WHERE wc.user_id = u.id))::int
 FROM users u
 WHERE u.id = :user_id AND u.account_state = 'active'
 SQL);
@@ -347,7 +346,10 @@ SQL);
         if ($inner === '') {
             return [];
         }
-        return str_getcsv($inner, ',', '"', '\\');
+        return array_values(array_map(
+            static fn (?string $item): string => (string) $item,
+            str_getcsv($inner, ',', '"', '\\'),
+        ));
     }
 
     /** @param list<string> $values */
