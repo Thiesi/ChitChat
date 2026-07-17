@@ -32,7 +32,36 @@ jobs:
           tools: composer:v2
 
       - name: Audit locked Composer dependencies
-        run: composer audit --locked --no-interaction --abandoned=report
+        id: composer-audit
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          composer audit --locked --no-interaction --abandoned=report --format=json \
+            | tee composer-audit.json
 
       - name: Audit locked npm dependencies
-        run: npm audit --audit-level=high
+        id: npm-audit
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          npm audit --audit-level=high --json | tee npm-audit.json
+
+      - name: Upload dependency audit diagnostics
+        if: ${{ always() && (steps.composer-audit.outcome == 'failure' || steps.npm-audit.outcome == 'failure') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-audit-diagnostics
+          path: |
+            composer-audit.json
+            npm-audit.json
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Enforce dependency audit policy
+        if: always()
+        env:
+          COMPOSER_OUTCOME: ${{ steps.composer-audit.outcome }}
+          NPM_OUTCOME: ${{ steps.npm-audit.outcome }}
+        run: |
+          test "$COMPOSER_OUTCOME" = success
+          test "$NPM_OUTCOME" = success
