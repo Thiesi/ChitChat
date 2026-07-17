@@ -62,20 +62,26 @@ GET /api/v1/session.php
 
 The response contains a `csrf_token`. Send that value in the `X-CSRF-Token` header for every state-changing request, including registration and login.
 
+The response also contains the direct-message privacy policy. Browser clients must disclose that messages are not end-to-end encrypted, state the current retention behavior, and state whether administrative inspection is enabled and for which role.
+
 The first successfully registered account is promoted to `super_admin` inside the same database transaction that creates it. Concurrent first registrations are serialized by locking the single system-settings row.
 
 ## Endpoints
 
 - `/` serves the browser chat client.
+- `/messages.php` serves the direct-message inbox and its fixed privacy notice.
 - `/admin.php` serves the permission-aware administration console.
+- `/admin-messages.php` serves audited direct-message inspection for eligible administrators.
 - `/health.php` reports whether the PHP process is alive.
-- `/ready.php` verifies that the application can connect to PostgreSQL.
+- `/ready.php` verifies that the application can connect to PostgreSQL and use attachment storage.
 - `/api/v1/events/stream.php` provides the authenticated SSE stream.
 - `/api/v1/presence/heartbeat.php` renews a browser tab's presence lease.
 - `/api/v1/rooms/presence.php` lists active users in an authorized room.
 - `/api/v1/attachments/upload.php` accepts CSRF-protected multipart room uploads.
 - `/api/v1/attachments/download.php` streams an attachment after rechecking room and age authorization.
 - `/api/v1/attachments/metadata.php` returns bounded metadata for attachment cards in visible messages.
+- `/api/v1/direct-messages/` contains user search, conversation, history, send and read-acknowledgement endpoints.
+- `/api/v1/admin/direct-messages/` contains inspection user search and audited inspection endpoints.
 - API contracts are documented in `docs/api/`.
 
 ## Server-Sent Events
@@ -109,6 +115,16 @@ Global role changes, kicks, bans, and administrator password resets invalidate a
 The initial MIME allowlist is deliberately conservative: JPEG, PNG, GIF, WebP, PDF, plain text, CSV, JSON, and ZIP. SVG, HTML, scripts, executables, and unknown binary types are rejected. Only the four raster image formats may be served inline; everything else is forced to download with `nosniff`, a sandboxed content policy, and same-origin resource isolation.
 
 Message deletion immediately marks linked attachment metadata deleted and revokes future downloads. The physical file is retained initially for moderation evidence and later retention cleanup. A process crash between moving a file and committing its database record can leave an orphaned opaque file; automated orphan cleanup is a future operational task.
+
+## Direct messages and privacy
+
+Direct messages are ordinary server-side PostgreSQL records. They are **not end-to-end encrypted** and are retained permanently in the initial v1 release. The browser inbox displays this disclosure at all times.
+
+`DM_ADMIN_INSPECTION_ENABLED` defaults to `1`. Set it to `0` to disable administrative content access entirely. `DM_ADMIN_INSPECTION_ROLE` defaults to `super_admin`; the only other supported value is `admin`, which permits both Administrators and Super-Administrators. Chat Admins, Global Moderators and room owners never receive DM inspection through these settings.
+
+Every successful inspection page is written to `audit_log` before content is returned. The record includes the inspecting account, IP address, stated reason, selected users, pagination cursor, limit, returned count and oldest/newest returned message IDs. It deliberately does not copy message bodies into audit metadata. Invalid, unauthorized or disabled requests return no content and write no inspection record.
+
+The user-facing inbox supports text only in this milestone. Direct-message attachments, deletion, editing and end-to-end encryption are not implemented.
 
 ## Production web-root rule
 
