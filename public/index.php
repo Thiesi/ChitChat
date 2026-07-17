@@ -40,6 +40,7 @@ $appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUT
           <input id="login-password" name="password" type="password" autocomplete="current-password" minlength="12" maxlength="4096" required>
         </label>
         <button class="primary-button" type="submit">Sign in</button>
+        <a class="secondary-button" href="/restore-account.php">Restore a closing account</a>
       </form>
 
       <form id="register-form" class="form-stack hidden" role="tabpanel" aria-labelledby="register-tab" autocomplete="on" hidden>
