@@ -17,6 +17,7 @@ $appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUT
   <link rel="stylesheet" href="/assets/css/components.css">
   <link rel="stylesheet" href="/assets/css/accessibility.css">
   <link rel="stylesheet" href="/assets/css/account.css">
+  <link rel="stylesheet" href="/assets/css/step-up.css" data-step-up-styles="true">
 </head>
 <body>
   <div id="account-loading" class="app-loading" role="status">Loading account…</div>
