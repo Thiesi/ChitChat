@@ -17,6 +17,7 @@ $appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUT
   <link rel="stylesheet" href="/assets/css/components.css">
   <link rel="stylesheet" href="/assets/css/messages.css">
   <link rel="stylesheet" href="/assets/css/messages-blocking.css">
+  <link rel="stylesheet" href="/assets/css/messages-attachments.css">
 </head>
 <body>
   <div id="messages-loading" class="app-loading" role="status">Loading messages…</div>
@@ -68,8 +69,20 @@ $appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUT
         </section>
 
         <form id="dm-composer" class="dm-composer hidden">
-          <label class="visually-hidden" for="dm-message-input">Direct message</label>
-          <textarea id="dm-message-input" maxlength="4000" rows="3" placeholder="Write a direct message…" required></textarea>
+          <div class="attachment-picker dm-attachment-picker">
+            <label class="secondary-button attachment-button" for="dm-attachment-input">Attach file</label>
+            <input
+              id="dm-attachment-input"
+              class="visually-hidden"
+              name="file"
+              type="file"
+              accept="image/jpeg,image/png,image/gif,image/webp,application/pdf,text/plain,text/csv,application/json,application/zip"
+            >
+            <span id="dm-attachment-name" class="attachment-name" aria-live="polite"></span>
+            <button id="dm-attachment-clear" class="secondary-button hidden" type="button">Remove</button>
+          </div>
+          <label class="visually-hidden" for="dm-message-input">Direct message or attachment caption</label>
+          <textarea id="dm-message-input" maxlength="4000" rows="3" placeholder="Write a direct message…"></textarea>
           <button id="dm-send" class="primary-button" type="submit">Send</button>
         </form>
       </section>
@@ -78,5 +91,6 @@ $appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUT
 
   <div id="toast-region" class="toast-region" aria-live="assertive"></div>
   <script type="module" src="/assets/js/messages.js"></script>
+  <script type="module" src="/assets/js/dm-attachments.js"></script>
 </body>
 </html>

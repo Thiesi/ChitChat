@@ -45,10 +45,14 @@ final class CleanupService
             $roomKeys = $cutoffs['room'] instanceof DateTimeImmutable
                 ? $this->keysForRoomRetention($cutoffs['room'])
                 : [];
+            $directKeys = $cutoffs['direct'] instanceof DateTimeImmutable
+                ? $this->keysForDirectRetention($cutoffs['direct'])
+                : [];
             $deletedKeys = $cutoffs['deleted_attachment'] instanceof DateTimeImmutable
                 ? $this->keysForDeletedAttachments($cutoffs['deleted_attachment'])
                 : [];
             $orphanPaths = $this->orphanPaths($cutoffs['orphan']);
+            $trackedKeys = array_unique(array_merge($roomKeys, $directKeys, $deletedKeys));
 
             $result = [
                 'dry_run' => $dryRun,
@@ -80,7 +84,7 @@ final class CleanupService
                 'expired_presence_leases' => $this->scalarCount(
                     'SELECT COUNT(*) FROM room_presence WHERE lease_expires_at <= NOW()',
                 ),
-                'tracked_files' => count(array_unique(array_merge($roomKeys, $deletedKeys))),
+                'tracked_files' => count($trackedKeys),
                 'orphan_files' => count($orphanPaths),
                 'files_removed' => 0,
                 'file_removal_failures' => 0,
@@ -134,7 +138,7 @@ final class CleanupService
                 throw $exception;
             }
 
-            foreach (array_unique(array_merge($roomKeys, $deletedKeys)) as $key) {
+            foreach ($trackedKeys as $key) {
                 $this->remove($this->pathForKey($key), $result);
             }
             foreach ($orphanPaths as $path) {
@@ -264,6 +268,15 @@ SQL);
     }
 
     /** @return list<string> */
+    private function keysForDirectRetention(DateTimeImmutable $cutoff): array
+    {
+        return $this->columnStrings(
+            'SELECT a.storage_key FROM direct_message_attachments a JOIN direct_messages m ON m.id = a.direct_message_id WHERE m.created_at < :cutoff',
+            $cutoff,
+        );
+    }
+
+    /** @return list<string> */
     private function keysForDeletedAttachments(DateTimeImmutable $cutoff): array
     {
         return $this->columnStrings(
@@ -287,7 +300,11 @@ SQL);
             return [];
         }
         $known = [];
-        $statement = $this->pdo->query('SELECT storage_key FROM attachments');
+        $statement = $this->pdo->query(<<<'SQL'
+SELECT storage_key FROM attachments
+UNION
+SELECT storage_key FROM direct_message_attachments
+SQL);
         if ($statement === false) {
             throw new RuntimeException('Unable to query tracked attachment keys.');
         }

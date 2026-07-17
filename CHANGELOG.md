@@ -11,12 +11,18 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 - Added user-controlled direct-message blocking and unblocking from the conversation header.
 - Added authenticated block-status, block, and unblock API endpoints.
 - Added integration and Chromium/Firefox journey coverage for blocked sends, retained history, and resumed messaging after unblock.
+- Added direct-message file uploads with optional captions, opaque storage, shared MIME and size policy, SHA-256 metadata, safe image previews, and participant-only downloads.
+- Added bounded attachment metadata enrichment for visible direct-message history without changing the canonical DM/SSE payload shape.
+- Added PostgreSQL/filesystem and Chromium/Firefox coverage for multipart DM uploads, exact-byte downloads, outsider denial, and retention cleanup.
 
 ### Security and privacy
 
-- A block in either direction prevents new messages in both directions while preserving existing retained history.
+- A block in either direction prevents new messages and file uploads in both directions while preserving existing retained history.
 - Public relationship state exposes whether the requesting user set a block and only a generic messaging-availability flag; it does not expose a separate `blocked_by_other` field.
-- Send, block, and unblock operations serialize on a PostgreSQL advisory lock for the user pair, preventing a completed block from being bypassed by a concurrent send.
+- Send, upload, block, and unblock operations serialize on a PostgreSQL advisory lock for the user pair, preventing a completed block from being bypassed by a concurrent message or attachment.
+- DM attachment metadata and bytes are returned only to the sender or recipient; unauthorized requests use the same not-found response as an unknown attachment.
+- Administrative text-history inspection does not silently grant attachment-binary download rights.
+- Direct-message retention removes associated attachment metadata and files in the same maintenance run, while orphan detection treats room and DM keys as one shared storage namespace.
 
 ## [1.0.0] - 2026-07-17
 

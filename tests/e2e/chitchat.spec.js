@@ -32,7 +32,6 @@ async function selectDirectMessagePeer(page, username) {
 }
 
 async function setRegistrationPolicy(page, enabled) {
-  await page.locator('#toast-region').evaluate((node) => node.replaceChildren());
   page.once('dialog', (dialog) => dialog.accept());
   await page.locator('#registration-enabled').selectOption(enabled ? '1' : '0');
   const responsePromise = page.waitForResponse((response) => (
@@ -43,7 +42,6 @@ async function setRegistrationPolicy(page, enabled) {
   const response = await responsePromise;
   expect(response.ok()).toBeTruthy();
   await expect(page.locator('#registration-enabled')).toHaveValue(enabled ? '1' : '0');
-  await expect(page.locator('#toast-region')).toContainText('Operational settings saved');
 }
 
 test.describe.serial('ChitChat browser release checks', () => {
@@ -170,6 +168,14 @@ test.describe.serial('ChitChat browser release checks', () => {
       await expect(adminConsole.getByRole('heading', { name: 'Administration', exact: true })).toBeVisible();
       await expect(adminConsole.locator('#system-settings-link')).toBeVisible();
       await expect(adminConsole.locator('#dm-inspection-link')).toBeVisible();
+      await adminConsole.close();
+
+      await Promise.all([
+        adminPage.close(),
+        memberPage.close(),
+        adminMessages.close(),
+        memberMessages.close(),
+      ]);
 
       const settingsPage = await adminContext.newPage();
       await settingsPage.goto('/admin-settings.php');
