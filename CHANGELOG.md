@@ -6,6 +6,10 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-07-17
+
+Second stable release of the clean ChitChat reconstruction. This release adds direct-message controls and attachments, message editing and revision history, stronger administrative authentication and privacy boundaries, operational observability, personal-data export, WebKit validation, and accessibility hardening.
+
 ### Added
 
 - Added user-controlled direct-message blocking and unblocking from the conversation header.
@@ -60,6 +64,38 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 - Password step-up is recent reauthentication rather than multi-factor authentication and does not replace roles, CSRF, required reasons, per-action audits, or target-specific authorization.
 - Personal-data exports exclude credentials, session and step-up state, attachment bytes and storage keys, other users' incoming block state, and hidden revisions for messages authored by somebody else.
 - Successful export audits are created after the exported activity snapshot and contain only the format version and aggregate item counts, avoiding recursive inclusion and content duplication.
+
+### Compatibility
+
+- `v1.1.0` supports an in-place upgrade from stable `v1.0.0` after PostgreSQL and attachment storage are backed up together.
+- The upgrade applies forward-only migrations `0010_direct_message_blocks.sql`, `0011_direct_message_attachments.sql`, `0012_message_mutations.sql`, and `0013_operational_observability.sql`.
+- Once these migrations are applied, older ChitChat code must not be pointed at the upgraded database. Rollback requires restoring a matching pre-upgrade database and attachment backup.
+- No new runtime package or external service is required for the supported single-server deployment.
+
+### Upgrade notes
+
+Fresh installations should follow `INSTALL.md`.
+
+Existing `v1.0.0` installations should:
+
+1. stop or drain application writes;
+2. back up PostgreSQL and attachment storage together;
+3. deploy `v1.1.0` while preserving `.env` and attachment storage;
+4. run `composer install --no-dev --classmap-authoritative`;
+5. run `composer migrate` once;
+6. run `composer maintenance:dry-run` and review the result;
+7. verify `/health.php`, `/ready.php`, login, room and direct-message history, attachment access, SSE through the production reverse proxy, account export, and system status.
+
+### Known limitations
+
+- Initial deployment target remains one application server; horizontal scaling and Redis-backed delivery are not implemented.
+- PostgreSQL is the only supported database.
+- Direct messages are not end-to-end encrypted.
+- Revision review does not automatically notify affected participants.
+- Browser accessibility checks are regression smoke tests rather than a complete manual WCAG audit or visual-regression suite.
+- Maintenance scheduling and monitoring remain operator responsibilities.
+- Account closure, multi-factor authentication, configurable per-limit throttles, and richer compliance/reporting workflows are not included.
+- No supported in-place upgrade exists from the incomplete legacy `v0.10.25` snapshot.
 
 ## [1.0.0] - 2026-07-17
 
