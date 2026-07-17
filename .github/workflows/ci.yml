@@ -137,7 +137,9 @@ jobs:
       DB_SSLMODE: disable
       SESSION_COOKIE_SECURE: 0
       ATTACHMENT_STORAGE_PATH: /tmp/chitchat-browser-${{ matrix.project }}-uploads
-      CHITCHAT_BASE_URL: http://127.0.0.1:8080
+      CHITCHAT_BASE_URL: http://localhost:8080
+      WEBAUTHN_RP_ID: localhost
+      WEBAUTHN_ORIGIN: http://localhost:8080
       MESSAGE_REVISION_REVIEW_ENABLED: 1
 
     steps:
@@ -165,7 +167,7 @@ jobs:
           chmod 700 "$ATTACHMENT_STORAGE_PATH"
           PHP_CLI_SERVER_WORKERS=8 php -S 127.0.0.1:8080 -t public > php-server.log 2>&1 &
           echo $! > php-server.pid
-          curl --fail --retry 30 --retry-delay 1 --retry-all-errors http://127.0.0.1:8080/ready.php
+          curl --fail --retry 30 --retry-delay 1 --retry-all-errors http://localhost:8080/ready.php
       - name: Run browser end-to-end tests
         run: npm run test:e2e -- --project="${{ matrix.project }}"
       - name: Upload browser diagnostics
