@@ -1,5 +1,3 @@
-BEGIN;
-
 CREATE TABLE maintenance_runs (
     id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     dry_run boolean NOT NULL,
@@ -28,5 +26,3 @@ CREATE TABLE sse_connections (
 
 CREATE INDEX sse_connections_active_idx
     ON sse_connections (lease_expires_at, user_id);
-
-COMMIT;
