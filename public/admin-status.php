@@ -99,6 +99,25 @@ $appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUT
           <div><dt>Environment</dt><dd id="application-environment">—</dd></div>
         </dl>
       </section>
+
+      <section class="admin-card status-card status-wide">
+        <h2>Rate-limit policies</h2>
+        <p class="admin-muted">Effective deployment policy and aggregate decisions. No account or IP identifiers are retained here.</p>
+        <div class="status-table-wrap">
+          <table class="status-table" aria-label="Effective rate-limit policies">
+            <thead>
+              <tr>
+                <th scope="col">Policy</th>
+                <th scope="col">Limit</th>
+                <th scope="col">Allowed</th>
+                <th scope="col">Rejected</th>
+                <th scope="col">Last rejection</th>
+              </tr>
+            </thead>
+            <tbody id="rate-limit-policies"></tbody>
+          </table>
+        </div>
+      </section>
     </div>
   </main>
 
