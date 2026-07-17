@@ -1,0 +1,73 @@
+.status-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+  gap: 1rem;
+  align-items: start;
+}
+
+.status-card {
+  min-height: 100%;
+}
+
+.status-card-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.status-card h2 {
+  margin-top: 0;
+}
+
+.status-card dl {
+  display: grid;
+  gap: 0.75rem;
+  margin: 1rem 0 0;
+}
+
+.status-card dl > div {
+  display: grid;
+  grid-template-columns: minmax(8rem, 1fr) minmax(0, 1.4fr);
+  gap: 1rem;
+  border-top: 1px solid var(--border-color);
+  padding-top: 0.75rem;
+}
+
+.status-card dt {
+  color: var(--muted-text);
+}
+
+.status-card dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
+.status-badge {
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  padding: 0.25rem 0.65rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.status-badge.ok {
+  border-color: currentColor;
+}
+
+.status-badge.warning,
+.status-warning-card {
+  border-color: var(--danger-color, #c05c5c);
+}
+
+@media (max-width: 42rem) {
+  .status-card dl > div {
+    grid-template-columns: 1fr;
+    gap: 0.25rem;
+  }
+
+  .status-card dd {
+    text-align: left;
+  }
+}
