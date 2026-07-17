@@ -24,10 +24,19 @@ Endpoint::run($config, static function () use ($config): ApiResult {
         throw new ApiException(403, 'forbidden', 'Operational settings require Super-Administrator access.');
     }
     SessionManager::requirePrivilegedStepUp($actor, $config);
+    $requireMfa = Request::boolean($payload, 'mfa_required_for_admin_roles');
+    if ($requireMfa && !$config->webauthnEnabled()) {
+        throw new ApiException(
+            409,
+            'webauthn_not_configured',
+            'Configure WEBAUTHN_RP_ID and WEBAUTHN_ORIGIN before requiring MFA for administrative roles.',
+        );
+    }
 
     $settings = (new SystemSettingsService($pdo))->update(
         actor: $actor,
         registrationEnabled: Request::boolean($payload, 'registration_enabled'),
+        mfaRequiredForAdminRoles: $requireMfa,
         roomMessageRetentionDays: Request::integer($payload, 'room_message_retention_days'),
         directMessageRetentionDays: Request::integer($payload, 'direct_message_retention_days'),
         auditRetentionDays: Request::integer($payload, 'audit_retention_days'),
