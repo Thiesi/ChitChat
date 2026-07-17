@@ -58,6 +58,7 @@ $appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUT
             <h2 id="dm-peer-name">Choose a conversation</h2>
             <p id="dm-peer-status" class="messages-muted">Search for a user or choose an existing conversation.</p>
           </div>
+          <button id="dm-block-toggle" class="secondary-button dm-block-toggle hidden" type="button">Block user</button>
         </header>
 
         <div id="dm-empty-state" class="dm-empty-state">No conversation selected.</div>
