@@ -7,19 +7,19 @@ namespace ChitChat\Maintenance;
 use ChitChat\Config;
 use PDO;
 
-/** @deprecated Use CleanupService directly. */
+/** @deprecated Use MaintenanceCoordinator directly. */
 final class MaintenanceService
 {
-    private readonly CleanupService $cleanup;
+    private readonly MaintenanceCoordinator $coordinator;
 
     public function __construct(PDO $pdo, Config $config)
     {
-        $this->cleanup = new CleanupService($pdo, $config);
+        $this->coordinator = new MaintenanceCoordinator($pdo, $config);
     }
 
     /** @return array<string, int|bool> */
     public function run(bool $dryRun): array
     {
-        return $this->cleanup->run($dryRun);
+        return $this->coordinator->run($dryRun);
     }
 }
