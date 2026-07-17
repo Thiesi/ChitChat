@@ -13,9 +13,9 @@ final class PersonalDataExportServiceTest extends DatabaseTestCase
     public function testExportIncludesOwnedAndVisibleDataWithoutSecretsOrOtherUsersPrivateState(): void
     {
         $auth = new AuthService($this->pdo, $this->config);
-        $actor = $auth->register('Exporter', 'A sufficiently long exporter password', '127.0.0.1', '1985-05-04');
-        $peer = $auth->register('Peer', 'A sufficiently long peer password', '127.0.0.2');
-        $outsider = $auth->register('Outsider', 'A sufficiently long outsider password', '127.0.0.3');
+        $actor = $auth->register('Exporter', 'Correct horse battery staple alpha', '127.0.0.1', '1985-05-04');
+        $peer = $auth->register('Peer', 'Correct horse battery staple beta', '127.0.0.2');
+        $outsider = $auth->register('Outsider', 'Correct horse battery staple gamma', '127.0.0.3');
 
         $roomInsert = $this->pdo->prepare(<<<'SQL'
 INSERT INTO rooms (room_key, name, info_line, visibility, minimum_age, created_by)
