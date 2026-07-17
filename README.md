@@ -18,7 +18,7 @@ See [CHANGELOG.md](CHANGELOG.md) and the [v1.0.0 release notes](docs/releases/v1
 - Vanilla browser JavaScript
 - PHP sessions and CSRF protection
 - Server-Sent Events for realtime delivery
-- Database-backed expiring presence leases
+- Database-backed expiring presence and SSE-connection leases
 - A single application server as the initial deployment target
 - Only `public/` exposed by the web server
 - Opaque attachment storage outside the public web root
@@ -31,6 +31,7 @@ The application currently provides:
 
 - environment-based configuration and forward-only PostgreSQL migrations;
 - health and readiness endpoints;
+- an Administrator system-status page and an optional bearer-protected Prometheus endpoint;
 - user registration and case-insensitive login;
 - optional validated birth dates for age-restricted rooms;
 - atomic first-user Super-Administrator promotion;
@@ -55,17 +56,18 @@ The application currently provides:
 - configurable administrative DM inspection, restricted to Super-Administrators by default and audited on every successful page access;
 - separately configurable, disabled-by-default administrative review of exact room or DM revision chains, with a required reason and a successful-access audit that never duplicates historical bodies;
 - Super-Administrator management of registration and retention policy;
-- dry-run-capable cleanup for retained content, deleted and orphaned room/DM attachments, events, presence, login attempts, and throttle rows;
+- dry-run-capable cleanup for retained content, deleted and orphaned room/DM attachments, events, presence, SSE leases, login attempts, and throttle rows;
+- durable success/failure records for maintenance invocations and ready-to-adapt `systemd` service/timer units;
 - a responsive browser client for registration, login, rooms, history, live messages, commands, presence, attachments, direct messages, and logout;
-- a permission-aware browser administration console for users, roles, bans, room settings, membership, invitations, audit visibility, eligible DM inspection, exact-ID revision review, and operational settings;
-- backup, restore, maintenance, deployment, release, and browser-testing documentation;
+- a permission-aware browser administration console for users, roles, bans, room settings, membership, invitations, audit visibility, eligible DM inspection, exact-ID revision review, operational settings, and system status;
+- backup, restore, maintenance, observability, deployment, release, and browser-testing documentation;
 - audit records for sensitive account, room, message, attachment, inspection, revision-review, settings, and maintenance actions;
 - PHP lint, PHPStan level 8, JavaScript syntax checks, PostgreSQL-backed integration tests and maintenance validation;
 - independent two-session Chromium and Firefox browser journeys;
 - published-release archive installation, backup/restore and forward-upgrade rehearsal;
 - real Nginx/PHP-FPM validation of authenticated, unbuffered SSE delivery.
 
-Configurable per-limit throttles, WebKit browser coverage, horizontal scaling, participant-facing review notifications, and richer compliance/reporting workflows remain future milestones.
+Configurable per-limit throttles, WebKit browser coverage, horizontal scaling, participant-facing review notifications, privileged step-up authentication, and richer compliance/reporting workflows remain future milestones.
 
 ## Installation and operation
 
