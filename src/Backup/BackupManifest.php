@@ -233,7 +233,10 @@ final readonly class BackupManifest
         }
     }
 
-    /** @param array<string, mixed> $data @return array<string, mixed> */
+    /**
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
     private static function objectAt(array $data, string $key): array
     {
         $value = $data[$key] ?? null;
@@ -245,7 +248,10 @@ final readonly class BackupManifest
         return $value;
     }
 
-    /** @param array<string, mixed> $data @return list<mixed> */
+    /**
+     * @param array<string, mixed> $data
+     * @return list<mixed>
+     */
     private static function listAt(array $data, string $key): array
     {
         $value = $data[$key] ?? null;
