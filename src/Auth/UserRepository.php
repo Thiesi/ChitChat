@@ -13,12 +13,28 @@ final class UserRepository
     {
     }
 
-    /** @return array{id:int, username:string, password_hash:string, session_version:int}|null */
+    /**
+     * @return array{
+     *   id:int,
+     *   username:string,
+     *   password_hash:string,
+     *   session_version:int,
+     *   account_state:string,
+     *   closure_finalizes_at:?string
+     * }|null
+     */
     public function findCredentialsByCanonical(string $canonical): ?array
     {
-        $statement = $this->pdo->prepare(
-            'SELECT id, username, password_hash, session_version FROM users WHERE username_canonical = :username',
-        );
+        $statement = $this->pdo->prepare(<<<'SQL'
+SELECT id,
+       username,
+       password_hash,
+       session_version,
+       account_state,
+       closure_finalizes_at
+FROM users
+WHERE username_canonical = :username
+SQL);
         if ($statement === false) {
             throw new RuntimeException('Unable to prepare user credential lookup.');
         }
@@ -34,15 +50,22 @@ final class UserRepository
             'username' => (string) $row['username'],
             'password_hash' => (string) $row['password_hash'],
             'session_version' => (int) $row['session_version'],
+            'account_state' => (string) $row['account_state'],
+            'closure_finalizes_at' => $row['closure_finalizes_at'] === null
+                ? null
+                : (string) $row['closure_finalizes_at'],
         ];
     }
 
     /** @return array{id:int, username:string, password_hash:string, session_version:int}|null */
     public function findCredentialsById(int $userId): ?array
     {
-        $statement = $this->pdo->prepare(
-            'SELECT id, username, password_hash, session_version FROM users WHERE id = :id',
-        );
+        $statement = $this->pdo->prepare(<<<'SQL'
+SELECT id, username, password_hash, session_version
+FROM users
+WHERE id = :id
+  AND account_state = 'active'
+SQL);
         if ($statement === false) {
             throw new RuntimeException('Unable to prepare user lookup.');
         }
@@ -63,7 +86,12 @@ final class UserRepository
 
     public function findAuthenticatedById(int $userId): ?AuthenticatedUser
     {
-        $statement = $this->pdo->prepare('SELECT id, username, session_version FROM users WHERE id = :id');
+        $statement = $this->pdo->prepare(<<<'SQL'
+SELECT id, username, session_version
+FROM users
+WHERE id = :id
+  AND account_state = 'active'
+SQL);
         if ($statement === false) {
             throw new RuntimeException('Unable to prepare authenticated user lookup.');
         }
@@ -155,6 +183,7 @@ SET password_hash = :password_hash,
     session_version = session_version + 1,
     updated_at = NOW()
 WHERE id = :id
+  AND account_state = 'active'
 RETURNING session_version
 SQL);
         if ($statement === false) {
