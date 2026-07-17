@@ -23,6 +23,7 @@ CHECK_RUNS=$(gh api \
 
 REQUIRED_CHECKS=(
     'static'
+    'dependency-audit'
     'integration'
     'browser (chromium)'
     'browser (firefox)'
