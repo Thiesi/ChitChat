@@ -80,6 +80,7 @@ $appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUT
 
       <footer class="sidebar-footer">
         <div class="current-user"><span class="current-user-label">Signed in as </span><strong id="current-user"></strong></div>
+        <a class="secondary-button" href="/messages.php">Direct messages</a>
         <a id="admin-link" class="secondary-button hidden" href="/admin.php">Administration</a>
         <button id="logout-button" class="secondary-button" type="button">Sign out</button>
       </footer>
