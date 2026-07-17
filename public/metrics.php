@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use ChitChat\Database;
+use ChitChat\Observability\MetricsAuthorizer;
 use ChitChat\Observability\PrometheusEncoder;
 use ChitChat\Observability\SystemStatusService;
 use Throwable;
@@ -15,10 +16,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET' || $config->metricsBearerTok
     exit;
 }
 
-$authorization = trim((string) ($_SERVER['HTTP_AUTHORIZATION'] ?? ''));
-$prefix = 'Bearer ';
-$provided = str_starts_with($authorization, $prefix) ? substr($authorization, strlen($prefix)) : '';
-if ($provided === '' || !hash_equals($config->metricsBearerToken, $provided)) {
+if (!MetricsAuthorizer::accepts(
+    $config->metricsBearerToken,
+    (string) ($_SERVER['HTTP_AUTHORIZATION'] ?? ''),
+)) {
     http_response_code(401);
     header('WWW-Authenticate: Bearer realm="ChitChat metrics"');
     header('Content-Type: text/plain; charset=utf-8');
