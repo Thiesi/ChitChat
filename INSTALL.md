@@ -56,7 +56,7 @@ The deployed browser client has no Node.js runtime dependency and uses no npm pa
 
 9. Open `http://127.0.0.1:8080/`.
 
-The first account created through the browser becomes Super-Administrator. That account can create the first room and use **Administration** for users, rooms, audit visibility, direct-message inspection policy, and operational settings.
+The first account created through the browser becomes Super-Administrator. That account can create the first room and use **Administration** for users, rooms, audit visibility, direct-message inspection policy, optional revision review, and operational settings.
 
 For a production-like single-server deployment, use Nginx and PHP-FPM as described in `docs/operations/nginx-php-fpm.md`; do not use PHP's development server.
 
@@ -70,7 +70,7 @@ GET /api/v1/session.php
 
 The response contains a `csrf_token`. Send that value in the `X-CSRF-Token` header for every state-changing request, including registration and login.
 
-It also contains whether public registration is enabled and the direct-message privacy policy. Browser clients must disclose that DMs are not end-to-end encrypted, state the active retention period, and state whether administrative inspection is enabled and for which role.
+It also contains whether public registration is enabled, the direct-message privacy policy, and the independently configured message-revision review policy. Browser clients must disclose that DMs are not end-to-end encrypted, state the active retention period, and state whether administrative inspection is enabled and for which role. The bundled DM interface also discloses that edits and deletions preserve historical bodies until message retention removes them.
 
 The first successfully registered account is promoted to `super_admin` inside the same database transaction that creates it. Concurrent first registrations are serialized by locking the single system-settings row.
 
@@ -80,6 +80,7 @@ The first successfully registered account is promoted to `super_admin` inside th
 - `/messages.php` serves the direct-message inbox and its fixed privacy notice.
 - `/admin.php` serves the permission-aware administration console.
 - `/admin-messages.php` serves audited direct-message inspection for eligible administrators.
+- `/admin-message-revisions.php` serves exact-ID, reason-required revision review when separately enabled.
 - `/admin-settings.php` serves Super-Administrator operational settings.
 - `/health.php` reports whether the PHP process is alive.
 - `/ready.php` verifies that the application can connect to PostgreSQL and use attachment storage.
@@ -89,6 +90,7 @@ The first successfully registered account is promoted to `super_admin` inside th
 - `/api/v1/attachments/` contains upload, protected download, and bounded metadata endpoints.
 - `/api/v1/direct-messages/` contains user search, conversation, history, send and read-acknowledgement endpoints.
 - `/api/v1/admin/direct-messages/` contains inspection user search and audited inspection endpoints.
+- `/api/v1/admin/message-revisions/` contains the audited exact-message revision-review endpoint.
 - `/api/v1/admin/settings/` contains Super-Administrator settings read and update endpoints.
 - API contracts are documented in `docs/api/`.
 
@@ -121,6 +123,8 @@ composer maintenance
 
 The command also removes expired presence, old realtime events and throttle ledgers, deleted attachment files, and opaque orphan files older than their grace period. Schedule it as the same operating-system account that owns attachment storage. See `docs/operations/maintenance.md`.
 
+Message revisions reference their canonical room or direct message with `ON DELETE CASCADE`. Soft deletion retains revisions; hard deletion by configured message retention removes the canonical message and revision chain together.
+
 ## Attachments
 
 `ATTACHMENT_STORAGE_PATH` defaults to the repository's absolute `var/uploads` directory. A custom value must be an absolute path outside `public/`. Files are stored with random extensionless keys in two-level shard directories and are never addressed directly by the web server.
@@ -131,13 +135,17 @@ The allowlist is JPEG, PNG, GIF, WebP, PDF, plain text, CSV, JSON, and ZIP. SVG,
 
 Moderator deletion immediately revokes downloads. Physical files remain until the configured deleted-attachment retention expires. Failed upload transactions may leave opaque files; maintenance removes them after the orphan grace period.
 
-## Direct messages and privacy
+## Direct messages, revisions, and privacy
 
 Direct messages are ordinary server-side PostgreSQL records. They are **not end-to-end encrypted**. Retention is permanent by default and may be changed by a Super-Administrator; the inbox reads the active policy from the server.
 
-`DM_ADMIN_INSPECTION_ENABLED` defaults to `1`. Set it to `0` to disable administrative content access entirely. `DM_ADMIN_INSPECTION_ROLE` defaults to `super_admin`; `admin` permits both Administrators and Super-Administrators. Chat Admins, Global Moderators and room owners never receive DM inspection through these settings.
+`DM_ADMIN_INSPECTION_ENABLED` defaults to `1`. Set it to `0` to disable administrative canonical-content access. `DM_ADMIN_INSPECTION_ROLE` defaults to `super_admin`; `admin` permits both Administrators and Super-Administrators. Chat Admins, Global Moderators and room owners never receive DM inspection through these settings.
 
 Every successful inspection page is audited before content is returned. Audit metadata includes the actor, IP, reason, selected users, pagination details and returned ID range, but not copied message bodies.
+
+Edits and deletions create append-only revision rows containing historical bodies. `MESSAGE_REVISION_REVIEW_ENABLED` defaults to `0`; enabling it is an explicit operator decision. `MESSAGE_REVISION_REVIEW_ROLE` defaults to `super_admin`; `admin` permits Administrators and Super-Administrators. This policy does not inherit from DM inspection or moderation permissions.
+
+Revision review accepts only an exact room or direct-message ID that already has retained revisions. Every successful request requires a 10-500 character reason and is audited with the reviewer, IP, message context, and returned revision IDs and actions. Historical bodies are not copied into audit JSON. ChitChat does not notify participants when a review occurs; operators must disclose the capability in their own privacy, moderation, employment, and legal policies.
 
 ## Browser security and rate limits
 
@@ -147,7 +155,7 @@ Database-backed fixed-window limits are shared by all PHP workers: five registra
 
 ## Backup, restore and upgrade rehearsal
 
-Back up PostgreSQL and attachment storage together. The database contains password hashes, chat and DM history, audit data, IP addresses and policy settings. See `docs/operations/backup-restore.md` for the operator procedure.
+Back up PostgreSQL and attachment storage together. The database contains password hashes, chat and DM history, revision bodies, audit data, IP addresses and policy settings. See `docs/operations/backup-restore.md` for the operator procedure.
 
 CI installs the previous supported `v1.0.0-rc.1` archive into an empty directory, seeds it through the HTTP API, creates and verifies a database plus attachment backup, restores both under new names, runs stable-source migrations, and checks that users, messages, DMs and attachment bytes remain intact. See `docs/operations/release-rehearsal.md`.
 

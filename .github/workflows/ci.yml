@@ -138,6 +138,7 @@ jobs:
       SESSION_COOKIE_SECURE: 0
       ATTACHMENT_STORAGE_PATH: /tmp/chitchat-browser-${{ matrix.project }}-uploads
       CHITCHAT_BASE_URL: http://127.0.0.1:8080
+      MESSAGE_REVISION_REVIEW_ENABLED: 1
 
     steps:
       - uses: actions/checkout@v4

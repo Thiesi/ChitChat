@@ -18,6 +18,9 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 - Added immutable database-triggered revision ledgers for room and direct-message edits and deletions.
 - Added bounded mutation metadata endpoints, edited markers, realtime cross-session refresh, and author/moderator deletion placeholders.
 - Added PostgreSQL/filesystem and Chromium/Firefox coverage for authorship enforcement, block-aware editing, deletion, revision history, and attachment revocation.
+- Added separately configurable administrative review of retained room and direct-message revision chains.
+- Added an exact-message-ID, reason-required review endpoint and browser surface that expose only messages with retained revisions rather than providing user, room, conversation, date, or body search.
+- Added integration and Chromium/Firefox coverage for revision-chain rendering, independent role authorization, reason validation, and content-free audit metadata.
 
 ### Security and privacy
 
@@ -30,7 +33,11 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 - Only an undeleted message's author may edit or delete it; room moderator deletion remains a separate audited action.
 - Direct-message editing is disabled while either participant has blocked the other, preventing an edit from becoming a post-block delivery channel; sender deletion remains available.
 - User-deleted attachments become inaccessible immediately while their binary and immutable revision evidence remain until configured cleanup.
-- Revision bodies are not exposed through participant mutation endpoints or duplicated into audit metadata.
+- Revision bodies are not exposed through participant mutation endpoints or duplicated into ordinary mutation audit metadata.
+- Revision review is disabled by default, has an authorization policy independent from DM inspection and moderation roles, requires a fresh 10-500 character reason, and audits every successful access before returning historical bodies.
+- Successful review audits record the actor, IP, exact message context, reason, and returned revision IDs and actions without copying historical bodies into audit JSON.
+- Messages without retained revisions cannot be opened through the review workflow, limiting it to its stated historical-content purpose.
+- ChitChat does not notify participants when a revision review occurs; the administrative interface and operating documentation make that limitation and the operator's disclosure responsibility explicit.
 
 ## [1.0.0] - 2026-07-17
 

@@ -1,8 +1,8 @@
 # Direct-message API
 
-Direct messages are permanent server-side PostgreSQL records. They are not end-to-end encrypted. `GET /api/v1/session.php` exposes the current retention and administrative-inspection policy, and clients must disclose it to users.
+Direct messages are permanent server-side PostgreSQL records by default. They are not end-to-end encrypted. `GET /api/v1/session.php` exposes the current retention, administrative-inspection, and independently configured revision-review policies, and clients must disclose the relevant privacy behavior to users.
 
-All endpoints require authentication. State-changing user requests and every administrative inspection request also require the current `X-CSRF-Token`.
+All endpoints require authentication. State-changing user requests, every administrative inspection request, and every revision-review request also require the current `X-CSRF-Token`.
 
 ## Message representation
 
@@ -19,6 +19,8 @@ All endpoints require authentication. State-changing user requests and every adm
 ```
 
 `outgoing` is calculated from the requesting or event-target account's perspective. Sender and recipient SSE events therefore carry separate perspective-correct payloads.
+
+Edits and deletions preserve historical bodies in append-only revision rows until direct-message retention hard-deletes the canonical message. Participant history never exposes those revision rows. Deleted canonical DMs use the fixed compatibility body `Message deleted.`.
 
 ## `GET /api/v1/direct-messages/users.php`
 
@@ -145,17 +147,28 @@ No direct-message event is created for a blocked send.
       "end_to_end_encrypted": false,
       "admin_inspection_enabled": true,
       "admin_inspection_role": "super_admin",
-      "retention": "permanent"
+      "retention": "permanently"
+    },
+    "message_revisions": {
+      "admin_review_enabled": false,
+      "admin_review_role": "super_admin",
+      "reason_required": true,
+      "audit_each_review": true,
+      "participant_notification": false
     }
   }
 }
 ```
 
+The bundled inbox separately states that edited and deleted bodies remain in the revision ledger until direct-message retention removes the canonical message.
+
 ## Administrative inspection
 
 Inspection is disabled when `DM_ADMIN_INSPECTION_ENABLED=0`. Otherwise the permitted role is configured as `super_admin` or `admin`; the latter includes both Administrators and Super-Administrators.
 
-User blocking controls future participant sends. It does not alter the configured retention policy or administrative inspection of retained history.
+User blocking controls future participant sends. It does not alter the configured retention policy or administrative inspection of retained canonical history.
+
+Administrative inspection does **not** grant revision-review access. The inspection service reads the canonical DM table only. Historical bodies from prior edits or deletions require the separate policy and endpoint documented in [`message-revision-review.md`](message-revision-review.md).
 
 ### `GET /api/v1/admin/direct-messages/users.php`
 

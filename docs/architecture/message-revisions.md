@@ -4,7 +4,7 @@ ChitChat treats a participant-facing edit or deletion as a mutation of the canon
 
 ## Why database triggers
 
-Revision insertion is implemented with PostgreSQL `BEFORE UPDATE` triggers rather than only inside the new author-facing services. The existing room moderator deletion path predates author editing and deletion. A trigger ensures that both old and new application paths, plus any future correctly authorized update path, cannot change a message body or cross into deleted state without preserving the previous content.
+Revision insertion is implemented with PostgreSQL `BEFORE UPDATE` triggers rather than only inside the author-facing services. The existing room moderator deletion path predates author editing and deletion. A trigger ensures that both old and new application paths, plus any future correctly authorized update path, cannot change a message body or cross into deleted state without preserving the previous content.
 
 The application still writes a normal audit entry for each supported service action. The audit log records who acted, the subject, contextual identifiers, and the request IP. Message bodies are stored only in the revision ledger, not duplicated into audit JSON.
 
@@ -27,4 +27,10 @@ Attachment binaries follow the separate deleted-attachment retention policy. The
 
 ## Access boundary
 
-Revision bodies are not exposed to ordinary participants. The current administrative direct-message inspection workflow also reads canonical retained history and does not silently gain revision or binary access. A future revision-review workflow must define its own role, reason, audit, and disclosure requirements rather than inheriting access accidentally.
+Revision bodies are not exposed to ordinary participants. Administrative direct-message inspection continues to read canonical retained history and does not inherit revision access.
+
+Revision review is a separate capability with its own disabled-by-default environment switch and role policy. It accepts only an exact room or direct-message ID, requires a fresh reason on every successful request, refuses messages with no revision rows, and writes an audit entry before returning bodies. This avoids creating a second searchable history browser and prevents DM-inspection, moderation, or room-owner permissions from expanding implicitly.
+
+The audit entry stores the reviewer, IP, reason, message context, and returned revision IDs and actions. It never duplicates historical bodies into audit JSON.
+
+ChitChat does not notify participants when revision review occurs. The administrative page and API documentation make that limitation explicit, the DM interface discloses retained revisions, and deployment operators are responsible for broader policy disclosure.
