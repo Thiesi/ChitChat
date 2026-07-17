@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use ChitChat\Account\AccountClosureService;
+use ChitChat\Auth\AuthService;
 use ChitChat\Auth\MfaService;
 use ChitChat\Auth\SessionManager;
 use ChitChat\Database;
@@ -35,6 +36,7 @@ Endpoint::run($config, static function () use ($config): ApiResult {
         ], 202);
     }
 
+    (new AuthService($pdo, $config))->completeLogin($user, $ipAddress);
     SessionManager::login($user);
     return ApiResult::ok([
         'csrf_token' => SessionManager::csrfToken(),
