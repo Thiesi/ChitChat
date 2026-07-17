@@ -88,7 +88,10 @@ final class PrometheusEncoder
         return implode("\n", $lines) . "\n";
     }
 
-    /** @param array<string, mixed> $source @return array<string, mixed> */
+    /**
+     * @param array<string, mixed> $source
+     * @return array<string, mixed>
+     */
     private static function section(array $source, string $key): array
     {
         $value = $source[$key] ?? null;
