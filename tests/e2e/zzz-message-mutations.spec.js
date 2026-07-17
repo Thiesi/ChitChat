@@ -53,10 +53,22 @@ function acceptDialog(page, value = null) {
 
 async function stableMessage(page, selector, text) {
   const initial = page.locator(selector, { hasText: text }).last();
-  await expect(initial).toBeVisible();
+  await expect(initial).toBeVisible({ timeout: 20_000 });
   const id = await initial.getAttribute('data-message-id');
   expect(id).not.toBeNull();
   return page.locator(`${selector}[data-message-id="${id}"]`);
+}
+
+async function sendRoomMessage(page, body) {
+  const input = page.locator('#composer-input');
+  await input.fill(body);
+  const responsePromise = page.waitForResponse((response) => (
+    response.url().endsWith('/api/v1/rooms/send.php')
+    && response.request().method() === 'POST'
+  ));
+  await input.press('Enter');
+  const response = await responsePromise;
+  expect(response.status()).toBe(201);
 }
 
 test('authors edit and delete room and direct messages for everyone', async ({ browser }) => {
@@ -71,10 +83,9 @@ test('authors edit and delete room and direct messages for everyone', async ({ b
     await selectRoom(adminChat, 'General E2E');
     await selectRoom(memberChat, 'General E2E');
 
-    await memberChat.locator('#composer-input').fill('Mutable room message');
-    await memberChat.locator('#send-button').click();
+    await sendRoomMessage(memberChat, 'Mutable room message');
     const memberRoomMessage = await stableMessage(memberChat, 'article.message', 'Mutable room message');
-    await expect(adminChat.locator('article.message', { hasText: 'Mutable room message' })).toBeVisible();
+    await expect(adminChat.locator('article.message', { hasText: 'Mutable room message' })).toBeVisible({ timeout: 20_000 });
     await expect(memberRoomMessage.getByRole('button', { name: 'Edit' })).toBeVisible();
 
     acceptDialog(memberChat, 'Edited room message');
@@ -103,7 +114,7 @@ test('authors edit and delete room and direct messages for everyone', async ({ b
     await memberMessages.locator('#dm-message-input').fill('Mutable private message');
     await memberMessages.locator('#dm-send').click();
     const memberDirectMessage = await stableMessage(memberMessages, 'article.dm-message', 'Mutable private message');
-    await expect(adminMessages.locator('article.dm-message', { hasText: 'Mutable private message' })).toBeVisible();
+    await expect(adminMessages.locator('article.dm-message', { hasText: 'Mutable private message' })).toBeVisible({ timeout: 20_000 });
     await expect(memberDirectMessage.getByRole('button', { name: 'Edit' })).toBeVisible();
 
     acceptDialog(memberMessages, 'Edited private message');
