@@ -129,10 +129,10 @@ final class DirectMessageAttachmentServiceTest extends DatabaseTestCase
         }
 
         try {
-            (new DirectMessageAttachmentService($this->pdo, $this->configWithStorage($storage, 10)))->upload(
+            (new DirectMessageAttachmentService($this->pdo, $this->configWithStorage($storage, 1024)))->upload(
                 $bob,
                 $alice->id,
-                IncomingFile::forTesting('large.txt', $this->temporaryFile(str_repeat('x', 20))),
+                IncomingFile::forTesting('large.txt', $this->temporaryFile(str_repeat('x', 2048))),
                 '',
                 '127.0.0.2',
             );
