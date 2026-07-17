@@ -9,7 +9,6 @@ use ChitChat\Config;
 use ChitChat\Http\ApiException;
 use ChitChat\Http\RateLimiter;
 use PDO;
-use RuntimeException;
 
 final class PrivilegedStepUpService
 {
