@@ -3,10 +3,14 @@
 declare(strict_types=1);
 namespace ChitChat;
 
+use ChitChat\Http\RateLimitPolicy;
+use ChitChat\Http\RateLimitPolicySet;
 use InvalidArgumentException;
 
 final readonly class Config
 {
+    public RateLimitPolicySet $rateLimits;
+
     /** @param 'Lax'|'Strict'|'None' $sessionCookieSameSite */
     public function __construct(
         public string $environment,
@@ -36,6 +40,7 @@ final readonly class Config
         public string $metricsBearerToken = '',
         public int $maintenanceMaxAgeHours = 26,
         public int $privilegedStepUpMaxAgeSeconds = 600,
+        ?RateLimitPolicySet $rateLimits = null,
     ) {
         if ($this->databasePort < 1 || $this->databasePort > 65535) {
             throw new InvalidArgumentException('DB_PORT must be between 1 and 65535.');
@@ -104,10 +109,18 @@ final readonly class Config
                 throw new InvalidArgumentException('Required application configuration is missing.');
             }
         }
+
+        $this->rateLimits = $rateLimits ?? RateLimitPolicySet::defaults(
+            $this->loginMaxAttempts,
+            $this->loginLockMinutes * 60,
+        );
     }
 
     public static function fromEnvironment(): self
     {
+        $loginMaxAttempts = self::envInt('LOGIN_MAX_ATTEMPTS', 10);
+        $loginLockMinutes = self::envInt('LOGIN_LOCK_MINUTES', 15);
+
         return new self(
             environment: self::env('APP_ENV', 'production'),
             debug: self::envBool('APP_DEBUG', false),
@@ -122,8 +135,8 @@ final readonly class Config
             sessionName: self::env('SESSION_NAME', 'CHITCHATSESSID'),
             sessionCookieSecure: self::envBool('SESSION_COOKIE_SECURE', true),
             sessionCookieSameSite: self::envSameSite('SESSION_COOKIE_SAMESITE', 'Lax'),
-            loginMaxAttempts: self::envInt('LOGIN_MAX_ATTEMPTS', 10),
-            loginLockMinutes: self::envInt('LOGIN_LOCK_MINUTES', 15),
+            loginMaxAttempts: $loginMaxAttempts,
+            loginLockMinutes: $loginLockMinutes,
             presenceLeaseSeconds: self::envInt('PRESENCE_LEASE_SECONDS', 45),
             inactivityWarningSeconds: self::envInt('INACTIVITY_WARNING_SECONDS', 60),
             attachmentStoragePath: self::env('ATTACHMENT_STORAGE_PATH', dirname(__DIR__) . '/var/uploads'),
@@ -136,7 +149,16 @@ final readonly class Config
             metricsBearerToken: self::env('METRICS_BEARER_TOKEN', ''),
             maintenanceMaxAgeHours: self::envInt('MAINTENANCE_MAX_AGE_HOURS', 26),
             privilegedStepUpMaxAgeSeconds: self::envInt('PRIVILEGED_STEP_UP_MAX_AGE_SECONDS', 600),
+            rateLimits: RateLimitPolicySet::fromEnvironment(
+                $loginMaxAttempts,
+                $loginLockMinutes * 60,
+            ),
         );
+    }
+
+    public function rateLimitPolicy(string $name): RateLimitPolicy
+    {
+        return $this->rateLimits->get($name);
     }
 
     public static function loadEnvFile(string $path): void
