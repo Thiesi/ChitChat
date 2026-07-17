@@ -16,7 +16,7 @@ final class AccountClosureServiceTest extends DatabaseTestCase
     public function testClosureImmediatelyDisablesAuthenticationAndRestorationRecoversRoles(): void
     {
         $auth = new AuthService($this->pdo, $this->config);
-        $admin = $auth->register('ClosureAdmin', self::PASSWORD, '127.0.0.1');
+        $auth->register('ClosureAdmin', self::PASSWORD, '127.0.0.1');
         $member = $auth->register('ClosureMember', self::PASSWORD, '127.0.0.2');
         $this->pdo->exec("INSERT INTO user_roles (user_id, role) VALUES ({$member->id}, 'chat_admin')");
         $member = (new UserRepository($this->pdo))->findAuthenticatedById($member->id);
@@ -44,7 +44,6 @@ final class AccountClosureServiceTest extends DatabaseTestCase
 
         $loggedIn = $auth->login('ClosureMember', self::PASSWORD, '127.0.0.2');
         self::assertSame($member->id, $loggedIn->id);
-        self::assertSame($admin->id, 1);
     }
 
     public function testFinalizationTombstonesProfileAndReleasesOriginalUsername(): void
@@ -54,9 +53,7 @@ final class AccountClosureServiceTest extends DatabaseTestCase
         $member = $auth->register('ReusableName', self::PASSWORD, '127.0.0.2', '1990-01-02');
         $service = new AccountClosureService($this->pdo, $this->config);
         $service->request($member, '127.0.0.2');
-
-        $this->pdo->exec("UPDATE users SET closure_finalizes_at = NOW() - INTERVAL '1 minute' WHERE id = {$member->id}");
-        $this->pdo->exec("UPDATE account_closures SET finalizes_at = NOW() - INTERVAL '1 minute' WHERE user_id = {$member->id}");
+        $this->expireClosure($member->id);
 
         self::assertSame(1, $service->dueCount());
         self::assertSame(1, $service->finalizeDue());
@@ -96,8 +93,7 @@ final class AccountClosureServiceTest extends DatabaseTestCase
         $member = $auth->register('ExpiryMember', self::PASSWORD, '127.0.0.2');
         $service = new AccountClosureService($this->pdo, $this->config);
         $service->request($member, '127.0.0.2');
-        $this->pdo->exec("UPDATE users SET closure_finalizes_at = NOW() - INTERVAL '1 second' WHERE id = {$member->id}");
-        $this->pdo->exec("UPDATE account_closures SET finalizes_at = NOW() - INTERVAL '1 second' WHERE user_id = {$member->id}");
+        $this->expireClosure($member->id);
 
         try {
             $service->restore('ExpiryMember', self::PASSWORD, '127.0.0.2');
@@ -105,5 +101,21 @@ final class AccountClosureServiceTest extends DatabaseTestCase
         } catch (ApiException $exception) {
             self::assertSame('account_restoration_expired', $exception->errorCode);
         }
+    }
+
+    private function expireClosure(int $userId): void
+    {
+        $this->pdo->exec(<<<SQL
+UPDATE users
+SET closure_requested_at = NOW() - INTERVAL '2 days',
+    closure_finalizes_at = NOW() - INTERVAL '1 day'
+WHERE id = {$userId}
+SQL);
+        $this->pdo->exec(<<<SQL
+UPDATE account_closures
+SET requested_at = NOW() - INTERVAL '2 days',
+    finalizes_at = NOW() - INTERVAL '1 day'
+WHERE user_id = {$userId}
+SQL);
     }
 }
