@@ -14,10 +14,14 @@ Administrators and Super-Administrators can open `/admin-status.php` from the ad
 - active and soft-deleted attachment metadata, tracked bytes, and filesystem capacity;
 - failed login attempts recorded in the previous 24 hours;
 - current request-rate-limit rows;
+- effective named rate-limit maxima and windows;
+- aggregate allowed/rejected rate-limit decisions and last-decision timestamps by fixed policy name;
 - the latest maintenance invocation and the latest successful destructive cleanup;
 - whether destructive maintenance is overdue according to `MAINTENANCE_MAX_AGE_HOURS`.
 
-The page never lists usernames, message bodies, attachment names, IP addresses, or bearer secrets. The underlying API is `GET /api/v1/admin/system-status.php` and requires Administrator access.
+The page never lists usernames, message bodies, attachment names, IP addresses, rate-limit identifier hashes, or bearer secrets. The underlying API is `GET /api/v1/admin/system-status.php` and requires Administrator access.
+
+See [`rate-limiting.md`](rate-limiting.md) for policy configuration, bounds, coverage, and privacy behavior.
 
 ## SSE connection leases
 
@@ -51,7 +55,14 @@ When disabled, the endpoint returns HTTP 404. When enabled, requests require:
 Authorization: Bearer <configured token>
 ```
 
-Incorrect or missing credentials return HTTP 401. Successful responses use the Prometheus text exposition format and include gauges for database latency and size, attachment metadata and capacity, SSE and presence leases, retained events, failed logins, rate-limit rows, and maintenance freshness.
+Incorrect or missing credentials return HTTP 401. Successful responses use the Prometheus text exposition format and include gauges for database latency and size, attachment metadata and capacity, SSE and presence leases, retained events, failed logins, rate-limit rows, and maintenance freshness. Monotonic rate-limit counters are exported as:
+
+```text
+chitchat_rate_limit_decisions_total{policy="room_send",outcome="allowed"} 123
+chitchat_rate_limit_decisions_total{policy="room_send",outcome="rejected"} 4
+```
+
+The policy label is selected from a fixed application-defined list rather than user input.
 
 Example Prometheus configuration:
 
@@ -78,6 +89,7 @@ Useful initial alerts include:
 - `chitchat_maintenance_overdue == 1`;
 - attachment filesystem free space below the operator's safety threshold;
 - sustained growth in `chitchat_failed_logins_24h`;
+- an unexpected increase in `chitchat_rate_limit_decisions_total{outcome="rejected"}` for login, step-up, inspection, or revision review;
 - unexpected disappearance of all SSE connections during known active periods;
 - PostgreSQL status-query latency materially above the installation's normal baseline.
 
