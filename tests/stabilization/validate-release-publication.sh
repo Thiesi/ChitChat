@@ -32,6 +32,11 @@ case "$PUBLICATION" in
         ;;
 esac
 
+if [[ "${GITHUB_ACTIONS:-}" == 'true' ]]; then
+    [[ "${GITHUB_REF:-}" == 'refs/heads/main' ]] \
+        || fail 'the release workflow must be dispatched from the main branch'
+fi
+
 command -v git >/dev/null 2>&1 || fail 'git is required'
 
 git fetch --quiet --no-tags origin '+refs/heads/main:refs/remotes/origin/main'
