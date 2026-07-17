@@ -181,14 +181,14 @@ jobs:
     permissions:
       contents: write
     env:
-      RELEASE_COMMIT: d6fe489c0aba4bd5248de02c9a1a7a4b371c22e1
+      RELEASE_COMMIT: 827c29d458e2d4c19e9e08fd8df5265e496219d8
       RELEASE_TAG: v1.0.0-rc.1
       SOURCE_BRANCH: ${{ github.head_ref }}
 
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: d6fe489c0aba4bd5248de02c9a1a7a4b371c22e1
+          ref: 827c29d458e2d4c19e9e08fd8df5265e496219d8
           fetch-depth: 0
 
       - name: Create annotated tag and pre-release
