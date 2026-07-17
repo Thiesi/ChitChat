@@ -1,6 +1,6 @@
-# ChitChat installation and evaluation
+# ChitChat installation and operation
 
-This document applies to the clean v1 reconstruction. `v1.0.0-rc.1` is a release candidate intended for controlled evaluation and deployment rehearsal; compatibility changes may still occur before stable `1.0.0`.
+This document applies to stable `v1.0.0` of the clean reconstruction. The supported initial deployment model is one application server backed by PostgreSQL; review the privacy defaults, known limitations, backup procedure, and worker-capacity requirements before serving users.
 
 ## Requirements
 
@@ -149,7 +149,7 @@ Database-backed fixed-window limits are shared by all PHP workers: five registra
 
 Back up PostgreSQL and attachment storage together. The database contains password hashes, chat and DM history, audit data, IP addresses and policy settings. See `docs/operations/backup-restore.md` for the operator procedure.
 
-CI also installs the published `v1.0.0-rc.1` archive into an empty directory, seeds it through the HTTP API, creates and verifies a database plus attachment backup, restores both under new names, runs current migrations, and checks that users, messages, DMs and attachment bytes remain intact. See `docs/operations/release-rehearsal.md`.
+CI installs the previous supported `v1.0.0-rc.1` archive into an empty directory, seeds it through the HTTP API, creates and verifies a database plus attachment backup, restores both under new names, runs stable-source migrations, and checks that users, messages, DMs and attachment bytes remain intact. See `docs/operations/release-rehearsal.md`.
 
 ## Production web-root rule
 
