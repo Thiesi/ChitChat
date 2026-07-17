@@ -7,7 +7,10 @@ use InvalidArgumentException;
 
 final readonly class Config
 {
-    /** @param 'Lax'|'Strict'|'None' $sessionCookieSameSite */
+    /**
+     * @param 'Lax'|'Strict'|'None' $sessionCookieSameSite
+     * @param 'super_admin'|'admin' $directMessageInspectionRole
+     */
     public function __construct(
         public string $environment,
         public bool $debug,
@@ -28,6 +31,8 @@ final readonly class Config
         public int $inactivityWarningSeconds,
         public string $attachmentStoragePath,
         public int $attachmentMaxBytes,
+        public bool $directMessageInspectionEnabled,
+        public string $directMessageInspectionRole,
     ) {
         if ($this->databasePort < 1 || $this->databasePort > 65535) {
             throw new InvalidArgumentException('DB_PORT must be between 1 and 65535.');
@@ -63,6 +68,10 @@ final readonly class Config
             throw new InvalidArgumentException('ATTACHMENT_STORAGE_PATH must be outside the public web root.');
         }
 
+        if (!in_array($this->directMessageInspectionRole, ['super_admin', 'admin'], true)) {
+            throw new InvalidArgumentException('DM_ADMIN_INSPECTION_ROLE must be super_admin or admin.');
+        }
+
         if ($this->sessionCookieSameSite === 'None' && !$this->sessionCookieSecure) {
             throw new InvalidArgumentException('SameSite=None requires a secure session cookie.');
         }
@@ -96,6 +105,8 @@ final readonly class Config
             inactivityWarningSeconds: self::envInt('INACTIVITY_WARNING_SECONDS', 60),
             attachmentStoragePath: self::env('ATTACHMENT_STORAGE_PATH', dirname(__DIR__) . '/var/uploads'),
             attachmentMaxBytes: self::envInt('ATTACHMENT_MAX_BYTES', 10_485_760),
+            directMessageInspectionEnabled: self::envBool('DM_ADMIN_INSPECTION_ENABLED', true),
+            directMessageInspectionRole: self::envInspectionRole('DM_ADMIN_INSPECTION_ROLE', 'super_admin'),
         );
     }
 
@@ -178,6 +189,17 @@ final readonly class Config
         $value = ucfirst(strtolower(self::env($name, $default)));
         if (!in_array($value, ['Lax', 'Strict', 'None'], true)) {
             throw new InvalidArgumentException($name . ' must be Lax, Strict, or None.');
+        }
+
+        return $value;
+    }
+
+    /** @return 'super_admin'|'admin' */
+    private static function envInspectionRole(string $name, string $default): string
+    {
+        $value = strtolower(self::env($name, $default));
+        if (!in_array($value, ['super_admin', 'admin'], true)) {
+            throw new InvalidArgumentException($name . ' must be super_admin or admin.');
         }
 
         return $value;
