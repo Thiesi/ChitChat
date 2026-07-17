@@ -47,7 +47,9 @@ final class MessageRevisionReviewServiceTest extends DatabaseTestCase
         self::assertSame('room', $result['kind']);
         self::assertSame($message['id'], $result['message']['id']);
         self::assertArrayNotHasKey('body', $result['message']);
-        self::assertSame('review-room', $result['message']['room']['key']);
+        $roomContext = $result['message']['room'] ?? null;
+        self::assertIsArray($roomContext);
+        self::assertSame('review-room', $roomContext['key']);
         self::assertCount(2, $result['revisions']);
         self::assertSame('edit', $result['revisions'][0]['action']);
         self::assertSame('Original room evidence', $result['revisions'][0]['body_before']);
@@ -197,7 +199,10 @@ SQL)->fetch();
         )->fetchColumn();
     }
 
-    /** @param 'super_admin'|'admin' $role @param 'super_admin'|'admin' $inspectionRole */
+    /**
+     * @param 'super_admin'|'admin' $role
+     * @param 'super_admin'|'admin' $inspectionRole
+     */
     private function reviewConfig(
         bool $enabled,
         string $role,
