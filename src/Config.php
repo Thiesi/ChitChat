@@ -31,8 +31,8 @@ final readonly class Config
         public int $inactivityWarningSeconds,
         public string $attachmentStoragePath,
         public int $attachmentMaxBytes,
-        public bool $directMessageInspectionEnabled,
-        public string $directMessageInspectionRole,
+        public bool $directMessageInspectionEnabled = true,
+        public string $directMessageInspectionRole = 'super_admin',
     ) {
         if ($this->databasePort < 1 || $this->databasePort > 65535) {
             throw new InvalidArgumentException('DB_PORT must be between 1 and 65535.');
