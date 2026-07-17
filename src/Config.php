@@ -7,10 +7,7 @@ use InvalidArgumentException;
 
 final readonly class Config
 {
-    /**
-     * @param 'Lax'|'Strict'|'None' $sessionCookieSameSite
-     * @param 'super_admin'|'admin' $directMessageInspectionRole
-     */
+    /** @param 'Lax'|'Strict'|'None' $sessionCookieSameSite */
     public function __construct(
         public string $environment,
         public bool $debug,
