@@ -59,8 +59,40 @@ $appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUT
         <button id="personal-data-export" class="primary-button" type="button">Download JSON export</button>
         <p id="personal-data-status" class="account-muted" role="status" aria-live="polite"></p>
       </div>
-      <p id="account-error" class="error-text" role="alert"></p>
     </section>
+
+    <section class="account-card" aria-labelledby="account-closure-heading">
+      <div>
+        <p class="account-eyebrow">Account lifecycle</p>
+        <h2 id="account-closure-heading">Close your account</h2>
+      </div>
+      <p>
+        Closure disables sign-in and invalidates every active session immediately. A 14-day cooling-off period then
+        allows explicit restoration with your current username and password. After that deadline, maintenance
+        permanently tombstones your username, password and birth date.
+      </p>
+      <details class="account-details">
+        <summary>What remains after closure</summary>
+        <p>
+          Shared room and direct-message history, message revisions, attachment evidence, room ownership and audit
+          records remain subject to the installation's retention policy. They are attributed to a generic closed-account
+          identity so shared conversations and security evidence are not silently rewritten.
+        </p>
+        <p>
+          Your original username remains reserved during cooling-off and becomes reusable only after finalization.
+        </p>
+      </details>
+      <label>
+        <input id="account-closure-confirm" type="checkbox">
+        I understand that I will be signed out immediately and must restore the account before the deadline.
+      </label>
+      <div class="account-action-row">
+        <button id="account-closure-request" class="danger-button" type="button" disabled>Request account closure</button>
+        <p id="account-closure-status" class="account-muted" role="status" aria-live="polite"></p>
+      </div>
+    </section>
+
+    <p id="account-error" class="error-text" role="alert"></p>
   </main>
 
   <script type="module" src="/assets/js/account.js"></script>
