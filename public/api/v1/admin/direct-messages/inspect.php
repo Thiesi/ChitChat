@@ -6,6 +6,7 @@ use ChitChat\Auth\SessionManager;
 use ChitChat\Auth\UserRepository;
 use ChitChat\Database;
 use ChitChat\DirectMessage\DirectMessageInspectionService;
+use ChitChat\Http\ApiException;
 use ChitChat\Http\ApiResult;
 use ChitChat\Http\Endpoint;
 use ChitChat\Http\Request;
@@ -19,6 +20,15 @@ Endpoint::run($config, static function () use ($config): ApiResult {
     $payload = Request::json();
     $pdo = Database::connect($config);
     $actor = SessionManager::requireUser(new UserRepository($pdo));
+    if (!$config->directMessageInspectionEnabled) {
+        throw new ApiException(403, 'dm_inspection_disabled', 'Administrative direct-message inspection is disabled.');
+    }
+    $allowed = $config->directMessageInspectionRole === 'super_admin'
+        ? $actor->hasRole('super_admin')
+        : $actor->canManageUsers();
+    if (!$allowed) {
+        throw new ApiException(403, 'forbidden', 'You are not allowed to inspect direct messages.');
+    }
     SessionManager::requirePrivilegedStepUp($actor, $config);
 
     return ApiResult::ok((new DirectMessageInspectionService($pdo, $config))->inspect(
