@@ -1,0 +1,83 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use ChitChat\Backup\BackupException;
+use ChitChat\Backup\BackupManager;
+use ChitChat\Backup\CliArguments;
+use ChitChat\Backup\ProcessRunner;
+use ChitChat\Config;
+use ChitChat\Database;
+
+umask(0077);
+$root = dirname(__DIR__);
+require $root . '/vendor/autoload.php';
+Config::loadEnvFile($root . '/.env');
+
+$help = <<<'TEXT'
+Usage: bin/chitchat-backup --destination PATH [--application-stopped] [--json]
+
+Create a manifest-bound PostgreSQL and attachment backup set.
+
+Options:
+  --destination PATH       Absolute parent directory for timestamped backup sets.
+  --application-stopped    Record that application writes were stopped or drained.
+  --json                   Emit machine-readable JSON.
+  --help                   Show this help.
+
+Without --application-stopped the backup is marked live. The command detects
+attachment inventory changes, but PostgreSQL and files still cannot be captured
+in one atomic transaction; offline backups remain the strongest option.
+TEXT;
+
+try {
+    /** @var list<string> $argv */
+    $options = CliArguments::parse($argv, [
+        'destination' => 'value',
+        'application-stopped' => 'flag',
+        'json' => 'flag',
+        'help' => 'flag',
+    ]);
+
+    if (CliArguments::flag($options, 'help')) {
+        fwrite(STDOUT, $help . "\n");
+        exit(0);
+    }
+
+    $config = Config::fromEnvironment();
+    $manager = new BackupManager($config, Database::connect($config), new ProcessRunner());
+    $result = $manager->create(
+        CliArguments::string($options, 'destination'),
+        CliArguments::flag($options, 'application-stopped'),
+    );
+    $manifest = $result['manifest'];
+    $manifestData = $manifest->toArray();
+    $migrations = $manifest->migrations();
+    $consistency = $manifestData['consistency'];
+    $database = $manifestData['database'];
+
+    if (CliArguments::flag($options, 'json')) {
+        fwrite(STDOUT, json_encode([
+            'status' => 'ok',
+            'backup_path' => $result['backup_path'],
+            'backup_id' => $manifest->backupId(),
+            'application_version' => $manifest->applicationVersion(),
+            'consistency' => is_array($consistency) ? ($consistency['mode'] ?? null) : null,
+            'migration_count' => count($migrations),
+            'latest_migration' => $migrations === [] ? null : $migrations[count($migrations) - 1],
+            'source_database' => is_array($database) ? ($database['source_name'] ?? null) : null,
+            'verified' => true,
+        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . "\n");
+        exit(0);
+    }
+
+    fwrite(STDOUT, 'Backup created and verified: ' . $result['backup_path'] . "\n");
+    fwrite(STDOUT, 'Application version: ' . $manifest->applicationVersion() . "\n");
+    fwrite(STDOUT, 'Consistency: ' . (is_array($consistency) ? (string) ($consistency['mode'] ?? 'unknown') : 'unknown') . "\n");
+    fwrite(STDOUT, 'Migrations: ' . count($migrations) . "\n");
+} catch (Throwable $exception) {
+    $message = $exception instanceof BackupException ? $exception->getMessage() : 'Unexpected error: ' . $exception->getMessage();
+    fwrite(STDERR, 'Backup failed: ' . $message . "\n");
+    exit(1);
+}
