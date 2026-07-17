@@ -6,6 +6,7 @@ use ChitChat\Admin\SystemSettingsService;
 use ChitChat\Auth\SessionManager;
 use ChitChat\Auth\UserRepository;
 use ChitChat\Database;
+use ChitChat\Http\ApiException;
 use ChitChat\Http\ApiResult;
 use ChitChat\Http\Endpoint;
 use ChitChat\Http\Request;
@@ -19,6 +20,9 @@ Endpoint::run($config, static function () use ($config): ApiResult {
     $payload = Request::json();
     $pdo = Database::connect($config);
     $actor = SessionManager::requireUser(new UserRepository($pdo));
+    if (!$actor->hasRole('super_admin')) {
+        throw new ApiException(403, 'forbidden', 'Operational settings require Super-Administrator access.');
+    }
     SessionManager::requirePrivilegedStepUp($actor, $config);
 
     $settings = (new SystemSettingsService($pdo))->update(
