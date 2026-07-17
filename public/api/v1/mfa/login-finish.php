@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use ChitChat\Auth\AuthService;
 use ChitChat\Auth\MfaService;
 use ChitChat\Auth\SessionManager;
 use ChitChat\Auth\UserRepository;
@@ -32,6 +33,7 @@ Endpoint::run($config, static function () use ($config): ApiResult {
         WebAuthnRequest::credential($payload),
         $ipAddress,
     );
+    (new AuthService($pdo, $config))->completeLogin($user, $ipAddress);
     SessionManager::login($user);
     SessionManager::establishPrivilegedStepUp($user, 'passkey');
 
