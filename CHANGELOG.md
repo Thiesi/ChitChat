@@ -30,6 +30,9 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 - Added session disclosure of step-up status, a shared accessible browser password dialog, and one-time automatic retry of protected JSON POST requests after successful verification.
 - Added database-backed step-up attempt limiting plus separate success and failure audit records.
 - Added unit, PostgreSQL integration, and Chromium/Firefox coverage for failed verification, successful elevation, session-version binding, expiry, rate limiting, and reuse during the active window.
+- Added a signed-in account page with a step-up-protected JSON export of retained profile, room, direct-message, security-history, and actor-audit data.
+- Added repeatable-read export snapshots, versioned export metadata, per-account export throttling, and successful-generation audits containing aggregate counts only.
+- Added PostgreSQL integration and Chromium/Firefox coverage for export scope, download behavior, revision ownership, block-direction privacy, and secret/storage-key exclusion.
 
 ### Security and privacy
 
@@ -52,6 +55,8 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 - Coarse role and feature-policy checks occur before step-up, so unauthorized accounts are denied without receiving a password prompt.
 - Successful and failed step-up audits contain method and timing policy only; passwords are never written to audit metadata.
 - Password step-up is recent reauthentication rather than multi-factor authentication and does not replace roles, CSRF, required reasons, per-action audits, or target-specific authorization.
+- Personal-data exports exclude credentials, session and step-up state, attachment bytes and storage keys, other users' incoming block state, and hidden revisions for messages authored by somebody else.
+- Successful export audits are created after the exported activity snapshot and contain only the format version and aggregate item counts, avoiding recursive inclusion and content duplication.
 
 ## [1.0.0] - 2026-07-17
 

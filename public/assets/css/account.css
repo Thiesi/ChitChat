@@ -1,0 +1,93 @@
+.account-shell {
+  width: min(100% - 2rem, 58rem);
+  margin: 0 auto;
+  padding: 2rem 0 4rem;
+}
+
+.account-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.account-header h1,
+.account-card h2 {
+  margin: 0;
+}
+
+.account-eyebrow {
+  margin: 0 0 0.35rem;
+  color: var(--accent-strong);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.account-muted {
+  margin: 0.4rem 0 0;
+  color: var(--muted);
+}
+
+.account-card {
+  display: grid;
+  gap: 1rem;
+  padding: clamp(1.25rem, 4vw, 2rem);
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.account-card > p {
+  margin: 0;
+  line-height: 1.6;
+}
+
+.account-details {
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  background: var(--surface-2);
+}
+
+.account-details summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.account-details p {
+  margin: 0.85rem 0 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.account-action-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.account-action-row .account-muted {
+  margin: 0;
+}
+
+@media (max-width: 40rem) {
+  .account-shell {
+    width: min(100% - 1rem, 58rem);
+    padding-top: 1rem;
+  }
+
+  .account-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .account-header .secondary-button,
+  .account-action-row .primary-button {
+    text-align: center;
+  }
+}
