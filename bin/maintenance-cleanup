@@ -4,7 +4,7 @@
 declare(strict_types=1);
 
 use ChitChat\Database;
-use ChitChat\Maintenance\MaintenanceService;
+use ChitChat\Maintenance\CleanupService;
 
 if (PHP_SAPI !== 'cli') {
     fwrite(STDERR, "This command may only run from the CLI.\n");
@@ -22,7 +22,7 @@ if ($unknown !== []) {
 }
 
 try {
-    $result = (new MaintenanceService(Database::connect($config), $config))->run(
+    $result = (new CleanupService(Database::connect($config), $config))->run(
         in_array('--dry-run', $arguments, true),
     );
     fwrite(STDOUT, json_encode($result, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT) . "\n");
