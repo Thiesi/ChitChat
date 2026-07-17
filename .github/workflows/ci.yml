@@ -280,7 +280,7 @@ jobs:
       - name: Install Nginx and PHP-FPM
         run: |
           sudo apt-get update
-          sudo apt-get install -y jq nginx php8.4-fpm postgresql-client
+          sudo apt-get install -y jq nginx php-fpm php-pgsql php-mbstring postgresql-client
       - run: composer install --no-interaction --prefer-dist
       - run: composer migrate
       - name: Rehearse Nginx/PHP-FPM SSE delivery
