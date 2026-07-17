@@ -24,6 +24,10 @@ First release candidate of the clean v1 reconstruction.
 - Health/readiness endpoints, Apache/Nginx/PHP-FPM operational guidance, backup/restore procedures, and maintenance scheduling documentation.
 - PHP linting, PHPStan level 8, PostgreSQL integration tests, JavaScript syntax checks, maintenance CLI validation, and a real two-session Chromium release journey in CI.
 
+### Fixed
+
+- Authentication-state changes that occurred during an in-flight navigation-policy refresh now schedule a follow-up refresh, preventing eligible users from intermittently seeing the Administration link remain hidden immediately after registration or login.
+
 ### Security and privacy defaults
 
 - Direct messages are not end-to-end encrypted.
