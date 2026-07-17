@@ -1,0 +1,208 @@
+name: Publish v1.0.0-rc.1
+
+on:
+  push:
+    branches:
+      - release/publish-v1.0.0-rc.1
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-v1.0.0-rc.1
+  cancel-in-progress: false
+
+env:
+  RELEASE_COMMIT: d6fe489c0aba4bd5248de02c9a1a7a4b371c22e1
+  RELEASE_TAG: v1.0.0-rc.1
+
+jobs:
+  static:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_COMMIT }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: fileinfo, mbstring, pdo_pgsql
+          coverage: none
+          tools: composer:v2
+
+      - run: composer install --no-interaction --prefer-dist
+      - run: composer lint
+      - name: Check JavaScript syntax
+        run: |
+          find public/assets/js tests/e2e -type f -name '*.js' -print0 | xargs -0 -n1 node --check
+          node --check playwright.config.js
+      - run: composer analyse -- --error-format=raw
+
+  integration:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: chitchat_release
+          POSTGRES_USER: chitchat
+          POSTGRES_PASSWORD: chitchat
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U chitchat -d chitchat_release"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      APP_ENV: test
+      APP_DEBUG: 1
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_NAME: chitchat_release
+      DB_USER: chitchat
+      DB_PASSWORD: chitchat
+      DB_SSLMODE: disable
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_COMMIT }}
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: fileinfo, mbstring, pdo_pgsql
+          coverage: none
+          tools: composer:v2
+
+      - run: composer install --no-interaction --prefer-dist
+      - run: composer migrate
+      - run: composer test
+      - run: composer maintenance:dry-run
+
+  browser:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: chitchat_release_browser
+          POSTGRES_USER: chitchat
+          POSTGRES_PASSWORD: chitchat
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U chitchat -d chitchat_release_browser"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      APP_ENV: test
+      APP_DEBUG: 1
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_NAME: chitchat_release_browser
+      DB_USER: chitchat
+      DB_PASSWORD: chitchat
+      DB_SSLMODE: disable
+      SESSION_COOKIE_SECURE: 0
+      ATTACHMENT_STORAGE_PATH: /tmp/chitchat-release-browser-uploads
+      CHITCHAT_BASE_URL: http://127.0.0.1:8080
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_COMMIT }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: fileinfo, mbstring, pdo_pgsql
+          coverage: none
+          tools: composer:v2
+
+      - run: composer install --no-interaction --prefer-dist
+      - run: composer migrate
+      - run: npm ci --no-audit --no-fund
+      - run: npx playwright install --with-deps chromium
+      - name: Start ChitChat
+        run: |
+          mkdir -p "$ATTACHMENT_STORAGE_PATH"
+          chmod 700 "$ATTACHMENT_STORAGE_PATH"
+          PHP_CLI_SERVER_WORKERS=8 php -S 127.0.0.1:8080 -t public > php-server.log 2>&1 &
+          curl --fail --retry 30 --retry-delay 1 --retry-all-errors http://127.0.0.1:8080/ready.php
+      - run: npm run test:e2e
+      - name: Upload diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-browser-diagnostics
+          path: |
+            php-server.log
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  publish:
+    needs:
+      - static
+      - integration
+      - browser
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_COMMIT }}
+          fetch-depth: 0
+
+      - name: Create annotated tag and pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if git ls-remote --exit-code --tags origin "refs/tags/${RELEASE_TAG}" >/dev/null 2>&1; then
+            resolved=$(git ls-remote origin "refs/tags/${RELEASE_TAG}^{}" | awk '{print $1}')
+            if [ -z "$resolved" ]; then
+              resolved=$(git ls-remote origin "refs/tags/${RELEASE_TAG}" | awk '{print $1}')
+            fi
+            test "$resolved" = "$RELEASE_COMMIT"
+          else
+            git tag -a "$RELEASE_TAG" "$RELEASE_COMMIT" -m "ChitChat ${RELEASE_TAG}"
+            git push origin "refs/tags/${RELEASE_TAG}"
+          fi
+
+          if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release create "$RELEASE_TAG" \
+              --verify-tag \
+              --prerelease \
+              --title "ChitChat v1.0.0-rc.1" \
+              --notes-file docs/releases/v1.0.0-rc.1.md
+          fi
+
+      - name: Remove publication branch
+        if: success()
+        run: git push origin --delete "${GITHUB_REF_NAME}"
