@@ -21,6 +21,7 @@ final class EventRepository
         'global_broadcast',
         'forced_logout',
         'presence_changed',
+        'direct_message',
     ];
 
     public function __construct(private readonly PDO $pdo)
