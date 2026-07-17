@@ -4,6 +4,20 @@ All notable changes to the reconstructed ChitChat application are documented her
 
 The project uses semantic versioning. Release-candidate versions are pre-releases and may still require schema or configuration changes before a stable release.
 
+## [Unreleased]
+
+### Added
+
+- Added user-controlled direct-message blocking and unblocking from the conversation header.
+- Added authenticated block-status, block, and unblock API endpoints.
+- Added integration and Chromium/Firefox journey coverage for blocked sends, retained history, and resumed messaging after unblock.
+
+### Security and privacy
+
+- A block in either direction prevents new messages in both directions while preserving existing retained history.
+- Public relationship state exposes whether the requesting user set a block and only a generic messaging-availability flag; it does not expose a separate `blocked_by_other` field.
+- Send, block, and unblock operations serialize on a PostgreSQL advisory lock for the user pair, preventing a completed block from being bypassed by a concurrent send.
+
 ## [1.0.0] - 2026-07-17
 
 First stable release of the clean ChitChat reconstruction.
