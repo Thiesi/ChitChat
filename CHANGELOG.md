@@ -14,6 +14,10 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 - Added direct-message file uploads with optional captions, opaque storage, shared MIME and size policy, SHA-256 metadata, safe image previews, and participant-only downloads.
 - Added bounded attachment metadata enrichment for visible direct-message history without changing the canonical DM/SSE payload shape.
 - Added PostgreSQL/filesystem and Chromium/Firefox coverage for multipart DM uploads, exact-byte downloads, outsider denial, and retention cleanup.
+- Added author editing and delete-for-everyone controls for room and direct messages, including attachment captions.
+- Added immutable database-triggered revision ledgers for room and direct-message edits and deletions.
+- Added bounded mutation metadata endpoints, edited markers, realtime cross-session refresh, and author/moderator deletion placeholders.
+- Added PostgreSQL/filesystem and Chromium/Firefox coverage for authorship enforcement, block-aware editing, deletion, revision history, and attachment revocation.
 
 ### Security and privacy
 
@@ -23,6 +27,10 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 - DM attachment metadata and bytes are returned only to the sender or recipient; unauthorized requests use the same not-found response as an unknown attachment.
 - Administrative text-history inspection does not silently grant attachment-binary download rights.
 - Direct-message retention removes associated attachment metadata and files in the same maintenance run, while orphan detection treats room and DM keys as one shared storage namespace.
+- Only an undeleted message's author may edit or delete it; room moderator deletion remains a separate audited action.
+- Direct-message editing is disabled while either participant has blocked the other, preventing an edit from becoming a post-block delivery channel; sender deletion remains available.
+- User-deleted attachments become inaccessible immediately while their binary and immutable revision evidence remain until configured cleanup.
+- Revision bodies are not exposed through participant mutation endpoints or duplicated into audit metadata.
 
 ## [1.0.0] - 2026-07-17
 
