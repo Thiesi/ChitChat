@@ -16,7 +16,7 @@ final readonly class RateLimitPolicySet
     {
         $definitions = self::definitions(10, 900);
         foreach ($definitions as $name => $definition) {
-            if (!isset($policies[$name]) || !$policies[$name] instanceof RateLimitPolicy) {
+            if (!isset($policies[$name])) {
                 throw new InvalidArgumentException('Missing rate-limit policy: ' . $name);
             }
             if ($policies[$name]->name !== $name) {
