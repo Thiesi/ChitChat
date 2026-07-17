@@ -1,6 +1,5 @@
 import { ApiError, apiGet, apiPost } from './api.js';
 
-const metadata = new Map();
 let enhancementQueued = false;
 let generation = 0;
 let lastRoomId = null;
@@ -19,7 +18,6 @@ window.addEventListener('DOMContentLoaded', () => {
     const roomId = currentRoomId();
     if (roomId !== lastRoomId) {
       lastRoomId = roomId;
-      metadata.clear();
       generation += 1;
     }
     queueEnhancement();
@@ -76,17 +74,25 @@ async function enhanceVisibleMessages() {
   }
 
   if (requestGeneration !== generation || currentRoomId() !== roomId) return;
-  metadata.clear();
-  for (const [id, state] of fresh) metadata.set(id, state);
   for (const article of articles) applyState(article, fresh.get(Number(article.dataset.messageId)) ?? null);
 }
 
 function applyState(article, state) {
-  const oldActions = article.querySelector('.message-mutation-actions');
-  const oldIndicator = article.querySelector('.message-edited-indicator');
-  oldActions?.remove();
-  oldIndicator?.remove();
   if (!state) return;
+  const signature = JSON.stringify([
+    state.body,
+    state.type,
+    state.edited_at,
+    state.deleted,
+    state.deletion_kind,
+    state.can_edit,
+    state.can_delete,
+  ]);
+  if (article.dataset.mutationSignature === signature) return;
+  article.dataset.mutationSignature = signature;
+
+  article.querySelector('.message-mutation-actions')?.remove();
+  article.querySelector('.message-edited-indicator')?.remove();
 
   const body = article.querySelector('.message-body');
   const header = article.querySelector('.message-header');
@@ -139,7 +145,7 @@ async function editMessage(article, state) {
       message_id: state.id,
       body: replacement,
     });
-    metadata.set(state.id, response.message);
+    delete article.dataset.mutationSignature;
     applyState(article, response.message);
     toast('Message edited.');
   } catch (error) {
@@ -154,7 +160,7 @@ async function deleteMessage(article, state) {
   setBusy(article, true);
   try {
     const response = await apiPost('/api/v1/rooms/delete-own-message.php', { message_id: state.id });
-    metadata.set(state.id, response.message);
+    delete article.dataset.mutationSignature;
     applyState(article, response.message);
     toast('Message deleted.');
   } catch (error) {
