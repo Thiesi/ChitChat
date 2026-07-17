@@ -10,8 +10,9 @@ window.addEventListener('DOMContentLoaded', () => {
   const messageList = document.getElementById('message-list');
   const roomList = document.getElementById('room-list');
   const toastRegion = document.getElementById('toast-region');
-  if (!messageList || !roomList || !toastRegion) return;
-  elements = { messageList, roomList, toastRegion };
+  const chatShell = document.getElementById('chat-shell');
+  if (!messageList || !roomList || !toastRegion || !chatShell) return;
+  elements = { messageList, roomList, toastRegion, chatShell };
 
   new MutationObserver(queueEnhancement).observe(messageList, { childList: true, subtree: true });
   new MutationObserver(() => {
@@ -27,12 +28,16 @@ window.addEventListener('DOMContentLoaded', () => {
     attributes: true,
     attributeFilter: ['class'],
   });
+  new MutationObserver(syncEventStream).observe(chatShell, {
+    attributes: true,
+    attributeFilter: ['class'],
+  });
 
-  startEventStream();
+  syncEventStream();
   queueEnhancement();
 });
 
-window.addEventListener('beforeunload', () => eventSource?.close());
+window.addEventListener('beforeunload', closeEventStream);
 
 function currentRoomId() {
   const active = elements?.roomList.querySelector('.room-button.active');
@@ -52,7 +57,7 @@ function queueEnhancement() {
 
 async function enhanceVisibleMessages() {
   const roomId = currentRoomId();
-  if (roomId === null || !elements) return;
+  if (roomId === null || !elements || elements.chatShell.classList.contains('hidden')) return;
   const articles = [...elements.messageList.querySelectorAll('article.message')];
   const ids = articles
     .map((article) => Number.parseInt(article.dataset.messageId ?? '', 10))
@@ -174,7 +179,13 @@ function setBusy(article, busy) {
   for (const button of article.querySelectorAll('.message-mutation-button')) button.disabled = busy;
 }
 
-function startEventStream() {
+function syncEventStream() {
+  if (!elements || elements.chatShell.classList.contains('hidden')) {
+    closeEventStream();
+    return;
+  }
+  if (eventSource) return;
+
   eventSource = new EventSource('/api/v1/events/stream.php', { withCredentials: true });
   eventSource.addEventListener('room_message', (event) => {
     const envelope = parseEvent(event);
@@ -184,6 +195,11 @@ function startEventStream() {
     const envelope = parseEvent(event);
     if (envelope?.payload?.room_id === currentRoomId()) queueEnhancement();
   });
+}
+
+function closeEventStream() {
+  eventSource?.close();
+  eventSource = null;
 }
 
 function parseEvent(event) {
@@ -208,6 +224,7 @@ function toast(message, kind = 'info') {
 
 function handleFailure(error) {
   if (error instanceof ApiError && error.status === 401) {
+    closeEventStream();
     window.location.assign('/');
     return;
   }
