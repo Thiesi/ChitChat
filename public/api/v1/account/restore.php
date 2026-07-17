@@ -20,28 +20,37 @@ Endpoint::run($config, static function () use ($config): ApiResult {
     $payload = Request::json();
     $ipAddress = Request::clientIp();
     $pdo = Database::connect($config);
-    $user = (new AccountClosureService($pdo, $config))->restore(
+    $closure = new AccountClosureService($pdo, $config);
+    $pending = $closure->authenticateRestore(
         Request::string($payload, 'username'),
         Request::string($payload, 'password'),
         $ipAddress,
     );
 
-    if ((new MfaService($pdo, $config))->requiresMfaForLogin($user)) {
-        SessionManager::beginMfaLogin($user, $ipAddress, $config->mfaPendingLoginTtlSeconds);
+    if ((new MfaService($pdo, $config))->requiresMfaForLogin($pending)) {
+        SessionManager::beginMfaLogin(
+            $pending,
+            $ipAddress,
+            $config->mfaPendingLoginTtlSeconds,
+            'restore',
+        );
         return new ApiResult([
             'csrf_token' => SessionManager::csrfToken(),
-            'restored' => true,
+            'restored' => false,
+            'restoration_pending' => true,
             'mfa_required' => true,
             'methods' => ['passkey', 'recovery_code'],
         ], 202);
     }
 
+    $user = $closure->completeRestore($pending->id, $ipAddress);
     (new AuthService($pdo, $config))->completeLogin($user, $ipAddress);
     SessionManager::login($user);
     return ApiResult::ok([
         'csrf_token' => SessionManager::csrfToken(),
         'user' => $user->toSessionArray(),
         'restored' => true,
+        'restoration_pending' => false,
         'mfa_required' => false,
     ]);
 });
