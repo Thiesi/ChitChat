@@ -43,6 +43,7 @@ final class AccountClosureService
     {
         $this->pdo->beginTransaction();
         try {
+            $this->lockGlobalAccountPolicy();
             $user = $this->userForUpdate($actor->id);
             if ((string) $user['account_state'] !== 'active') {
                 throw new ApiException(409, 'account_not_active', 'This account is already in a closure lifecycle.');
@@ -331,6 +332,14 @@ SQL, [
             ['closure_id' => $closureId],
             '127.0.0.1',
         );
+    }
+
+    private function lockGlobalAccountPolicy(): void
+    {
+        $statement = $this->pdo->query('SELECT id FROM system_settings WHERE id = 1 FOR UPDATE');
+        if ($statement === false || $statement->fetchColumn() === false) {
+            throw new RuntimeException('Unable to serialize account closure with global role changes.');
+        }
     }
 
     /** @return array<string, mixed> */
