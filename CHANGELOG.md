@@ -33,6 +33,9 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 - Added a signed-in account page with a step-up-protected JSON export of retained profile, room, direct-message, security-history, and actor-audit data.
 - Added repeatable-read export snapshots, versioned export metadata, per-account export throttling, and successful-generation audits containing aggregate counts only.
 - Added PostgreSQL integration and Chromium/Firefox coverage for export scope, download behavior, revision ownership, block-direction privacy, and secret/storage-key exclusion.
+- Added the complete browser release journey as an independent WebKit CI gate alongside Chromium and Firefox.
+- Added dependency-free browser accessibility checks for landmarks, headings, unique IDs, labelled controls, named interactive elements and dialogs, keyboard-operated authentication tabs, and visible focus indicators.
+- Added explicit authentication-tab panel relationships, roving tab focus, keyboard navigation, a named room dialog, live connection-status semantics, and high-visibility focus styling on the core user surfaces.
 
 ### Security and privacy
 
@@ -104,7 +107,7 @@ Existing `v1.0.0-rc.1` installations should:
 
 1. back up PostgreSQL and attachment storage together;
 2. deploy the stable source while preserving `.env` and attachment storage;
-3. run `composer install --no-dev --classmap-authoritative`;
+3. run `composer install --no-dev --classmap-authoritative` for production or `composer install` for development;
 4. run `composer migrate` once;
 5. verify attachment-directory ownership, `/health.php`, and `/ready.php`;
 6. run `composer maintenance:dry-run`;
