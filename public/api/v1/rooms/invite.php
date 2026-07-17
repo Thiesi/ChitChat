@@ -7,6 +7,7 @@ use ChitChat\Auth\UserRepository;
 use ChitChat\Database;
 use ChitChat\Http\ApiResult;
 use ChitChat\Http\Endpoint;
+use ChitChat\Http\RateLimiter;
 use ChitChat\Http\Request;
 use ChitChat\Room\RoomService;
 
@@ -19,6 +20,10 @@ Endpoint::run($config, static function () use ($config): ApiResult {
     $payload = Request::json();
     $pdo = Database::connect($config);
     $actor = SessionManager::requireUser(new UserRepository($pdo));
+    (new RateLimiter($pdo, $config->rateLimits))->consume(
+        'room_invite',
+        'user:' . $actor->id,
+    );
     (new RoomService($pdo))->invite(
         $actor,
         Request::integer($payload, 'room_id'),
