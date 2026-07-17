@@ -513,7 +513,10 @@ SQL, ['user_id' => $userId], 'personal-data audit activity', fn (array $row): ar
         ];
     }
 
-    /** @param array<string, mixed> $row @return array<string, mixed> */
+    /**
+     * @param array<string, mixed> $row
+     * @return array<string, mixed>
+     */
     private function roomReference(array $row): array
     {
         return [
