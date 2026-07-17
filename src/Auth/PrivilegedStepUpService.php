@@ -1,7 +1,6 @@
 <?php
 
 declare(strict_types=1);
-
 namespace ChitChat\Auth;
 
 use ChitChat\Audit\AuditLogger;
@@ -22,7 +21,7 @@ final class PrivilegedStepUpService
     ) {
         $this->users = new UserRepository($pdo);
         $this->audit = new AuditLogger($pdo);
-        $this->rateLimiter = new RateLimiter($pdo);
+        $this->rateLimiter = new RateLimiter($pdo, $config->rateLimits);
     }
 
     /** @return array{active:bool, method:?string, verified_at:?string, expires_at:?string, max_age_seconds:int} */
@@ -32,10 +31,8 @@ final class PrivilegedStepUpService
         string $ipAddress,
     ): array {
         $this->rateLimiter->consume(
-            scope: 'privileged_step_up',
-            identifier: $actor->id . '|' . $ipAddress,
-            maximumAttempts: 10,
-            windowSeconds: 900,
+            'privileged_step_up',
+            $actor->id . '|' . $ipAddress,
         );
 
         $credentials = $this->users->findCredentialsById($actor->id);

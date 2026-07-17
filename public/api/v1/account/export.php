@@ -21,11 +21,9 @@ Endpoint::run($config, static function () use ($config): ApiResult {
     $actor = SessionManager::requireUser(new UserRepository($pdo));
     SessionManager::requirePrivilegedStepUp($actor, $config);
 
-    (new RateLimiter($pdo))->consume(
-        scope: 'personal_data_export',
-        identifier: (string) $actor->id,
-        maximumAttempts: 5,
-        windowSeconds: 3600,
+    (new RateLimiter($pdo, $config->rateLimits))->consume(
+        'personal_data_export',
+        'user:' . $actor->id,
     );
 
     $export = (new PersonalDataExportService($pdo, $config))->export(

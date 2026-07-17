@@ -9,6 +9,7 @@ use ChitChat\Database;
 use ChitChat\Http\ApiException;
 use ChitChat\Http\ApiResult;
 use ChitChat\Http\Endpoint;
+use ChitChat\Http\RateLimiter;
 use ChitChat\Http\Request;
 
 /** @var ChitChat\Config $config */
@@ -34,6 +35,10 @@ Endpoint::run($config, static function () use ($config): ApiResult {
         throw new ApiException(403, 'forbidden', 'You are not allowed to review message revisions.');
     }
     SessionManager::requirePrivilegedStepUp($actor, $config);
+    (new RateLimiter($pdo, $config->rateLimits))->consume(
+        'message_revision_review',
+        'user:' . $actor->id,
+    );
 
     return ApiResult::ok((new MessageRevisionReviewService($pdo, $config))->review(
         actor: $actor,

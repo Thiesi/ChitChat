@@ -1,12 +1,12 @@
 <?php
 
 declare(strict_types=1);
-
 namespace ChitChat\Auth;
 
 use ChitChat\Audit\AuditLogger;
 use ChitChat\Config;
 use ChitChat\Http\ApiException;
+use ChitChat\Http\RateLimiter;
 use PDO;
 use PDOException;
 use RuntimeException;
@@ -16,6 +16,7 @@ final class AuthService
 {
     private readonly UserRepository $users;
     private readonly AuditLogger $audit;
+    private readonly RateLimiter $rateLimiter;
 
     public function __construct(
         private readonly PDO $pdo,
@@ -23,6 +24,7 @@ final class AuthService
     ) {
         $this->users = new UserRepository($pdo);
         $this->audit = new AuditLogger($pdo);
+        $this->rateLimiter = new RateLimiter($pdo, $config->rateLimits);
     }
 
     public function register(
@@ -132,14 +134,20 @@ SQL);
     public function login(string $usernameInput, string $password, string $ipAddress): AuthenticatedUser
     {
         $canonical = Username::canonical($usernameInput);
+        $policy = $this->config->rateLimitPolicy('login');
 
-        if ($this->failedAttemptCount($canonical, $ipAddress) >= $this->config->loginMaxAttempts) {
+        if ($this->failedAttemptCount($canonical, $ipAddress, $policy->windowSeconds) >= $policy->maximumAttempts) {
+            $this->rateLimiter->recordDecision('login', false);
             throw new ApiException(
                 429,
                 'login_throttled',
-                sprintf('Too many failed login attempts. Try again in up to %d minutes.', $this->config->loginLockMinutes),
+                sprintf(
+                    'Too many failed login attempts. Try again in up to %d minutes.',
+                    max(1, (int) ceil($policy->windowSeconds / 60)),
+                ),
             );
         }
+        $this->rateLimiter->recordDecision('login', true);
 
         $credentials = $this->users->findCredentialsByCanonical($canonical);
         if ($credentials === null || !password_verify($password, $credentials['password_hash'])) {
@@ -224,13 +232,13 @@ SQL);
         return $user;
     }
 
-    private function failedAttemptCount(string $canonical, string $ipAddress): int
+    private function failedAttemptCount(string $canonical, string $ipAddress, int $windowSeconds): int
     {
         $statement = $this->pdo->prepare(<<<'SQL'
 SELECT COUNT(*)
 FROM login_attempts
 WHERE successful = FALSE
-  AND created_at >= NOW() - make_interval(mins => CAST(:minutes AS integer))
+  AND created_at >= NOW() - make_interval(secs => CAST(:seconds AS double precision))
   AND (username_canonical = :username OR ip_address = :ip)
 SQL);
         if ($statement === false) {
@@ -238,7 +246,7 @@ SQL);
         }
 
         $statement->execute([
-            'minutes' => $this->config->loginLockMinutes,
+            'seconds' => $windowSeconds,
             'username' => $canonical,
             'ip' => $ipAddress,
         ]);

@@ -9,6 +9,7 @@ use ChitChat\DirectMessage\DirectMessageInspectionService;
 use ChitChat\Http\ApiException;
 use ChitChat\Http\ApiResult;
 use ChitChat\Http\Endpoint;
+use ChitChat\Http\RateLimiter;
 use ChitChat\Http\Request;
 
 /** @var ChitChat\Config $config */
@@ -30,6 +31,10 @@ Endpoint::run($config, static function () use ($config): ApiResult {
         throw new ApiException(403, 'forbidden', 'You are not allowed to inspect direct messages.');
     }
     SessionManager::requirePrivilegedStepUp($actor, $config);
+    (new RateLimiter($pdo, $config->rateLimits))->consume(
+        'admin_direct_message_inspection',
+        'user:' . $actor->id,
+    );
 
     return ApiResult::ok((new DirectMessageInspectionService($pdo, $config))->inspect(
         actor: $actor,

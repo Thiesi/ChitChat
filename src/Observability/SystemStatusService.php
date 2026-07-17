@@ -1,7 +1,6 @@
 <?php
 
 declare(strict_types=1);
-
 namespace ChitChat\Observability;
 
 use ChitChat\Auth\AuthenticatedUser;
@@ -68,6 +67,20 @@ SELECT
     (SELECT COUNT(*) FROM login_attempts WHERE successful = FALSE AND created_at >= NOW() - INTERVAL '24 hours')::bigint AS failed_logins_24h,
     (SELECT COUNT(*) FROM request_rate_limits)::bigint AS rate_limit_rows
 SQL);
+        $rateLimitDecisions = array_map(
+            static fn (array $row): array => [
+                'policy' => (string) $row['scope'],
+                'allowed' => (int) $row['allowed_count'],
+                'rejected' => (int) $row['rejected_count'],
+                'last_allowed_at' => $row['last_allowed_at'] === null ? null : (string) $row['last_allowed_at'],
+                'last_rejected_at' => $row['last_rejected_at'] === null ? null : (string) $row['last_rejected_at'],
+            ],
+            $this->rows(<<<'SQL'
+SELECT scope, allowed_count, rejected_count, last_allowed_at, last_rejected_at
+FROM rate_limit_counters
+ORDER BY scope
+SQL),
+        );
 
         $storageTotal = is_dir($this->config->attachmentStoragePath)
             ? disk_total_space($this->config->attachmentStoragePath)
@@ -119,6 +132,8 @@ SQL);
             'security' => [
                 'failed_logins_24h' => (int) $security['failed_logins_24h'],
                 'rate_limit_rows' => (int) $security['rate_limit_rows'],
+                'rate_limit_policies' => $this->config->rateLimits->toArray(),
+                'rate_limit_decisions' => $rateLimitDecisions,
             ],
             'maintenance' => [
                 'latest_run' => $latestRun,
@@ -137,16 +152,26 @@ SQL);
     /** @return array<string, mixed> */
     private function row(string $sql): array
     {
-        $statement = $this->pdo->query($sql);
-        if ($statement === false) {
-            throw new RuntimeException('Unable to query system status.');
-        }
-        $row = $statement->fetch(PDO::FETCH_ASSOC);
-        if (!is_array($row)) {
+        $rows = $this->rows($sql);
+        $row = $rows[0] ?? null;
+        if ($row === null) {
             throw new RuntimeException('System status query returned no row.');
         }
 
         return $row;
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function rows(string $sql): array
+    {
+        $statement = $this->pdo->query($sql);
+        if ($statement === false) {
+            throw new RuntimeException('Unable to query system status.');
+        }
+
+        /** @var list<array<string, mixed>> $rows */
+        $rows = $statement->fetchAll(PDO::FETCH_ASSOC);
+        return $rows;
     }
 
     private function ageSeconds(mixed $value): ?int

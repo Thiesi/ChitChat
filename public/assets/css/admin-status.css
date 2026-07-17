@@ -9,6 +9,10 @@
   min-height: 100%;
 }
 
+.status-wide {
+  grid-column: 1 / -1;
+}
+
 .status-card-heading {
   display: flex;
   align-items: center;
@@ -41,6 +45,40 @@
 .status-card dd {
   margin: 0;
   overflow-wrap: anywhere;
+  text-align: right;
+}
+
+.status-table-wrap {
+  overflow-x: auto;
+  margin-top: 1rem;
+}
+
+.status-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.status-table th,
+.status-table td {
+  border-top: 1px solid var(--border-color);
+  padding: 0.7rem 0.75rem;
+  text-align: left;
+  vertical-align: top;
+  white-space: nowrap;
+}
+
+.status-table thead th {
+  color: var(--muted-text);
+  font-size: 0.9rem;
+}
+
+.status-table tbody th {
+  font-weight: 600;
+}
+
+.status-table td:nth-child(3),
+.status-table td:nth-child(4) {
   text-align: right;
 }
 

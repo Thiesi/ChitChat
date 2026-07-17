@@ -21,7 +21,10 @@ Endpoint::run($config, static function () use ($config): ApiResult {
     SessionManager::requireCsrf(Request::csrfHeader());
     $pdo = Database::connect($config);
     $actor = SessionManager::requireUser(new UserRepository($pdo));
-    (new RateLimiter($pdo))->consume('direct_message_attachment_upload', 'user:' . $actor->id, 10, 3600);
+    (new RateLimiter($pdo, $config->rateLimits))->consume(
+        'direct_message_attachment_upload',
+        'user:' . $actor->id,
+    );
 
     $recipientValue = $_POST['recipient_user_id'] ?? null;
     if (!is_string($recipientValue) || filter_var($recipientValue, FILTER_VALIDATE_INT) === false) {

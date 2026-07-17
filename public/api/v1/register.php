@@ -25,7 +25,7 @@ Endpoint::run($config, static function () use ($config): ApiResult {
 
     $pdo = Database::connect($config);
     $ipAddress = Request::clientIp();
-    (new RateLimiter($pdo))->consume('registration', 'ip:' . $ipAddress, 5, 3600);
+    (new RateLimiter($pdo, $config->rateLimits))->consume('registration', 'ip:' . $ipAddress);
     $auth = new AuthService($pdo, $config);
     $user = $auth->register(
         Request::string($payload, 'username'),

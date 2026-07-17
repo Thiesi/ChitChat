@@ -15,6 +15,12 @@ final class ConfigTest extends TestCase
             'APP_VERSION',
             'APP_DEBUG',
             'DB_PORT',
+            'LOGIN_MAX_ATTEMPTS',
+            'LOGIN_LOCK_MINUTES',
+            'RATE_LIMIT_LOGIN_MAX_ATTEMPTS',
+            'RATE_LIMIT_LOGIN_WINDOW_SECONDS',
+            'RATE_LIMIT_ROOM_SEND_MAX_ATTEMPTS',
+            'RATE_LIMIT_ROOM_SEND_WINDOW_SECONDS',
             'PRESENCE_LEASE_SECONDS',
             'INACTIVITY_WARNING_SECONDS',
             'SSE_CONNECTION_LEASE_SECONDS',
@@ -54,6 +60,12 @@ final class ConfigTest extends TestCase
         self::assertSame('super_admin', $config->directMessageInspectionRole);
         self::assertFalse($config->messageRevisionReviewEnabled);
         self::assertSame('super_admin', $config->messageRevisionReviewRole);
+        self::assertSame(10, $config->rateLimitPolicy('login')->maximumAttempts);
+        self::assertSame(900, $config->rateLimitPolicy('login')->windowSeconds);
+        self::assertSame(30, $config->rateLimitPolicy('room_send')->maximumAttempts);
+        self::assertSame(60, $config->rateLimitPolicy('room_send')->windowSeconds);
+        self::assertSame(60, $config->rateLimitPolicy('room_invite')->maximumAttempts);
+        self::assertSame(3_600, $config->rateLimitPolicy('room_invite')->windowSeconds);
     }
 
     public function testBooleanEnvironmentValuesAreParsed(): void
@@ -66,6 +78,47 @@ final class ConfigTest extends TestCase
         self::assertTrue($config->debug);
         self::assertFalse($config->directMessageInspectionEnabled);
         self::assertTrue($config->messageRevisionReviewEnabled);
+    }
+
+    public function testNamedRateLimitEnvironmentValuesOverrideDefaults(): void
+    {
+        putenv('RATE_LIMIT_ROOM_SEND_MAX_ATTEMPTS=75');
+        putenv('RATE_LIMIT_ROOM_SEND_WINDOW_SECONDS=120');
+
+        $policy = Config::fromEnvironment()->rateLimitPolicy('room_send');
+        self::assertSame(75, $policy->maximumAttempts);
+        self::assertSame(120, $policy->windowSeconds);
+    }
+
+    public function testLegacyLoginSettingsRemainTheNamedLoginDefaults(): void
+    {
+        putenv('LOGIN_MAX_ATTEMPTS=7');
+        putenv('LOGIN_LOCK_MINUTES=3');
+
+        $policy = Config::fromEnvironment()->rateLimitPolicy('login');
+        self::assertSame(7, $policy->maximumAttempts);
+        self::assertSame(180, $policy->windowSeconds);
+    }
+
+    public function testNamedLoginSettingsOverrideLegacyDefaults(): void
+    {
+        putenv('LOGIN_MAX_ATTEMPTS=7');
+        putenv('LOGIN_LOCK_MINUTES=3');
+        putenv('RATE_LIMIT_LOGIN_MAX_ATTEMPTS=9');
+        putenv('RATE_LIMIT_LOGIN_WINDOW_SECONDS=240');
+
+        $policy = Config::fromEnvironment()->rateLimitPolicy('login');
+        self::assertSame(9, $policy->maximumAttempts);
+        self::assertSame(240, $policy->windowSeconds);
+    }
+
+    public function testRateLimitBoundsAreValidated(): void
+    {
+        putenv('RATE_LIMIT_ROOM_SEND_MAX_ATTEMPTS=1001');
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('RATE_LIMIT_ROOM_SEND_MAX_ATTEMPTS');
+        Config::fromEnvironment();
     }
 
     public function testPresenceLeaseRangeIsValidated(): void

@@ -20,7 +20,10 @@ Endpoint::run($config, static function () use ($config): ApiResult {
     $payload = Request::json();
     $pdo = Database::connect($config);
     $actor = SessionManager::requireUser(new UserRepository($pdo));
-    (new RateLimiter($pdo))->consume('room_message_mutation', 'user:' . $actor->id, 30, 60);
+    (new RateLimiter($pdo, $config->rateLimits))->consume(
+        'room_message_mutation',
+        'user:' . $actor->id,
+    );
 
     return ApiResult::ok([
         'message' => (new RoomMessageMutationService($pdo))->edit(

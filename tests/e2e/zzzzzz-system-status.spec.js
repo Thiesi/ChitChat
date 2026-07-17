@@ -34,11 +34,25 @@ test('Administrator sees shared operational status and metrics remain disabled b
     await expect(page.locator('#maintenance-state')).toHaveText(/^(Current|Overdue)$/);
     await expect(page.locator('#metrics-enabled')).toHaveText('Disabled');
 
+    const policyTable = page.getByRole('table', { name: 'Effective rate-limit policies' });
+    await expect(policyTable).toBeVisible();
+    const roomSendRow = policyTable.getByRole('row', { name: /room_send/ });
+    await expect(roomSendRow).toContainText('30 / 1m');
+    await expect(roomSendRow.getByRole('rowheader')).toHaveCount(1);
+    await expect(roomSendRow.getByRole('cell')).toHaveCount(4);
+    await expect(policyTable.getByRole('row', { name: /privileged_step_up/ })).toContainText('10 / 15m');
+
     const apiResponse = await context.request.get('/api/v1/admin/system-status.php');
     expect(apiResponse.status()).toBe(200);
     const payload = await apiResponse.json();
     expect(payload.status.application.name).toBe('ChitChat');
     expect(typeof payload.status.maintenance.overdue).toBe('boolean');
+    expect(payload.status.security.rate_limit_policies.room_send).toEqual({
+      name: 'room_send',
+      maximum_attempts: 30,
+      window_seconds: 60,
+    });
+    expect(Array.isArray(payload.status.security.rate_limit_decisions)).toBe(true);
 
     const metricsResponse = await context.request.get('/metrics.php');
     expect(metricsResponse.status()).toBe(404);

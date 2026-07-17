@@ -38,7 +38,7 @@ The application currently provides:
 - secure session cookies, CSRF protection, a restrictive CSP, HSTS on secure deployments, and related browser security headers;
 - password changes and administrator password resets;
 - short-lived, session-version-bound current-password step-up authentication for sensitive administrative actions;
-- database-backed login, step-up, and request throttling shared by all PHP workers;
+- PostgreSQL-backed named rate-limit policies for authentication, messaging, uploads, invitations, searches, exports, and sensitive administrative reads, with bounded environment configuration and aggregate privacy-preserving decision counters;
 - kicks, temporary or indefinite bans, and unbans;
 - session-version invalidation for active sessions and privileged elevation;
 - a user-facing, step-up-protected JSON export of retained account data with explicit privacy boundaries and audited generation;
@@ -69,7 +69,7 @@ The application currently provides:
 - published-release archive installation, backup/restore and forward-upgrade rehearsal;
 - real Nginx/PHP-FPM validation of authenticated, unbuffered SSE delivery.
 
-Multi-factor authentication, configurable per-limit throttles, horizontal scaling, participant-facing review notifications, account closure, and richer compliance/reporting workflows remain future milestones.
+Multi-factor authentication, horizontal scaling, participant-facing review notifications, account closure, and richer compliance/reporting workflows remain future milestones.
 
 ## Installation and operation
 

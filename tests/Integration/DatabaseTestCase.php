@@ -19,7 +19,7 @@ abstract class DatabaseTestCase extends TestCase
         $this->config = Config::fromEnvironment();
         $this->pdo = Database::connect($this->config);
         $this->pdo->exec(
-            'TRUNCATE TABLE maintenance_runs, sse_connections, request_rate_limits, direct_message_attachments, direct_messages, attachments, room_presence, realtime_events, room_messages, room_invitations, room_members, rooms, audit_log, user_bans, login_attempts, user_roles, users RESTART IDENTITY CASCADE',
+            'TRUNCATE TABLE maintenance_runs, sse_connections, rate_limit_counters, request_rate_limits, direct_message_attachments, direct_messages, attachments, room_presence, realtime_events, room_messages, room_invitations, room_members, rooms, audit_log, user_bans, login_attempts, user_roles, users RESTART IDENTITY CASCADE',
         );
         $this->pdo->exec(<<<'SQL'
 UPDATE system_settings

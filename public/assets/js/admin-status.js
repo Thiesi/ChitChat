@@ -31,6 +31,7 @@ window.addEventListener('DOMContentLoaded', () => {
     'attachment-used',
     'failed-logins',
     'rate-limit-rows',
+    'rate-limit-policies',
     'metrics-enabled',
     'application-name',
     'application-version',
@@ -107,6 +108,7 @@ function render(status) {
 
   elements['failed-logins'].textContent = String(integer(security.failed_logins_24h));
   elements['rate-limit-rows'].textContent = String(integer(security.rate_limit_rows));
+  renderRateLimits(security.rate_limit_policies, security.rate_limit_decisions);
   elements['metrics-enabled'].textContent = metrics.enabled ? 'Enabled with bearer token' : 'Disabled';
 
   const latest = nullableObject(maintenance.latest_run);
@@ -121,6 +123,47 @@ function render(status) {
     : 'Never';
   elements['maintenance-max-age'].textContent = `${integer(maintenance.maximum_age_hours)} hours`;
   elements['maintenance-result'].textContent = latest?.result ? summarizeResult(latest.result) : text(latest?.error_message ?? '—');
+}
+
+function renderRateLimits(policiesValue, decisionsValue) {
+  const policies = object(policiesValue);
+  const decisions = new Map();
+  if (Array.isArray(decisionsValue)) {
+    for (const value of decisionsValue) {
+      const decision = object(value);
+      if (typeof decision.policy === 'string') decisions.set(decision.policy, decision);
+    }
+  }
+
+  elements['rate-limit-policies'].replaceChildren();
+  for (const [name, value] of Object.entries(policies).sort(([left], [right]) => left.localeCompare(right))) {
+    const policy = object(value);
+    const decision = decisions.get(name) ?? {};
+    const row = document.createElement('tr');
+
+    const nameCell = document.createElement('th');
+    nameCell.scope = 'row';
+    const code = document.createElement('code');
+    code.textContent = name;
+    nameCell.append(code);
+
+    const limitCell = document.createElement('td');
+    limitCell.textContent = `${integer(policy.maximum_attempts)} / ${formatWindow(policy.window_seconds)}`;
+
+    const allowedCell = document.createElement('td');
+    allowedCell.textContent = String(integer(decision.allowed));
+
+    const rejectedCell = document.createElement('td');
+    rejectedCell.textContent = String(integer(decision.rejected));
+
+    const lastRejectedCell = document.createElement('td');
+    lastRejectedCell.textContent = typeof decision.last_rejected_at === 'string'
+      ? formatDateTime(decision.last_rejected_at)
+      : 'Never';
+
+    row.append(nameCell, limitCell, allowedCell, rejectedCell, lastRejectedCell);
+    elements['rate-limit-policies'].append(row);
+  }
 }
 
 function describeRun(run) {
@@ -147,6 +190,13 @@ function formatBytes(value) {
     unit += 1;
   }
   return `${bytes.toFixed(unit === 0 ? 0 : 2)} ${units[unit]}`;
+}
+
+function formatWindow(value) {
+  const seconds = integer(value);
+  if (seconds % 3600 === 0) return `${seconds / 3600}h`;
+  if (seconds % 60 === 0) return `${seconds / 60}m`;
+  return `${seconds}s`;
 }
 
 function formatAge(value) {

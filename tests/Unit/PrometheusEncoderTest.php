@@ -1,7 +1,6 @@
 <?php
 
 declare(strict_types=1);
-
 namespace ChitChat\Tests\Unit;
 
 use ChitChat\Observability\PrometheusEncoder;
@@ -28,7 +27,13 @@ final class PrometheusEncoderTest extends TestCase
                 'active_presence_users' => 3,
                 'retained_events' => 99,
             ],
-            'security' => ['failed_logins_24h' => 7, 'rate_limit_rows' => 8],
+            'security' => [
+                'failed_logins_24h' => 7,
+                'rate_limit_rows' => 8,
+                'rate_limit_decisions' => [
+                    ['policy' => 'room_send', 'allowed' => 41, 'rejected' => 2],
+                ],
+            ],
             'maintenance' => [
                 'overdue' => false,
                 'latest_run' => [
@@ -47,6 +52,14 @@ final class PrometheusEncoderTest extends TestCase
         self::assertStringContainsString('chitchat_attachment_files{state="active"} 3', $output);
         self::assertStringContainsString('chitchat_sse_connections 4', $output);
         self::assertStringContainsString('chitchat_failed_logins_24h 7', $output);
+        self::assertStringContainsString(
+            'chitchat_rate_limit_decisions_total{policy="room_send",outcome="allowed"} 41',
+            $output,
+        );
+        self::assertStringContainsString(
+            'chitchat_rate_limit_decisions_total{policy="room_send",outcome="rejected"} 2',
+            $output,
+        );
         self::assertStringContainsString('chitchat_maintenance_overdue 0', $output);
         self::assertStringContainsString('chitchat_maintenance_last_run_status{status="success"} 1', $output);
         self::assertStringContainsString('chitchat_maintenance_last_run_duration_seconds 0.25', $output);
