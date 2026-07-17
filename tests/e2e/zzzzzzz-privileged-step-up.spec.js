@@ -113,13 +113,14 @@ test('sensitive endpoint families require recent password verification after rol
     expect(verifiedPayload.privileged_step_up.active).toBe(true);
     expect(verifiedPayload.privileged_step_up.method).toBe('password');
 
-    const selfRoleChange = await post(adminContext, adminCsrf, '/api/v1/admin/roles.php', {
-      target_user_id: adminId,
-      roles: ['super_admin'],
-    });
-    expect(selfRoleChange.status()).toBe(403);
-    const selfRolePayload = await selfRoleChange.json();
-    expect(selfRolePayload.error.code).not.toBe('step_up_required');
+    await expectError(
+      await post(adminContext, adminCsrf, '/api/v1/admin/roles.php', {
+        target_user_id: adminId,
+        roles: ['super_admin'],
+      }),
+      400,
+      'self_role_change_forbidden',
+    );
   } finally {
     await memberContext.close();
     await adminContext.close();
