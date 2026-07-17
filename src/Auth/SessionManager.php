@@ -10,6 +10,7 @@ use DateTimeImmutable;
 final class SessionManager
 {
     private const STEP_UP_METHODS = ['password', 'passkey', 'recovery_code'];
+    private const MFA_FLOWS = ['login', 'restore'];
 
     public static function start(Config $config): void
     {
@@ -63,14 +64,22 @@ final class SessionManager
         $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
     }
 
-    public static function beginMfaLogin(AuthenticatedUser $user, string $ipAddress, int $ttlSeconds): void
-    {
+    public static function beginMfaLogin(
+        AuthenticatedUser $user,
+        string $ipAddress,
+        int $ttlSeconds,
+        string $flow = 'login',
+    ): void {
+        if (!in_array($flow, self::MFA_FLOWS, true)) {
+            throw new ApiException(500, 'invalid_mfa_flow', 'Unsupported multi-factor sign-in flow.');
+        }
         self::rotateSessionIdentifier();
         unset($_SESSION['auth'], $_SESSION['privileged_step_up'], $_SESSION['webauthn_ceremony']);
         $_SESSION['pending_mfa'] = [
             'user_id' => $user->id,
             'session_version' => $user->sessionVersion,
             'ip_address' => $ipAddress,
+            'flow' => $flow,
             'expires_at' => time() + $ttlSeconds,
         ];
         $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
@@ -85,16 +94,37 @@ final class SessionManager
         $userId = $state['user_id'] ?? null;
         $sessionVersion = $state['session_version'] ?? null;
         $expiresAt = $state['expires_at'] ?? null;
-        if (!is_int($userId) || !is_int($sessionVersion) || !is_int($expiresAt) || $expiresAt <= time()) {
+        $flow = $state['flow'] ?? null;
+        if (
+            !is_int($userId)
+            || !is_int($sessionVersion)
+            || !is_int($expiresAt)
+            || !is_string($flow)
+            || !in_array($flow, self::MFA_FLOWS, true)
+            || $expiresAt <= time()
+        ) {
             self::clearPendingMfa();
             throw new ApiException(401, 'mfa_login_expired', 'The multi-factor sign-in attempt has expired.');
         }
-        $user = $users->findAuthenticatedById($userId);
+        $user = $flow === 'restore'
+            ? $users->findClosurePendingById($userId)
+            : $users->findAuthenticatedById($userId);
         if ($user === null || $user->sessionVersion !== $sessionVersion || $users->activeBan($userId) !== null) {
             self::clearPendingMfa();
             throw new ApiException(401, 'authentication_required', 'Authentication is required.');
         }
         return $user;
+    }
+
+    /** @return 'login'|'restore' */
+    public static function pendingMfaFlow(): string
+    {
+        $state = $_SESSION['pending_mfa'] ?? null;
+        $flow = is_array($state) ? ($state['flow'] ?? null) : null;
+        if (!is_string($flow) || !in_array($flow, self::MFA_FLOWS, true)) {
+            throw new ApiException(401, 'mfa_login_required', 'Start sign-in with your username and password first.');
+        }
+        return $flow;
     }
 
     public static function pendingMfaIpAddress(): string
