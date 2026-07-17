@@ -1,7 +1,6 @@
 <?php
 
 declare(strict_types=1);
-
 namespace ChitChat\Observability;
 
 use DateTimeImmutable;
@@ -68,6 +67,34 @@ final class PrometheusEncoder
             '# HELP chitchat_rate_limit_rows Current database-backed rate-limit rows.',
             '# TYPE chitchat_rate_limit_rows gauge',
             'chitchat_rate_limit_rows ' . self::integer($security, 'rate_limit_rows'),
+            '# HELP chitchat_rate_limit_decisions_total Aggregate rate-limit decisions by policy and outcome.',
+            '# TYPE chitchat_rate_limit_decisions_total counter',
+        ];
+
+        $decisions = $security['rate_limit_decisions'] ?? [];
+        if (is_array($decisions)) {
+            foreach ($decisions as $decision) {
+                if (!is_array($decision)) {
+                    continue;
+                }
+                $policy = self::label((string) ($decision['policy'] ?? 'unknown'));
+                $allowed = $decision['allowed'] ?? 0;
+                $rejected = $decision['rejected'] ?? 0;
+                $lines[] = sprintf(
+                    'chitchat_rate_limit_decisions_total{policy="%s",outcome="allowed"} %d',
+                    $policy,
+                    is_int($allowed) || is_float($allowed) ? (int) $allowed : 0,
+                );
+                $lines[] = sprintf(
+                    'chitchat_rate_limit_decisions_total{policy="%s",outcome="rejected"} %d',
+                    $policy,
+                    is_int($rejected) || is_float($rejected) ? (int) $rejected : 0,
+                );
+            }
+        }
+
+        array_push(
+            $lines,
             '# HELP chitchat_maintenance_overdue Whether no successful destructive maintenance run exists within the configured maximum age.',
             '# TYPE chitchat_maintenance_overdue gauge',
             'chitchat_maintenance_overdue ' . self::boolean($maintenance, 'overdue'),
@@ -83,7 +110,7 @@ final class PrometheusEncoder
             '# HELP chitchat_maintenance_last_success_timestamp_seconds Completion time of the most recent successful destructive maintenance run.',
             '# TYPE chitchat_maintenance_last_success_timestamp_seconds gauge',
             'chitchat_maintenance_last_success_timestamp_seconds ' . self::timestamp($latestSuccess['finished_at'] ?? null),
-        ];
+        );
 
         return implode("\n", $lines) . "\n";
     }
