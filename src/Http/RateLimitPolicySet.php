@@ -14,18 +14,19 @@ final readonly class RateLimitPolicySet
     /** @param array<string, RateLimitPolicy> $policies */
     public function __construct(array $policies)
     {
-        $expected = array_keys(self::definitions(10, 900));
-        foreach ($expected as $name) {
+        $definitions = self::definitions(10, 900);
+        foreach ($definitions as $name => $definition) {
             if (!isset($policies[$name]) || !$policies[$name] instanceof RateLimitPolicy) {
                 throw new InvalidArgumentException('Missing rate-limit policy: ' . $name);
             }
             if ($policies[$name]->name !== $name) {
                 throw new InvalidArgumentException('Rate-limit policy key and name differ: ' . $name);
             }
+            self::assertWithinBounds($policies[$name], $definition);
         }
 
         foreach ($policies as $name => $policy) {
-            if (!in_array($name, $expected, true)) {
+            if (!isset($definitions[$name])) {
                 throw new InvalidArgumentException('Unknown rate-limit policy: ' . $name);
             }
         }
@@ -51,6 +52,17 @@ final readonly class RateLimitPolicySet
         }
 
         return $policy;
+    }
+
+    public function with(string $name, int $maximumAttempts, int $windowSeconds): self
+    {
+        $policies = $this->policies;
+        if (!isset($policies[$name])) {
+            throw new InvalidArgumentException('Unknown rate-limit policy: ' . $name);
+        }
+        $policies[$name] = new RateLimitPolicy($name, $maximumAttempts, $windowSeconds);
+
+        return new self($policies);
     }
 
     /** @return array<string, array{name:string, maximum_attempts:int, window_seconds:int}> */
@@ -86,33 +98,49 @@ final readonly class RateLimitPolicySet
                 );
             }
 
-            if (
-                $maximumAttempts < $definition['minimum_attempts']
-                || $maximumAttempts > $definition['maximum_attempts']
-            ) {
-                throw new InvalidArgumentException(sprintf(
-                    '%s_MAX_ATTEMPTS must be between %d and %d.',
-                    $prefix,
-                    $definition['minimum_attempts'],
-                    $definition['maximum_attempts'],
-                ));
-            }
-            if (
-                $windowSeconds < $definition['minimum_window_seconds']
-                || $windowSeconds > $definition['maximum_window_seconds']
-            ) {
-                throw new InvalidArgumentException(sprintf(
-                    '%s_WINDOW_SECONDS must be between %d and %d.',
-                    $prefix,
-                    $definition['minimum_window_seconds'],
-                    $definition['maximum_window_seconds'],
-                ));
-            }
-
-            $policies[$name] = new RateLimitPolicy($name, $maximumAttempts, $windowSeconds);
+            $policy = new RateLimitPolicy($name, $maximumAttempts, $windowSeconds);
+            self::assertWithinBounds($policy, $definition);
+            $policies[$name] = $policy;
         }
 
         return new self($policies);
+    }
+
+    /**
+     * @param array{
+     *   default_maximum_attempts:int,
+     *   default_window_seconds:int,
+     *   minimum_attempts:int,
+     *   maximum_attempts:int,
+     *   minimum_window_seconds:int,
+     *   maximum_window_seconds:int
+     * } $definition
+     */
+    private static function assertWithinBounds(RateLimitPolicy $policy, array $definition): void
+    {
+        $prefix = 'RATE_LIMIT_' . strtoupper($policy->name);
+        if (
+            $policy->maximumAttempts < $definition['minimum_attempts']
+            || $policy->maximumAttempts > $definition['maximum_attempts']
+        ) {
+            throw new InvalidArgumentException(sprintf(
+                '%s_MAX_ATTEMPTS must be between %d and %d.',
+                $prefix,
+                $definition['minimum_attempts'],
+                $definition['maximum_attempts'],
+            ));
+        }
+        if (
+            $policy->windowSeconds < $definition['minimum_window_seconds']
+            || $policy->windowSeconds > $definition['maximum_window_seconds']
+        ) {
+            throw new InvalidArgumentException(sprintf(
+                '%s_WINDOW_SECONDS must be between %d and %d.',
+                $prefix,
+                $definition['minimum_window_seconds'],
+                $definition['maximum_window_seconds'],
+            ));
+        }
     }
 
     /**
