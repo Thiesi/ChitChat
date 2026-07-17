@@ -13,6 +13,8 @@ The browser administration console is served at `/admin.php`. It is an ordinary 
 
 All state-changing endpoints require the current `X-CSRF-Token` header.
 
+Global-role replacement and administrator password reset additionally require active privileged step-up authentication. Current-password verification does not grant any role or bypass target-account restrictions; it only satisfies the recent-authentication requirement for a session already authorized to perform the action.
+
 ## Users
 
 ### `GET /api/v1/admin/users.php`
@@ -29,6 +31,8 @@ The response includes roles, creation and last-login timestamps, and the current
 
 ### `POST /api/v1/admin/roles.php`
 
+Requires active privileged step-up.
+
 ```json
 {
   "target_user_id": 17,
@@ -43,7 +47,7 @@ The supplied role array replaces the complete global-role set. Supported values 
 - `chat_admin`
 - `global_moderator`
 
-The operation is transactional, audited, and invalidates active sessions for the target account.
+The operation is transactional, audited, and invalidates active sessions for the target account. Missing or expired step-up returns `step_up_required` before any role is changed or role-change audit is written.
 
 Existing account-control endpoints are used by the console:
 
@@ -51,6 +55,8 @@ Existing account-control endpoints are used by the console:
 - `POST /api/v1/admin/ban.php`
 - `POST /api/v1/admin/unban.php`
 - `POST /api/v1/admin/reset-password.php`
+
+`reset-password.php` requires active privileged step-up; kick, ban, and unban do not in this milestone. A successful password verification and the later password reset create separate audit records.
 
 ## Audit log
 
@@ -63,7 +69,7 @@ Optional query parameters:
 - `before_id`: descending audit-ID cursor;
 - `limit`: 1-100, default 50.
 
-The response includes actor identity when still available, action, subject, recorded metadata, source IP address, and timestamp. Newest entries are returned first.
+The response includes actor identity when still available, action, subject, recorded metadata, source IP address, and timestamp. Newest entries are returned first. Successful and failed privileged password verification appear as `auth.privileged_step_up_succeeded` and `auth.privileged_step_up_failed`; password values are never included.
 
 ## Room administration
 
@@ -114,6 +120,10 @@ The console uses the existing room endpoints for settings, invitations, and memb
 - `POST /api/v1/rooms/invite.php`
 - `POST /api/v1/rooms/role.php`
 
+Room administration does not require privileged step-up in this milestone.
+
 ## Browser safety
 
 The administration console constructs all account, room, and audit views with DOM nodes and `textContent`. Usernames, reasons, room information, and audit metadata are never inserted as HTML.
+
+When a protected JSON POST returns `step_up_required`, the shared browser API layer opens an accessible current-password dialog, verifies through `POST /api/v1/step-up.php`, and retries the original action exactly once. Cancellation or failed verification leaves the original action unapplied.
