@@ -37,15 +37,22 @@ async function setRegistrationPolicy(page, enabled, {
   rejectWrongPassword = false,
 } = {}) {
   await page.locator('#registration-enabled').selectOption(enabled ? '1' : '0');
-  const responsePromise = page.waitForResponse((response) => (
+  const isSuccessfulSettingsResponse = (response) => (
     response.url().endsWith('/api/v1/admin/settings/update.php')
     && response.request().method() === 'POST'
     && response.ok()
-  ));
-  await page.locator('#save-settings').click();
-
+  );
   const stepUpDialog = page.locator('.step-up-dialog');
-  if (expectPrompt) {
+
+  page.once('dialog', async (dialog) => dialog.accept());
+  if (!expectPrompt) {
+    const responsePromise = page.waitForResponse(isSuccessfulSettingsResponse);
+    await page.locator('#save-settings').click();
+    await expect(stepUpDialog).toBeHidden();
+    const response = await responsePromise;
+    expect(response.ok()).toBeTruthy();
+  } else {
+    await page.locator('#save-settings').click();
     await expect(stepUpDialog).toBeVisible();
     if (rejectWrongPassword) {
       await stepUpDialog.locator('#step-up-password').fill('Definitely not the current password');
@@ -53,15 +60,15 @@ async function setRegistrationPolicy(page, enabled, {
       await expect(stepUpDialog.locator('.step-up-error')).toContainText('current password is incorrect');
       await expect(stepUpDialog).toBeVisible();
     }
+
     await stepUpDialog.locator('#step-up-password').fill(password);
+    const responsePromise = page.waitForResponse(isSuccessfulSettingsResponse);
     await stepUpDialog.getByRole('button', { name: 'Verify password' }).click();
     await expect(stepUpDialog).toBeHidden();
-  } else {
-    await expect(stepUpDialog).toBeHidden();
+    const response = await responsePromise;
+    expect(response.ok()).toBeTruthy();
   }
 
-  const response = await responsePromise;
-  expect(response.ok()).toBeTruthy();
   await expect(page.locator('#registration-enabled')).toHaveValue(enabled ? '1' : '0');
 }
 
