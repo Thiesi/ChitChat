@@ -45,8 +45,13 @@ mkdir -p "$work_root" "$work_root/nginx" "$work_root/nginx/client-body" \
 chmod 700 "$work_root" "$ATTACHMENT_STORAGE_PATH"
 touch "$cookie" "$stream_body" "$stream_headers"
 
-fpm_bin="$(command -v php-fpm8.4 || command -v php-fpm || true)"
-if [[ -z "$fpm_bin" ]]; then
+fpm_bin="$(
+  command -v php-fpm8.4 \
+    || command -v php-fpm8.3 \
+    || command -v php-fpm \
+    || find /usr/sbin -maxdepth 1 -type f -name 'php-fpm*' -print | sort -V | tail -n 1
+)"
+if [[ -z "$fpm_bin" || ! -x "$fpm_bin" ]]; then
   echo 'PHP-FPM binary not found.' >&2
   exit 1
 fi
@@ -183,7 +188,7 @@ for _ in $(seq 1 30); do
   sleep 0.2
 done
 grep -qi '^content-type: text/event-stream' "$stream_headers"
-grep -qi '^x-accel-buffering: no' "$stream_headers"
+grep -qi '^cache-control:.*no-store' "$stream_headers"
 
 unique_message="SSE-through-Nginx-$(date +%s%N)"
 curl --fail-with-body --silent --show-error \
