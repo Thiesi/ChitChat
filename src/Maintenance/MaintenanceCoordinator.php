@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace ChitChat\Maintenance;
 
+use ChitChat\Account\AccountClosureService;
 use ChitChat\Config;
 use ChitChat\Observability\MaintenanceRunRepository;
 use DateTimeImmutable;
@@ -14,6 +15,7 @@ use Throwable;
 final class MaintenanceCoordinator
 {
     private readonly CleanupService $cleanup;
+    private readonly AccountClosureService $closures;
     private readonly MaintenanceRunRepository $runs;
 
     public function __construct(
@@ -21,6 +23,7 @@ final class MaintenanceCoordinator
         Config $config,
     ) {
         $this->cleanup = new CleanupService($pdo, $config);
+        $this->closures = new AccountClosureService($pdo, $config);
         $this->runs = new MaintenanceRunRepository($pdo);
     }
 
@@ -32,6 +35,9 @@ final class MaintenanceCoordinator
 
         try {
             $result = $this->cleanup->run($dryRun);
+            $result['account_closures_finalized'] = $dryRun
+                ? $this->closures->dueCount()
+                : $this->closures->finalizeDue();
             $result['expired_sse_connections'] = $this->expiredSseConnections($dryRun);
             $result['maintenance_run_rows'] = $this->oldMaintenanceRuns($dryRun, $runId);
             $durationMs = self::durationMs($started);
