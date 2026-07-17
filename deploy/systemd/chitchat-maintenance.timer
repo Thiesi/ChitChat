@@ -1,0 +1,11 @@
+[Unit]
+Description=Run ChitChat maintenance daily
+
+[Timer]
+OnCalendar=*-*-* 03:15:00
+RandomizedDelaySec=15m
+Persistent=true
+Unit=chitchat-maintenance.service
+
+[Install]
+WantedBy=timers.target
