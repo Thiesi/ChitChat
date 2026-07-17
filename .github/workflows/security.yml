@@ -28,8 +28,23 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
+          extensions: fileinfo, mbstring, pdo_pgsql
           coverage: none
           tools: composer:v2
+
+      - name: Bootstrap missing Composer lockfile
+        id: composer-lock
+        if: ${{ hashFiles('composer.lock') == '' }}
+        run: composer update --no-install --no-interaction --prefer-dist
+
+      - name: Upload bootstrapped Composer lockfile
+        if: ${{ steps.composer-lock.outcome == 'success' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: bootstrapped-composer-lock
+          path: composer.lock
+          if-no-files-found: error
+          retention-days: 1
 
       - name: Audit locked Composer dependencies
         id: composer-audit
