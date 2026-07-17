@@ -293,3 +293,41 @@ jobs:
           path: ${{ runner.temp }}/chitchat-nginx-rehearsal/
           if-no-files-found: ignore
           retention-days: 7
+
+  publish-release:
+    if: github.event_name == 'pull_request' && github.head_ref == 'release/publish-v1.0.0'
+    needs:
+      - static
+      - integration
+      - browser
+      - release-rehearsal
+      - reverse-proxy
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: a3000359ea696afb124dc3e8b42c70c0fbf63568
+          fetch-depth: 0
+
+      - name: Create annotated tag and stable release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "$(git rev-parse HEAD)" = 'a3000359ea696afb124dc3e8b42c70c0fbf63568'
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git tag -a v1.0.0 -m 'ChitChat v1.0.0'
+          git push origin v1.0.0
+          gh release create v1.0.0 \
+            --verify-tag \
+            --title 'ChitChat v1.0.0' \
+            --notes-file docs/releases/v1.0.0.md \
+            --latest
+
+      - name: Remove publication branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: git push origin --delete release/publish-v1.0.0
