@@ -20,5 +20,13 @@ Endpoint::run($config, static function () use ($config): ApiResult {
     return ApiResult::ok([
         'csrf_token' => SessionManager::csrfToken(),
         'user' => $user?->toArray(),
+        'privacy' => [
+            'direct_messages' => [
+                'end_to_end_encrypted' => false,
+                'admin_inspection_enabled' => $config->directMessageInspectionEnabled,
+                'admin_inspection_role' => $config->directMessageInspectionRole,
+                'retention' => 'permanent',
+            ],
+        ],
     ]);
 });

@@ -48,12 +48,15 @@ The application currently provides:
 - inactivity warnings and active-room expiry without membership removal;
 - audited soft deletion of messages by authorized moderators;
 - room attachments with MIME and size allowlists, SHA-256 metadata, safe image previews, and authorization-aware downloads;
-- a responsive browser client for registration, login, room creation and joining, history, live messages, commands, presence, attachments, and logout;
-- a permission-aware browser administration console for users, roles, bans, room settings, membership, invitations, and audit visibility;
-- audit records for sensitive account, room, and attachment actions;
+- permanent two-party direct-message history, unread counts, cursor pagination and targeted realtime events;
+- an unavoidable direct-message privacy notice stating that messages are not end-to-end encrypted;
+- configurable administrative DM inspection, restricted to Super-Administrators by default and audited on every successful page access;
+- a responsive browser client for registration, login, rooms, history, live messages, commands, presence, attachments, direct messages, and logout;
+- a permission-aware browser administration console for users, roles, bans, room settings, membership, invitations, audit visibility, and eligible DM inspection;
+- audit records for sensitive account, room, attachment, and inspection actions;
 - PHPUnit, PHPStan, JavaScript syntax checks, and PostgreSQL-backed CI.
 
-Direct messages remain a future milestone.
+Direct-message attachments, configurable retention cleanup, and broader production hardening remain future milestones.
 
 ## Development
 
