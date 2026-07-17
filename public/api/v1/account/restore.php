@@ -26,7 +26,7 @@ Endpoint::run($config, static function () use ($config): ApiResult {
 
     return ApiResult::ok([
         'csrf_token' => SessionManager::csrfToken(),
-        'user' => $user->toArray(),
+        'user' => $user->toSessionArray(),
         'restored' => true,
     ]);
 });
