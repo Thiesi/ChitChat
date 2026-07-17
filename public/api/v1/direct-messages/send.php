@@ -20,7 +20,10 @@ Endpoint::run($config, static function () use ($config): ApiResult {
     $payload = Request::json();
     $pdo = Database::connect($config);
     $actor = SessionManager::requireUser(new UserRepository($pdo));
-    (new RateLimiter($pdo))->consume('direct_message_send', 'user:' . $actor->id, 30, 60);
+    (new RateLimiter($pdo, $config->rateLimits))->consume(
+        'direct_message_send',
+        'user:' . $actor->id,
+    );
 
     return ApiResult::created([
         'message' => (new DirectMessageService($pdo))->send(
