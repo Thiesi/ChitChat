@@ -74,7 +74,8 @@ pg_restore \
   --dbname=chitchat_restore \
   "$backup/database.dump"
 
-rm -rf /srv/chitchat-data/uploads.restore\mkdir -p /srv/chitchat-data/uploads.restore
+rm -rf /srv/chitchat-data/uploads.restore
+mkdir -p /srv/chitchat-data/uploads.restore
 tar -C /srv/chitchat-data/uploads.restore --strip-components=1 -xpf "$backup/attachments.tar"
 ```
 
