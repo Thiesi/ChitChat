@@ -154,7 +154,7 @@ SQL),
     {
         $rows = $this->rows($sql);
         $row = $rows[0] ?? null;
-        if (!is_array($row)) {
+        if ($row === null) {
             throw new RuntimeException('System status query returned no row.');
         }
 
@@ -168,11 +168,9 @@ SQL),
         if ($statement === false) {
             throw new RuntimeException('Unable to query system status.');
         }
-        $rows = $statement->fetchAll(PDO::FETCH_ASSOC);
-        if (!is_array($rows)) {
-            throw new RuntimeException('System status query returned an invalid result.');
-        }
 
+        /** @var list<array<string, mixed>> $rows */
+        $rows = $statement->fetchAll(PDO::FETCH_ASSOC);
         return $rows;
     }
 
