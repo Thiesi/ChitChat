@@ -31,14 +31,35 @@ async function selectDirectMessagePeer(page, username) {
   await expect(page.locator('#dm-block-toggle')).toBeVisible();
 }
 
-async function setRegistrationPolicy(page, enabled) {
-  page.once('dialog', (dialog) => dialog.accept());
+async function setRegistrationPolicy(page, enabled, {
+  password = null,
+  expectPrompt = false,
+  rejectWrongPassword = false,
+} = {}) {
   await page.locator('#registration-enabled').selectOption(enabled ? '1' : '0');
   const responsePromise = page.waitForResponse((response) => (
     response.url().endsWith('/api/v1/admin/settings/update.php')
     && response.request().method() === 'POST'
+    && response.ok()
   ));
   await page.locator('#save-settings').click();
+
+  const stepUpDialog = page.locator('.step-up-dialog');
+  if (expectPrompt) {
+    await expect(stepUpDialog).toBeVisible();
+    if (rejectWrongPassword) {
+      await stepUpDialog.locator('#step-up-password').fill('Definitely not the current password');
+      await stepUpDialog.getByRole('button', { name: 'Verify password' }).click();
+      await expect(stepUpDialog.locator('.step-up-error')).toContainText('current password is incorrect');
+      await expect(stepUpDialog).toBeVisible();
+    }
+    await stepUpDialog.locator('#step-up-password').fill(password);
+    await stepUpDialog.getByRole('button', { name: 'Verify password' }).click();
+    await expect(stepUpDialog).toBeHidden();
+  } else {
+    await expect(stepUpDialog).toBeHidden();
+  }
+
   const response = await responsePromise;
   expect(response.ok()).toBeTruthy();
   await expect(page.locator('#registration-enabled')).toHaveValue(enabled ? '1' : '0');
@@ -184,7 +205,16 @@ test.describe.serial('ChitChat browser release checks', () => {
       await expect(settingsPage.locator('#room-retention')).toHaveValue('0');
       await expect(settingsPage.locator('#dm-retention')).toHaveValue('0');
 
-      await setRegistrationPolicy(settingsPage, false);
+      await setRegistrationPolicy(settingsPage, false, {
+        password: admin.password,
+        expectPrompt: true,
+        rejectWrongPassword: true,
+      });
+
+      const sessionAfterStepUp = await adminContext.request.get('/api/v1/session.php');
+      const sessionPayload = await sessionAfterStepUp.json();
+      expect(sessionPayload.security.privileged_step_up.active).toBe(true);
+      expect(sessionPayload.security.privileged_step_up.method).toBe('password');
 
       anonymousContext = await browser.newContext({ baseURL });
       const anonymousPage = await anonymousContext.newPage();
@@ -192,7 +222,9 @@ test.describe.serial('ChitChat browser release checks', () => {
       await expect(anonymousPage.locator('#auth-shell')).toBeVisible();
       await expect(anonymousPage.locator('#register-tab')).toBeHidden();
 
-      await setRegistrationPolicy(settingsPage, true);
+      await setRegistrationPolicy(settingsPage, true, {
+        expectPrompt: false,
+      });
     } finally {
       await anonymousContext?.close();
       await memberContext.close();
