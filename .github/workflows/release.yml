@@ -1,0 +1,198 @@
+name: Publish release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Semantic version without the leading v (for example 1.2.0 or 1.2.0-rc.1)
+        required: true
+        type: string
+      commit_sha:
+        description: Full 40-character commit SHA reachable from main
+        required: true
+        type: string
+      publication:
+        description: Validate only, publish a stable release, or publish a pre-release
+        required: true
+        default: validate-only
+        type: choice
+        options:
+          - validate-only
+          - stable
+          - prerelease
+
+permissions:
+  actions: read
+  checks: read
+  contents: read
+
+concurrency:
+  group: chitchat-release-${{ inputs.version }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Validate release commit
+    runs-on: ubuntu-latest
+
+    outputs:
+      resolved_sha: ${{ steps.metadata.outputs.resolved_sha }}
+      tag: ${{ steps.metadata.outputs.tag }}
+      notes_file: ${{ steps.metadata.outputs.notes_file }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.commit_sha }}
+          fetch-depth: 0
+
+      - name: Validate commit and release metadata
+        id: metadata
+        env:
+          VERSION: ${{ inputs.version }}
+          COMMIT_SHA: ${{ inputs.commit_sha }}
+          PUBLICATION: ${{ inputs.publication }}
+        run: |
+          bash tests/stabilization/validate-release-publication.sh \
+            "$VERSION" "$COMMIT_SHA" "$PUBLICATION"
+
+          RESOLVED_SHA=$(git rev-parse --verify HEAD)
+          {
+            echo "resolved_sha=${RESOLVED_SHA}"
+            echo "tag=v${VERSION}"
+            echo "notes_file=docs/releases/v${VERSION}.md"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Verify required checks on exact commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          COMMIT_SHA: ${{ steps.metadata.outputs.resolved_sha }}
+        run: bash tests/stabilization/verify-release-checks.sh "$COMMIT_SHA"
+
+      - name: Summarize validation
+        env:
+          VERSION: ${{ inputs.version }}
+          PUBLICATION: ${{ inputs.publication }}
+          COMMIT_SHA: ${{ steps.metadata.outputs.resolved_sha }}
+        run: |
+          {
+            echo '## Release validation passed'
+            echo
+            echo "- Version: \`v${VERSION}\`"
+            echo "- Commit: \`${COMMIT_SHA}\`"
+            echo "- Requested mode: \`${PUBLICATION}\`"
+            echo '- Every required release check succeeded on the exact commit.'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  publish:
+    name: Publish release
+    if: ${{ inputs.publication != 'validate-only' }}
+    needs: validate
+    runs-on: ubuntu-latest
+
+    environment:
+      name: release
+
+    permissions:
+      actions: read
+      checks: read
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.validate.outputs.resolved_sha }}
+          fetch-depth: 0
+
+      - name: Revalidate exact publication state
+        env:
+          VERSION: ${{ inputs.version }}
+          COMMIT_SHA: ${{ needs.validate.outputs.resolved_sha }}
+          PUBLICATION: ${{ inputs.publication }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          bash tests/stabilization/validate-release-publication.sh \
+            "$VERSION" "$COMMIT_SHA" "$PUBLICATION"
+          bash tests/stabilization/verify-release-checks.sh "$COMMIT_SHA"
+
+      - name: Create annotated tag if missing
+        env:
+          VERSION: ${{ inputs.version }}
+          COMMIT_SHA: ${{ needs.validate.outputs.resolved_sha }}
+          TAG: ${{ needs.validate.outputs.tag }}
+        run: |
+          set -euo pipefail
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+
+          if git ls-remote --exit-code --tags origin "refs/tags/${TAG}" >/dev/null 2>&1; then
+            git fetch --quiet --force origin "refs/tags/${TAG}:refs/tags/${TAG}"
+            [[ "$(git cat-file -t "refs/tags/${TAG}")" == 'tag' ]]
+            [[ "$(git rev-parse --verify "${TAG}^{commit}")" == "$COMMIT_SHA" ]]
+            echo "Annotated tag ${TAG} already exists on the requested commit; resuming publication."
+          else
+            git tag --annotate "$TAG" "$COMMIT_SHA" --message "ChitChat ${TAG}"
+            git push origin "refs/tags/${TAG}"
+          fi
+
+      - name: Create GitHub release if missing
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+          COMMIT_SHA: ${{ needs.validate.outputs.resolved_sha }}
+          PUBLICATION: ${{ inputs.publication }}
+          TAG: ${{ needs.validate.outputs.tag }}
+          NOTES_FILE: ${{ needs.validate.outputs.notes_file }}
+        run: |
+          set -euo pipefail
+
+          RELEASE_ENDPOINT="/repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}"
+          if gh api "$RELEASE_ENDPOINT" >/dev/null 2>&1; then
+            echo "GitHub release ${TAG} already exists; verifying it instead of modifying it."
+            exit 0
+          fi
+
+          RELEASE_ARGUMENTS=(
+            "$TAG"
+            --verify-tag
+            --target "$COMMIT_SHA"
+            --title "ChitChat ${TAG}"
+            --notes-file "$NOTES_FILE"
+          )
+
+          if [[ "$PUBLICATION" == 'prerelease' ]]; then
+            RELEASE_ARGUMENTS+=(--prerelease)
+          else
+            RELEASE_ARGUMENTS+=(--latest)
+          fi
+
+          gh release create "${RELEASE_ARGUMENTS[@]}"
+
+      - name: Verify publication
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+          COMMIT_SHA: ${{ needs.validate.outputs.resolved_sha }}
+          PUBLICATION: ${{ inputs.publication }}
+        run: |
+          RELEASE_URL=$(bash tests/stabilization/verify-published-release.sh \
+            "$VERSION" "$COMMIT_SHA" "$PUBLICATION")
+          echo "url=${RELEASE_URL}" >> "$GITHUB_OUTPUT"
+
+      - name: Summarize publication
+        env:
+          VERSION: ${{ inputs.version }}
+          PUBLICATION: ${{ inputs.publication }}
+          COMMIT_SHA: ${{ needs.validate.outputs.resolved_sha }}
+          RELEASE_URL: ${{ steps.release.outputs.url }}
+        run: |
+          {
+            echo '## Release published'
+            echo
+            echo "- Version: \`v${VERSION}\`"
+            echo "- Commit: \`${COMMIT_SHA}\`"
+            echo "- Type: \`${PUBLICATION}\`"
+            echo "- Release: ${RELEASE_URL}"
+          } >> "$GITHUB_STEP_SUMMARY"
