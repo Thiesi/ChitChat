@@ -23,9 +23,13 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 - Added integration and Chromium/Firefox coverage for revision-chain rendering, independent role authorization, reason validation, and content-free audit metadata.
 - Added an Administrator system-status page backed by aggregate PostgreSQL, attachment-storage, realtime, security-ledger, and maintenance measurements.
 - Added a disabled-by-default Prometheus text endpoint protected by a configurable bearer token.
-- Added leased SSE-connection accounting and persistent maintenance invocation records for success, failure, duration, and result reporting.
+- Added leased SSE-connection accounting and persistent maintenance invocation records for success, warning, failure, duration, and result reporting.
 - Added ready-to-adapt hardened `systemd` service/timer units and observability operating documentation.
 - Added unit, PostgreSQL integration, and Chromium/Firefox coverage for status authorization, Prometheus encoding, maintenance freshness, and SSE lease lifecycle.
+- Added short-lived current-password step-up authentication for DM inspection, revision review, global role replacement, administrator password resets, and operational-policy updates.
+- Added session disclosure of step-up status, a shared accessible browser password dialog, and one-time automatic retry of protected JSON POST requests after successful verification.
+- Added database-backed step-up attempt limiting plus separate success and failure audit records.
+- Added unit, PostgreSQL integration, and Chromium/Firefox coverage for failed verification, successful elevation, session-version binding, expiry, rate limiting, and reuse during the active window.
 
 ### Security and privacy
 
@@ -44,6 +48,10 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 - Messages without retained revisions cannot be opened through the review workflow, limiting it to its stated historical-content purpose.
 - ChitChat does not notify participants when a revision review occurs; the administrative interface and operating documentation make that limitation and the operator's disclosure responsibility explicit.
 - Metrics remain unavailable while no bearer token is configured and expose aggregate operational values rather than usernames, message content, attachment names, IP addresses, credentials, or filesystem paths.
+- Privileged elevation is bound to the current user and session version, expires after a configurable 60-3600 second window, and is cleared by login rotation, logout, password or session-version changes, bans, and other authentication invalidation.
+- Coarse role and feature-policy checks occur before step-up, so unauthorized accounts are denied without receiving a password prompt.
+- Successful and failed step-up audits contain method and timing policy only; passwords are never written to audit metadata.
+- Password step-up is recent reauthentication rather than multi-factor authentication and does not replace roles, CSRF, required reasons, per-action audits, or target-specific authorization.
 
 ## [1.0.0] - 2026-07-17
 
