@@ -18,13 +18,13 @@ final class MaintenanceRunRepository
     {
         $statement = $this->pdo->prepare(<<<'SQL'
 INSERT INTO maintenance_runs (dry_run, status)
-VALUES (:dry_run, 'running')
+VALUES (CAST(:dry_run AS integer)::boolean, 'running')
 RETURNING id
 SQL);
         if ($statement === false) {
             throw new RuntimeException('Unable to prepare maintenance-run creation.');
         }
-        $statement->execute(['dry_run' => $dryRun]);
+        $statement->execute(['dry_run' => $dryRun ? 1 : 0]);
         $id = $statement->fetchColumn();
         if ($id === false) {
             throw new RuntimeException('Maintenance-run creation returned no ID.');
