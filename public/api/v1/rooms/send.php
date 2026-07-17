@@ -7,6 +7,7 @@ use ChitChat\Auth\UserRepository;
 use ChitChat\Database;
 use ChitChat\Http\ApiResult;
 use ChitChat\Http\Endpoint;
+use ChitChat\Http\RateLimiter;
 use ChitChat\Http\Request;
 use ChitChat\Realtime\PingCommand;
 use ChitChat\Realtime\PingService;
@@ -21,6 +22,7 @@ Endpoint::run($config, static function () use ($config): ApiResult {
     $payload = Request::json();
     $pdo = Database::connect($config);
     $actor = SessionManager::requireUser(new UserRepository($pdo));
+    (new RateLimiter($pdo))->consume('room_send', 'user:' . $actor->id, 30, 60);
     $roomId = Request::integer($payload, 'room_id');
     $body = Request::string($payload, 'body');
     $ping = PingCommand::parse($body);

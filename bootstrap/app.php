@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use ChitChat\Config;
+use ChitChat\Http\SecurityHeaders;
 
 $root = dirname(__DIR__);
 $autoload = $root . '/vendor/autoload.php';
@@ -15,5 +16,7 @@ if (!is_file($autoload)) {
 require $autoload;
 
 Config::loadEnvFile($root . '/.env');
+$config = Config::fromEnvironment();
+SecurityHeaders::send($config);
 
-return Config::fromEnvironment();
+return $config;

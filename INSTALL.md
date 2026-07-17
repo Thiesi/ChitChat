@@ -50,7 +50,7 @@ The deployed browser client has no Node.js runtime dependency and uses no npm pa
 
 9. Open `http://127.0.0.1:8080/`.
 
-The first account created through the browser becomes Super-Administrator. That account can use the **+** button beside the room list to create the first room and the **Administration** link for user, room, and audit management.
+The first account created through the browser becomes Super-Administrator. That account can create the first room and use **Administration** for users, rooms, audit visibility, direct-message inspection policy, and operational settings.
 
 ## Authentication bootstrap
 
@@ -62,7 +62,7 @@ GET /api/v1/session.php
 
 The response contains a `csrf_token`. Send that value in the `X-CSRF-Token` header for every state-changing request, including registration and login.
 
-The response also contains the direct-message privacy policy. Browser clients must disclose that messages are not end-to-end encrypted, state the current retention behavior, and state whether administrative inspection is enabled and for which role.
+It also contains whether public registration is enabled and the direct-message privacy policy. Browser clients must disclose that DMs are not end-to-end encrypted, state the active retention period, and state whether administrative inspection is enabled and for which role.
 
 The first successfully registered account is promoted to `super_admin` inside the same database transaction that creates it. Concurrent first registrations are serialized by locking the single system-settings row.
 
@@ -72,16 +72,16 @@ The first successfully registered account is promoted to `super_admin` inside th
 - `/messages.php` serves the direct-message inbox and its fixed privacy notice.
 - `/admin.php` serves the permission-aware administration console.
 - `/admin-messages.php` serves audited direct-message inspection for eligible administrators.
+- `/admin-settings.php` serves Super-Administrator operational settings.
 - `/health.php` reports whether the PHP process is alive.
 - `/ready.php` verifies that the application can connect to PostgreSQL and use attachment storage.
 - `/api/v1/events/stream.php` provides the authenticated SSE stream.
 - `/api/v1/presence/heartbeat.php` renews a browser tab's presence lease.
 - `/api/v1/rooms/presence.php` lists active users in an authorized room.
-- `/api/v1/attachments/upload.php` accepts CSRF-protected multipart room uploads.
-- `/api/v1/attachments/download.php` streams an attachment after rechecking room and age authorization.
-- `/api/v1/attachments/metadata.php` returns bounded metadata for attachment cards in visible messages.
+- `/api/v1/attachments/` contains upload, protected download, and bounded metadata endpoints.
 - `/api/v1/direct-messages/` contains user search, conversation, history, send and read-acknowledgement endpoints.
 - `/api/v1/admin/direct-messages/` contains inspection user search and audited inspection endpoints.
+- `/api/v1/admin/settings/` contains Super-Administrator settings read and update endpoints.
 - API contracts are documented in `docs/api/`.
 
 ## Server-Sent Events
@@ -98,37 +98,50 @@ Each browser tab uses a distinct UUID and renews its lease every 20 seconds. `PR
 
 Presence is distinct from room membership. Lease expiry, an unclean disconnect, or room inactivity removes the tab from the active-user list but does not remove the account's persistent room membership or room role.
 
-Presence heartbeats and room-presence reads remove stale leases and emit invalidation events. Because every active browser already sends heartbeats, the initial single-server deployment does not require a cron job or extra cleanup work in each SSE worker. A future horizontally scaled deployment may move cleanup into a dedicated worker.
+## Administration and retention
 
-## Administration
+User and audit controls are visible only to Super-Administrators and Administrators. Room controls are visible to Super-Administrators, Administrators, Chat Admins, and owners of the selected room. Only Super-Administrators may change registration or retention policy.
 
-The console is not a privileged server-side bypass. It uses the same authenticated JSON endpoints and CSRF requirements as any other client. User and audit controls are visible only to Super-Administrators and Administrators. Room controls are visible to Super-Administrators, Administrators, Chat Admins, and owners of the selected room.
+Room-message, direct-message, and audit retention default to `0`, meaning permanent retention. Nonzero policies become effective only when maintenance runs:
 
-Global role changes, kicks, bans, and administrator password resets invalidate active sessions. Sensitive actions are written to the audit log.
+```sh
+composer maintenance:dry-run
+composer maintenance
+```
+
+The command also removes expired presence, old realtime events and throttle ledgers, deleted attachment files, and opaque orphan files older than their grace period. Schedule it as the same operating-system account that owns attachment storage. See `docs/operations/maintenance.md`.
 
 ## Attachments
 
 `ATTACHMENT_STORAGE_PATH` defaults to the repository's absolute `var/uploads` directory. A custom value must be an absolute path outside `public/`. Files are stored with random extensionless keys in two-level shard directories and are never addressed directly by the web server.
 
-`ATTACHMENT_MAX_BYTES` defaults to 10 MiB and accepts values from 1 KiB through 100 MiB. PHP and the reverse proxy must permit at least the same request size. In particular, set `upload_max_filesize` and `post_max_size` to values at or above the configured ChitChat limit, with `post_max_size` slightly larger to allow multipart overhead.
+`ATTACHMENT_MAX_BYTES` defaults to 10 MiB and accepts values from 1 KiB through 100 MiB. PHP and the reverse proxy must permit at least the same request size. Set `upload_max_filesize` and `post_max_size` at or above the ChitChat limit, with `post_max_size` slightly larger for multipart overhead.
 
-The initial MIME allowlist is deliberately conservative: JPEG, PNG, GIF, WebP, PDF, plain text, CSV, JSON, and ZIP. SVG, HTML, scripts, executables, and unknown binary types are rejected. Only the four raster image formats may be served inline; everything else is forced to download with `nosniff`, a sandboxed content policy, and same-origin resource isolation.
+The allowlist is JPEG, PNG, GIF, WebP, PDF, plain text, CSV, JSON, and ZIP. SVG, HTML, scripts, executables, and unknown binary types are rejected. Only raster image formats may be served inline.
 
-Message deletion immediately marks linked attachment metadata deleted and revokes future downloads. The physical file is retained initially for moderation evidence and later retention cleanup. A process crash between moving a file and committing its database record can leave an orphaned opaque file; automated orphan cleanup is a future operational task.
+Moderator deletion immediately revokes downloads. Physical files remain until the configured deleted-attachment retention expires. Failed upload transactions may leave opaque files; maintenance removes them after the orphan grace period.
 
 ## Direct messages and privacy
 
-Direct messages are ordinary server-side PostgreSQL records. They are **not end-to-end encrypted** and are retained permanently in the initial v1 release. The browser inbox displays this disclosure at all times.
+Direct messages are ordinary server-side PostgreSQL records. They are **not end-to-end encrypted**. Retention is permanent by default and may be changed by a Super-Administrator; the inbox reads the active policy from the server.
 
-`DM_ADMIN_INSPECTION_ENABLED` defaults to `1`. Set it to `0` to disable administrative content access entirely. `DM_ADMIN_INSPECTION_ROLE` defaults to `super_admin`; the only other supported value is `admin`, which permits both Administrators and Super-Administrators. Chat Admins, Global Moderators and room owners never receive DM inspection through these settings.
+`DM_ADMIN_INSPECTION_ENABLED` defaults to `1`. Set it to `0` to disable administrative content access entirely. `DM_ADMIN_INSPECTION_ROLE` defaults to `super_admin`; `admin` permits both Administrators and Super-Administrators. Chat Admins, Global Moderators and room owners never receive DM inspection through these settings.
 
-Every successful inspection page is written to `audit_log` before content is returned. The record includes the inspecting account, IP address, stated reason, selected users, pagination cursor, limit, returned count and oldest/newest returned message IDs. It deliberately does not copy message bodies into audit metadata. Invalid, unauthorized or disabled requests return no content and write no inspection record.
+Every successful inspection page is audited before content is returned. Audit metadata includes the actor, IP, reason, selected users, pagination details and returned ID range, but not copied message bodies.
 
-The user-facing inbox supports text only in this milestone. Direct-message attachments, deletion, editing and end-to-end encryption are not implemented.
+## Browser security and rate limits
+
+All PHP responses use a restrictive Content Security Policy, clickjacking protection, `nosniff`, no-referrer behavior, a restrictive Permissions Policy, same-origin opener/resource policies, and `Cache-Control: no-store`. When `SESSION_COOKIE_SECURE=1`, ChitChat also emits one-year HSTS.
+
+Database-backed fixed-window limits are shared by all PHP workers: five registrations per source IP per hour, thirty room sends per user per minute, ten attachment uploads per user per hour, and thirty direct messages per user per minute. Login has its existing configurable credential throttle.
+
+## Backup and restore
+
+Back up PostgreSQL and attachment storage together. The database contains password hashes, chat and DM history, audit data, IP addresses and policy settings. See `docs/operations/backup-restore.md` for verified dump, archive and restore procedures.
 
 ## Production web-root rule
 
-The web server document root must be the repository's `public/` directory. Do not expose `src/`, `bootstrap/`, `migrations/`, `.env`, `var/`, or Composer metadata.
+The web server document root must be the repository's `public/` directory. Do not expose `src/`, `bootstrap/`, `migrations/`, `.env`, `var/`, Composer metadata, database dumps, or backup archives.
 
 Use HTTPS, set `SESSION_COOKIE_SECURE=1`, and leave `SESSION_COOKIE_SAMESITE=Lax` unless deployment requirements justify a stricter setting. Do not use `SameSite=None` without secure cookies.
 
@@ -139,4 +152,4 @@ composer check
 find public/assets/js -type f -name '*.js' -print0 | xargs -0 -n1 node --check
 ```
 
-The integration suite expects a migrated PostgreSQL database described by the current environment variables. It clears application tables between tests and must never be pointed at a database containing valuable data. Attachment tests create and remove isolated temporary storage directories.
+The integration suite expects a migrated PostgreSQL database described by the current environment variables. It clears application tables between tests and must never be pointed at a database containing valuable data. Attachment and maintenance tests use isolated temporary storage directories.

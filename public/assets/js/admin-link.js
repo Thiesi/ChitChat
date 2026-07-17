@@ -5,6 +5,9 @@ window.addEventListener('DOMContentLoaded', () => {
   const link = document.getElementById('admin-link');
   const shell = document.getElementById('chat-shell');
   const currentUser = document.getElementById('current-user');
+  const registerTab = document.getElementById('register-tab');
+  const registerForm = document.getElementById('register-form');
+  const loginTab = document.getElementById('login-tab');
   if (!link || !shell || !currentUser) return;
 
   let scheduled = false;
@@ -15,6 +18,15 @@ window.addEventListener('DOMContentLoaded', () => {
       scheduled = false;
       try {
         const session = await apiGet('/api/v1/session.php');
+        const registrationEnabled = session.registration_enabled !== false;
+        registerTab?.classList.toggle('hidden', !registrationEnabled);
+        if (!registrationEnabled) {
+          registerForm?.classList.add('hidden');
+          if (registerTab?.getAttribute('aria-selected') === 'true') {
+            loginTab?.click();
+          }
+        }
+
         if (!session.user) {
           link.classList.add('hidden');
           return;

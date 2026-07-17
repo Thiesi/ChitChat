@@ -19,9 +19,21 @@ abstract class DatabaseTestCase extends TestCase
         $this->config = Config::fromEnvironment();
         $this->pdo = Database::connect($this->config);
         $this->pdo->exec(
-            'TRUNCATE TABLE direct_messages, attachments, room_presence, realtime_events, room_messages, room_invitations, room_members, rooms, audit_log, user_bans, login_attempts, user_roles, users RESTART IDENTITY CASCADE',
+            'TRUNCATE TABLE request_rate_limits, direct_messages, attachments, room_presence, realtime_events, room_messages, room_invitations, room_members, rooms, audit_log, user_bans, login_attempts, user_roles, users RESTART IDENTITY CASCADE',
         );
-        $this->pdo->exec('UPDATE system_settings SET registration_enabled = TRUE WHERE id = 1');
+        $this->pdo->exec(<<<'SQL'
+UPDATE system_settings
+SET registration_enabled = TRUE,
+    room_message_retention_days = 0,
+    direct_message_retention_days = 0,
+    audit_retention_days = 0,
+    deleted_attachment_retention_days = 30,
+    orphan_attachment_grace_hours = 24,
+    realtime_event_retention_hours = 168,
+    login_attempt_retention_days = 30,
+    updated_at = NOW()
+WHERE id = 1
+SQL);
     }
 
     protected function configWithThrottle(int $attempts, int $minutes = 15): Config
