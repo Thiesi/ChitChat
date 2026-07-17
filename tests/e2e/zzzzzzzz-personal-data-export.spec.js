@@ -25,7 +25,7 @@ test('account page downloads a step-up-protected scoped JSON export', async ({ p
   await login(page);
   await page.getByRole('link', { name: 'Account' }).click();
   await expect(page).toHaveURL(/\/account\.php$/);
-  await expect(page.getByRole('heading', { name: 'Your account' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Your account', exact: true })).toBeVisible();
   await expect(page.locator('#account-identity')).toContainText(member.username);
 
   await page.getByText('What the export contains').click();
