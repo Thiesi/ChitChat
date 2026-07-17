@@ -13,12 +13,12 @@ async function expectNamedElements(locator) {
 }
 
 async function expectUniqueIds(page) {
-  const duplicates = await page.locator('[id]').evaluateAll((elements) => {
+  const duplicates = await page.evaluate(() => {
     const seen = new Set();
     const repeated = new Set();
-    for (const element of elements) {
-      const id = element.getAttribute('id');
-      if (id === null || id === '') continue;
+    for (const element of document.querySelectorAll('[id]')) {
+      const id = element.id;
+      if (id === '') continue;
       if (seen.has(id)) repeated.add(id);
       seen.add(id);
     }
