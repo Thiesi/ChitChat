@@ -1,8 +1,8 @@
 import { ApiError, apiGet, apiPost } from './api.js';
+import './realtime-bridge.js';
 
 let enhancementQueued = false;
 let generation = 0;
-let eventSource = null;
 let elements = null;
 
 window.addEventListener('DOMContentLoaded', () => {
@@ -23,16 +23,13 @@ window.addEventListener('DOMContentLoaded', () => {
     attributes: true,
     attributeFilter: ['class'],
   });
-  new MutationObserver(syncEventStream).observe(messagesShell, {
-    attributes: true,
-    attributeFilter: ['class'],
-  });
 
-  syncEventStream();
   queueEnhancement();
 });
 
-window.addEventListener('beforeunload', closeEventStream);
+window.addEventListener('chitchat:realtime', (event) => {
+  if (event.detail?.type === 'direct_message') queueEnhancement();
+});
 
 function queueEnhancement() {
   if (enhancementQueued) return;
@@ -149,22 +146,6 @@ function setBusy(article, busy) {
   for (const button of article.querySelectorAll('.message-mutation-button')) button.disabled = busy;
 }
 
-function syncEventStream() {
-  if (!elements || elements.messagesShell.classList.contains('hidden')) {
-    closeEventStream();
-    return;
-  }
-  if (eventSource) return;
-
-  eventSource = new EventSource('/api/v1/events/stream.php', { withCredentials: true });
-  eventSource.addEventListener('direct_message', queueEnhancement);
-}
-
-function closeEventStream() {
-  eventSource?.close();
-  eventSource = null;
-}
-
 function formatDateTime(value) {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat(undefined, {
@@ -183,7 +164,6 @@ function toast(message, kind = 'info') {
 
 function handleFailure(error) {
   if (error instanceof ApiError && error.status === 401) {
-    closeEventStream();
     window.location.assign('/');
     return;
   }
