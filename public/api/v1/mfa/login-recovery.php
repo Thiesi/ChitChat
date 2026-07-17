@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use ChitChat\Account\AccountClosureService;
 use ChitChat\Auth\AuthService;
 use ChitChat\Auth\MfaService;
 use ChitChat\Auth\SessionManager;
@@ -26,12 +27,16 @@ Endpoint::run($config, static function () use ($config): ApiResult {
     }
     $pdo = Database::connect($config);
     $user = SessionManager::pendingMfaUser(new UserRepository($pdo));
+    $flow = SessionManager::pendingMfaFlow();
     $remaining = (new MfaService($pdo, $config))->consumeRecoveryCode(
         $user,
         Request::string($payload, 'recovery_code'),
         'mfa_login',
         $ipAddress,
     );
+    if ($flow === 'restore') {
+        $user = (new AccountClosureService($pdo, $config))->completeRestore($user->id, $ipAddress);
+    }
     (new AuthService($pdo, $config))->completeLogin($user, $ipAddress);
     SessionManager::login($user);
     SessionManager::establishPrivilegedStepUp($user, 'recovery_code');
@@ -41,5 +46,6 @@ Endpoint::run($config, static function () use ($config): ApiResult {
         'user' => $user->toSessionArray(),
         'mfa_method' => 'recovery_code',
         'recovery_codes_remaining' => $remaining,
+        'restored' => $flow === 'restore',
     ]);
 });
