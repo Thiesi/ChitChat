@@ -20,6 +20,24 @@ async function login(page, account) {
   await expect(page.locator('#current-user')).toHaveText(account.username);
 }
 
+async function selectPeer(page, username) {
+  const peerName = page.locator('#dm-peer-name');
+  if ((await peerName.textContent()) !== username) {
+    const conversation = page.locator('.conversation-button', { hasText: username }).first();
+    if (await conversation.count() > 0) {
+      await conversation.click();
+    } else {
+      await page.locator('#dm-user-search').fill(username);
+      await page.getByRole('button', { name: 'Search' }).click();
+      const result = page.locator('.dm-user-button', { hasText: username }).first();
+      await expect(result).toBeVisible();
+      await result.click();
+    }
+  }
+  await expect(peerName).toHaveText(username);
+  await expect(page.locator('#dm-composer')).toBeVisible();
+}
+
 async function stableMessage(page, selector, text) {
   const initial = page.locator(selector, { hasText: text }).last();
   await expect(initial).toBeVisible();
@@ -87,10 +105,7 @@ test('Super-Administrator reviews exact room and DM revision chains with a reaso
 
     await memberPage.goto('/messages.php');
     await expect(memberPage.locator('#messages-shell')).toBeVisible();
-    await memberPage.locator('#dm-user-search').fill(admin.username);
-    await memberPage.getByRole('button', { name: 'Search' }).click();
-    await memberPage.locator('.dm-user-button', { hasText: admin.username }).click();
-    await expect(memberPage.locator('#dm-composer')).toBeVisible();
+    await selectPeer(memberPage, admin.username);
     await memberPage.locator('#dm-message-input').fill('Revision review private evidence');
     await memberPage.locator('#dm-send').click();
     const directMessage = await stableMessage(memberPage, 'article.dm-message', 'Revision review private evidence');
