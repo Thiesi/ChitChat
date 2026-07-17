@@ -18,6 +18,7 @@ $appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUT
   <link rel="stylesheet" href="/assets/css/messages.css">
   <link rel="stylesheet" href="/assets/css/messages-blocking.css">
   <link rel="stylesheet" href="/assets/css/messages-attachments.css">
+  <link rel="stylesheet" href="/assets/css/message-mutations.css">
 </head>
 <body>
   <div id="messages-loading" class="app-loading" role="status">Loading messages…</div>
@@ -92,5 +93,6 @@ $appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUT
   <div id="toast-region" class="toast-region" aria-live="assertive"></div>
   <script type="module" src="/assets/js/messages.js"></script>
   <script type="module" src="/assets/js/dm-attachments.js"></script>
+  <script type="module" src="/assets/js/dm-message-mutations.js"></script>
 </body>
 </html>

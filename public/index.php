@@ -14,6 +14,7 @@ $appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUT
   <title><?= $appName ?></title>
   <link rel="stylesheet" href="/assets/css/app.css">
   <link rel="stylesheet" href="/assets/css/components.css">
+  <link rel="stylesheet" href="/assets/css/message-mutations.css">
 </head>
 <body>
   <div id="app-loading" class="app-loading" role="status">Loading <?= $appName ?>…</div>
@@ -166,5 +167,6 @@ $appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUT
 
   <script type="module" src="/assets/js/app.js"></script>
   <script type="module" src="/assets/js/admin-link.js"></script>
+  <script type="module" src="/assets/js/room-message-mutations.js"></script>
 </body>
 </html>
