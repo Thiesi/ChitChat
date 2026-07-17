@@ -33,7 +33,7 @@ SQL);
 
     return ApiResult::ok([
         'csrf_token' => SessionManager::csrfToken(),
-        'user' => $user?->toArray(),
+        'user' => $user?->toSessionArray(),
         'registration_enabled' => (int) $policy['registration_enabled'] === 1,
         'security' => [
             'privileged_step_up' => $user === null
