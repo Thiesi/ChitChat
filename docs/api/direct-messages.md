@@ -1,6 +1,6 @@
 # Direct-message API
 
-Direct messages are permanent server-side PostgreSQL records by default. They are not end-to-end encrypted. `GET /api/v1/session.php` exposes the current retention, administrative-inspection, and independently configured revision-review policies, and clients must disclose the relevant privacy behavior to users.
+Direct messages are permanent server-side PostgreSQL records by default. They are not end-to-end encrypted. `GET /api/v1/session.php` exposes the current retention, administrative-inspection, independently configured revision-review, and privileged step-up policies, and clients must disclose the relevant privacy behavior to users.
 
 All endpoints require authentication. State-changing user requests, every administrative inspection request, and every revision-review request also require the current `X-CSRF-Token`.
 
@@ -138,10 +138,19 @@ The existing authenticated SSE stream emits `direct_message` events targeted sep
 
 No direct-message event is created for a blocked send.
 
-## Privacy disclosure in `GET /api/v1/session.php`
+## Privacy and security disclosure in `GET /api/v1/session.php`
 
 ```json
 {
+  "security": {
+    "privileged_step_up": {
+      "active": false,
+      "method": null,
+      "verified_at": null,
+      "expires_at": null,
+      "max_age_seconds": 600
+    }
+  },
   "privacy": {
     "direct_messages": {
       "end_to_end_encrypted": false,
@@ -166,13 +175,15 @@ The bundled inbox separately states that edited and deleted bodies remain in the
 
 Inspection is disabled when `DM_ADMIN_INSPECTION_ENABLED=0`. Otherwise the permitted role is configured as `super_admin` or `admin`; the latter includes both Administrators and Super-Administrators.
 
+Every inspection POST additionally requires active privileged step-up authentication. Step-up is current-password reauthentication and does not replace the configured role, required reason, CSRF validation, or per-page inspection audit.
+
 User blocking controls future participant sends. It does not alter the configured retention policy or administrative inspection of retained canonical history.
 
 Administrative inspection does **not** grant revision-review access. The inspection service reads the canonical DM table only. Historical bodies from prior edits or deletions require the separate policy and endpoint documented in [`message-revision-review.md`](message-revision-review.md).
 
 ### `GET /api/v1/admin/direct-messages/users.php`
 
-Uses the same bounded username-prefix search but may include the inspecting account. It requires inspection authorization.
+Uses the same bounded username-prefix search but may include the inspecting account. It requires inspection authorization but does not itself return message content and does not require step-up.
 
 ### `POST /api/v1/admin/direct-messages/inspect.php`
 
@@ -193,9 +204,12 @@ Requirements:
 - optional positive exclusive cursor;
 - limit 1-100;
 - CSRF token;
-- configured inspection role.
+- configured inspection role;
+- active privileged step-up authentication.
 
-The history query and audit insert are one transaction. Content is returned only after the audit record succeeds. Every page request creates a separate `admin.direct_messages_inspected` entry containing:
+Without recent step-up, the endpoint returns HTTP 403 with `step_up_required` before querying or returning conversation content. The bundled browser asks for the current password, establishes elevation through `POST /api/v1/step-up.php`, and retries the inspection once.
+
+The history query and inspection audit insert are one transaction. Content is returned only after the audit record succeeds. Every page request creates a separate `admin.direct_messages_inspected` entry containing:
 
 - actor and IP through the normal audit columns;
 - both user IDs and usernames;
@@ -204,4 +218,6 @@ The history query and audit insert are one transaction. Content is returned only
 - returned count;
 - oldest and newest returned message IDs.
 
-Message bodies are never duplicated into audit metadata. Unauthorized, disabled or invalid requests return no content and do not create a successful-inspection record.
+A successful password verification has its own `auth.privileged_step_up_succeeded` record and does not replace the per-page inspection audit.
+
+Message bodies and passwords are never duplicated into audit metadata. Unauthorized, disabled, stale-step-up, or invalid requests return no content and do not create a successful-inspection record.
