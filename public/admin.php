@@ -29,6 +29,7 @@ $appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUT
       <div class="action-row">
         <a id="system-settings-link" class="secondary-button admin-link-button hidden" href="/admin-settings.php">Operational settings</a>
         <a id="dm-inspection-link" class="secondary-button admin-link-button hidden" href="/admin-messages.php">DM inspection</a>
+        <a id="revision-review-link" class="secondary-button admin-link-button hidden" href="/admin-message-revisions.php">Revision review</a>
         <a class="secondary-button admin-link-button" href="/">Back to chat</a>
       </div>
     </header>
