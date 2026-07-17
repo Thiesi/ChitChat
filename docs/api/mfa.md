@@ -90,4 +90,17 @@ All operations require recent privileged step-up.
 
 ## Restoration
 
-`POST /api/v1/account/restore.php` restores the closure lifecycle state after validating username and password. For an MFA-enabled account it returns HTTP 202 with `mfa_required: true`; the client then completes the ordinary pending-MFA login endpoints. Restoration therefore never downgrades the account to password-only authentication.
+`POST /api/v1/account/restore.php` first validates the username, password, closure state and restoration deadline. For an account without MFA, the endpoint completes restoration and authenticates the new session.
+
+For an MFA-enabled account it returns HTTP 202 without changing the account state:
+
+```json
+{
+  "restored": false,
+  "restoration_pending": true,
+  "mfa_required": true,
+  "methods": ["passkey", "recovery_code"]
+}
+```
+
+The client then uses the ordinary pending-MFA passkey or recovery-code endpoints. Successful completion performs the restoration transaction, rechecks the deadline and current administrative-MFA policy, records the completed login, and returns `restored: true`. A failed, cancelled or expired second-factor attempt leaves the account closure-pending.
