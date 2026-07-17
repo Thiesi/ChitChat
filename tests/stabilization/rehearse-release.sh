@@ -11,6 +11,10 @@ set -euo pipefail
 
 release_tag="${CHITCHAT_RELEASE_TAG:-v1.0.0-rc.1}"
 current_root="$(pwd)"
+current_version="$(
+  cd "$current_root"
+  env -u APP_VERSION php -r 'require "vendor/autoload.php"; echo \ChitChat\Config::fromEnvironment()->applicationVersion;'
+)"
 work_root="${RUNNER_TEMP:-/tmp}/chitchat-release-rehearsal"
 release_root="$work_root/release"
 release_storage="$work_root/release-uploads"
@@ -204,7 +208,7 @@ upgraded_pid="$(start_php_server "$current_root" 8082 "$upgraded_log")"
 wait_ready "$upgraded_base"
 
 curl --fail --silent "$upgraded_base/health.php" \
-  | jq -e '.status == "ok" and .version == "1.0.0-rc.1"' >/dev/null
+  | jq -e --arg expected "$current_version" '.status == "ok" and .version == $expected' >/dev/null
 
 rm -f "$admin_cookie"
 touch "$admin_cookie"
@@ -236,7 +240,7 @@ psql --dbname "$restore_db" --tuples-only --no-align <<'SQL' > "$work_root/resto
 SELECT 'users=' || count(*) FROM users;
 SELECT 'rooms=' || count(*) FROM rooms WHERE deleted_at IS NULL;
 SELECT 'messages=' || count(*) FROM room_messages;
-SELECT 'attachments=' || count(*) FROM attachments;
+SELECT 'attachments=' || count(*) FROM room_attachments;
 SELECT 'direct_messages=' || count(*) FROM direct_messages;
 SQL
 
