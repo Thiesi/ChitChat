@@ -38,10 +38,13 @@ Replace disposable publication pull requests with a permanent manually dispatche
 
 ### 3. Configurable and observable throttling
 
-- Replace fixed internal limits with named per-action policies.
-- Cover registration, login, password step-up, exports, messages, uploads, invitations, pings, and sensitive administrative lookups.
-- Support safe environment defaults and bounded administrator configuration where appropriate.
-- Expose aggregate allowed/rejected counters without identifiers or message content.
+**Status:** implemented.
+
+- Replace fixed internal limits with bounded named policies loaded from deployment environment variables.
+- Cover login, registration, password step-up, exports, messages, pings, mutations, uploads, invitations, participant and administrative searches, DM inspection, and revision review.
+- Preserve all previously enforced defaults while adding deliberately generous controls to formerly unbounded search and invitation paths.
+- Keep policy mutation outside the browser administration surface so a compromised administrative session cannot weaken deployment anti-abuse controls.
+- Expose effective policies and aggregate allowed/rejected counters through Administrator system status and Prometheus without storing account, IP, room, message, search-term, or request-body identifiers in the aggregate ledger.
 
 ### 4. First-class backup tooling
 
