@@ -1,4 +1,5 @@
 import { apiGet, apiPost, setCsrfToken } from './api.js';
+import { withPrivilegedStepUp } from './step-up.js';
 import { createPasskey, webAuthnSupported } from './webauthn.js';
 
 let card = null;
@@ -143,11 +144,13 @@ async function addPasskey(event) {
   card.error.textContent = '';
   setBusy(true);
   try {
-    const options = await apiPost('/api/v1/account/mfa/register-options.php');
-    const credential = await createPasskey(options.public_key);
-    const response = await apiPost('/api/v1/account/mfa/register-finish.php', {
-      label: card.label.value,
-      credential,
+    const response = await withPrivilegedStepUp(async () => {
+      const options = await apiPost('/api/v1/account/mfa/register-options.php');
+      const credential = await createPasskey(options.public_key);
+      return apiPost('/api/v1/account/mfa/register-finish.php', {
+        label: card.label.value,
+        credential,
+      });
     });
     card.addForm.reset();
     card.label.value = 'My passkey';
@@ -168,10 +171,10 @@ async function renamePasskey(credential) {
   card.error.textContent = '';
   setBusy(true);
   try {
-    const response = await apiPost('/api/v1/account/mfa/rename.php', {
+    const response = await withPrivilegedStepUp(() => apiPost('/api/v1/account/mfa/rename.php', {
       credential_id: credential.id,
       label: label.trim(),
-    });
+    }));
     render(response.mfa);
   } catch (error) {
     card.error.textContent = message(error);
@@ -185,9 +188,9 @@ async function removePasskey(credential) {
   card.error.textContent = '';
   setBusy(true);
   try {
-    const response = await apiPost('/api/v1/account/mfa/remove.php', {
+    const response = await withPrivilegedStepUp(() => apiPost('/api/v1/account/mfa/remove.php', {
       credential_id: credential.id,
-    });
+    }));
     render(response.mfa);
   } catch (error) {
     card.error.textContent = message(error);
@@ -201,7 +204,7 @@ async function regenerateRecoveryCodes() {
   card.error.textContent = '';
   setBusy(true);
   try {
-    const response = await apiPost('/api/v1/account/mfa/recovery-regenerate.php');
+    const response = await withPrivilegedStepUp(() => apiPost('/api/v1/account/mfa/recovery-regenerate.php'));
     render(response.mfa);
     showRecoveryCodes(response.recovery_codes);
   } catch (error) {
@@ -216,7 +219,7 @@ async function disableMfa() {
   card.error.textContent = '';
   setBusy(true);
   try {
-    await apiPost('/api/v1/account/mfa/disable.php');
+    await withPrivilegedStepUp(() => apiPost('/api/v1/account/mfa/disable.php'));
     const response = await apiGet('/api/v1/account/mfa/status.php');
     render(response.mfa);
   } catch (error) {
