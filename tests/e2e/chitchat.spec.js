@@ -142,7 +142,7 @@ test.describe.serial('ChitChat browser release checks', () => {
 
       const adminConsole = await adminContext.newPage();
       await adminConsole.goto('/admin.php');
-      await expect(adminConsole.getByRole('heading', { name: 'Administration' })).toBeVisible();
+      await expect(adminConsole.getByRole('heading', { name: 'Administration', exact: true })).toBeVisible();
       await expect(adminConsole.locator('#system-settings-link')).toBeVisible();
       await expect(adminConsole.locator('#dm-inspection-link')).toBeVisible();
 
