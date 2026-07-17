@@ -1,0 +1,23 @@
+[Unit]
+Description=ChitChat retention and attachment maintenance
+Documentation=file:/srv/chitchat/docs/operations/maintenance.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=www-data
+Group=www-data
+WorkingDirectory=/srv/chitchat
+ExecStart=/usr/bin/php /srv/chitchat/bin/maintenance-cleanup
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/srv/chitchat/var/uploads
+UMask=0077
+
+# Adapt User, Group, WorkingDirectory, ExecStart, and ReadWritePaths to the installation.
