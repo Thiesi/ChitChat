@@ -1,14 +1,14 @@
 # ChitChat
 
-ChitChat is a small, self-hosted browser chat application. The clean reconstruction has reached **v1.0.0-rc.1**, its first release candidate.
+ChitChat is a small, self-hosted browser chat application. The clean reconstruction has reached **v1.0.0**, its first stable release.
 
 ## Repository status
 
-The release candidate is intended for controlled evaluation and deployment rehearsal. It is not yet an unconditional production recommendation; compatibility changes may still occur before `1.0.0`.
+`v1.0.0` is the supported baseline for fresh single-server deployments. Operators should review the documented privacy defaults, resource requirements, maintenance schedule, backup procedure, and known limitations before exposing an installation to users.
 
 The former `v0.10.25` source snapshot is incomplete and is not considered runnable or a supported upgrade predecessor. It is preserved on the `legacy/v0.10.25` branch for reference.
 
-See [CHANGELOG.md](CHANGELOG.md) and the [v1.0.0-rc.1 release notes](docs/releases/v1.0.0-rc.1.md).
+See [CHANGELOG.md](CHANGELOG.md) and the [v1.0.0 release notes](docs/releases/v1.0.0.md).
 
 ## v1 architecture
 
@@ -64,8 +64,8 @@ The application currently provides:
 - published-release archive installation, backup/restore and forward-upgrade rehearsal;
 - real Nginx/PHP-FPM validation of authenticated, unbuffered SSE delivery.
 
-Direct-message attachments, configurable per-limit throttles, WebKit browser coverage, and horizontal scaling remain future milestones.
+Direct-message attachments, configurable per-limit throttles, WebKit browser coverage, user blocking, and horizontal scaling remain future milestones.
 
-## Development and evaluation
+## Installation and operation
 
 See [INSTALL.md](INSTALL.md). API contracts are documented in [`docs/api/`](docs/api/), operating procedures in [`docs/operations/`](docs/operations/), and release procedures in [`docs/releases/`](docs/releases/).
