@@ -57,10 +57,6 @@ BEGIN
              AND u.account_state = 'active'
              AND u.mfa_enabled_at IS NOT NULL
              AND EXISTS (SELECT 1 FROM webauthn_credentials wc WHERE wc.user_id = u.id)
-             AND EXISTS (
-                 SELECT 1 FROM mfa_recovery_codes rc
-                 WHERE rc.user_id = u.id AND rc.used_at IS NULL
-             )
        )
     THEN
         RAISE EXCEPTION USING
@@ -101,6 +97,6 @@ COMMENT ON TABLE webauthn_credentials IS
 COMMENT ON TABLE mfa_recovery_codes IS
     'One-time MFA recovery-code hashes. Plaintext recovery codes are returned once and never stored.';
 COMMENT ON FUNCTION enforce_admin_role_mfa_policy() IS
-    'Database-level invariant preventing protected role grants to accounts without complete MFA while enforcement is enabled.';
+    'Database-level invariant preventing protected role grants to accounts without enabled passkey MFA while enforcement is active.';
 COMMENT ON FUNCTION clear_mfa_on_account_tombstone() IS
     'Irreversibly destroys passkeys, recovery codes, and MFA identity material whenever account closure reaches the closed state.';
