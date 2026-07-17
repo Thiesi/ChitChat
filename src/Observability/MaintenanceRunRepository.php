@@ -36,50 +36,18 @@ SQL);
     /** @param array<string, int|bool> $result */
     public function succeed(int $id, array $result, int $durationMs): void
     {
-        $statement = $this->pdo->prepare(<<<'SQL'
-UPDATE maintenance_runs
-SET status = 'success',
-    finished_at = NOW(),
-    duration_ms = :duration_ms,
-    result_json = CAST(:result_json AS jsonb),
-    error_message = NULL
-WHERE id = :id
-SQL);
-        if ($statement === false) {
-            throw new RuntimeException('Unable to prepare maintenance-run success update.');
-        }
-        $statement->execute([
-            'id' => $id,
-            'duration_ms' => $durationMs,
-            'result_json' => json_encode($result, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES),
-        ]);
-        if ($statement->rowCount() !== 1) {
-            throw new RuntimeException('Maintenance-run success update changed no row.');
-        }
+        $this->complete($id, 'success', $result, null, $durationMs);
+    }
+
+    /** @param array<string, int|bool> $result */
+    public function warn(int $id, array $result, string $message, int $durationMs): void
+    {
+        $this->complete($id, 'warning', $result, $message, $durationMs);
     }
 
     public function fail(int $id, string $message, int $durationMs): void
     {
-        $statement = $this->pdo->prepare(<<<'SQL'
-UPDATE maintenance_runs
-SET status = 'failure',
-    finished_at = NOW(),
-    duration_ms = :duration_ms,
-    result_json = NULL,
-    error_message = :error_message
-WHERE id = :id
-SQL);
-        if ($statement === false) {
-            throw new RuntimeException('Unable to prepare maintenance-run failure update.');
-        }
-        $statement->execute([
-            'id' => $id,
-            'duration_ms' => $durationMs,
-            'error_message' => mb_substr($message, 0, 2000, 'UTF-8'),
-        ]);
-        if ($statement->rowCount() !== 1) {
-            throw new RuntimeException('Maintenance-run failure update changed no row.');
-        }
+        $this->complete($id, 'failure', null, $message, $durationMs);
     }
 
     /** @return array<string, mixed>|null */
@@ -105,6 +73,40 @@ WHERE status = 'success' AND dry_run = FALSE
 ORDER BY id DESC
 LIMIT 1
 SQL);
+    }
+
+    /** @param array<string, int|bool>|null $result */
+    private function complete(
+        int $id,
+        string $status,
+        ?array $result,
+        ?string $message,
+        int $durationMs,
+    ): void {
+        $statement = $this->pdo->prepare(<<<'SQL'
+UPDATE maintenance_runs
+SET status = :status,
+    finished_at = NOW(),
+    duration_ms = :duration_ms,
+    result_json = CAST(:result_json AS jsonb),
+    error_message = :error_message
+WHERE id = :id
+SQL);
+        if ($statement === false) {
+            throw new RuntimeException('Unable to prepare maintenance-run completion update.');
+        }
+        $statement->execute([
+            'id' => $id,
+            'status' => $status,
+            'duration_ms' => $durationMs,
+            'result_json' => $result === null
+                ? null
+                : json_encode($result, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES),
+            'error_message' => $message === null ? null : mb_substr($message, 0, 2000, 'UTF-8'),
+        ]);
+        if ($statement->rowCount() !== 1) {
+            throw new RuntimeException('Maintenance-run completion update changed no row.');
+        }
     }
 
     /** @return array<string, mixed>|null */
