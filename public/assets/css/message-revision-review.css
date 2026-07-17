@@ -1,0 +1,139 @@
+.revision-review-shell {
+  width: min(1080px, calc(100% - 2rem));
+  margin: 0 auto;
+  padding: 1.5rem 0 3rem;
+}
+
+.revision-review-warning {
+  margin: 1rem 0;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--warning-border, #8a6d1d);
+  border-radius: 0.75rem;
+  background: var(--warning-surface, rgba(138, 109, 29, 0.12));
+}
+
+.revision-review-warning h2 {
+  margin-top: 0;
+}
+
+.revision-review-warning p:last-child {
+  margin-bottom: 0;
+}
+
+.revision-review-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--border-color, rgba(127, 127, 127, 0.35));
+  border-radius: 0.75rem;
+}
+
+.revision-review-form label {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.revision-review-form .full-width {
+  grid-column: 1 / -1;
+}
+
+.revision-review-results {
+  margin-top: 1.5rem;
+}
+
+.revision-review-results-header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.revision-review-context {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 0.35rem 1rem;
+  margin: 1rem 0;
+  padding: 1rem;
+  border: 1px solid var(--border-color, rgba(127, 127, 127, 0.35));
+  border-radius: 0.75rem;
+}
+
+.revision-review-context dt {
+  font-weight: 700;
+}
+
+.revision-review-context dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.revision-review-list {
+  display: grid;
+  gap: 1rem;
+}
+
+.revision-card {
+  padding: 1rem;
+  border: 1px solid var(--border-color, rgba(127, 127, 127, 0.35));
+  border-radius: 0.75rem;
+}
+
+.revision-card-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.revision-card-header h3 {
+  margin: 0;
+}
+
+.revision-body-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.revision-body-panel h4 {
+  margin: 0 0 0.4rem;
+}
+
+.revision-body {
+  min-height: 4rem;
+  margin: 0;
+  padding: 0.75rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  border: 1px solid var(--border-color, rgba(127, 127, 127, 0.35));
+  border-radius: 0.5rem;
+  background: var(--code-surface, rgba(127, 127, 127, 0.08));
+  font: inherit;
+}
+
+.revision-body.deleted-state {
+  font-style: italic;
+}
+
+@media (max-width: 720px) {
+  .revision-review-form,
+  .revision-body-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .revision-review-form .full-width {
+    grid-column: auto;
+  }
+
+  .revision-review-context {
+    grid-template-columns: 1fr;
+  }
+
+  .revision-review-context dt:not(:first-child) {
+    margin-top: 0.5rem;
+  }
+}
