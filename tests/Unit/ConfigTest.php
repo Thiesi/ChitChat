@@ -12,6 +12,7 @@ final class ConfigTest extends TestCase
     protected function tearDown(): void
     {
         foreach ([
+            'APP_VERSION',
             'APP_DEBUG',
             'DB_PORT',
             'PRESENCE_LEASE_SECONDS',
@@ -28,9 +29,12 @@ final class ConfigTest extends TestCase
 
     public function testDefaultsAreUsable(): void
     {
+        putenv('APP_VERSION');
+        unset($_ENV['APP_VERSION'], $_SERVER['APP_VERSION']);
         $config = Config::fromEnvironment();
 
         self::assertSame('ChitChat', $config->applicationName);
+        self::assertSame('1.0.0-rc.1', $config->applicationVersion);
         self::assertSame(5432, $config->databasePort);
         self::assertSame(45, $config->presenceLeaseSeconds);
         self::assertSame(60, $config->inactivityWarningSeconds);
