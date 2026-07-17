@@ -5,73 +5,45 @@ const member = {
   password: 'Another Correct Horse Battery Staple 2026!',
 };
 
+async function expectNamedElements(locator) {
+  const count = await locator.count();
+  for (let index = 0; index < count; index += 1) {
+    await expect(locator.nth(index)).toHaveAccessibleName(/\S/);
+  }
+}
+
 async function expectAccessibleStructure(page) {
   await expect(page.locator('html')).toHaveAttribute('lang', /^[a-z]{2}(?:-|$)/i);
   await expect(page).toHaveTitle(/\S/);
 
-  const issues = await page.evaluate(() => {
-    const problems = [];
-    const isVisible = (element) => {
-      if (!(element instanceof HTMLElement) || element.hidden) return false;
-      const style = window.getComputedStyle(element);
-      if (style.display === 'none' || style.visibility === 'hidden') return false;
-      const rect = element.getBoundingClientRect();
-      return rect.width > 0 || rect.height > 0;
-    };
-    const referencedText = (element) => {
-      const ids = (element.getAttribute('aria-labelledby') ?? '').trim().split(/\s+/).filter(Boolean);
-      return ids.map((id) => document.getElementById(id)?.textContent ?? '').join(' ').trim();
-    };
-    const accessibleName = (element) => {
-      const candidates = [
-        element.getAttribute('aria-label'),
-        referencedText(element),
-        element.getAttribute('title'),
-        element.textContent,
-      ];
-      const name = candidates.find((candidate) => typeof candidate === 'string' && candidate.trim() !== '');
-      return name?.trim() ?? '';
-    };
-
-    const idCounts = new Map();
-    for (const element of document.querySelectorAll('[id]')) {
-      idCounts.set(element.id, (idCounts.get(element.id) ?? 0) + 1);
+  const duplicateIds = await page.locator('[id]').evaluateAll((elements) => {
+    const counts = new Map();
+    for (const element of elements) {
+      counts.set(element.id, (counts.get(element.id) ?? 0) + 1);
     }
-    for (const [id, count] of idCounts) {
-      if (count > 1) problems.push(`duplicate id: ${id}`);
-    }
-
-    const visibleMains = [...document.querySelectorAll('main')].filter(isVisible);
-    if (visibleMains.length !== 1) problems.push(`visible main landmarks: ${visibleMains.length}`);
-
-    const visibleH1s = [...document.querySelectorAll('h1')].filter(isVisible);
-    if (visibleH1s.length !== 1) problems.push(`visible h1 headings: ${visibleH1s.length}`);
-
-    for (const image of document.querySelectorAll('img')) {
-      if (isVisible(image) && !image.hasAttribute('alt')) problems.push('visible image without alt text');
-    }
-
-    for (const control of document.querySelectorAll('input, select, textarea')) {
-      if (!isVisible(control) || control.getAttribute('type') === 'hidden') continue;
-      const hasLabel = 'labels' in control && control.labels !== null && control.labels.length > 0;
-      const hasName = accessibleName(control) !== '';
-      if (!hasLabel && !hasName) problems.push(`unlabelled control: ${control.tagName.toLowerCase()}#${control.id}`);
-    }
-
-    for (const interactive of document.querySelectorAll('button, a[href], summary, [role="button"], [role="tab"]')) {
-      if (isVisible(interactive) && accessibleName(interactive) === '') {
-        problems.push(`unnamed interactive element: ${interactive.tagName.toLowerCase()}#${interactive.id}`);
-      }
-    }
-
-    for (const dialog of document.querySelectorAll('dialog[open], [role="dialog"]')) {
-      if (isVisible(dialog) && accessibleName(dialog) === '') problems.push(`unnamed dialog: #${dialog.id}`);
-    }
-
-    return problems;
+    return [...counts.entries()]
+      .filter(([, count]) => count > 1)
+      .map(([id]) => id);
   });
+  expect(duplicateIds).toEqual([]);
 
-  expect(issues).toEqual([]);
+  await expect(page.locator('main:visible')).toHaveCount(1);
+  await expect(page.locator('h1:visible')).toHaveCount(1);
+  await expect(page.locator('img:visible:not([alt])')).toHaveCount(0);
+
+  await expectNamedElements(page.locator([
+    'input:visible:not([type="hidden"])',
+    'select:visible',
+    'textarea:visible',
+  ].join(', ')));
+  await expectNamedElements(page.locator([
+    'button:visible',
+    'a[href]:visible',
+    'summary:visible',
+    '[role="button"]:visible',
+    '[role="tab"]:visible',
+  ].join(', ')));
+  await expectNamedElements(page.locator('dialog[open]:visible, [role="dialog"]:visible'));
 }
 
 async function loginOrRegister(page) {
