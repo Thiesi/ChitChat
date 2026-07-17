@@ -1,5 +1,12 @@
 {
   "name": "chitchat-browser",
   "private": true,
-  "type": "module"
+  "type": "module",
+  "scripts": {
+    "test:e2e": "playwright test",
+    "test:e2e:debug": "playwright test --debug"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.61.1"
+  }
 }
