@@ -129,6 +129,7 @@ BEGIN
             OLD.body,
             NULL
         );
+        NEW.body := 'Message deleted.';
     ELSIF NEW.body IS DISTINCT FROM OLD.body THEN
         INSERT INTO direct_message_revisions (
             message_id,
