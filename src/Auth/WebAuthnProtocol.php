@@ -238,7 +238,7 @@ final class WebAuthnProtocol
                 ? 'Registration authenticator data does not contain a credential.'
                 : 'Assertion authenticator data unexpectedly contains an attested credential.');
         }
-        $signCount = unpack('N', substr($data, 33, 4))[1];
+        $signCount = $this->unsignedBigEndian(substr($data, 33, 4));
         $offset = 37;
         $credentialId = '';
         $publicKeyCose = '';
@@ -248,7 +248,7 @@ final class WebAuthnProtocol
                 throw new ApiException(400, 'invalid_webauthn_payload', 'Attested credential data is truncated.');
             }
             $offset += 16;
-            $credentialLength = unpack('n', substr($data, $offset, 2))[1];
+            $credentialLength = $this->unsignedBigEndian(substr($data, $offset, 2));
             $offset += 2;
             if ($credentialLength < 1 || strlen($data) < $offset + $credentialLength) {
                 throw new ApiException(400, 'invalid_webauthn_payload', 'The attested credential identifier is invalid.');
@@ -306,8 +306,11 @@ final class WebAuthnProtocol
             if (strlen($x) !== 32 || strlen($y) !== 32) {
                 throw new ApiException(400, 'invalid_webauthn_key', 'The ES256 coordinates must be 32 bytes.');
             }
-            $der = hex2bin('3059301306072A8648CE3D020106082A8648CE3D030107034200') . "\x04" . $x . $y;
-            return ['algorithm' => self::ES256, 'pem' => $this->pem($der)];
+            $prefix = hex2bin('3059301306072A8648CE3D020106082A8648CE3D030107034200');
+            if ($prefix === false) {
+                throw new ApiException(500, 'webauthn_unavailable', 'Unable to construct the ES256 public key.');
+            }
+            return ['algorithm' => self::ES256, 'pem' => $this->pem($prefix . "\x04" . $x . $y)];
         }
         if ($algorithm === self::RS256 && $keyType === 3) {
             $modulus = $key[-1] ?? null;
@@ -317,6 +320,9 @@ final class WebAuthnProtocol
             }
             $rsa = $this->derSequence($this->derInteger($modulus) . $this->derInteger($exponent));
             $algorithmIdentifier = hex2bin('300d06092a864886f70d0101010500');
+            if ($algorithmIdentifier === false) {
+                throw new ApiException(500, 'webauthn_unavailable', 'Unable to construct the RS256 public key.');
+            }
             $der = $this->derSequence($algorithmIdentifier . $this->derBitString($rsa));
             return ['algorithm' => self::RS256, 'pem' => $this->pem($der)];
         }
@@ -366,6 +372,15 @@ final class WebAuthnProtocol
         return chr(0x80 | strlen($encoded)) . $encoded;
     }
 
+    private function unsignedBigEndian(string $bytes): int
+    {
+        $value = 0;
+        for ($index = 0; $index < strlen($bytes); $index++) {
+            $value = ($value * 256) + ord($bytes[$index]);
+        }
+        return $value;
+    }
+
     /** @param array<string, mixed> $credential */
     private function requirePublicKeyType(array $credential): void
     {
@@ -389,7 +404,10 @@ final class WebAuthnProtocol
         return $value;
     }
 
-    /** @param array<string, mixed> $object @return array<string, mixed> */
+    /**
+     * @param array<string, mixed> $object
+     * @return array<string, mixed>
+     */
     private function object(array $object, string $key): array
     {
         $value = $object[$key] ?? null;
