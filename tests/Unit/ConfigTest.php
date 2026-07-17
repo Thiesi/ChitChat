@@ -18,6 +18,8 @@ final class ConfigTest extends TestCase
             'INACTIVITY_WARNING_SECONDS',
             'ATTACHMENT_STORAGE_PATH',
             'ATTACHMENT_MAX_BYTES',
+            'DM_ADMIN_INSPECTION_ENABLED',
+            'DM_ADMIN_INSPECTION_ROLE',
         ] as $name) {
             putenv($name);
             unset($_ENV[$name], $_SERVER[$name]);
@@ -34,13 +36,18 @@ final class ConfigTest extends TestCase
         self::assertSame(60, $config->inactivityWarningSeconds);
         self::assertSame(10_485_760, $config->attachmentMaxBytes);
         self::assertStringEndsWith('/var/uploads', str_replace('\\', '/', $config->attachmentStoragePath));
+        self::assertTrue($config->directMessageInspectionEnabled);
+        self::assertSame('super_admin', $config->directMessageInspectionRole);
     }
 
     public function testBooleanEnvironmentValuesAreParsed(): void
     {
         putenv('APP_DEBUG=yes');
+        putenv('DM_ADMIN_INSPECTION_ENABLED=no');
 
-        self::assertTrue(Config::fromEnvironment()->debug);
+        $config = Config::fromEnvironment();
+        self::assertTrue($config->debug);
+        self::assertFalse($config->directMessageInspectionEnabled);
     }
 
     public function testPresenceLeaseRangeIsValidated(): void
@@ -74,6 +81,15 @@ final class ConfigTest extends TestCase
         putenv('ATTACHMENT_STORAGE_PATH=' . dirname(__DIR__, 2) . '/public/uploads');
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('outside the public web root');
+        Config::fromEnvironment();
+    }
+
+    public function testDirectMessageInspectionRoleIsValidated(): void
+    {
+        putenv('DM_ADMIN_INSPECTION_ROLE=chat_admin');
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('DM_ADMIN_INSPECTION_ROLE');
         Config::fromEnvironment();
     }
 }
