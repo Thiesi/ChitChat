@@ -14,6 +14,7 @@ $appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUT
   <title><?= $appName ?></title>
   <link rel="stylesheet" href="/assets/css/app.css">
   <link rel="stylesheet" href="/assets/css/components.css">
+  <link rel="stylesheet" href="/assets/css/accessibility.css">
   <link rel="stylesheet" href="/assets/css/message-mutations.css">
 </head>
 <body>
@@ -25,11 +26,11 @@ $appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUT
       <p class="tagline">A small, self-hosted place to talk.</p>
 
       <div class="auth-tabs" role="tablist" aria-label="Account access">
-        <button id="login-tab" type="button" role="tab" aria-selected="true">Sign in</button>
-        <button id="register-tab" type="button" role="tab" aria-selected="false">Register</button>
+        <button id="login-tab" type="button" role="tab" aria-selected="true" aria-controls="login-form" tabindex="0">Sign in</button>
+        <button id="register-tab" type="button" role="tab" aria-selected="false" aria-controls="register-form" tabindex="-1">Register</button>
       </div>
 
-      <form id="login-form" class="form-stack" autocomplete="on">
+      <form id="login-form" class="form-stack" role="tabpanel" aria-labelledby="login-tab" autocomplete="on">
         <label>
           Username
           <input id="login-username" name="username" type="text" autocomplete="username" minlength="3" maxlength="32" required>
@@ -41,7 +42,7 @@ $appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUT
         <button class="primary-button" type="submit">Sign in</button>
       </form>
 
-      <form id="register-form" class="form-stack hidden" autocomplete="on">
+      <form id="register-form" class="form-stack hidden" role="tabpanel" aria-labelledby="register-tab" autocomplete="on" hidden>
         <label>
           Username
           <input id="register-username" name="username" type="text" autocomplete="username" minlength="3" maxlength="32" pattern="[A-Za-z0-9][A-Za-z0-9._-]{2,31}" required>
@@ -65,7 +66,7 @@ $appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUT
     <aside class="sidebar">
       <header class="sidebar-header">
         <h1><?= $appName ?></h1>
-        <span id="connection-status" class="connection-status" data-state="disconnected">Offline</span>
+        <span id="connection-status" class="connection-status" data-state="disconnected" role="status" aria-live="polite" aria-atomic="true">Offline</span>
       </header>
 
       <div class="rooms-heading-row">
@@ -125,10 +126,10 @@ $appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUT
     </section>
   </main>
 
-  <dialog id="room-dialog" class="room-dialog">
+  <dialog id="room-dialog" class="room-dialog" aria-labelledby="room-dialog-title">
     <form id="room-create-form" class="form-stack" method="dialog">
       <header class="dialog-header">
-        <h2>Create a room</h2>
+        <h2 id="room-dialog-title">Create a room</h2>
         <button id="room-dialog-cancel" class="icon-button" type="button" aria-label="Close">×</button>
       </header>
       <label>
@@ -167,6 +168,7 @@ $appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUT
   <div id="toast-region" class="toast-region" aria-live="assertive"></div>
 
   <script type="module" src="/assets/js/app.js"></script>
+  <script type="module" src="/assets/js/auth-tabs.js"></script>
   <script type="module" src="/assets/js/admin-link.js"></script>
   <script type="module" src="/assets/js/room-message-mutations.js"></script>
 </body>

@@ -4,7 +4,7 @@ ChitChat uses Playwright to exercise the deployed browser interface against real
 
 ## Covered journey
 
-The same release journey runs in current Chromium and Firefox and verifies:
+The same release journey runs in current Chromium, Firefox, and WebKit and verifies:
 
 - hardened HTTP response headers and anonymous API rejection;
 - first-account Super-Administrator bootstrap;
@@ -19,7 +19,9 @@ The same release journey runs in current Chromium and Firefox and verifies:
 
 The test uses separate browser contexts for the two accounts. Cookies, sessions, and realtime streams are therefore isolated in the same way as two independent browsers.
 
-Chromium and Firefox run as separate CI jobs with separate PostgreSQL service containers and attachment directories. A failure in one engine does not cancel or contaminate the other engine's run.
+Chromium, Firefox, and WebKit run as separate CI jobs with separate PostgreSQL service containers and attachment directories. A failure in one engine does not cancel or contaminate another engine's run.
+
+The browser suite also includes dependency-free accessibility smoke checks for the signed-out chat surface and the signed-in chat, direct-message, and account pages. These checks validate document language and title, one visible main landmark and level-one heading, unique IDs, labelled visible form controls, named interactive elements and dialogs, keyboard-operated authentication tabs, and a visible focus indicator.
 
 ## Local prerequisites
 
@@ -29,7 +31,7 @@ Install PHP and Composer dependencies, migrate an empty test database, and insta
 composer install
 composer migrate
 npm ci
-npx playwright install chromium firefox
+npx playwright install chromium firefox webkit
 ```
 
 Use a disposable PostgreSQL database. The browser test creates accounts, rooms, messages, attachments, DMs, audit entries, and policy changes.
@@ -67,6 +69,7 @@ Run one browser explicitly with:
 ```sh
 npm run test:e2e -- --project=chromium
 npm run test:e2e -- --project=firefox
+npm run test:e2e -- --project=webkit
 ```
 
 For an interactive inspector:
@@ -75,7 +78,7 @@ For an interactive inspector:
 npm run test:e2e:debug -- --project=chromium
 ```
 
-The configuration uses one worker per browser project and runs tests serially because the full journey intentionally builds on a fresh database. Do not run both projects against the same database concurrently outside the CI matrix.
+The configuration uses one worker per browser project and runs tests serially because the full journey intentionally builds on a fresh database. Do not run multiple projects against the same database concurrently outside the CI jobs.
 
 ## Failure diagnostics
 
@@ -87,7 +90,7 @@ CI retains these only when a browser job fails:
 - videos;
 - the HTML report.
 
-Artifacts are named for the browser project, such as `browser-diagnostics-chromium` and `browser-diagnostics-firefox`.
+Artifacts are named for the browser project, such as `browser-diagnostics-chromium`, `browser-diagnostics-firefox`, and `browser-diagnostics-webkit`.
 
 Open a trace locally with:
 
@@ -99,4 +102,4 @@ Browser failures should be fixed against the exact trace and server log. Do not 
 
 ## Scope
 
-These are deep release-smoke journeys, not visual-regression tests and not exhaustive accessibility audits. WebKit/Safari remains a manual release-candidate evaluation target until a reliable CI gate is added.
+These are deep release-smoke journeys, not visual-regression tests. The structural checks catch important accessibility regressions but do not replace assistive-technology testing, manual keyboard review, color-contrast analysis, or a complete WCAG audit.

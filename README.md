@@ -65,11 +65,11 @@ The application currently provides:
 - backup, restore, maintenance, observability, deployment, release, and browser-testing documentation;
 - audit records for sensitive account, authentication, room, message, attachment, inspection, revision-review, settings, export, and maintenance actions;
 - PHP lint, PHPStan level 8, JavaScript syntax checks, PostgreSQL-backed integration tests and maintenance validation;
-- independent two-session Chromium and Firefox browser journeys;
+- independent two-session Chromium, Firefox, and WebKit browser journeys plus dependency-free structural and keyboard accessibility checks;
 - published-release archive installation, backup/restore and forward-upgrade rehearsal;
 - real Nginx/PHP-FPM validation of authenticated, unbuffered SSE delivery.
 
-Multi-factor authentication, configurable per-limit throttles, WebKit browser coverage, horizontal scaling, participant-facing review notifications, account closure, and richer compliance/reporting workflows remain future milestones.
+Multi-factor authentication, configurable per-limit throttles, horizontal scaling, participant-facing review notifications, account closure, and richer compliance/reporting workflows remain future milestones.
 
 ## Installation and operation
 

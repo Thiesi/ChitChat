@@ -15,6 +15,7 @@ $appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUT
   <title>Messages · <?= $appName ?></title>
   <link rel="stylesheet" href="/assets/css/app.css">
   <link rel="stylesheet" href="/assets/css/components.css">
+  <link rel="stylesheet" href="/assets/css/accessibility.css">
   <link rel="stylesheet" href="/assets/css/messages.css">
   <link rel="stylesheet" href="/assets/css/messages-blocking.css">
   <link rel="stylesheet" href="/assets/css/messages-attachments.css">
