@@ -181,7 +181,7 @@ function ensurePasswordDialog() {
   const cancel = button('Cancel', 'secondary-button');
   const submit = button('Verify password', 'primary-button', 'submit');
   actions.append(cancel, submit);
-  form.append(title, explanation, label, password, error, actions);
+  form.append(title, explanation, label, error, actions);
   dialog.append(form);
   document.body.append(dialog);
   passwordDialog = { dialog, form, password, error, cancel, submit };
