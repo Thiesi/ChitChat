@@ -21,6 +21,8 @@ final class ConfigTest extends TestCase
             'ATTACHMENT_MAX_BYTES',
             'DM_ADMIN_INSPECTION_ENABLED',
             'DM_ADMIN_INSPECTION_ROLE',
+            'MESSAGE_REVISION_REVIEW_ENABLED',
+            'MESSAGE_REVISION_REVIEW_ROLE',
         ] as $name) {
             putenv($name);
             unset($_ENV[$name], $_SERVER[$name]);
@@ -42,16 +44,20 @@ final class ConfigTest extends TestCase
         self::assertStringEndsWith('/var/uploads', str_replace('\\', '/', $config->attachmentStoragePath));
         self::assertTrue($config->directMessageInspectionEnabled);
         self::assertSame('super_admin', $config->directMessageInspectionRole);
+        self::assertFalse($config->messageRevisionReviewEnabled);
+        self::assertSame('super_admin', $config->messageRevisionReviewRole);
     }
 
     public function testBooleanEnvironmentValuesAreParsed(): void
     {
         putenv('APP_DEBUG=yes');
         putenv('DM_ADMIN_INSPECTION_ENABLED=no');
+        putenv('MESSAGE_REVISION_REVIEW_ENABLED=yes');
 
         $config = Config::fromEnvironment();
         self::assertTrue($config->debug);
         self::assertFalse($config->directMessageInspectionEnabled);
+        self::assertTrue($config->messageRevisionReviewEnabled);
     }
 
     public function testPresenceLeaseRangeIsValidated(): void
@@ -94,6 +100,15 @@ final class ConfigTest extends TestCase
 
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('DM_ADMIN_INSPECTION_ROLE');
+        Config::fromEnvironment();
+    }
+
+    public function testMessageRevisionReviewRoleIsValidated(): void
+    {
+        putenv('MESSAGE_REVISION_REVIEW_ROLE=global_moderator');
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('MESSAGE_REVISION_REVIEW_ROLE');
         Config::fromEnvironment();
     }
 }
