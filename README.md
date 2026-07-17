@@ -55,11 +55,11 @@ The application currently provides:
 - dry-run-capable cleanup for retained content, deleted and orphaned attachments, events, presence, login attempts, and throttle rows;
 - a responsive browser client for registration, login, rooms, history, live messages, commands, presence, attachments, direct messages, and logout;
 - a permission-aware browser administration console for users, roles, bans, room settings, membership, invitations, audit visibility, eligible DM inspection, and operational settings;
-- backup, restore, maintenance, and deployment documentation;
+- backup, restore, maintenance, deployment, and browser-testing documentation;
 - audit records for sensitive account, room, attachment, inspection, settings, and maintenance actions;
-- PHPUnit, PHPStan, JavaScript syntax checks, and PostgreSQL-backed CI.
+- PHPUnit, PHPStan, JavaScript syntax checks, PostgreSQL-backed integration tests, and a real Chromium end-to-end journey in CI.
 
-Direct-message attachments, browser-driven end-to-end tests, configurable per-limit throttles, and horizontal scaling remain future milestones.
+Direct-message attachments, configurable per-limit throttles, wider browser coverage, and horizontal scaling remain future milestones.
 
 ## Development
 
