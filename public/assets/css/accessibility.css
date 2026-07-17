@@ -1,10 +1,22 @@
-:where(a, button, input, select, summary, textarea, [tabindex]):focus-visible {
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+summary:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
   outline: 3px solid var(--accent-strong);
   outline-offset: 3px;
 }
 
 @media (forced-colors: active) {
-  :where(a, button, input, select, summary, textarea, [tabindex]):focus-visible {
+  a:focus-visible,
+  button:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  summary:focus-visible,
+  textarea:focus-visible,
+  [tabindex]:focus-visible {
     outline-color: CanvasText;
   }
 }
