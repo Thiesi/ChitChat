@@ -5,7 +5,10 @@ const elements = {
   shell: document.querySelector('#account-shell'),
   identity: document.querySelector('#account-identity'),
   exportButton: document.querySelector('#personal-data-export'),
-  status: document.querySelector('#personal-data-status'),
+  exportStatus: document.querySelector('#personal-data-status'),
+  closureConfirm: document.querySelector('#account-closure-confirm'),
+  closureButton: document.querySelector('#account-closure-request'),
+  closureStatus: document.querySelector('#account-closure-status'),
   error: document.querySelector('#account-error'),
 };
 
@@ -22,6 +25,10 @@ async function initialize() {
 
     elements.identity.textContent = `Signed in as ${session.user.username}`;
     elements.exportButton.addEventListener('click', downloadExport);
+    elements.closureConfirm.addEventListener('change', () => {
+      elements.closureButton.disabled = !elements.closureConfirm.checked;
+    });
+    elements.closureButton.addEventListener('click', requestClosure);
     elements.loading.classList.add('hidden');
     elements.shell.classList.remove('hidden');
   } catch (error) {
@@ -31,7 +38,7 @@ async function initialize() {
 
 async function downloadExport() {
   elements.error.textContent = '';
-  elements.status.textContent = 'Preparing your export…';
+  elements.exportStatus.textContent = 'Preparing your export…';
   elements.exportButton.disabled = true;
 
   try {
@@ -50,15 +57,41 @@ async function downloadExport() {
     link.click();
     link.remove();
     window.setTimeout(() => URL.revokeObjectURL(url), 0);
-    elements.status.textContent = `Downloaded ${payload.filename}.`;
+    elements.exportStatus.textContent = `Downloaded ${payload.filename}.`;
   } catch (error) {
     if (error instanceof ApiError && error.code === 'step_up_cancelled') {
-      elements.status.textContent = 'Export cancelled.';
+      elements.exportStatus.textContent = 'Export cancelled.';
       return;
     }
-    elements.status.textContent = '';
+    elements.exportStatus.textContent = '';
     elements.error.textContent = error instanceof Error ? error.message : 'Unable to prepare your export.';
   } finally {
     elements.exportButton.disabled = false;
+  }
+}
+
+async function requestClosure() {
+  elements.error.textContent = '';
+  elements.closureStatus.textContent = 'Requesting closure…';
+  elements.closureButton.disabled = true;
+  elements.closureConfirm.disabled = true;
+
+  try {
+    const payload = await apiPost('/api/v1/account/close.php');
+    const deadline = payload.closure?.finalizes_at;
+    const formatted = typeof deadline === 'string'
+      ? new Date(deadline).toLocaleString()
+      : 'the cooling-off deadline';
+    elements.closureStatus.textContent = `Closure requested. Restore the account before ${formatted}. Redirecting to sign in…`;
+    window.setTimeout(() => window.location.assign('/'), 1200);
+  } catch (error) {
+    if (error instanceof ApiError && error.code === 'step_up_cancelled') {
+      elements.closureStatus.textContent = 'Closure request cancelled.';
+    } else {
+      elements.closureStatus.textContent = '';
+      elements.error.textContent = error instanceof Error ? error.message : 'Unable to request account closure.';
+    }
+    elements.closureConfirm.disabled = false;
+    elements.closureButton.disabled = !elements.closureConfirm.checked;
   }
 }
