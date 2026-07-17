@@ -14,7 +14,12 @@ final class MfaRepository
 
     public function isEnabled(int $userId): bool
     {
-        $statement = $this->prepare('SELECT (mfa_enabled_at IS NOT NULL)::int FROM users WHERE id = :id AND account_state = \'active\'');
+        $statement = $this->prepare(<<<'SQL'
+SELECT (mfa_enabled_at IS NOT NULL)::int
+FROM users
+WHERE id = :id
+  AND account_state IN ('active', 'closure_pending')
+SQL);
         $statement->execute(['id' => $userId]);
         $value = $statement->fetchColumn();
         return $value !== false && (bool) $value;
@@ -55,7 +60,8 @@ SQL);
         $statement = $this->prepare(<<<'SQL'
 SELECT CASE WHEN webauthn_user_handle IS NULL THEN NULL ELSE encode(webauthn_user_handle, 'base64') END
 FROM users
-WHERE id = :id AND account_state = 'active'
+WHERE id = :id
+  AND account_state IN ('active', 'closure_pending')
 SQL);
         $statement->execute(['id' => $userId]);
         $encoded = $statement->fetchColumn();
