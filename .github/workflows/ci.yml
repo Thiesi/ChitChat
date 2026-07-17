@@ -34,6 +34,8 @@ jobs:
         run: |
           find public/assets/js tests/e2e -type f -name '*.js' -print0 | xargs -0 -n1 node --check
           node --check playwright.config.js
+      - name: Check stabilization shell syntax
+        run: find tests/stabilization -type f -name '*.sh' -print0 | xargs -0 -n1 bash -n
       - name: Run PHPStan
         run: |
           set -o pipefail
@@ -102,6 +104,12 @@ jobs:
 
   browser:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        project:
+          - chromium
+          - firefox
 
     services:
       postgres:
@@ -128,7 +136,7 @@ jobs:
       DB_PASSWORD: chitchat
       DB_SSLMODE: disable
       SESSION_COOKIE_SECURE: 0
-      ATTACHMENT_STORAGE_PATH: /tmp/chitchat-browser-uploads
+      ATTACHMENT_STORAGE_PATH: /tmp/chitchat-browser-${{ matrix.project }}-uploads
       CHITCHAT_BASE_URL: http://127.0.0.1:8080
 
     steps:
@@ -149,7 +157,7 @@ jobs:
       - run: composer install --no-interaction --prefer-dist
       - run: composer migrate
       - run: npm ci --no-audit --no-fund
-      - run: npx playwright install --with-deps chromium
+      - run: npx playwright install --with-deps "${{ matrix.project }}"
       - name: Start ChitChat test server
         run: |
           mkdir -p "$ATTACHMENT_STORAGE_PATH"
@@ -157,16 +165,131 @@ jobs:
           PHP_CLI_SERVER_WORKERS=8 php -S 127.0.0.1:8080 -t public > php-server.log 2>&1 &
           echo $! > php-server.pid
           curl --fail --retry 30 --retry-delay 1 --retry-all-errors http://127.0.0.1:8080/ready.php
-      - name: Run Chromium end-to-end tests
-        run: npm run test:e2e
+      - name: Run browser end-to-end tests
+        run: npm run test:e2e -- --project="${{ matrix.project }}"
       - name: Upload browser diagnostics
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: browser-diagnostics
+          name: browser-diagnostics-${{ matrix.project }}
           path: |
             php-server.log
             playwright-report/
             test-results/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  release-rehearsal:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: chitchat_rehearsal
+          POSTGRES_USER: chitchat
+          POSTGRES_PASSWORD: chitchat
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U chitchat -d chitchat_rehearsal"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      APP_ENV: test
+      APP_DEBUG: 1
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_NAME: chitchat_rehearsal
+      DB_USER: chitchat
+      DB_PASSWORD: chitchat
+      DB_SSLMODE: disable
+      SESSION_COOKIE_SECURE: 0
+      CHITCHAT_RELEASE_TAG: v1.0.0-rc.1
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: fileinfo, mbstring, pdo_pgsql
+          coverage: none
+          tools: composer:v2
+
+      - name: Install rehearsal tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq postgresql-client
+      - run: composer install --no-interaction --prefer-dist
+      - name: Rehearse published archive, backup, restore and upgrade
+        run: bash tests/stabilization/rehearse-release.sh
+      - name: Upload release rehearsal diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-rehearsal-diagnostics
+          path: ${{ runner.temp }}/chitchat-release-rehearsal/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  reverse-proxy:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: chitchat_proxy
+          POSTGRES_USER: chitchat
+          POSTGRES_PASSWORD: chitchat
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U chitchat -d chitchat_proxy"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      APP_ENV: test
+      APP_DEBUG: 1
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_NAME: chitchat_proxy
+      DB_USER: chitchat
+      DB_PASSWORD: chitchat
+      DB_SSLMODE: disable
+      SESSION_COOKIE_SECURE: 0
+      ATTACHMENT_STORAGE_PATH: /tmp/chitchat-proxy-uploads
+      CHITCHAT_BASE_URL: http://127.0.0.1:8080
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: fileinfo, mbstring, pdo_pgsql
+          coverage: none
+          tools: composer:v2
+
+      - name: Install Nginx and PHP-FPM
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq nginx php-fpm php-pgsql php-mbstring postgresql-client
+      - run: composer install --no-interaction --prefer-dist
+      - run: composer migrate
+      - name: Rehearse Nginx/PHP-FPM SSE delivery
+        run: bash tests/stabilization/rehearse-nginx-sse.sh
+      - name: Upload reverse-proxy diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reverse-proxy-diagnostics
+          path: ${{ runner.temp }}/chitchat-nginx-rehearsal/
           if-no-files-found: ignore
           retention-days: 7

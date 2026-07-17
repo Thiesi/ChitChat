@@ -1,6 +1,6 @@
-# ChitChat development installation
+# ChitChat installation and evaluation
 
-This document applies to the v1 reconstruction. The application is not yet feature-complete or suitable for production use.
+This document applies to the clean v1 reconstruction. `v1.0.0-rc.1` is a release candidate intended for controlled evaluation and deployment rehearsal; compatibility changes may still occur before stable `1.0.0`.
 
 ## Requirements
 
@@ -8,7 +8,7 @@ This document applies to the v1 reconstruction. The application is not yet featu
 - Composer 2
 - PostgreSQL 15 or newer
 - PHP extensions: `pdo`, `pdo_pgsql`, `json`, `mbstring`, `fileinfo`
-- Node.js 24 or newer for the CI-equivalent browser JavaScript syntax check
+- Node.js 24 or newer only for CI-equivalent JavaScript and browser tests
 
 The deployed browser client has no Node.js runtime dependency and uses no npm packages.
 
@@ -29,6 +29,12 @@ The deployed browser client has no Node.js runtime dependency and uses no npm pa
    composer install
    ```
 
+   For a production-like release installation:
+
+   ```sh
+   composer install --no-dev --classmap-authoritative
+   ```
+
 6. Apply the migrations:
 
    ```sh
@@ -42,15 +48,17 @@ The deployed browser client has no Node.js runtime dependency and uses no npm pa
    chmod 700 var/uploads
    ```
 
-8. Start PHP's built-in server with `public/` as the document root:
+8. Start PHP's built-in server with `public/` as the document root for local evaluation:
 
    ```sh
-   php -S 127.0.0.1:8080 -t public
+   PHP_CLI_SERVER_WORKERS=8 php -S 127.0.0.1:8080 -t public
    ```
 
 9. Open `http://127.0.0.1:8080/`.
 
 The first account created through the browser becomes Super-Administrator. That account can create the first room and use **Administration** for users, rooms, audit visibility, direct-message inspection policy, and operational settings.
+
+For a production-like single-server deployment, use Nginx and PHP-FPM as described in `docs/operations/nginx-php-fpm.md`; do not use PHP's development server.
 
 ## Authentication bootstrap
 
@@ -91,6 +99,8 @@ The SSE endpoint holds each connection for approximately 25 seconds and then let
 Response buffering must be disabled for `/api/v1/events/stream.php`. The application sends `X-Accel-Buffering: no`, but the proxy configuration must also avoid buffering or caching the stream. The endpoint releases the PHP session lock before polling, allowing concurrent requests from the same login session.
 
 Capacity planning must account for one PHP worker per currently open SSE request. The short reconnect window bounds worker lifetime but does not remove that concurrency requirement.
+
+CI verifies this through real Nginx and PHP-FPM by opening an authenticated stream and requiring a room event to arrive before the stream closes. The tested reference configuration is documented in `docs/operations/nginx-php-fpm.md`.
 
 ## Presence leases
 
@@ -135,9 +145,11 @@ All PHP responses use a restrictive Content Security Policy, clickjacking protec
 
 Database-backed fixed-window limits are shared by all PHP workers: five registrations per source IP per hour, thirty room sends per user per minute, ten attachment uploads per user per hour, and thirty direct messages per user per minute. Login has its existing configurable credential throttle.
 
-## Backup and restore
+## Backup, restore and upgrade rehearsal
 
-Back up PostgreSQL and attachment storage together. The database contains password hashes, chat and DM history, audit data, IP addresses and policy settings. See `docs/operations/backup-restore.md` for verified dump, archive and restore procedures.
+Back up PostgreSQL and attachment storage together. The database contains password hashes, chat and DM history, audit data, IP addresses and policy settings. See `docs/operations/backup-restore.md` for the operator procedure.
+
+CI also installs the published `v1.0.0-rc.1` archive into an empty directory, seeds it through the HTTP API, creates and verifies a database plus attachment backup, restores both under new names, runs current migrations, and checks that users, messages, DMs and attachment bytes remain intact. See `docs/operations/release-rehearsal.md`.
 
 ## Production web-root rule
 
@@ -149,7 +161,10 @@ Use HTTPS, set `SESSION_COOKIE_SECURE=1`, and leave `SESSION_COOKIE_SAMESITE=Lax
 
 ```sh
 composer check
-find public/assets/js -type f -name '*.js' -print0 | xargs -0 -n1 node --check
+find public/assets/js tests/e2e -type f -name '*.js' -print0 | xargs -0 -n1 node --check
+find tests/stabilization -type f -name '*.sh' -print0 | xargs -0 -n1 bash -n
+npm run test:e2e -- --project=chromium
+npm run test:e2e -- --project=firefox
 ```
 
-The integration suite expects a migrated PostgreSQL database described by the current environment variables. It clears application tables between tests and must never be pointed at a database containing valuable data. Attachment and maintenance tests use isolated temporary storage directories.
+The integration and browser suites require disposable migrated PostgreSQL databases. They create and clear application data and must never be pointed at a database containing valuable information. Attachment, maintenance, release-rehearsal and reverse-proxy tests use isolated temporary storage directories.
