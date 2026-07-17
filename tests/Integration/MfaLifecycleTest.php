@@ -81,8 +81,8 @@ final class MfaLifecycleTest extends DatabaseTestCase
         self::assertNotFalse($statement);
         $statement->execute(['id' => $user->id]);
 
-        self::assertSame(0, $this->count('webauthn_credentials', $user->id));
-        self::assertSame(0, $this->count('mfa_recovery_codes', $user->id));
+        self::assertSame(0, $this->countRowsForUser('webauthn_credentials', $user->id));
+        self::assertSame(0, $this->countRowsForUser('mfa_recovery_codes', $user->id));
         $state = $this->pdo->query(sprintf(
             'SELECT (webauthn_user_handle IS NULL)::int, (mfa_enabled_at IS NULL)::int FROM users WHERE id = %d',
             $user->id,
@@ -147,7 +147,7 @@ SQL);
         $statement->execute(['user_id' => $userId, 'role' => $role]);
     }
 
-    private function count(string $table, int $userId): int
+    private function countRowsForUser(string $table, int $userId): int
     {
         $statement = $this->pdo->prepare(sprintf('SELECT COUNT(*) FROM %s WHERE user_id = :id', $table));
         self::assertNotFalse($statement);
