@@ -19,6 +19,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
+          cache: npm
 
       - uses: shivammathur/setup-php@v2
         with:
@@ -136,6 +137,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
+          cache: npm
 
       - uses: shivammathur/setup-php@v2
         with:
@@ -146,7 +148,7 @@ jobs:
 
       - run: composer install --no-interaction --prefer-dist
       - run: composer migrate
-      - run: npm install --no-audit --no-fund
+      - run: npm ci --no-audit --no-fund
       - run: npx playwright install --with-deps chromium
       - name: Start ChitChat test server
         run: |
