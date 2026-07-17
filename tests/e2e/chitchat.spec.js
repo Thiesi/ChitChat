@@ -31,6 +31,21 @@ async function selectDirectMessagePeer(page, username) {
   await expect(page.locator('#dm-composer')).toBeVisible();
 }
 
+async function setRegistrationPolicy(page, enabled) {
+  await page.locator('#toast-region').evaluate((node) => node.replaceChildren());
+  page.once('dialog', (dialog) => dialog.accept());
+  await page.locator('#registration-enabled').selectOption(enabled ? '1' : '0');
+  const responsePromise = page.waitForResponse((response) => (
+    response.url().endsWith('/api/v1/admin/settings/update.php')
+    && response.request().method() === 'POST'
+  ));
+  await page.locator('#save-settings').click();
+  const response = await responsePromise;
+  expect(response.ok()).toBeTruthy();
+  await expect(page.locator('#registration-enabled')).toHaveValue(enabled ? '1' : '0');
+  await expect(page.locator('#toast-region')).toContainText('Operational settings saved');
+}
+
 test.describe.serial('ChitChat browser release checks', () => {
   test('emits hardened HTTP headers and protects anonymous APIs', async ({ request }) => {
     const pageResponse = await request.get('/');
@@ -137,10 +152,7 @@ test.describe.serial('ChitChat browser release checks', () => {
       await expect(settingsPage.locator('#room-retention')).toHaveValue('0');
       await expect(settingsPage.locator('#dm-retention')).toHaveValue('0');
 
-      settingsPage.once('dialog', (dialog) => dialog.accept());
-      await settingsPage.locator('#registration-enabled').selectOption('0');
-      await settingsPage.locator('#save-settings').click();
-      await expect(settingsPage.locator('#toast-region')).toContainText('Operational settings saved');
+      await setRegistrationPolicy(settingsPage, false);
 
       anonymousContext = await browser.newContext({ baseURL });
       const anonymousPage = await anonymousContext.newPage();
@@ -148,10 +160,7 @@ test.describe.serial('ChitChat browser release checks', () => {
       await expect(anonymousPage.locator('#auth-shell')).toBeVisible();
       await expect(anonymousPage.locator('#register-tab')).toBeHidden();
 
-      settingsPage.once('dialog', (dialog) => dialog.accept());
-      await settingsPage.locator('#registration-enabled').selectOption('1');
-      await settingsPage.locator('#save-settings').click();
-      await expect(settingsPage.locator('#toast-region')).toContainText('Operational settings saved');
+      await setRegistrationPolicy(settingsPage, true);
     } finally {
       await anonymousContext?.close();
       await memberContext.close();
