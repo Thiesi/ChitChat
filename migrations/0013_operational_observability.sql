@@ -3,7 +3,7 @@ BEGIN;
 CREATE TABLE maintenance_runs (
     id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     dry_run boolean NOT NULL,
-    status text NOT NULL CHECK (status IN ('running', 'success', 'failure')),
+    status text NOT NULL CHECK (status IN ('running', 'success', 'warning', 'failure')),
     started_at timestamptz NOT NULL DEFAULT NOW(),
     finished_at timestamptz NULL,
     duration_ms bigint NULL CHECK (duration_ms IS NULL OR duration_ms >= 0),
