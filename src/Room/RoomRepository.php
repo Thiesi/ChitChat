@@ -111,7 +111,9 @@ SQL);
 
     public function birthDateForUser(int $userId): ?string
     {
-        $statement = $this->pdo->prepare('SELECT birth_date FROM users WHERE id = :id');
+        $statement = $this->pdo->prepare(
+            "SELECT birth_date FROM users WHERE id = :id AND account_state = 'active'",
+        );
         if ($statement === false) {
             throw new RuntimeException('Unable to prepare birth-date lookup.');
         }
@@ -124,7 +126,9 @@ SQL);
 
     public function userExists(int $userId): bool
     {
-        $statement = $this->pdo->prepare('SELECT 1 FROM users WHERE id = :id');
+        $statement = $this->pdo->prepare(
+            "SELECT 1 FROM users WHERE id = :id AND account_state = 'active'",
+        );
         if ($statement === false) {
             throw new RuntimeException('Unable to prepare user existence lookup.');
         }

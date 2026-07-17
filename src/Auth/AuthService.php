@@ -58,7 +58,7 @@ final class AuthService
                 throw new ApiException(403, 'registration_disabled', 'Registration is currently disabled.');
             }
 
-            $countResult = $this->pdo->query('SELECT COUNT(*) FROM users');
+            $countResult = $this->pdo->query("SELECT COUNT(*) FROM users WHERE account_state = 'active'");
             if ($countResult === false) {
                 throw new RuntimeException('Unable to count users.');
             }
@@ -153,6 +153,19 @@ SQL);
         if ($credentials === null || !password_verify($password, $credentials['password_hash'])) {
             $this->recordLoginAttempt($canonical, $ipAddress, false, 'invalid_credentials');
             throw new ApiException(401, 'invalid_credentials', 'Invalid username or password.');
+        }
+
+        if ($credentials['account_state'] === 'closure_pending') {
+            $this->recordLoginAttempt($canonical, $ipAddress, false, 'closure_pending');
+            throw new ApiException(
+                423,
+                'account_closure_pending',
+                'This account is scheduled for closure. Use Restore account before the cooling-off deadline.',
+            );
+        }
+        if ($credentials['account_state'] !== 'active') {
+            $this->recordLoginAttempt($canonical, $ipAddress, false, 'account_closed');
+            throw new ApiException(410, 'account_closed', 'This account has been closed.');
         }
 
         if ($this->users->activeBan($credentials['id']) !== null) {

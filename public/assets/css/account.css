@@ -41,6 +41,10 @@
   box-shadow: var(--shadow);
 }
 
+.account-card + .account-card {
+  margin-top: 1.5rem;
+}
+
 .account-card > p {
   margin: 0;
   line-height: 1.6;
@@ -75,6 +79,19 @@
   margin: 0;
 }
 
+.danger-button {
+  padding: 0.7rem 0.9rem;
+  border: 1px solid var(--danger);
+  border-radius: 0.75rem;
+  background: transparent;
+  color: var(--danger);
+}
+
+.danger-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
 @media (max-width: 40rem) {
   .account-shell {
     width: min(100% - 1rem, 58rem);
@@ -87,7 +104,8 @@
   }
 
   .account-header .secondary-button,
-  .account-action-row .primary-button {
+  .account-action-row .primary-button,
+  .account-action-row .danger-button {
     text-align: center;
   }
 }

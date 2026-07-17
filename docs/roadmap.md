@@ -61,13 +61,18 @@ Replace disposable publication pull requests with a permanent manually dispatche
 
 ### 5. Account closure
 
-Implement step-up-protected account closure as a lifecycle rather than immediate row deletion:
+**Status:** implemented.
 
-- invalidate sessions and prevent future login immediately;
-- use a documented cooling-off period;
-- preserve shared messages, revision evidence, and audits according to retention policy;
-- define profile tombstoning, restoration, and username-reuse rules explicitly;
-- avoid copying unnecessary personal data into closure audits.
+- Require recent password step-up before requesting closure.
+- Invalidate all sessions, revoke global roles, and prevent normal login immediately.
+- Reserve the original username during a fixed 14-day cooling-off period and provide an explicit, independently throttled credential-based restoration path.
+- Restore the saved global-role snapshot only when restoration succeeds before the deadline.
+- Finalize expired closures through ordinary maintenance by tombstoning username, canonical login name, password, birth date and last-login metadata.
+- Release the original username for reuse only after finalization.
+- Preserve shared room and direct-message history, immutable revisions, attachment evidence, room membership and ownership attribution, bans, and audits according to existing retention policy.
+- Remove invitations, live presence/SSE leases, block preferences, login-attempt rows tied to the old canonical username, and global privileges at the appropriate lifecycle stage.
+- Keep closure audit metadata limited to user/closure IDs, deadline, and policy duration rather than copying usernames or content.
+- Refuse closure by the final active Super-Administrator.
 
 ### 6. Multi-factor authentication
 

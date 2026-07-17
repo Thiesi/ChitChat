@@ -160,6 +160,7 @@ final readonly class RateLimitPolicySet
             'registration' => self::definition(5, 3_600, 1, 100, 60, 86_400),
             'privileged_step_up' => self::definition(10, 900, 1, 100, 60, 86_400),
             'personal_data_export' => self::definition(5, 3_600, 1, 100, 60, 86_400),
+            'account_restore' => self::definition(5, 3_600, 1, 100, 60, 86_400),
             'room_send' => self::definition(30, 60, 1, 1_000, 1, 3_600),
             'room_ping' => self::definition(30, 60, 1, 1_000, 1, 3_600),
             'room_message_mutation' => self::definition(30, 60, 1, 1_000, 1, 3_600),

@@ -46,6 +46,7 @@ SELECT u.id, u.username
 FROM users u
 JOIN room_members rm ON rm.user_id = u.id
 WHERE u.username_canonical = :username
+  AND u.account_state = 'active'
   AND rm.room_id = :room_id
 SQL);
         if ($statement === false) {
@@ -54,7 +55,7 @@ SQL);
         $statement->execute(['username' => $canonical, 'room_id' => $roomId]);
         $target = $statement->fetch();
         if (!is_array($target)) {
-            throw new ApiException(404, 'ping_target_not_found', 'That user is not a member of this room.');
+            throw new ApiException(404, 'ping_target_not_found', 'That active user is not a member of this room.');
         }
         $targetUserId = (int) $target['id'];
         if ($targetUserId === $actor->id) {
