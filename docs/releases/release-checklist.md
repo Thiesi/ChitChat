@@ -14,15 +14,18 @@ Use this checklist for every ChitChat pre-release and stable release.
 ## Validate the exact release commit
 
 - [ ] PHP lint passes.
-- [ ] Every browser and Playwright JavaScript module parses under the supported Node version.
+- [ ] Every browser, Playwright, and stabilization script passes syntax validation.
 - [ ] PHPStan level 8 passes without new suppressions.
 - [ ] Every migration applies to an empty PostgreSQL database.
 - [ ] The full PHPUnit suite passes.
 - [ ] `composer maintenance:dry-run` succeeds.
-- [ ] The Chromium two-session journey passes against a fresh database and real PHP workers.
-- [ ] `/health.php` and `/ready.php` succeed in a production-like deployment.
-- [ ] A manual reverse-proxy smoke test confirms SSE is unbuffered and reconnects.
-- [ ] Backup and restore are rehearsed using PostgreSQL plus attachment storage.
+- [ ] The complete two-session journey passes independently in Chromium and Firefox.
+- [ ] The previous supported release archive installs in a clean directory with production Composer dependencies.
+- [ ] PostgreSQL and attachment backups pass checksum and structural verification.
+- [ ] The backup restores under new database and storage names and current migrations apply successfully.
+- [ ] Restored users, room history, direct messages, and attachment bytes are verified.
+- [ ] Real Nginx and PHP-FPM deliver an authenticated SSE event before the stream closes.
+- [ ] `/health.php` and `/ready.php` succeed in the production-like deployment.
 
 ## Review security and privacy
 
@@ -38,15 +41,15 @@ Use this checklist for every ChitChat pre-release and stable release.
 ## Publish
 
 - [ ] Merge the release PR without changing the validated head.
-- [ ] Confirm CI is green on `main` after merge.
+- [ ] Confirm the merged source tree matches the fully validated release head.
 - [ ] Create an annotated tag named `v<version>` on the exact merged commit.
-- [ ] Create a GitHub release from that tag and mark release candidates as pre-releases.
+- [ ] Create a GitHub release from that tag; mark only release candidates as pre-releases.
 - [ ] Use the committed release note as the release body.
 - [ ] Verify the generated source archive contains the expected version defaults and documentation.
 
 ## Post-release
 
 - [ ] Perform a fresh installation from the tag.
-- [ ] Perform an upgrade rehearsal from the previous supported release or development snapshot.
+- [ ] Perform an upgrade rehearsal from the previous supported release.
 - [ ] Record defects against the release version.
 - [ ] Do not move or recreate a published tag; issue a new patch or release-candidate version.
