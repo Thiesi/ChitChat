@@ -22,13 +22,16 @@ async function expectAccessibleStructure(page) {
       const ids = (element.getAttribute('aria-labelledby') ?? '').trim().split(/\s+/).filter(Boolean);
       return ids.map((id) => document.getElementById(id)?.textContent ?? '').join(' ').trim();
     };
-    const accessibleName = (element) => (
-      element.getAttribute('aria-label')
-      ?? referencedText(element)
-      ?? element.getAttribute('title')
-      ?? element.textContent
-      ?? ''
-    ).trim();
+    const accessibleName = (element) => {
+      const candidates = [
+        element.getAttribute('aria-label'),
+        referencedText(element),
+        element.getAttribute('title'),
+        element.textContent,
+      ];
+      const name = candidates.find((candidate) => typeof candidate === 'string' && candidate.trim() !== '');
+      return name?.trim() ?? '';
+    };
 
     const idCounts = new Map();
     for (const element of document.querySelectorAll('[id]')) {
