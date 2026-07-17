@@ -1,5 +1,11 @@
 let csrfToken = '';
 
+const SESSION_CHANGE_ENDPOINTS = new Set([
+  '/api/v1/login.php',
+  '/api/v1/register.php',
+  '/api/v1/logout.php',
+]);
+
 export class ApiError extends Error {
   constructor(status, code, message) {
     super(message);
@@ -62,6 +68,12 @@ async function request(path, options) {
 
   if (payload && typeof payload.csrf_token === 'string') {
     setCsrfToken(payload.csrf_token);
+  }
+
+  if (options.method === 'POST' && SESSION_CHANGE_ENDPOINTS.has(path)) {
+    window.dispatchEvent(new CustomEvent('chitchat:session-changed', {
+      detail: { path },
+    }));
   }
 
   return payload ?? {};
