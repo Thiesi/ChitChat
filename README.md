@@ -1,12 +1,14 @@
 # ChitChat
 
-ChitChat is being reconstructed as a small, self-hosted browser chat application.
+ChitChat is a small, self-hosted browser chat application. The clean reconstruction has reached **v1.0.0-rc.1**, its first release candidate.
 
 ## Repository status
 
-The former `v0.10.25` source snapshot is incomplete and is not considered runnable or production-ready. It is preserved on the `legacy/v0.10.25` branch for reference.
+The release candidate is intended for controlled evaluation and deployment rehearsal. It is not yet an unconditional production recommendation; compatibility changes may still occur before `1.0.0`.
 
-The clean v1 implementation is developed on reviewable branches and merged through CI-backed pull requests.
+The former `v0.10.25` source snapshot is incomplete and is not considered runnable or a supported upgrade predecessor. It is preserved on the `legacy/v0.10.25` branch for reference.
+
+See [CHANGELOG.md](CHANGELOG.md) and the [v1.0.0-rc.1 release notes](docs/releases/v1.0.0-rc.1.md).
 
 ## v1 architecture
 
@@ -55,12 +57,12 @@ The application currently provides:
 - dry-run-capable cleanup for retained content, deleted and orphaned attachments, events, presence, login attempts, and throttle rows;
 - a responsive browser client for registration, login, rooms, history, live messages, commands, presence, attachments, direct messages, and logout;
 - a permission-aware browser administration console for users, roles, bans, room settings, membership, invitations, audit visibility, eligible DM inspection, and operational settings;
-- backup, restore, maintenance, deployment, and browser-testing documentation;
+- backup, restore, maintenance, deployment, release, and browser-testing documentation;
 - audit records for sensitive account, room, attachment, inspection, settings, and maintenance actions;
-- PHPUnit, PHPStan, JavaScript syntax checks, PostgreSQL-backed integration tests, and a real Chromium end-to-end journey in CI.
+- PHP lint, PHPStan level 8, JavaScript syntax checks, PostgreSQL-backed integration tests, maintenance validation, and a real two-session Chromium journey in CI.
 
 Direct-message attachments, configurable per-limit throttles, wider browser coverage, and horizontal scaling remain future milestones.
 
-## Development
+## Development and evaluation
 
-See [INSTALL.md](INSTALL.md). API contracts are documented in [`docs/api/`](docs/api/), and operating procedures in [`docs/operations/`](docs/operations/).
+See [INSTALL.md](INSTALL.md). API contracts are documented in [`docs/api/`](docs/api/), operating procedures in [`docs/operations/`](docs/operations/), and release procedures in [`docs/releases/`](docs/releases/).
