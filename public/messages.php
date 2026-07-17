@@ -36,6 +36,7 @@ $appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUT
     <section id="dm-privacy-notice" class="privacy-notice" aria-labelledby="dm-privacy-heading">
       <h2 id="dm-privacy-heading">Privacy notice</h2>
       <p id="dm-privacy-text"></p>
+      <p>Edits and deletions preserve historical bodies until direct-message retention removes the message. Administrative revision review is separately configurable, requires a stated reason, and is audited when enabled.</p>
     </section>
 
     <p id="messages-error" class="error-text" role="alert"></p>
