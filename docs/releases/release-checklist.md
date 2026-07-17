@@ -44,10 +44,18 @@ Use this checklist for every ChitChat pre-release and stable release.
 
 - [ ] Merge the release PR without changing the validated head.
 - [ ] Confirm the merged source tree matches the fully validated release head.
-- [ ] Create an annotated tag named `v<version>` on the exact merged commit.
-- [ ] Create a GitHub release from that tag; mark only release candidates as pre-releases.
-- [ ] Use the committed release note as the release body.
+- [ ] Wait for the `main` push runs of CI and the independent WebKit workflow to finish successfully.
+- [ ] Copy the full 40-character merge commit SHA.
+- [ ] Confirm the repository has a `release` GitHub Actions environment with required reviewers and deployment restricted to `main`.
+- [ ] Run **Publish release** from `main` in `validate-only` mode with the version and exact merge commit SHA.
+- [ ] Review the validation summary and confirm every required check passed on the exact commit.
+- [ ] Run **Publish release** again from `main` with the same version and SHA in `stable` or `prerelease` mode.
+- [ ] Approve the protected `release` environment deployment.
+- [ ] Verify the workflow created an annotated `v<version>` tag on the exact commit.
+- [ ] Verify the GitHub release uses the committed release note and the intended latest/pre-release classification.
 - [ ] Verify the generated source archive contains the expected version defaults and documentation.
+
+See [`../operations/release-publication.md`](../operations/release-publication.md) for the complete guarded publication procedure and safe-resumption behavior.
 
 ## Post-release
 
