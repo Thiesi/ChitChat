@@ -34,4 +34,13 @@ final readonly class AuthenticatedUser
             'roles' => $this->roles,
         ];
     }
+
+    /** @return array{id:int, username:string, roles:list<string>, session_version:int} */
+    public function toSessionArray(): array
+    {
+        return [
+            ...$this->toArray(),
+            'session_version' => $this->sessionVersion,
+        ];
+    }
 }
