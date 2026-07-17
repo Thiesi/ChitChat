@@ -8,7 +8,10 @@ use stdClass;
 
 final class WebAuthnRequest
 {
-    /** @param array<string, mixed> $payload @return array<string, mixed> */
+    /**
+     * @param array<string, mixed> $payload
+     * @return array<string, mixed>
+     */
     public static function credential(array $payload): array
     {
         $value = $payload['credential'] ?? null;
