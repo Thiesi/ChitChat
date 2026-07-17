@@ -20,6 +20,19 @@ async function login(page, account) {
   await expect(page.locator('#current-user')).toHaveText(account.username);
 }
 
+async function selectLoadedRoom(page, name) {
+  const room = page.locator('.room-button', { hasText: name }).first();
+  await expect(room).toBeVisible();
+
+  if (!(await room.evaluate((element) => element.classList.contains('active')))) {
+    await room.click();
+  }
+
+  await expect(room).toHaveClass(/active/);
+  await expect(page.locator('#composer-wrap')).toBeVisible();
+  await expect(page.locator('#message-list article.message').first()).toBeVisible();
+}
+
 async function selectPeer(page, username) {
   const peerName = page.locator('#dm-peer-name');
   if ((await peerName.textContent()) !== username) {
@@ -83,8 +96,7 @@ test('Super-Administrator reviews exact room and DM revision chains with a reaso
   try {
     const memberPage = await memberContext.newPage();
     await login(memberPage, member);
-    await memberPage.locator('.room-button', { hasText: 'General E2E' }).click();
-    await expect(memberPage.locator('#composer-wrap')).toBeVisible();
+    await selectLoadedRoom(memberPage, 'General E2E');
     await memberPage.locator('#composer-input').fill('Revision review room evidence');
     await memberPage.locator('#send-button').click();
     const roomMessage = await stableMessage(memberPage, 'article.message', 'Revision review room evidence');
