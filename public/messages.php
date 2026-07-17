@@ -16,6 +16,7 @@ $appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUT
   <link rel="stylesheet" href="/assets/css/app.css">
   <link rel="stylesheet" href="/assets/css/components.css">
   <link rel="stylesheet" href="/assets/css/messages.css">
+  <link rel="stylesheet" href="/assets/css/messages-blocking.css">
 </head>
 <body>
   <div id="messages-loading" class="app-loading" role="status">Loading messages…</div>
