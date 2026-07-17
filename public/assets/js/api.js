@@ -1,5 +1,7 @@
 let csrfToken = '';
+let sessionRequest = null;
 
+const SESSION_ENDPOINT = '/api/v1/session.php';
 const SESSION_CHANGE_ENDPOINTS = new Set([
   '/api/v1/login.php',
   '/api/v1/register.php',
@@ -19,8 +21,17 @@ export function setCsrfToken(token) {
   csrfToken = typeof token === 'string' ? token : '';
 }
 
-export async function apiGet(path) {
-  return request(path, { method: 'GET' });
+export function apiGet(path) {
+  if (path !== SESSION_ENDPOINT) {
+    return request(path, { method: 'GET' });
+  }
+  if (sessionRequest === null) {
+    sessionRequest = request(path, { method: 'GET' }).finally(() => {
+      sessionRequest = null;
+    });
+  }
+
+  return sessionRequest;
 }
 
 export async function apiPost(path, body = {}) {
