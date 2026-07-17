@@ -1,7 +1,6 @@
 <?php
 
 declare(strict_types=1);
-
 /** @var ChitChat\Config $config */
 $config = require dirname(__DIR__) . '/bootstrap/app.php';
 $appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
@@ -27,7 +26,10 @@ $appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUT
         <h1>Administration</h1>
         <p id="admin-identity" class="admin-muted"></p>
       </div>
-      <a class="secondary-button admin-link-button" href="/">Back to chat</a>
+      <div class="action-row">
+        <a id="dm-inspection-link" class="secondary-button admin-link-button hidden" href="/admin-messages.php">DM inspection</a>
+        <a class="secondary-button admin-link-button" href="/">Back to chat</a>
+      </div>
     </header>
 
     <nav id="admin-tabs" class="admin-tabs" aria-label="Administration areas">
@@ -156,5 +158,6 @@ $appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUT
 
   <div id="toast-region" class="toast-region" aria-live="assertive"></div>
   <script type="module" src="/assets/js/admin.js"></script>
+  <script type="module" src="/assets/js/admin-dm-link.js"></script>
 </body>
 </html>
