@@ -17,27 +17,31 @@ final class PersonalDataExportServiceTest extends DatabaseTestCase
         $peer = $auth->register('Peer', 'A sufficiently long peer password', '127.0.0.2');
         $outsider = $auth->register('Outsider', 'A sufficiently long outsider password', '127.0.0.3');
 
-        $this->pdo->prepare(<<<'SQL'
+        $roomInsert = $this->pdo->prepare(<<<'SQL'
 INSERT INTO rooms (room_key, name, info_line, visibility, minimum_age, created_by)
 VALUES ('export-room', 'Export room', 'Personal export test', 'public', 0, :created_by)
-SQL)->execute(['created_by' => $actor->id]);
-        $roomId = (int) $this->pdo->lastInsertId();
+RETURNING id
+SQL);
+        $roomInsert->execute(['created_by' => $actor->id]);
+        $roomId = (int) $roomInsert->fetchColumn();
 
         $this->pdo->prepare(<<<'SQL'
 INSERT INTO room_members (room_id, user_id, role)
-VALUES (:room_id, :actor_id, 'owner'), (:room_id, :peer_id, 'member')
+VALUES (:actor_room_id, :actor_id, 'owner'), (:peer_room_id, :peer_id, 'member')
 SQL)->execute([
-            'room_id' => $roomId,
+            'actor_room_id' => $roomId,
             'actor_id' => $actor->id,
+            'peer_room_id' => $roomId,
             'peer_id' => $peer->id,
         ]);
 
-        $this->pdo->prepare(<<<'SQL'
+        $roomMessageInsert = $this->pdo->prepare(<<<'SQL'
 INSERT INTO room_messages (room_id, sender_id, message_type, body)
 VALUES (:room_id, :sender_id, 'text', 'Original exported room body')
 RETURNING id
-SQL)->execute(['room_id' => $roomId, 'sender_id' => $actor->id]);
-        $roomMessageId = (int) $this->pdo->query('SELECT MAX(id) FROM room_messages')->fetchColumn();
+SQL);
+        $roomMessageInsert->execute(['room_id' => $roomId, 'sender_id' => $actor->id]);
+        $roomMessageId = (int) $roomMessageInsert->fetchColumn();
         $this->pdo->prepare(<<<'SQL'
 UPDATE room_messages
 SET body = 'Edited exported room body', edited_at = NOW(), edited_by = :actor_id
@@ -49,23 +53,26 @@ INSERT INTO room_messages (room_id, sender_id, message_type, body)
 VALUES (:room_id, :sender_id, 'text', 'Outsider room body')
 SQL)->execute(['room_id' => $roomId, 'sender_id' => $outsider->id]);
 
-        $this->pdo->prepare(<<<'SQL'
+        $actorDirectInsert = $this->pdo->prepare(<<<'SQL'
 INSERT INTO direct_messages (sender_user_id, recipient_user_id, body)
 VALUES (:actor_id, :peer_id, 'Actor direct message')
 RETURNING id
-SQL)->execute(['actor_id' => $actor->id, 'peer_id' => $peer->id]);
-        $actorDirectMessageId = (int) $this->pdo->query('SELECT MAX(id) FROM direct_messages')->fetchColumn();
+SQL);
+        $actorDirectInsert->execute(['actor_id' => $actor->id, 'peer_id' => $peer->id]);
+        $actorDirectMessageId = (int) $actorDirectInsert->fetchColumn();
         $this->pdo->prepare(<<<'SQL'
 UPDATE direct_messages
 SET body = 'Actor edited direct message', edited_at = NOW(), edited_by = :actor_id
 WHERE id = :message_id
 SQL)->execute(['actor_id' => $actor->id, 'message_id' => $actorDirectMessageId]);
 
-        $this->pdo->prepare(<<<'SQL'
+        $peerDirectInsert = $this->pdo->prepare(<<<'SQL'
 INSERT INTO direct_messages (sender_user_id, recipient_user_id, body)
 VALUES (:peer_id, :actor_id, 'Peer direct message')
-SQL)->execute(['peer_id' => $peer->id, 'actor_id' => $actor->id]);
-        $peerDirectMessageId = (int) $this->pdo->query('SELECT MAX(id) FROM direct_messages')->fetchColumn();
+RETURNING id
+SQL);
+        $peerDirectInsert->execute(['peer_id' => $peer->id, 'actor_id' => $actor->id]);
+        $peerDirectMessageId = (int) $peerDirectInsert->fetchColumn();
         $this->pdo->prepare(<<<'SQL'
 UPDATE direct_messages
 SET body = 'Peer edited direct message', edited_at = NOW(), edited_by = :peer_id
@@ -79,11 +86,12 @@ SQL)->execute(['peer_id' => $peer->id, 'outsider_id' => $outsider->id]);
 
         $this->pdo->prepare(<<<'SQL'
 INSERT INTO direct_message_blocks (blocker_user_id, blocked_user_id)
-VALUES (:actor_id, :peer_id), (:outsider_id, :actor_id)
+VALUES (:actor_blocker_id, :peer_id), (:outsider_id, :actor_blocked_id)
 SQL)->execute([
-            'actor_id' => $actor->id,
+            'actor_blocker_id' => $actor->id,
             'peer_id' => $peer->id,
             'outsider_id' => $outsider->id,
+            'actor_blocked_id' => $actor->id,
         ]);
 
         (new AuditLogger($this->pdo))->log(
@@ -120,12 +128,18 @@ SQL)->execute([
         self::assertSame('Original exported room body', $export['rooms']['authored_message_revisions'][0]['body_before']);
 
         self::assertCount(2, $export['direct_messages']['messages']);
+        self::assertSame('Peer edited direct message', $export['direct_messages']['messages'][1]['body']);
         self::assertCount(1, $export['direct_messages']['authored_message_revisions']);
         self::assertSame('Actor direct message', $export['direct_messages']['authored_message_revisions'][0]['body_before']);
         self::assertCount(1, $export['direct_messages']['blocks_created']);
         self::assertSame('Peer', $export['direct_messages']['blocks_created'][0]['blocked_user']['username']);
 
-        self::assertSame(['test.actor_activity'], array_column($export['activity'], 'action'));
+        $activityActions = array_column($export['activity'], 'action');
+        self::assertContains('auth.register_first_super_admin', $activityActions);
+        self::assertContains('test.actor_activity', $activityActions);
+        self::assertNotContains('test.peer_activity', $activityActions);
+        self::assertNotContains('account.personal_data_exported', $activityActions);
+
         $encoded = json_encode($export, JSON_THROW_ON_ERROR);
         self::assertStringNotContainsString('Private message outside the export', $encoded);
         self::assertStringNotContainsString('Peer direct message', $encoded);
