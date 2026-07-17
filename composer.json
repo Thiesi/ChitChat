@@ -26,9 +26,11 @@
   },
   "scripts": {
     "migrate": "php bin/migrate",
+    "maintenance": "php bin/maintenance-cleanup",
+    "maintenance:dry-run": "php bin/maintenance-cleanup --dry-run",
     "test": "phpunit",
     "analyse": "phpstan analyse",
-    "lint": "find bootstrap public src tests -type f -name '*.php' -print0 | xargs -0 -n1 php -l && php -l bin/migrate",
+    "lint": "find bootstrap public src tests -type f -name '*.php' -print0 | xargs -0 -n1 php -l && php -l bin/migrate && php -l bin/maintenance-cleanup",
     "check": [
       "@lint",
       "@test",
