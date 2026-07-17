@@ -83,24 +83,27 @@ final class CborDecoder
         if ($additional < 24) {
             return $additional;
         }
-        if ($additional === 24) {
-            return self::readByte($data, $offset);
-        }
-        if ($additional === 25) {
-            return unpack('n', self::readBytes($data, $offset, 2))[1];
-        }
-        if ($additional === 26) {
-            return unpack('N', self::readBytes($data, $offset, 4))[1];
-        }
-        if ($additional === 27) {
-            $parts = unpack('Nhigh/Nlow', self::readBytes($data, $offset, 8));
-            if ($parts['high'] > 0x7fffffff) {
+        return match ($additional) {
+            24 => self::readUnsigned($data, $offset, 1),
+            25 => self::readUnsigned($data, $offset, 2),
+            26 => self::readUnsigned($data, $offset, 4),
+            27 => self::readUnsigned($data, $offset, 8),
+            default => throw new RuntimeException('Indefinite-length or reserved CBOR values are not supported.'),
+        };
+    }
+
+    private static function readUnsigned(string $data, int &$offset, int $bytes): int
+    {
+        $encoded = self::readBytes($data, $offset, $bytes);
+        $value = 0;
+        for ($index = 0; $index < $bytes; $index++) {
+            if ($value > intdiv(PHP_INT_MAX - ord($encoded[$index]), 256)) {
                 throw new RuntimeException('CBOR integer exceeds the supported range.');
             }
-            return ($parts['high'] << 32) | $parts['low'];
+            $value = ($value * 256) + ord($encoded[$index]);
         }
 
-        throw new RuntimeException('Indefinite-length or reserved CBOR values are not supported.');
+        return $value;
     }
 
     private static function readByte(string $data, int &$offset): int
