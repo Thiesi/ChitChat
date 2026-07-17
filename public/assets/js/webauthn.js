@@ -1,5 +1,5 @@
 export function webAuthnSupported() {
-  return window.isSecureContext && 'PublicKeyCredential' in window && navigator.credentials;
+  return Boolean(window.isSecureContext && 'PublicKeyCredential' in window && navigator.credentials);
 }
 
 export async function createPasskey(options) {
@@ -74,12 +74,12 @@ function serializeCredential(credential) {
     },
   };
 
-  if (response instanceof AuthenticatorAttestationResponse) {
+  if ('attestationObject' in response) {
     serialized.response.attestationObject = encodeBase64Url(response.attestationObject);
     serialized.response.transports = typeof response.getTransports === 'function'
       ? response.getTransports()
       : [];
-  } else if (response instanceof AuthenticatorAssertionResponse) {
+  } else if ('authenticatorData' in response && 'signature' in response) {
     serialized.response.authenticatorData = encodeBase64Url(response.authenticatorData);
     serialized.response.signature = encodeBase64Url(response.signature);
     serialized.response.userHandle = response.userHandle === null
