@@ -98,7 +98,10 @@ final class MfaService
         );
     }
 
-    /** @param array<string, mixed> $credential @return array{mfa:array<string,mixed>,recovery_codes:list<string>} */
+    /**
+     * @param array<string, mixed> $credential
+     * @return array{mfa:array<string,mixed>,recovery_codes:list<string>}
+     */
     public function finishRegistration(AuthenticatedUser $actor, array $credential, string $labelInput, string $ipAddress): array
     {
         $this->requireAvailable();
@@ -174,7 +177,10 @@ final class MfaService
         return $this->webauthn->assertionOptions($challenge, $this->credentialDescriptors($credentials));
     }
 
-    /** @param array<string, mixed> $credential @return array{credential_record_id:int} */
+    /**
+     * @param array<string, mixed> $credential
+     * @return array{credential_record_id:int}
+     */
     public function finishAssertion(AuthenticatedUser $user, string $purpose, array $credential, string $ipAddress): array
     {
         $this->requireAvailable();
@@ -388,7 +394,8 @@ final class MfaService
         }
     }
 
-    /** @param list<array{id:int,credential_id:string,label:string,transports:list<string>,algorithm:int,sign_count:int,backup_eligible:bool,backup_state:bool,created_at:string,last_used_at:?string}> $credentials
+    /**
+     * @param list<array{id:int,credential_id:string,label:string,transports:list<string>,algorithm:int,sign_count:int,backup_eligible:bool,backup_state:bool,created_at:string,last_used_at:?string}> $credentials
      * @return list<array{id:string,transports:list<string>}>
      */
     private function credentialDescriptors(array $credentials): array
@@ -402,7 +409,8 @@ final class MfaService
         );
     }
 
-    /** @param array{id:int,credential_id:string,label:string,transports:list<string>,algorithm:int,sign_count:int,backup_eligible:bool,backup_state:bool,created_at:string,last_used_at:?string} $credential
+    /**
+     * @param array{id:int,credential_id:string,label:string,transports:list<string>,algorithm:int,sign_count:int,backup_eligible:bool,backup_state:bool,created_at:string,last_used_at:?string} $credential
      * @return array{id:int,label:string,transports:list<string>,algorithm:string,backup_eligible:bool,backup_state:bool,created_at:string,last_used_at:?string}
      */
     private function publicCredential(array $credential): array
