@@ -107,6 +107,9 @@ final class CleanupService
                 $result['deleted_attachments'] = $this->optionalDelete(
                     'DELETE FROM attachments WHERE deleted_at IS NOT NULL AND deleted_at < :cutoff',
                     $cutoffs['deleted_attachment'],
+                ) + $this->optionalDelete(
+                    'DELETE FROM direct_message_attachments WHERE deleted_at IS NOT NULL AND deleted_at < :cutoff',
+                    $cutoffs['deleted_attachment'],
                 );
                 $result['audit_entries'] = $this->optionalDelete(
                     'DELETE FROM audit_log WHERE created_at < :cutoff',
@@ -279,10 +282,15 @@ SQL);
     /** @return list<string> */
     private function keysForDeletedAttachments(DateTimeImmutable $cutoff): array
     {
-        return $this->columnStrings(
-            'SELECT storage_key FROM attachments WHERE deleted_at IS NOT NULL AND deleted_at < :cutoff',
-            $cutoff,
-        );
+        return $this->columnStrings(<<<'SQL'
+SELECT storage_key
+FROM attachments
+WHERE deleted_at IS NOT NULL AND deleted_at < :cutoff
+UNION
+SELECT storage_key
+FROM direct_message_attachments
+WHERE deleted_at IS NOT NULL AND deleted_at < :cutoff
+SQL, $cutoff);
     }
 
     /** @return list<string> */
