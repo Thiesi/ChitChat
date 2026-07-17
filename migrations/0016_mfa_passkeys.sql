@@ -43,7 +43,29 @@ CREATE INDEX mfa_recovery_codes_available
     ON mfa_recovery_codes (user_id, id)
     WHERE used_at IS NULL;
 
+CREATE FUNCTION clear_mfa_on_account_tombstone()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    IF OLD.account_state <> 'closed' AND NEW.account_state = 'closed' THEN
+        DELETE FROM webauthn_credentials WHERE user_id = OLD.id;
+        DELETE FROM mfa_recovery_codes WHERE user_id = OLD.id;
+        NEW.webauthn_user_handle := NULL;
+        NEW.mfa_enabled_at := NULL;
+    END IF;
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER users_clear_mfa_on_tombstone
+BEFORE UPDATE OF account_state ON users
+FOR EACH ROW
+EXECUTE FUNCTION clear_mfa_on_account_tombstone();
+
 COMMENT ON TABLE webauthn_credentials IS
     'WebAuthn public credentials. Private key material never reaches or resides on the ChitChat server.';
 COMMENT ON TABLE mfa_recovery_codes IS
     'One-time MFA recovery-code hashes. Plaintext recovery codes are returned once and never stored.';
+COMMENT ON FUNCTION clear_mfa_on_account_tombstone() IS
+    'Irreversibly destroys passkeys, recovery codes, and MFA identity material whenever account closure reaches the closed state.';
