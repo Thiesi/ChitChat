@@ -12,20 +12,26 @@ async function expectNamedElements(locator) {
   }
 }
 
+async function expectUniqueIds(page) {
+  const elements = page.locator('[id]');
+  const count = await elements.count();
+  const seen = new Set();
+  const duplicates = new Set();
+
+  for (let index = 0; index < count; index += 1) {
+    const id = await elements.nth(index).getAttribute('id');
+    if (id === null || id === '') continue;
+    if (seen.has(id)) duplicates.add(id);
+    seen.add(id);
+  }
+
+  expect([...duplicates]).toEqual([]);
+}
+
 async function expectAccessibleStructure(page) {
   await expect(page.locator('html')).toHaveAttribute('lang', /^[a-z]{2}(?:-|$)/i);
   await expect(page).toHaveTitle(/\S/);
-
-  const duplicateIds = await page.locator('[id]').evaluateAll((elements) => {
-    const counts = new Map();
-    for (const element of elements) {
-      counts.set(element.id, (counts.get(element.id) ?? 0) + 1);
-    }
-    return [...counts.entries()]
-      .filter(([, count]) => count > 1)
-      .map(([id]) => id);
-  });
-  expect(duplicateIds).toEqual([]);
+  await expectUniqueIds(page);
 
   await expect(page.locator('main:visible')).toHaveCount(1);
   await expect(page.locator('h1:visible')).toHaveCount(1);
@@ -78,18 +84,10 @@ test.describe.serial('ChitChat accessibility checks', () => {
     await expect(loginTab).toHaveAttribute('aria-controls', 'login-form');
     await expect(registerTab).toHaveAttribute('aria-controls', 'register-form');
 
-    await page.evaluate(() => document.activeElement?.blur());
     await page.keyboard.press('Tab');
     await expect(loginTab).toBeFocused();
-    const focusOutline = await loginTab.evaluate((element) => {
-      const style = window.getComputedStyle(element);
-      return {
-        style: style.outlineStyle,
-        width: Number.parseFloat(style.outlineWidth),
-      };
-    });
-    expect(focusOutline.style).not.toBe('none');
-    expect(focusOutline.width).toBeGreaterThanOrEqual(2);
+    await expect(loginTab).toHaveCSS('outline-style', /^(?!none$).+/);
+    await expect(loginTab).toHaveCSS('outline-width', '3px');
 
     await page.keyboard.press('ArrowRight');
     await expect(registerTab).toBeFocused();
