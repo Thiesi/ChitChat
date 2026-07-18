@@ -17,9 +17,17 @@ async function register(page) {
 }
 
 async function signOut(page) {
-  await page.goto('/');
+  if (new URL(page.url()).pathname !== '/') {
+    await page.goto('/');
+  }
   await expect(page.locator('#chat-shell')).toBeVisible();
+  const responsePromise = page.waitForResponse((response) => (
+    response.url().endsWith('/api/v1/logout.php')
+    && response.request().method() === 'POST'
+  ));
   await page.locator('#logout-button').click();
+  const response = await responsePromise;
+  expect(response.ok()).toBeTruthy();
   await expect(page.locator('#auth-shell')).toBeVisible();
 }
 
@@ -28,6 +36,18 @@ async function submitPassword(page) {
   await page.locator('#login-password').fill(account.password);
   await page.getByRole('button', { name: 'Sign in' }).click();
   await expect(page.locator('#mfa-login-panel')).toBeVisible();
+}
+
+async function completeMfaLogin(page, action) {
+  const sessionPromise = page.waitForResponse((response) => (
+    response.url().endsWith('/api/v1/session.php')
+    && response.request().method() === 'GET'
+    && response.ok()
+  ));
+  await action();
+  await sessionPromise;
+  await expect(page.locator('#chat-shell')).toBeVisible();
+  await expect(page.locator('#current-user')).toHaveText(account.username);
 }
 
 test.describe('Passkey multi-factor authentication', () => {
@@ -75,15 +95,12 @@ test.describe('Passkey multi-factor authentication', () => {
 
       await signOut(page);
       await submitPassword(page);
-      await page.locator('#mfa-login-passkey').click();
-      await expect(page.locator('#chat-shell')).toBeVisible();
-      await expect(page.locator('#current-user')).toHaveText(account.username);
+      await completeMfaLogin(page, () => page.locator('#mfa-login-passkey').click());
 
       await signOut(page);
       await submitPassword(page);
       await page.locator('#mfa-login-recovery-code').fill(recoveryCode);
-      await page.getByRole('button', { name: 'Use recovery code' }).click();
-      await expect(page.locator('#chat-shell')).toBeVisible();
+      await completeMfaLogin(page, () => page.getByRole('button', { name: 'Use recovery code' }).click());
 
       await signOut(page);
       await submitPassword(page);
