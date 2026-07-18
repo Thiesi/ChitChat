@@ -290,8 +290,8 @@ final readonly class Config
     private static function isAbsolutePath(string $path): bool
     {
         return str_starts_with($path, '/')
-            || preg_match('/\A[A-Za-z]:[\\\/]/', $path) === 1
-            || str_starts_with($path, '\\');
+            || preg_match('/\A[A-Za-z]:[\\\\\/]/', $path) === 1
+            || str_starts_with($path, '\\\\');
     }
 
     private static function normalizePath(string $path): string
