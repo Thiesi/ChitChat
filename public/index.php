@@ -47,7 +47,7 @@ $appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUT
       <form id="register-form" class="form-stack hidden" role="tabpanel" aria-labelledby="register-tab" autocomplete="on" hidden>
         <label>
           Username
-          <input id="register-username" name="username" type="text" autocomplete="username" minlength="3" maxlength="32" pattern="[A-Za-z0-9][A-Za-z0-9._-]{2,31}" required>
+          <input id="register-username" name="username" type="text" autocomplete="username" minlength="3" maxlength="32" pattern="[A-Za-z0-9][A-Za-z0-9._\-]{2,31}" required>
         </label>
         <label>
           Password
@@ -140,7 +140,7 @@ $appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUT
       </header>
       <label>
         Room key
-        <input id="room-key" name="key" type="text" minlength="3" maxlength="48" pattern="[a-z0-9][a-z0-9_-]{2,47}" placeholder="general" required>
+        <input id="room-key" name="key" type="text" minlength="3" maxlength="48" pattern="[a-z0-9][a-z0-9_\-]{2,47}" placeholder="general" required>
       </label>
       <label>
         Name

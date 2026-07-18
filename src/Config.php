@@ -119,7 +119,7 @@ final readonly class Config
             environment: self::env('APP_ENV', 'production'),
             debug: self::envBool('APP_DEBUG', false),
             applicationName: self::env('APP_NAME', 'ChitChat'),
-            applicationVersion: self::env('APP_VERSION', '1.1.0'),
+            applicationVersion: self::env('APP_VERSION', '1.2.0-rc.1'),
             databaseHost: self::env('DB_HOST', '127.0.0.1'),
             databasePort: self::envInt('DB_PORT', 5432),
             databaseName: self::env('DB_NAME', 'chitchat'),

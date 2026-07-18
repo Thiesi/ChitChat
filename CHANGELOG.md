@@ -6,48 +6,69 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ## [Unreleased]
 
+## [1.2.0-rc.1] - 2026-07-18
+
+First release candidate for ChitChat v1.2.0. This pre-release adds deployment-configurable throttling, supported backup and restore tooling, account closure and restoration, passkey multi-factor authentication, participant-facing privacy notifications, and deeper accessibility and visual-regression coverage. It is intended for controlled evaluation and upgrade rehearsal before the stable release.
+
 ### Added
 
-- Added optional password-first WebAuthn multi-factor authentication with multiple labelled passkeys and ten one-time recovery codes.
-- Added privacy-preserving `none` attestation, ES256 and RS256 public-key verification, required user presence and verification, exact RP/origin/challenge checks, authenticator backup-state tracking, and signature-counter validation.
-- Added account-facing passkey enrollment, credential rename/removal, recovery-code replacement, and MFA disablement with session-version invalidation.
-- Added passkey and recovery-code completion for ordinary login, privileged step-up, and account restoration.
-- Added a Super-Administrator policy requiring passkey MFA for `super_admin`, `admin`, `chat_admin`, and `global_moderator` roles.
-- Added transactional policy activation checks, application-level role validation, and a PostgreSQL invariant for later protected-role grants.
-- Added bounded `mfa_assertion`, `mfa_recovery`, and `mfa_management` rate-limit policies and authentication audits that exclude challenges, signatures, credential identifiers, public keys, and recovery material.
-- Added protocol-level WebAuthn fixtures, MFA lifecycle integration tests, and a Chromium virtual-authenticator journey for enrollment, passkey login, recovery login, and one-time-code reuse rejection.
-- Added passkey deployment, API, security-model, and recovery operating documentation.
+- Added bounded named rate-limit policies for authentication, account, messaging, upload, invitation, search, inspection, revision-review, restoration, and MFA paths, configured through deployment environment variables.
+- Added aggregate privacy-preserving allowed/rejected rate-limit counters to Administrator system status and Prometheus without account, IP, room, message, search-term, or request-body identifiers.
+- Added supported `chitchat-backup`, `chitchat-verify-backup`, and `chitchat-restore` commands with a versioned manifest binding PostgreSQL and attachment storage by exact size and SHA-256 checksum.
+- Added safe staged restore into new targets by default, explicit destructive-replacement flags, attachment archive traversal/link/special-file rejection, and a dedicated backup-rehearsal CI gate.
+- Added step-up-protected account closure with immediate session invalidation, global-role revocation, a fixed 14-day cooling-off period, independently throttled credential-based restoration, and maintenance-driven irreversible tombstoning.
+- Added optional password-first WebAuthn multi-factor authentication with multiple labelled ES256 or RS256 passkeys, ten one-time recovery codes, account credential management, and passkey or recovery-code completion for login, privileged step-up, and restoration.
+- Added optional Super-Administrator enforcement of passkey MFA for all global administrative roles, with transactional activation checks and a PostgreSQL role-assignment invariant.
 - Added durable participant-facing privacy notifications for administrative revision review, moderator room-message deletion, administrative password reset, and material installation-policy changes.
-- Added a paginated signed-in notification center, account-scoped individual and bulk read state, and a capped unread badge on the chat surface.
-- Added PostgreSQL integration coverage for notification recipients, no-op policy suppression, account isolation, tombstone cleanup, and exclusion of content, reasons, IP addresses, and secrets from notification context.
-- Added pinned axe-core WCAG A/AA analysis for authentication, restoration, chat, direct-message, account, and privacy-notification surfaces.
-- Added Chromium reflow checks at 640- and 320-CSS-pixel widths plus forced-colors and reduced-motion preference validation.
-- Added targeted pinned-Chromium/Linux screenshot regression for stable desktop authentication and desktop/narrow account layouts.
-- Added explicit manual NVDA, VoiceOver, keyboard, browser-zoom, Windows contrast-theme, and reduced-motion review procedures with versioned result recording.
+- Added a paginated signed-in notification center, account-scoped individual and bulk read state, and a capped unread badge.
+- Added pinned axe-core WCAG A/AA analysis for core signed-out and signed-in surfaces, Chromium reflow checks at 640 and 320 CSS pixels, forced-colors and reduced-motion checks, and targeted pinned-Chromium/Linux screenshot regression for stable authentication and account layouts.
+- Added explicit manual NVDA, VoiceOver, keyboard-only, browser-zoom, Windows contrast-theme, and reduced-motion review procedures with versioned result recording.
 
 ### Security and privacy
 
-- A correct password for an MFA-enabled account creates only a short-lived pending context; it does not create an authenticated session, update `last_login_at`, or record a successful login until the second factor succeeds.
-- MFA-enabled accounts cannot bypass their configured factor through the password-only privileged-step-up endpoint.
+- Rate-limit configuration remains deployment-only so a compromised browser administration session cannot weaken anti-abuse controls; aggregate counters use only fixed policy names and coarse totals.
+- Backup manifests contain no database password, backup sets publish only after self-verification, and restore refuses unsafe archives, public-root overlap, and configured production targets without explicit acknowledgement.
+- Closure preserves shared room and direct-message history, immutable revisions, attachment evidence, membership and ownership attribution, bans, and audits according to retention policy while destroying private credentials and profile identifiers at finalization.
+- A correct password for an MFA-enabled account creates only a short-lived pending context and does not establish an authenticated session or successful login until a passkey or unused recovery code succeeds.
 - Recovery-code plaintext is returned only when a set is created or replaced; PostgreSQL stores SHA-256 hashes of 96-bit random values and consumes codes atomically once.
-- Account restoration remains closure-pending after password verification and mutates lifecycle state only after passkey or recovery-code completion.
-- Restoration rechecks the deadline and current administrative-MFA policy; protected roles that no longer qualify are withheld and named in audit metadata rather than creating an unusable administrator.
-- Irreversible account tombstoning destroys WebAuthn credentials, recovery hashes, the opaque WebAuthn user handle, and the MFA activation timestamp at the database boundary.
-- Selected notifications are derived from the append-only audit log by PostgreSQL in the same transaction as the audited action, preventing an event from committing without its participant disclosure.
-- Notification rows contain only the recipient, fixed event kind, nullable audit reference, bounded structural context, and read timestamps; they do not duplicate message or revision bodies, administrator or moderation reasons, usernames, IP addresses, credentials, session state, passkey data, or recovery material.
-- Audit retention may remove the restricted source entry while preserving the participant-facing disclosure; permanent account tombstoning removes that account's private notification history.
-- Automated accessibility results remain explicitly separate from release-specific manual assistive-technology sign-off; green axe, emulation, and screenshot checks do not claim completed NVDA or VoiceOver validation.
+- Selected privacy notifications are derived from append-only audit records inside the same PostgreSQL transaction and contain only a fixed event kind, recipient, nullable audit reference, bounded structural context, and read timestamps.
+- Notification context excludes message and revision bodies, administrator or moderation reasons, usernames, IP addresses, credentials, session state, passkey data, and recovery material.
+- Automated accessibility results remain separate from release-specific manual assistive-technology sign-off; green axe, emulation, and screenshot checks do not claim completed NVDA or VoiceOver validation.
 
 ### Compatibility
 
-- Passkeys remain disabled unless both `WEBAUTHN_RP_ID` and `WEBAUTHN_ORIGIN` are configured; existing password-only installations retain their prior login and step-up behavior.
-- Production WebAuthn origins require HTTPS. Local development and tests may use `http://localhost:<port>`.
-- The PHP OpenSSL extension is required when passkeys are enabled; no external identity service or new runtime package is introduced.
-- Forward-only migration `0016_mfa_passkeys.sql` adds the MFA schema and invariants. Older ChitChat source must not be run against a database after applying it.
-- Forward-only migration `0017_privacy_notifications.sql` adds durable notification state and audit-derived database triggers. Older ChitChat source must not be run against a database after applying it.
-- Notification correctness does not depend on Redis, a queue, email delivery, or realtime browser delivery; PostgreSQL remains authoritative and the unread badge performs a bounded periodic refresh.
-- Axe-core and visual comparison are development-only npm dependencies and introduce no production runtime package or external service.
-- Screenshot baselines are intentionally limited to pinned Chromium on Linux and stable content; Chromium, Firefox, and WebKit retain their existing functional and structural accessibility journeys.
+- `v1.2.0-rc.1` supports an in-place upgrade from stable `v1.1.0` after PostgreSQL and attachment storage are backed up together.
+- The upgrade applies forward-only migrations `0014_rate_limit_observability.sql`, `0015_account_closure.sql`, `0016_mfa_passkeys.sql`, and `0017_privacy_notifications.sql`.
+- Once these migrations are applied, older ChitChat source must not be pointed at the upgraded database. Rollback requires restoring a matching pre-upgrade database and attachment backup.
+- Passkeys remain disabled unless both `WEBAUTHN_RP_ID` and `WEBAUTHN_ORIGIN` are configured. Production WebAuthn origins require HTTPS; the PHP OpenSSL extension is required when passkeys are enabled.
+- Existing password-only installations retain password login and password step-up behavior while WebAuthn remains unconfigured.
+- No external identity service, queue, Redis deployment, or other new production runtime service is required. Axe-core and screenshot comparison are development-only npm dependencies.
+- This is a release candidate: compatible fixes may land before `v1.2.0`, but operators must not assume database or configuration compatibility with later pre-releases without reading their notes.
+
+### Upgrade notes
+
+Fresh installations should follow `INSTALL.md` and the release-candidate evaluation guidance in `docs/releases/v1.2.0-rc.1.md`.
+
+Existing `v1.1.0` installations should:
+
+1. stop or drain application writes;
+2. back up PostgreSQL and attachment storage together and verify the backup;
+3. deploy `v1.2.0-rc.1` while preserving `.env` and attachment storage;
+4. compare the existing `.env` with `.env.example`, keeping WebAuthn disabled unless a durable HTTPS RP ID and origin have been chosen;
+5. run `composer install --no-dev --classmap-authoritative`;
+6. run `composer migrate` once;
+7. run `composer maintenance:dry-run` and review the result;
+8. verify `/health.php`, `/ready.php`, login, rooms, direct messages, attachments, SSE through the production reverse proxy, system status, account closure/restoration, backup verification, privacy notifications, and any enabled passkey flow.
+
+### Known limitations
+
+- The supported deployment target remains one application server; horizontal scaling and Redis-backed event delivery are not implemented.
+- PostgreSQL is the only supported database.
+- Direct messages are not end-to-end encrypted.
+- Maintenance, backup scheduling, retention, alerting, and release-specific manual assistive-technology testing remain operator responsibilities.
+- The committed automated accessibility suite is not a substitute for a complete manual WCAG audit.
+- This is a pre-release intended for controlled evaluation rather than an unconditional production recommendation.
+- No supported in-place upgrade exists from the incomplete legacy `v0.10.25` snapshot.
 
 ## [1.1.0] - 2026-07-17
 
