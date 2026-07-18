@@ -1,0 +1,183 @@
+.message-search-shell {
+  width: min(100% - 2rem, 72rem);
+  margin: 0 auto;
+  padding: 2rem 0 4rem;
+}
+
+.message-search-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding: 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.message-search-header h1,
+.message-search-header p,
+.message-search-notice h2,
+.message-search-notice p,
+.message-search-result h3,
+.message-search-result p {
+  margin: 0;
+}
+
+.message-search-eyebrow {
+  color: var(--accent-strong);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.message-search-muted,
+.message-search-meta,
+.message-search-status,
+.message-search-context {
+  color: var(--muted);
+}
+
+.message-search-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.message-search-notice {
+  display: grid;
+  gap: 0.45rem;
+  margin-bottom: 1rem;
+  padding: 1rem 1.2rem;
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: var(--surface-2);
+}
+
+.message-search-notice p {
+  line-height: 1.5;
+}
+
+.message-search-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(13rem, 18rem) auto;
+  align-items: end;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding: 1.2rem;
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.message-search-form label {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.message-search-status {
+  min-height: 1.5rem;
+  margin: 0 0 1rem;
+}
+
+.message-search-results {
+  display: grid;
+  gap: 0.8rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.message-search-result {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem 1.2rem;
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.message-search-result header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.message-search-result h3 {
+  font-size: 1rem;
+}
+
+.message-search-result-link {
+  color: var(--accent-strong);
+  text-decoration-thickness: 0.12em;
+  text-underline-offset: 0.18em;
+}
+
+.message-search-context {
+  flex: 0 0 auto;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.message-search-excerpt {
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.message-search-meta {
+  font-size: 0.8rem;
+}
+
+.message-search-more {
+  display: block;
+  margin: 1rem auto 0;
+}
+
+@media (max-width: 48rem) {
+  .message-search-form {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .message-search-form .primary-button {
+    text-align: center;
+  }
+}
+
+@media (max-width: 34rem) {
+  .message-search-shell {
+    width: 100%;
+    padding: 0 0 2rem;
+  }
+
+  .message-search-header,
+  .message-search-notice,
+  .message-search-form,
+  .message-search-result {
+    border-right: 0;
+    border-left: 0;
+    border-radius: 0;
+  }
+
+  .message-search-header,
+  .message-search-result header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .message-search-actions {
+    display: grid;
+  }
+
+  .message-search-actions .secondary-button {
+    text-align: center;
+  }
+}

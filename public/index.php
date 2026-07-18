@@ -84,6 +84,7 @@ $appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUT
 
       <footer class="sidebar-footer">
         <div class="current-user"><span class="current-user-label">Signed in as </span><strong id="current-user"></strong></div>
+        <a class="secondary-button" href="/search.php">Search messages</a>
         <a class="secondary-button" href="/messages.php">Direct messages</a>
         <a id="privacy-notifications-link" class="secondary-button" href="/notifications.php" aria-label="Privacy notifications, none unread">
           Privacy notifications
@@ -175,6 +176,7 @@ $appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUT
 
   <script type="module" src="/assets/js/mfa-login.js"></script>
   <script type="module" src="/assets/js/app.js"></script>
+  <script type="module" src="/assets/js/search-result-navigation.js"></script>
   <script type="module" src="/assets/js/auth-tabs.js"></script>
   <script type="module" src="/assets/js/admin-link.js"></script>
   <script type="module" src="/assets/js/privacy-notification-badge.js"></script>

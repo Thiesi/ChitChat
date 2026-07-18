@@ -173,6 +173,7 @@ final readonly class RateLimitPolicySet
             'direct_message_attachment_upload' => self::definition(10, 3_600, 1, 1_000, 60, 86_400),
             'room_invite' => self::definition(60, 3_600, 1, 1_000, 60, 86_400),
             'direct_message_user_search' => self::definition(120, 60, 1, 5_000, 1, 3_600),
+            'message_search' => self::definition(60, 60, 1, 5_000, 1, 3_600),
             'admin_user_search' => self::definition(120, 60, 1, 5_000, 1, 3_600),
             'room_invitable_user_search' => self::definition(120, 60, 1, 5_000, 1, 3_600),
             'admin_direct_message_user_search' => self::definition(120, 60, 1, 5_000, 1, 3_600),

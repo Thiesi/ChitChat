@@ -9,6 +9,11 @@ textarea:focus-visible,
   outline-offset: 3px;
 }
 
+.search-result-target {
+  outline: 3px solid var(--accent-strong);
+  outline-offset: 3px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
@@ -35,7 +40,8 @@ textarea:focus-visible,
   select:focus-visible,
   summary:focus-visible,
   textarea:focus-visible,
-  [tabindex]:focus-visible {
+  [tabindex]:focus-visible,
+  .search-result-target {
     outline-color: CanvasText;
   }
 

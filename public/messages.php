@@ -31,7 +31,10 @@ $appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUT
         <h1>Direct messages</h1>
         <p id="messages-identity" class="messages-muted"></p>
       </div>
-      <a class="secondary-button" href="/">Back to chat</a>
+      <nav class="messages-header-actions" aria-label="Message navigation">
+        <a class="secondary-button" href="/search.php?scope=direct">Search messages</a>
+        <a class="secondary-button" href="/">Back to chat</a>
+      </nav>
     </header>
 
     <section id="dm-privacy-notice" class="privacy-notice" aria-labelledby="dm-privacy-heading">
@@ -94,6 +97,7 @@ $appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUT
 
   <div id="toast-region" class="toast-region" aria-live="assertive"></div>
   <script type="module" src="/assets/js/messages.js"></script>
+  <script type="module" src="/assets/js/search-result-navigation.js"></script>
   <script type="module" src="/assets/js/dm-attachments.js"></script>
   <script type="module" src="/assets/js/dm-message-mutations.js"></script>
 </body>
