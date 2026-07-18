@@ -95,6 +95,15 @@ async function openNotifications(page) {
   await expect(page.locator('#privacy-notifications-loading')).toBeHidden();
 }
 
+async function clearUnreadNotifications(page) {
+  await openNotifications(page);
+  const markAll = page.locator('#privacy-notifications-mark-all');
+  if (await markAll.isEnabled()) {
+    await markAll.click();
+  }
+  await expect(page.locator('#privacy-notifications-status')).toHaveText('You have no unread privacy notifications.');
+}
+
 test('Super-Administrator reviews exact room and DM revision chains with participant disclosure', async ({ browser }) => {
   const adminContext = await browser.newContext({ baseURL });
   const memberContext = await browser.newContext({ baseURL });
@@ -102,6 +111,9 @@ test('Super-Administrator reviews exact room and DM revision chains with partici
   try {
     const memberPage = await memberContext.newPage();
     await login(memberPage, member);
+    await clearUnreadNotifications(memberPage);
+    await memberPage.goto('/');
+    await expect(memberPage.locator('#chat-shell')).toBeVisible();
     await selectLoadedRoom(memberPage, 'General E2E');
     await memberPage.locator('#composer-input').fill('Revision review room evidence');
     await memberPage.locator('#send-button').click();
