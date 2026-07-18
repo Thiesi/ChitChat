@@ -77,6 +77,16 @@ RETURNS TRIGGER
 LANGUAGE plpgsql
 AS $$
 BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM new_user_states new_state
+        JOIN old_user_states old_state USING (id)
+        WHERE old_state.account_state <> 'closed'
+          AND new_state.account_state = 'closed'
+    ) THEN
+        RETURN NULL;
+    END IF;
+
     DELETE FROM webauthn_credentials
     WHERE user_id IN (
         SELECT new_state.id
