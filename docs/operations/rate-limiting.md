@@ -44,6 +44,7 @@ Values are validated at application startup. Invalid integers and values outside
 | `direct_message_attachment_upload` | 10 / 3600 s | Direct-message attachment uploads |
 | `room_invite` | 60 / 3600 s | Room invitations |
 | `direct_message_user_search` | 120 / 60 s | Participant-facing username search |
+| `message_search` | 60 / 60 s | Participant full-text search over authorized current room and direct-message bodies |
 | `admin_user_search` | 120 / 60 s | Administrator user listing/search |
 | `room_invitable_user_search` | 120 / 60 s | Room-scoped invitation candidate search |
 | `admin_direct_message_user_search` | 120 / 60 s | Administrative DM participant search |
@@ -73,7 +74,7 @@ chitchat_rate_limit_decisions_total{policy="room_send",outcome="allowed"} 123
 chitchat_rate_limit_decisions_total{policy="room_send",outcome="rejected"} 4
 ```
 
-The `policy` label has a fixed application-defined vocabulary, so it does not create user-controlled metric cardinality.
+The `policy` label has a fixed application-defined vocabulary, so it does not create user-controlled metric cardinality. For search policies, only the fixed policy name and coarse allowed/rejected totals are exported; the query itself is never a label or stored aggregate field.
 
 ## Tuning guidance
 
