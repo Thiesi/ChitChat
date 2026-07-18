@@ -141,6 +141,7 @@ jobs:
       WEBAUTHN_RP_ID: localhost
       WEBAUTHN_ORIGIN: http://localhost:8080
       MESSAGE_REVISION_REVIEW_ENABLED: 1
+      RATE_LIMIT_REGISTRATION_MAX_ATTEMPTS: 100
 
     steps:
       - uses: actions/checkout@v4
