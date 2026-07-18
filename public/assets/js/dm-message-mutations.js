@@ -1,9 +1,11 @@
 import { ApiError, apiGet, apiPost } from './api.js';
+import { openMessageReportDialog } from './message-report-dialog.js';
 import './realtime-bridge.js';
 
 let enhancementQueued = false;
 let generation = 0;
 let elements = null;
+const reportedMessages = new Set();
 
 window.addEventListener('DOMContentLoaded', () => {
   const messageList = document.getElementById('dm-message-list');
@@ -29,6 +31,12 @@ window.addEventListener('DOMContentLoaded', () => {
 
 window.addEventListener('chitchat:realtime', (event) => {
   if (event.detail?.type === 'direct_message') queueEnhancement();
+});
+
+window.addEventListener('chitchat:message-reported', (event) => {
+  if (event.detail?.messageKind !== 'direct') return;
+  reportedMessages.add(Number(event.detail.messageId));
+  queueEnhancement();
 });
 
 function queueEnhancement() {
@@ -65,12 +73,16 @@ async function enhanceVisibleMessages() {
 
 function applyState(article, state) {
   if (!state) return;
+  const canReport = !state.deleted
+    && !article.classList.contains('outgoing')
+    && !reportedMessages.has(state.id);
   const signature = JSON.stringify([
     state.body,
     state.edited_at,
     state.deleted,
     state.can_edit,
     state.can_delete,
+    canReport,
   ]);
   if (article.dataset.mutationSignature === signature) return;
   article.dataset.mutationSignature = signature;
@@ -91,11 +103,12 @@ function applyState(article, state) {
     meta.append(indicator);
   }
 
-  if (!state.can_edit && !state.can_delete) return;
+  if (!state.can_edit && !state.can_delete && !canReport) return;
   const actions = document.createElement('span');
   actions.className = 'message-mutation-actions';
   if (state.can_edit) actions.append(actionButton('Edit', () => editMessage(article, state)));
   if (state.can_delete) actions.append(actionButton('Delete for everyone', () => deleteMessage(article, state), true));
+  if (canReport) actions.append(actionButton('Report', () => openMessageReportDialog('direct', state.id)));
   article.append(actions);
 }
 

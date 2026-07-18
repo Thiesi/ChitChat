@@ -1,0 +1,254 @@
+:root {
+  --moderation-max: 96rem;
+}
+
+.moderation-shell {
+  width: min(var(--moderation-max), calc(100% - 2rem));
+  margin: 0 auto;
+  padding: 1rem 0 2rem;
+}
+
+.moderation-header,
+.moderation-notice,
+.moderation-queue,
+.moderation-detail {
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.moderation-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding: 1rem 1.2rem;
+}
+
+.moderation-header h1,
+.moderation-header p,
+.moderation-notice h2,
+.moderation-notice p,
+.moderation-queue h2,
+.moderation-detail h2,
+.moderation-detail h3 {
+  margin: 0;
+}
+
+.moderation-eyebrow {
+  margin: 0 0 0.25rem;
+  color: var(--accent-strong);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.moderation-muted {
+  color: var(--muted);
+}
+
+.moderation-notice {
+  margin-bottom: 1rem;
+  padding: 1rem 1.2rem;
+  border-color: var(--warning);
+  background: color-mix(in srgb, var(--warning) 9%, var(--surface));
+}
+
+.moderation-notice p {
+  margin-top: 0.45rem;
+  line-height: 1.55;
+}
+
+.moderation-workspace {
+  display: grid;
+  min-height: calc(100vh - 17rem);
+  grid-template-columns: minmax(19rem, 26rem) minmax(0, 1fr);
+  gap: 1rem;
+}
+
+.moderation-queue,
+.moderation-detail {
+  min-width: 0;
+  padding: 1rem;
+}
+
+.moderation-queue {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.moderation-queue-heading,
+.moderation-detail-header,
+.moderation-case-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.moderation-queue-heading label {
+  min-width: 8.5rem;
+}
+
+.moderation-case-list,
+.moderation-report-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.moderation-case-list {
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.moderation-case-button {
+  display: grid;
+  width: 100%;
+  gap: 0.35rem;
+  padding: 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 0.8rem;
+  background: var(--surface-2);
+  color: var(--text);
+  text-align: left;
+}
+
+.moderation-case-button:hover,
+.moderation-case-button.active {
+  border-color: var(--accent);
+}
+
+.moderation-case-button.active {
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface-2));
+}
+
+.moderation-case-title {
+  font-weight: 750;
+}
+
+.moderation-case-meta,
+.moderation-case-assignment {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.moderation-empty {
+  display: grid;
+  min-height: 20rem;
+  place-items: center;
+  color: var(--muted);
+  text-align: center;
+}
+
+.moderation-detail-header {
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.moderation-detail section,
+.moderation-resolution {
+  margin-top: 1.25rem;
+}
+
+.moderation-report-card {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.85rem;
+  background: var(--surface-2);
+}
+
+.moderation-report-card header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.moderation-report-card p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.moderation-evidence {
+  margin: 0;
+  padding: 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 0.65rem;
+  background: var(--bg);
+  font: inherit;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.moderation-evidence-meta {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.moderation-resolution,
+.moderation-closed {
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border);
+}
+
+.moderation-closed {
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.8rem;
+  background: var(--surface-2);
+}
+
+.moderation-closed p {
+  margin: 0.5rem 0 0;
+  line-height: 1.5;
+}
+
+#moderation-more {
+  align-self: center;
+}
+
+@media (max-width: 64rem) {
+  .moderation-workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .moderation-case-list {
+    max-height: 28rem;
+  }
+}
+
+@media (max-width: 40rem) {
+  .moderation-shell {
+    width: 100%;
+    padding: 0;
+  }
+
+  .moderation-header,
+  .moderation-notice,
+  .moderation-queue,
+  .moderation-detail {
+    border-right: 0;
+    border-left: 0;
+    border-radius: 0;
+  }
+
+  .moderation-header,
+  .moderation-queue-heading,
+  .moderation-detail-header,
+  .moderation-report-card header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .moderation-workspace {
+    gap: 0;
+  }
+}

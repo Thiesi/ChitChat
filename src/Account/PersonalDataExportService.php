@@ -1,7 +1,6 @@
 <?php
 
 declare(strict_types=1);
-
 namespace ChitChat\Account;
 
 use ChitChat\Audit\AuditLogger;
@@ -40,6 +39,7 @@ final class PersonalDataExportService
             $directMessages = $this->directMessages($actor->id);
             $directMessageRevisions = $this->directMessageRevisions($actor->id);
             $blocks = $this->blocks($actor->id);
+            $submittedReports = $this->submittedReports($actor->id);
             $loginAttempts = $this->loginAttempts($actor->id);
             $activity = $this->activity($actor->id);
 
@@ -62,6 +62,7 @@ final class PersonalDataExportService
                         'retained direct messages visible to the account and attachment metadata',
                         'retained revisions only for direct messages authored by the account',
                         'direct-message blocks created by the account',
+                        'moderation reports submitted by the account, including its own details and retained exact-message evidence snapshots',
                         'login-attempt history associated with the account username',
                         'audit entries where the account is the recorded actor',
                     ],
@@ -70,6 +71,7 @@ final class PersonalDataExportService
                         'attachment file bytes and internal attachment storage keys',
                         'direct-message blocks created by other users',
                         'revision history for messages authored by other users',
+                        'moderation reports submitted by other users, queue assignments and moderator resolution notes',
                         'audit entries and source IP addresses belonging only to another actor',
                     ],
                 ],
@@ -88,6 +90,9 @@ final class PersonalDataExportService
                     'messages' => $directMessages,
                     'authored_message_revisions' => $directMessageRevisions,
                     'blocks_created' => $blocks,
+                ],
+                'moderation' => [
+                    'reports_submitted' => $submittedReports,
                 ],
                 'security_history' => [
                     'login_attempts' => $loginAttempts,
@@ -114,6 +119,7 @@ final class PersonalDataExportService
                         'direct_messages' => count($directMessages),
                         'direct_message_revisions' => count($directMessageRevisions),
                         'blocks_created' => count($blocks),
+                        'moderation_reports_submitted' => count($submittedReports),
                         'login_attempts' => count($loginAttempts),
                         'activity_entries' => count($activity),
                     ],
@@ -426,6 +432,55 @@ ORDER BY block.created_at, blocked.id
 SQL, ['user_id' => $userId], 'personal-data direct-message blocks', fn (array $row): array => [
             'blocked_user' => $this->userReference($row['blocked_user_id'], $row['blocked_username']),
             'created_at' => (string) $row['created_at'],
+        ]);
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function submittedReports(int $userId): array
+    {
+        return $this->mappedRows(<<<'SQL'
+SELECT report.id,
+       report.case_id,
+       report.category,
+       report.details,
+       report.evidence_body,
+       report.evidence_json,
+       report.created_at,
+       moderation_case.message_kind,
+       moderation_case.message_id,
+       moderation_case.status,
+       moderation_case.resolution_code,
+       moderation_case.resolved_at,
+       room.id AS room_id,
+       room.room_key,
+       room.name AS room_name,
+       subject.id AS subject_user_id,
+       subject.username AS subject_username
+FROM moderation_reports report
+JOIN moderation_cases moderation_case ON moderation_case.id = report.case_id
+JOIN users subject ON subject.id = moderation_case.subject_user_id
+LEFT JOIN rooms room ON room.id = moderation_case.room_id
+WHERE report.reporter_user_id = :user_id
+ORDER BY report.id
+SQL, ['user_id' => $userId], 'personal-data submitted moderation reports', fn (array $row): array => [
+            'id' => (int) $row['id'],
+            'case_id' => (int) $row['case_id'],
+            'message_kind' => (string) $row['message_kind'],
+            'message_id' => (int) $row['message_id'],
+            'room' => $row['room_id'] === null ? null : [
+                'id' => (int) $row['room_id'],
+                'key' => (string) $row['room_key'],
+                'name' => (string) $row['room_name'],
+            ],
+            'subject' => $this->userReference($row['subject_user_id'], $row['subject_username']),
+            'category' => (string) $row['category'],
+            'details' => $this->nullableString($row['details']),
+            'evidence_body' => $this->nullableString($row['evidence_body']),
+            'evidence' => $this->jsonObject($row['evidence_json']),
+            'created_at' => (string) $row['created_at'],
+            'case_status' => (string) $row['status'],
+            'resolution_code' => $this->nullableString($row['resolution_code']),
+            'resolved_at' => $this->nullableString($row['resolved_at']),
         ]);
     }
 

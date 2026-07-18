@@ -95,6 +95,37 @@ $appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUT
     </section>
   </main>
 
+  <dialog id="message-report-dialog" class="room-dialog message-report-dialog" aria-labelledby="message-report-title">
+    <form id="message-report-form" class="form-stack">
+      <header class="dialog-header">
+        <div>
+          <h2 id="message-report-title">Report direct message</h2>
+          <p>Moderators receive an immutable snapshot of this reported message only. The report does not expose the rest of your conversation.</p>
+        </div>
+      </header>
+      <label>Reason
+        <select id="message-report-category" required>
+          <option value="spam">Spam</option>
+          <option value="harassment">Harassment</option>
+          <option value="hate">Hate speech</option>
+          <option value="threats">Threats or violence</option>
+          <option value="sexual_content">Sexual content</option>
+          <option value="privacy">Privacy violation</option>
+          <option value="impersonation">Impersonation</option>
+          <option value="other">Other</option>
+        </select>
+      </label>
+      <label>Additional details <span class="optional-label">optional</span>
+        <textarea id="message-report-details" maxlength="1000" rows="5"></textarea>
+      </label>
+      <p id="message-report-error" class="error-text" role="alert"></p>
+      <div class="action-row">
+        <button id="message-report-cancel" class="secondary-button" type="button">Cancel</button>
+        <button id="message-report-submit" class="danger-button" type="submit">Submit report</button>
+      </div>
+    </form>
+  </dialog>
+
   <div id="toast-region" class="toast-region" aria-live="assertive"></div>
   <script type="module" src="/assets/js/messages.js"></script>
   <script type="module" src="/assets/js/search-result-navigation.js"></script>

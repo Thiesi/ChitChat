@@ -1,12 +1,26 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
+const baseURL = process.env.CHITCHAT_BASE_URL ?? 'http://127.0.0.1:8080';
 const member = {
   username: 'MemberE2E',
   password: 'Another Correct Horse Battery Staple 2026!',
 };
+const root = {
+  username: 'RootE2E',
+  password: 'Correct Horse Battery Staple 2026!',
+};
 
 const wcagTags = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
+
+async function loginExisting(page, account) {
+  await page.goto('/');
+  await expect(page.locator('#auth-shell')).toBeVisible();
+  await page.locator('#login-username').fill(account.username);
+  await page.locator('#login-password').fill(account.password);
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+  await expect(page.locator('#chat-shell')).toBeVisible();
+}
 
 async function loginOrRegister(page) {
   await page.goto('/');
@@ -68,7 +82,7 @@ function secondsFromCssList(value) {
 }
 
 test.describe.serial('ChitChat deeper accessibility validation', () => {
-  test('axe-core finds no WCAG A or AA violations on core surfaces', async ({ page, browserName }) => {
+  test('axe-core finds no WCAG A or AA violations on core surfaces', async ({ page, browserName, browser }) => {
     test.skip(browserName !== 'chromium', 'The semantic accessibility gate runs once in Chromium.');
 
     await page.goto('/');
@@ -84,6 +98,7 @@ test.describe.serial('ChitChat deeper accessibility validation', () => {
 
     const pages = [
       ['/messages.php', '#messages-shell', 'Direct messages'],
+      ['/search.php', '#message-search-shell', 'Message search'],
       ['/account.php', '#account-shell', 'Account'],
       ['/notifications.php', '#privacy-notifications-shell', 'Privacy notifications'],
     ];
@@ -92,9 +107,20 @@ test.describe.serial('ChitChat deeper accessibility validation', () => {
       await expect(page.locator(shell)).toBeVisible();
       await expectNoAxeViolations(page, label);
     }
+
+    const rootContext = await browser.newContext({ baseURL });
+    try {
+      const rootPage = await rootContext.newPage();
+      await loginExisting(rootPage, root);
+      await rootPage.goto('/moderation.php');
+      await expect(rootPage.locator('#moderation-shell')).toBeVisible();
+      await expectNoAxeViolations(rootPage, 'Moderation queue');
+    } finally {
+      await rootContext.close();
+    }
   });
 
-  test('core surfaces reflow without document-level horizontal scrolling', async ({ page, browserName }) => {
+  test('core surfaces reflow without document-level horizontal scrolling', async ({ page, browserName, browser }) => {
     test.skip(browserName !== 'chromium', 'The deterministic reflow gate runs once in Chromium.');
 
     await page.setViewportSize({ width: 640, height: 900 });
@@ -103,6 +129,7 @@ test.describe.serial('ChitChat deeper accessibility validation', () => {
 
     const signedInPages = [
       ['/messages.php', '#messages-shell', 'Direct messages at 200%-zoom-equivalent width'],
+      ['/search.php', '#message-search-shell', 'Message search at 200%-zoom-equivalent width'],
       ['/account.php', '#account-shell', 'Account at 200%-zoom-equivalent width'],
       ['/notifications.php', '#privacy-notifications-shell', 'Privacy notifications at 200%-zoom-equivalent width'],
     ];
@@ -113,12 +140,28 @@ test.describe.serial('ChitChat deeper accessibility validation', () => {
     }
 
     await page.setViewportSize({ width: 320, height: 900 });
+    await page.goto('/search.php');
+    await expect(page.locator('#message-search-shell')).toBeVisible();
+    await expectNoHorizontalDocumentOverflow(page, 'Message search at 320 CSS pixels');
     await page.goto('/account.php');
     await expect(page.locator('#account-shell')).toBeVisible();
     await expectNoHorizontalDocumentOverflow(page, 'Account at 320 CSS pixels');
     await page.goto('/notifications.php');
     await expect(page.locator('#privacy-notifications-shell')).toBeVisible();
     await expectNoHorizontalDocumentOverflow(page, 'Privacy notifications at 320 CSS pixels');
+
+    const rootContext = await browser.newContext({ baseURL, viewport: { width: 640, height: 900 } });
+    try {
+      const rootPage = await rootContext.newPage();
+      await loginExisting(rootPage, root);
+      await rootPage.goto('/moderation.php');
+      await expect(rootPage.locator('#moderation-shell')).toBeVisible();
+      await expectNoHorizontalDocumentOverflow(rootPage, 'Moderation queue at 200%-zoom-equivalent width');
+      await rootPage.setViewportSize({ width: 320, height: 900 });
+      await expectNoHorizontalDocumentOverflow(rootPage, 'Moderation queue at 320 CSS pixels');
+    } finally {
+      await rootContext.close();
+    }
   });
 
   test('forced-colors mode retains selected, primary-action, and focus affordances', async ({ page, browserName }) => {

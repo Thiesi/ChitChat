@@ -24,6 +24,9 @@ The response has this envelope:
     "account": {},
     "rooms": {},
     "direct_messages": {},
+    "moderation": {
+      "reports_submitted": []
+    },
     "security_history": {},
     "activity": []
   }
@@ -42,18 +45,21 @@ The export includes:
 - retained direct messages the account can already read, including attachment metadata;
 - retained revision history only for direct messages authored by the exporting account;
 - direct-message blocks created by the account;
+- moderation reports submitted by the account, including its category, optional participant-authored details, retained exact-message snapshot, structural evidence metadata, current case status, and public outcome code;
 - login-attempt history associated with the account's canonical username;
 - audit entries where the account is the actor, including the source IP already recorded for that activity.
 
+A report snapshot remains in the export while the corresponding report is retained, even when ordinary message retention has removed the canonical message. This reflects the data ChitChat still stores on behalf of the exporting reporter.
+
 ### Deliberate exclusions
 
-The export does not include password hashes, session state, CSRF tokens, privileged-step-up state, attachment file bytes, opaque attachment storage keys, hidden revision history for messages authored by somebody else, the identities of users who blocked the account, or audit entries and source IPs belonging only to another actor.
+The export does not include password hashes, session state, CSRF tokens, privileged-step-up state, attachment file bytes, opaque attachment storage keys, hidden revision history for messages authored by somebody else, the identities of users who blocked the account, moderation reports submitted by somebody else, moderation queue assignments, private moderator resolution notes, or audit entries and source IPs belonging only to another actor.
 
-The direct-message block export therefore preserves the existing public relationship contract: users can retrieve blocks they created, but the export does not add a `blocked_by_other` disclosure.
+The direct-message block export therefore preserves the existing public relationship contract: users can retrieve blocks they created, but the export does not add a `blocked_by_other` disclosure. The moderation export likewise does not turn personal-data export into access to the wider queue or to another reporter's complaint.
 
 ### Consistency and audit behavior
 
-The service reads the export in a repeatable-read PostgreSQL transaction. A successful generation creates `account.personal_data_exported` after the exported activity snapshot has been assembled, so the export audit is not recursively included in the same file. Audit metadata records only the export format and aggregate item counts; it does not copy message bodies, filenames, IP addresses, or other exported content.
+The service reads the complete export, including submitted moderation reports, in one repeatable-read PostgreSQL transaction. A successful generation creates `account.personal_data_exported` after the exported activity snapshot has been assembled, so the export audit is not recursively included in the same file. Audit metadata records only the export format and aggregate item counts, including the number of submitted reports; it does not copy report details, evidence bodies, message bodies, filenames, IP addresses, or other exported content.
 
 The synchronous JSON response is intended for the supported single-server baseline. Large retained histories can require substantial PHP memory; operators should test representative accounts before exposing the feature on installations with very large permanent histories.
 
@@ -103,4 +109,4 @@ Ordinary maintenance finalizes pending closures whose deadline has passed. Final
 - records `account.closure_finalized` using IDs only;
 - releases the original username for reuse.
 
-Shared room and direct-message history, message revisions, attachment evidence, room membership and ownership attribution, bans, and audit records remain subject to their existing retention policies. This preserves conversation integrity and security evidence rather than rewriting other participants' retained history. Once the deadline has passed, restoration is refused even if maintenance has not yet run.
+Shared room and direct-message history, message revisions, attachment evidence, open moderation evidence, room membership and ownership attribution, bans, and audit records remain subject to their existing retention policies. Reporter and subject references resolve to the tombstoned `Closed account #<id>` label after finalization rather than preserving the original username in moderation-specific storage. This preserves conversation integrity and pending security evidence rather than rewriting other participants' retained history. Once the deadline has passed, restoration is refused even if maintenance has not yet run.
