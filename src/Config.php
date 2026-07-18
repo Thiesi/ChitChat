@@ -119,7 +119,7 @@ final readonly class Config
             environment: self::env('APP_ENV', 'production'),
             debug: self::envBool('APP_DEBUG', false),
             applicationName: self::env('APP_NAME', 'ChitChat'),
-            applicationVersion: self::env('APP_VERSION', '1.2.0-rc.1'),
+            applicationVersion: self::env('APP_VERSION', '1.2.0'),
             databaseHost: self::env('DB_HOST', '127.0.0.1'),
             databasePort: self::envInt('DB_PORT', 5432),
             databaseName: self::env('DB_NAME', 'chitchat'),
@@ -290,8 +290,8 @@ final readonly class Config
     private static function isAbsolutePath(string $path): bool
     {
         return str_starts_with($path, '/')
-            || preg_match('/\A[A-Za-z]:[\\\\\/]/', $path) === 1
-            || str_starts_with($path, '\\\\');
+            || preg_match('/\A[A-Za-z]:[\\\/]/', $path) === 1
+            || str_starts_with($path, '\\');
     }
 
     private static function normalizePath(string $path): string
