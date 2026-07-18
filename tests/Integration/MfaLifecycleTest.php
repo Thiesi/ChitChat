@@ -77,7 +77,14 @@ final class MfaLifecycleTest extends DatabaseTestCase
         );
         $this->seedPasskeyMfa($user->id, true);
 
-        $statement = $this->pdo->prepare("UPDATE users SET account_state = 'closed' WHERE id = :id");
+        $statement = $this->pdo->prepare(<<<'SQL'
+UPDATE users
+SET account_state = 'closed',
+    closure_requested_at = NOW() - INTERVAL '2 days',
+    closure_finalizes_at = NOW() - INTERVAL '1 day',
+    closed_at = NOW()
+WHERE id = :id
+SQL);
         self::assertNotFalse($statement);
         $statement->execute(['id' => $user->id]);
 
