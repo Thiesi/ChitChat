@@ -1,0 +1,96 @@
+.privacy-notifications-heading-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.privacy-notification-list {
+  display: grid;
+  gap: 1rem;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.privacy-notification {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  background: var(--surface-2);
+}
+
+.privacy-notification-unread {
+  border-inline-start: 0.35rem solid var(--accent-strong);
+}
+
+.privacy-notification-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.privacy-notification h3,
+.privacy-notification p,
+.privacy-notification-details {
+  margin: 0;
+}
+
+.privacy-notification h3 {
+  font-size: 1rem;
+}
+
+.privacy-notification time {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.privacy-notification p,
+.privacy-notification-details {
+  line-height: 1.55;
+}
+
+.privacy-notification-details {
+  display: grid;
+  gap: 0.35rem;
+  padding-inline-start: 1.25rem;
+  color: var(--muted);
+}
+
+.privacy-notification-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.privacy-notification-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.5rem;
+  min-height: 1.5rem;
+  padding: 0 0.4rem;
+  margin-inline-start: 0.35rem;
+  border-radius: 999px;
+  background: var(--accent-strong);
+  color: var(--surface);
+  font-size: 0.75rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+@media (max-width: 40rem) {
+  .privacy-notifications-heading-row,
+  .privacy-notification-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .privacy-notification-actions .secondary-button,
+  .privacy-notifications-heading-row .secondary-button {
+    text-align: center;
+  }
+}
