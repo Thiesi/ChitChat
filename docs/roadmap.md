@@ -105,10 +105,14 @@ Replace disposable publication pull requests with a permanent manually dispatche
 
 ### 8. Deeper accessibility and visual regression
 
-- Add axe-core as a supplementary automated layer.
-- Perform manual NVDA and VoiceOver journeys.
-- Validate high zoom, high contrast, reduced motion, and narrow layouts.
-- Add targeted screenshot regression for critical states without making harmless rendering differences block releases indiscriminately.
+**Status:** automated implementation complete; release-specific manual assistive-technology sign-off remains a human task.
+
+- Run pinned `@axe-core/playwright` WCAG A/AA analysis against core signed-out and signed-in user surfaces as a supplementary Chromium gate.
+- Retain structural and keyboard accessibility smoke coverage across Chromium, Firefox, and WebKit.
+- Validate document reflow at 640- and 320-CSS-pixel widths, forced-colors affordances, and reduced-motion behavior without treating emulation as equivalent to real platform testing.
+- Protect deliberately stable authentication and account layouts with targeted pinned-Chromium/Linux screenshot baselines and a small antialiasing tolerance rather than snapshotting volatile message or realtime content.
+- Provide explicit NVDA, VoiceOver, keyboard, browser-zoom, Windows contrast-theme, and reduced-motion manual journeys with versioned result recording.
+- Do not claim manual NVDA or VoiceOver validation merely because automated checks pass; complete and record those journeys for the release being assessed.
 
 ## Deliberately deferred
 
