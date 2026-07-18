@@ -1,8 +1,13 @@
 import { expect, test } from '@playwright/test';
 
+const baseURL = process.env.CHITCHAT_BASE_URL ?? 'http://127.0.0.1:8080';
 const member = {
   username: 'MemberE2E',
   password: 'Another Correct Horse Battery Staple 2026!',
+};
+const root = {
+  username: 'RootE2E',
+  password: 'Correct Horse Battery Staple 2026!',
 };
 
 async function expectNamedElements(locator) {
@@ -48,6 +53,15 @@ async function expectAccessibleStructure(page) {
     '[role="tab"]:visible',
   ].join(', ')));
   await expectNamedElements(page.locator('dialog[open]:visible, [role="dialog"]:visible'));
+}
+
+async function loginExisting(page, account) {
+  await page.goto('/');
+  await expect(page.locator('#auth-shell')).toBeVisible();
+  await page.locator('#login-username').fill(account.username);
+  await page.locator('#login-password').fill(account.password);
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+  await expect(page.locator('#chat-shell')).toBeVisible();
 }
 
 async function loginOrRegister(page) {
@@ -100,21 +114,45 @@ test.describe.serial('ChitChat accessibility checks', () => {
     await expect(page.locator('#register-form')).toBeHidden();
 
     await expect(page.locator('#room-dialog')).toHaveAttribute('aria-labelledby', 'room-dialog-title');
+    await expect(page.locator('#message-report-dialog')).toHaveAttribute('aria-labelledby', 'message-report-title');
   });
 
-  test('keeps core signed-in pages structurally accessible', async ({ page }) => {
+  test('keeps search, reporting, and moderation surfaces structurally accessible', async ({ page, browser }) => {
     await loginOrRegister(page);
     await expect(page.locator('#connection-status')).toHaveAttribute('role', 'status');
     await expect(page.locator('#connection-status')).toHaveAttribute('aria-live', 'polite');
     await expectAccessibleStructure(page);
 
+    const reportButton = page.getByRole('button', { name: 'Report', exact: true }).first();
+    await expect(reportButton).toBeVisible({ timeout: 15_000 });
+    await reportButton.click();
+    await expect(page.locator('#message-report-dialog')).toBeVisible();
+    await expectAccessibleStructure(page);
+    await page.locator('#message-report-cancel').click();
+    await expect(page.locator('#message-report-dialog')).toBeHidden();
+
     await page.goto('/messages.php');
     await expect(page.locator('#messages-shell')).toBeVisible();
+    await expectAccessibleStructure(page);
+
+    await page.goto('/search.php');
+    await expect(page.locator('#message-search-shell')).toBeVisible();
     await expectAccessibleStructure(page);
 
     await page.goto('/account.php');
     await expect(page.locator('#account-shell')).toBeVisible();
     await expect(page.locator('#mfa-summary')).not.toHaveText('');
     await expectAccessibleStructure(page);
+
+    const rootContext = await browser.newContext({ baseURL });
+    try {
+      const rootPage = await rootContext.newPage();
+      await loginExisting(rootPage, root);
+      await rootPage.goto('/moderation.php');
+      await expect(rootPage.locator('#moderation-shell')).toBeVisible();
+      await expectAccessibleStructure(rootPage);
+    } finally {
+      await rootContext.close();
+    }
   });
 });

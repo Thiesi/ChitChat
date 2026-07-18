@@ -6,6 +6,25 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ## [Unreleased]
 
+### Added
+
+- Added authorization-aware PostgreSQL full-text search over current, undeleted room and direct-message bodies, with combined, room-only and direct-only scopes, bounded pagination, privacy-safe POST transport and exact-message deep links.
+- Added participant reporting for one specific visible, undeleted room message or incoming direct message, plus an authorization-scoped moderation queue with immutable evidence snapshots, aggregation, assignment and explicit resolution states.
+- Added submitted moderation reports to the reporting participant's personal-data export without exposing other reporters, queue assignments or private moderator notes.
+
+### Security and privacy
+
+- Search enforces room discoverability, membership, invitation, minimum-age and DM-participant authorization inside the query and never joins retained revision bodies.
+- Search terms are excluded from URLs, ChitChat audits, rate-limit identifiers, aggregate counters and Prometheus labels.
+- Room-scoped moderators see only cases from rooms they currently moderate; global moderation roles may review DM cases but receive only submitted exact-message snapshots rather than surrounding conversation history or attachment bytes.
+- Open moderation evidence survives canonical message retention; closed evidence is transactionally linked to the exact closure audit and expires with that audit under configured retention.
+- Report bodies, participant details and moderator resolution notes are excluded from moderation audit metadata.
+
+### Compatibility
+
+- Post-`v1.2.0` source adds forward-only migrations `0018_message_search.sql` and `0019_moderation_reports.sql` without introducing an external search, queue, cache or moderation service.
+- Operators deploying unreleased `main` must back up PostgreSQL and attachment storage together and must not point older source at a database after these migrations have been applied.
+
 ## [1.2.0] - 2026-07-18
 
 Third stable release of the clean ChitChat reconstruction. This release promotes the `v1.2.0-rc.1` feature set after controlled evaluation completed without a reported defect. It adds deployment-configurable throttling, supported backup and restore tooling, account closure and restoration, passkey multi-factor authentication, participant-facing privacy notifications, and deeper accessibility and visual-regression coverage.

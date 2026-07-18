@@ -1,18 +1,21 @@
 import { ApiError, apiGet, apiPost } from './api.js';
+import { openMessageReportDialog } from './message-report-dialog.js';
 import './realtime-bridge.js';
 
 let enhancementQueued = false;
 let generation = 0;
 let lastRoomId = null;
 let elements = null;
+const reportedMessages = new Set();
 
 window.addEventListener('DOMContentLoaded', () => {
   const messageList = document.getElementById('message-list');
   const roomList = document.getElementById('room-list');
   const toastRegion = document.getElementById('toast-region');
   const chatShell = document.getElementById('chat-shell');
-  if (!messageList || !roomList || !toastRegion || !chatShell) return;
-  elements = { messageList, roomList, toastRegion, chatShell };
+  const currentUser = document.getElementById('current-user');
+  if (!messageList || !roomList || !toastRegion || !chatShell || !currentUser) return;
+  elements = { messageList, roomList, toastRegion, chatShell, currentUser };
 
   new MutationObserver(queueEnhancement).observe(messageList, { childList: true, subtree: true });
   new MutationObserver(() => {
@@ -43,6 +46,12 @@ window.addEventListener('chitchat:realtime', (event) => {
   if (type === 'message_deleted' && envelope?.payload?.room_id === currentRoomId()) {
     queueEnhancement();
   }
+});
+
+window.addEventListener('chitchat:message-reported', (event) => {
+  if (event.detail?.messageKind !== 'room') return;
+  reportedMessages.add(Number(event.detail.messageId));
+  queueEnhancement();
 });
 
 function currentRoomId() {
@@ -89,7 +98,12 @@ async function enhanceVisibleMessages() {
 }
 
 function applyState(article, state) {
-  if (!state) return;
+  if (!state || !elements) return;
+  const author = article.querySelector('.message-author')?.textContent ?? 'Someone';
+  const canReport = !state.deleted
+    && author !== 'System'
+    && author !== elements.currentUser.textContent
+    && !reportedMessages.has(state.id);
   const signature = JSON.stringify([
     state.body,
     state.type,
@@ -98,6 +112,7 @@ function applyState(article, state) {
     state.deletion_kind,
     state.can_edit,
     state.can_delete,
+    canReport,
   ]);
   if (article.dataset.mutationSignature === signature) return;
   article.dataset.mutationSignature = signature;
@@ -107,7 +122,6 @@ function applyState(article, state) {
 
   const body = article.querySelector('.message-body');
   const header = article.querySelector('.message-header');
-  const author = article.querySelector('.message-author')?.textContent ?? 'Someone';
   article.classList.toggle('deleted', Boolean(state.deleted));
 
   if (body) {
@@ -130,11 +144,12 @@ function applyState(article, state) {
     header.append(indicator);
   }
 
-  if (!header || (!state.can_edit && !state.can_delete)) return;
+  if (!header || (!state.can_edit && !state.can_delete && !canReport)) return;
   const actions = document.createElement('span');
   actions.className = 'message-mutation-actions';
   if (state.can_edit) actions.append(actionButton('Edit', () => editMessage(article, state)));
   if (state.can_delete) actions.append(actionButton('Delete', () => deleteMessage(article, state), true));
+  if (canReport) actions.append(actionButton('Report', () => openMessageReportDialog('room', state.id)));
   header.append(actions);
 }
 

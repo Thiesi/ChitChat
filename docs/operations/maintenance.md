@@ -12,7 +12,7 @@ Always inspect a dry run after changing retention:
 composer maintenance:dry-run
 ```
 
-The command prints JSON counts for each affected table, tracked or orphaned attachment files, and due account closures. A dry run acquires the same PostgreSQL advisory lock as destructive cleanup, but does not change retained application content, attachment files, or account state.
+The command prints JSON counts for each affected table, tracked or orphaned attachment files, and due account closures. A dry run acquires the same PostgreSQL advisory lock as destructive cleanup, but does not change retained application content, attachment files, moderation evidence, or account state.
 
 Dry runs are recorded in `maintenance_runs`, but they do not satisfy the successful destructive-maintenance freshness check shown on `/admin-status.php`.
 
@@ -44,6 +44,22 @@ The command exits with status `3` when one or more files could not be removed. D
 
 Operational maintenance-run rows are kept for 400 days. This small operational ledger is separate from the configurable audit retention policy.
 
+## Moderation-report evidence
+
+A participant report stores an immutable snapshot of the exact reported message. This prevents a later edit or ordinary message-retention run from erasing evidence while a case remains open.
+
+Retention follows two phases:
+
+- `open` and `in_review` cases survive canonical room-message or direct-message deletion, including deletion caused by ordinary message retention;
+- when a case becomes `resolved` or `dismissed`, it is transactionally linked to the exact `moderation.case_closed` audit entry;
+- deletion of that closure audit entry cascades to the case and all submitted evidence snapshots.
+
+Consequently, `audit_retention_days = 0` keeps closed moderation evidence permanently. A nonzero audit retention period deletes closed evidence when the closure audit reaches that age. Open evidence is deliberately not removed merely because an older report-submission audit expires.
+
+This linkage is enforced in PostgreSQL with a deferred constraint trigger. A transaction cannot commit a closed case that lacks its closure-audit reference. Reopening a case after a new participant report clears the old link, so an earlier closure audit cannot delete a newly active case.
+
+The moderation queue contains snapshots and bounded participant details, not attachment bytes or storage keys. Physical attachment retention continues to follow the attachment policies below.
+
 ## Account-closure finalization
 
 An account becomes ineligible for restoration as soon as its 14-day deadline passes, even if maintenance has not run yet. The next destructive maintenance invocation:
@@ -52,7 +68,7 @@ An account becomes ineligible for restoration as soon as its 14-day deadline pas
 - replaces the password hash with an unusable random credential;
 - clears birth date and last-login metadata;
 - removes global roles, invitations, live leases, block preferences, and login-attempt rows tied to the old canonical username;
-- retains shared messages, revisions, attachment evidence, room attribution, bans, and audits under their existing retention rules;
+- retains shared messages, revisions, attachment evidence, open moderation evidence, room attribution, bans, and audits under their existing retention rules;
 - releases the original username for registration by another account.
 
 See [`../api/account.md`](../api/account.md) for the complete request, restoration, and retained-data contract.
@@ -92,13 +108,13 @@ Do not run cleanup from multiple hosts. A database advisory lock prevents concur
 
 - `room_message_retention_days`: `0` keeps room messages permanently.
 - `direct_message_retention_days`: `0` keeps direct messages permanently.
-- `audit_retention_days`: `0` keeps audit evidence permanently.
+- `audit_retention_days`: `0` keeps audit evidence and closed moderation cases permanently; nonzero values also bound closed moderation evidence from the closure time.
 - `deleted_attachment_retention_days`: controls physical retention after moderator or author deletion; `0` keeps files permanently.
 - `orphan_attachment_grace_hours`: protects files created shortly before a failed database transaction from immediate deletion.
 - `realtime_event_retention_hours`: bounds the delivery ledger. Persistent message history is stored separately.
 - `login_attempt_retention_days`: bounds authentication-throttle evidence.
 
-Lowering a retention period can make a large amount of data eligible on the next run. Take and verify a backup first.
+Lowering a retention period can make a large amount of data, including closed moderation evidence, eligible on the next run. Take and verify a backup first.
 
 ## Request limits
 

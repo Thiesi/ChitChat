@@ -11,7 +11,7 @@ Each limited action has a fixed, named policy. The active row in `request_rate_l
 - the current window start;
 - the attempt count and update time.
 
-The separate `rate_limit_counters` table stores only aggregate policy outcomes. It contains no account ID, username, IP address, room ID, message ID, attachment name, search term, or request body.
+The separate `rate_limit_counters` table stores only aggregate policy outcomes. It contains no account ID, username, IP address, room ID, message ID, moderation-case ID, report category, attachment name, search term, or request body.
 
 A request that exceeds a policy receives HTTP 429 with `rate_limited`, except for the established login path, which continues to return `login_throttled`.
 
@@ -33,6 +33,9 @@ Values are validated at application startup. Invalid integers and values outside
 | `login` | 10 / 900 s | Login requests after the existing username/IP failed-attempt lookup |
 | `registration` | 5 / 3600 s | Account registration by source IP |
 | `privileged_step_up` | 10 / 900 s | Current-password step-up by account and IP |
+| `mfa_assertion` | 20 / 900 s | Passkey assertion attempts |
+| `mfa_recovery` | 10 / 3600 s | One-time recovery-code attempts |
+| `mfa_management` | 20 / 3600 s | Passkey and recovery-code management |
 | `personal_data_export` | 5 / 3600 s | Personal-data export |
 | `account_restore` | 5 / 3600 s | Explicit cooling-off restoration by canonical username and source IP |
 | `room_send` | 30 / 60 s | Ordinary room messages |
@@ -50,6 +53,9 @@ Values are validated at application startup. Invalid integers and values outside
 | `admin_direct_message_user_search` | 120 / 60 s | Administrative DM participant search |
 | `admin_direct_message_inspection` | 60 / 3600 s | Audited DM inspection pages |
 | `message_revision_review` | 60 / 3600 s | Audited exact-message revision review |
+| `message_report` | 10 / 3600 s | Participant submission of a room or direct-message report |
+| `moderation_queue` | 120 / 60 s | Authorization-scoped moderation queue and case reads |
+| `moderation_action` | 60 / 3600 s | Case assignment, release, dismissal, and resolution |
 
 The complete variable list with current defaults is in `.env.example`.
 
@@ -74,14 +80,14 @@ chitchat_rate_limit_decisions_total{policy="room_send",outcome="allowed"} 123
 chitchat_rate_limit_decisions_total{policy="room_send",outcome="rejected"} 4
 ```
 
-The `policy` label has a fixed application-defined vocabulary, so it does not create user-controlled metric cardinality. For search policies, only the fixed policy name and coarse allowed/rejected totals are exported; the query itself is never a label or stored aggregate field.
+The `policy` label has a fixed application-defined vocabulary, so it does not create user-controlled metric cardinality. Search queries, report categories, moderation-case IDs, and free-text details are never labels or stored aggregate fields.
 
 ## Tuning guidance
 
 - Increase limits only after checking rejected counters and confirming legitimate traffic is affected.
 - Prefer increasing the maximum modestly before shortening a window.
-- Keep registration, restoration, uploads, step-up, exports, and administrative content access substantially tighter than ordinary message sends.
-- Treat sudden increases in rejected login, restoration, step-up, inspection, or revision-review decisions as a security signal.
+- Keep registration, restoration, reports, uploads, step-up, exports, and administrative content access substantially tighter than ordinary message sends.
+- Treat sudden increases in rejected login, restoration, step-up, report, moderation-action, inspection, or revision-review decisions as a security signal.
 - Do not disable a policy by setting zero; zero is rejected at startup.
 
-Rate limiting is defense in depth. It does not replace authorization, CSRF validation, block relationships, upload validation, privileged step-up, required reasons, or audit logging.
+Rate limiting is defense in depth. It does not replace authorization, CSRF validation, block relationships, upload validation, privileged step-up, required reasons, search authorization, moderation evidence boundaries, or audit logging.

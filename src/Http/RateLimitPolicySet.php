@@ -1,7 +1,6 @@
 <?php
 
 declare(strict_types=1);
-
 namespace ChitChat\Http;
 
 use InvalidArgumentException;
@@ -179,6 +178,9 @@ final readonly class RateLimitPolicySet
             'admin_direct_message_user_search' => self::definition(120, 60, 1, 5_000, 1, 3_600),
             'admin_direct_message_inspection' => self::definition(60, 3_600, 1, 1_000, 60, 86_400),
             'message_revision_review' => self::definition(60, 3_600, 1, 1_000, 60, 86_400),
+            'message_report' => self::definition(10, 3_600, 1, 100, 60, 86_400),
+            'moderation_queue' => self::definition(120, 60, 1, 5_000, 1, 3_600),
+            'moderation_action' => self::definition(60, 3_600, 1, 1_000, 60, 86_400),
         ];
     }
 
