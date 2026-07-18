@@ -343,7 +343,7 @@ SQL);
     private function stringList(mixed $value): array
     {
         if (is_array($value)) {
-            return array_map(static fn (mixed $item): string => (string) $item, $value);
+            return array_values(array_map(static fn (mixed $item): string => (string) $item, $value));
         }
         if (!is_string($value) || $value === '{}') {
             return [];
@@ -352,10 +352,10 @@ SQL);
         if ($inner === '') {
             return [];
         }
-        return array_map(
+        return array_values(array_map(
             static fn (?string $item): string => (string) $item,
             str_getcsv($inner, ',', '"', '\\'),
-        );
+        ));
     }
 
     /** @param list<string> $values */
