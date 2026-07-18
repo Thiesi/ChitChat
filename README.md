@@ -67,14 +67,15 @@ The application currently provides:
 - manifest-bound backup, verification, and safe restore commands covering PostgreSQL and attachment storage together, plus ready-to-adapt scheduled-backup units;
 - a responsive browser client for registration, password-first MFA login, rooms, history, live messages, commands, presence, attachments, direct messages, privacy notifications, account security/export/closure/restoration, and logout;
 - a permission-aware browser administration console for users, roles, bans, room settings, membership, invitations, audit visibility, eligible DM inspection, exact-ID revision review, operational settings, and system status;
-- backup, restore, maintenance, observability, deployment, release, account-lifecycle, passkey/MFA, privacy-notification, and browser-testing documentation;
+- backup, restore, maintenance, observability, deployment, release, account-lifecycle, passkey/MFA, privacy-notification, accessibility-review, and browser-testing documentation;
 - audit records for sensitive account, authentication, MFA, room, message, attachment, inspection, revision-review, settings, export, closure, and maintenance actions;
 - PHP lint, PHPStan level 8, JavaScript syntax checks, PostgreSQL-backed integration tests and maintenance validation;
-- independent two-session Chromium, Firefox, and WebKit browser journeys, a Chromium virtual-WebAuthn-authenticator journey, and dependency-free structural and keyboard accessibility checks;
+- independent two-session Chromium, Firefox, and WebKit browser journeys, a Chromium virtual-WebAuthn-authenticator journey, and cross-browser structural and keyboard accessibility checks;
+- pinned Chromium axe-core WCAG A/AA analysis, document-reflow, forced-colors and reduced-motion checks, plus targeted Linux screenshot regression for stable authentication and account layouts;
 - published-release archive installation, first-class backup/restore and forward-upgrade rehearsal;
 - real Nginx/PHP-FPM validation of authenticated, unbuffered SSE delivery.
 
-Horizontal scaling, deeper accessibility/visual-regression work, and richer compliance/reporting workflows remain future milestones.
+Horizontal scaling, release-specific manual assistive-technology sign-off, and richer compliance/reporting workflows remain deliberate ongoing or future work.
 
 ## Installation and operation
 
