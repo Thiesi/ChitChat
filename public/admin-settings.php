@@ -31,9 +31,8 @@ $appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUT
     </header>
 
     <p class="admin-card warning-text">
-      These policies control destructive maintenance. A retention value of <strong>0</strong> means permanent retention.
-      Changes require recent current-password verification and are audited, but cleanup occurs only when
-      <code>php bin/maintenance-cleanup</code> runs.
+      Retention policies control destructive maintenance. A retention value of <strong>0</strong> means permanent retention.
+      Access-policy changes and destructive-retention changes require recent privileged authentication and are audited.
     </p>
     <p id="settings-error" class="error-text" role="alert"></p>
 
@@ -47,6 +46,17 @@ $appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUT
             <option value="0">Disabled</option>
           </select>
         </label>
+        <label>
+          <span>Require MFA for administrative roles</span>
+          <select id="admin-mfa-required">
+            <option value="0">Disabled</option>
+            <option value="1">Enabled</option>
+          </select>
+        </label>
+        <p class="admin-muted">
+          Applies to Super-Administrator, Administrator, Chat Administrator, and Global Moderator roles.
+          Every currently assigned account must already have a passkey and an unused recovery code before this can be enabled.
+        </p>
       </section>
 
       <section class="admin-card form-stack">

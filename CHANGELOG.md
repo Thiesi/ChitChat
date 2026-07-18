@@ -6,6 +6,34 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ## [Unreleased]
 
+### Added
+
+- Added optional password-first WebAuthn multi-factor authentication with multiple labelled passkeys and ten one-time recovery codes.
+- Added privacy-preserving `none` attestation, ES256 and RS256 public-key verification, required user presence and verification, exact RP/origin/challenge checks, authenticator backup-state tracking, and signature-counter validation.
+- Added account-facing passkey enrollment, credential rename/removal, recovery-code replacement, and MFA disablement with session-version invalidation.
+- Added passkey and recovery-code completion for ordinary login, privileged step-up, and account restoration.
+- Added a Super-Administrator policy requiring passkey MFA for `super_admin`, `admin`, `chat_admin`, and `global_moderator` roles.
+- Added transactional policy activation checks, application-level role validation, and a PostgreSQL invariant for later protected-role grants.
+- Added bounded `mfa_assertion`, `mfa_recovery`, and `mfa_management` rate-limit policies and authentication audits that exclude challenges, signatures, credential identifiers, public keys, and recovery material.
+- Added protocol-level WebAuthn fixtures, MFA lifecycle integration tests, and a Chromium virtual-authenticator journey for enrollment, passkey login, recovery login, and one-time-code reuse rejection.
+- Added passkey deployment, API, security-model, and recovery operating documentation.
+
+### Security and privacy
+
+- A correct password for an MFA-enabled account creates only a short-lived pending context; it does not create an authenticated session, update `last_login_at`, or record a successful login until the second factor succeeds.
+- MFA-enabled accounts cannot bypass their configured factor through the password-only privileged-step-up endpoint.
+- Recovery-code plaintext is returned only when a set is created or replaced; PostgreSQL stores SHA-256 hashes of 96-bit random values and consumes codes atomically once.
+- Account restoration remains closure-pending after password verification and mutates lifecycle state only after passkey or recovery-code completion.
+- Restoration rechecks the deadline and current administrative-MFA policy; protected roles that no longer qualify are withheld and named in audit metadata rather than creating an unusable administrator.
+- Irreversible account tombstoning destroys WebAuthn credentials, recovery hashes, the opaque WebAuthn user handle, and the MFA activation timestamp at the database boundary.
+
+### Compatibility
+
+- Passkeys remain disabled unless both `WEBAUTHN_RP_ID` and `WEBAUTHN_ORIGIN` are configured; existing password-only installations retain their prior login and step-up behavior.
+- Production WebAuthn origins require HTTPS. Local development and tests may use `http://localhost:<port>`.
+- The PHP OpenSSL extension is required when passkeys are enabled; no external identity service or new runtime package is introduced.
+- Forward-only migration `0016_mfa_passkeys.sql` adds the MFA schema and invariants. Older ChitChat source must not be run against a database after applying it.
+
 ## [1.1.0] - 2026-07-17
 
 Second stable release of the clean ChitChat reconstruction. This release adds direct-message controls and attachments, message editing and revision history, stronger administrative authentication and privacy boundaries, operational observability, personal-data export, WebKit validation, and accessibility hardening.
@@ -148,63 +176,3 @@ Existing `v1.0.0-rc.1` installations should:
 5. verify attachment-directory ownership, `/health.php`, and `/ready.php`;
 6. run `composer maintenance:dry-run`;
 7. test login, a room message, an attachment download, a direct message, and SSE through the production reverse proxy.
-
-Do not point older application code at a database after its migrations have been advanced.
-
-## [1.0.0-rc.1] - 2026-07-17
-
-First release candidate of the clean v1 reconstruction.
-
-### Added
-
-- PostgreSQL-only application schema with forward-only migrations and atomic first-account Super-Administrator bootstrap.
-- Session authentication, CSRF protection, login throttling, bans, kicks, password changes, administrator password resets, and active-session invalidation.
-- Public, unlisted, and invitation-only private rooms with owners, moderators, members, age restrictions, and optional inactivity policy.
-- Persistent room history, text messages, `/me`, targeted `/ping`, moderator deletion, room/global broadcasts, and ordered database-backed SSE delivery.
-- Tab-scoped presence leases, aggregated online lists, inactivity warnings, and reconnect-safe realtime cursors.
-- Opaque room-attachment storage outside the public web root, MIME and size policy, SHA-256 metadata, safe image previews, and authorization-aware downloads.
-- Permanent-by-default direct-message history, unread counts, cursor pagination, targeted realtime events, fixed privacy disclosure, and configurable audited administrative inspection.
-- Browser administration for users, roles, bans, passwords, rooms, membership, invitations, audit visibility, DM inspection, registration, and retention policy.
-- Dry-run-capable maintenance for retained content, deleted and orphaned attachments, expired events and presence, login attempts, and request-throttle rows.
-- Database-backed request limits for registration, room sends, attachments, and direct messages.
-- Restrictive CSP, clickjacking protection, HSTS on secure deployments, `nosniff`, no-referrer behavior, Permissions Policy, same-origin isolation, and no-store responses.
-- Health/readiness endpoints, Apache/Nginx/PHP-FPM operational guidance, backup/restore procedures, and maintenance scheduling documentation.
-- PHP linting, PHPStan level 8, PostgreSQL integration tests, JavaScript syntax checks, maintenance CLI validation, and a real two-session Chromium release journey in CI.
-
-### Fixed
-
-- Authentication-state changes that occurred during an in-flight navigation-policy refresh now schedule a follow-up refresh, preventing eligible users from intermittently seeing the Administration link remain hidden immediately after registration or login.
-
-### Security and privacy defaults
-
-- Direct messages are not end-to-end encrypted.
-- Administrative DM inspection is enabled for Super-Administrators by default and every successful page access is audited.
-- Room messages, direct messages, and audit entries are retained permanently until a Super-Administrator configures a nonzero retention period and maintenance runs.
-- Attachment downloads always re-evaluate current room and minimum-age authorization.
-- Only `public/` may be exposed by the web server; attachment storage and `.env` must remain outside it.
-
-### Known limitations
-
-- Initial deployment target is one application server; horizontal scaling and Redis-backed delivery are not implemented.
-- PostgreSQL is the only supported database.
-- Direct messages are text-only and do not support attachments, blocking, editing, or user deletion.
-- Room messages cannot be edited; moderator deletion is a soft-delete action.
-- Browser end-to-end coverage currently targets Chromium only and is a release smoke journey rather than visual regression coverage.
-- Retention cleanup requires an operator-scheduled maintenance command.
-- No supported in-place upgrade exists from the incomplete legacy `v0.10.25` snapshot.
-
-### Upgrade notes
-
-Fresh installations should follow `INSTALL.md`.
-
-Developers or test installations running an earlier v1 reconstruction commit should:
-
-1. back up PostgreSQL and attachment storage together;
-2. deploy this release-candidate source;
-3. run `composer install --no-dev --classmap-authoritative` for production or `composer install` for development;
-4. run `composer migrate` once;
-5. verify attachment-directory ownership and `/ready.php`;
-6. review `composer maintenance:dry-run` before scheduling cleanup;
-7. test registration, a room message, an attachment download, and a direct message.
-
-Do not point older application code at a database after its migrations have been advanced.

@@ -19,12 +19,14 @@ final class SystemSettingsServiceTest extends DatabaseTestCase
 
         $defaults = $service->get($root);
         self::assertTrue($defaults['registration_enabled']);
+        self::assertFalse($defaults['mfa_required_for_admin_roles']);
         self::assertSame(0, $defaults['room_message_retention_days']);
         self::assertSame(30, $defaults['deleted_attachment_retention_days']);
 
         $updated = $service->update(
             actor: $root,
             registrationEnabled: false,
+            mfaRequiredForAdminRoles: false,
             roomMessageRetentionDays: 90,
             directMessageRetentionDays: 180,
             auditRetentionDays: 365,
@@ -36,6 +38,7 @@ final class SystemSettingsServiceTest extends DatabaseTestCase
         );
 
         self::assertFalse($updated['registration_enabled']);
+        self::assertFalse($updated['mfa_required_for_admin_roles']);
         self::assertSame(90, $updated['room_message_retention_days']);
         self::assertSame(180, $updated['direct_message_retention_days']);
         self::assertSame(
@@ -54,6 +57,39 @@ final class SystemSettingsServiceTest extends DatabaseTestCase
         } catch (ApiException $exception) {
             self::assertSame('registration_disabled', $exception->errorCode);
         }
+    }
+
+    public function testAdministrativeMfaPolicyRequiresExistingAdministratorsToEnroll(): void
+    {
+        $root = (new AuthService($this->pdo, $this->config))->register(
+            'Root',
+            'a very secure password',
+            '127.0.0.1',
+        );
+        $service = new SystemSettingsService($this->pdo);
+
+        try {
+            $this->updateMfaPolicy($service, $root, true);
+            self::fail('Expected administrative MFA enrollment validation.');
+        } catch (ApiException $exception) {
+            self::assertSame('administrators_missing_mfa', $exception->errorCode);
+        }
+
+        $this->pdo->exec(sprintf(
+            "UPDATE users SET mfa_enabled_at = NOW(), webauthn_user_handle = decode(repeat('ab', 32), 'hex') WHERE id = %d",
+            $root->id,
+        ));
+        $this->pdo->exec(sprintf(
+            "INSERT INTO webauthn_credentials (user_id, credential_id, public_key_cose, algorithm, label) VALUES (%d, decode(repeat('01', 32), 'hex'), decode('a0', 'hex'), -7, 'Test key')",
+            $root->id,
+        ));
+        $this->pdo->exec(sprintf(
+            "INSERT INTO mfa_recovery_codes (user_id, code_hash) VALUES (%d, decode(repeat('cd', 32), 'hex'))",
+            $root->id,
+        ));
+
+        $updated = $this->updateMfaPolicy($service, $root, true);
+        self::assertTrue($updated['mfa_required_for_admin_roles']);
     }
 
     public function testAdministratorCannotChangeSystemPolicy(): void
@@ -86,6 +122,7 @@ final class SystemSettingsServiceTest extends DatabaseTestCase
         (new SystemSettingsService($this->pdo))->update(
             $root,
             true,
+            false,
             3651,
             0,
             0,
@@ -94,6 +131,27 @@ final class SystemSettingsServiceTest extends DatabaseTestCase
             168,
             30,
             '127.0.0.1',
+        );
+    }
+
+    /** @return array<string, bool|int|string> */
+    private function updateMfaPolicy(
+        SystemSettingsService $service,
+        \ChitChat\Auth\AuthenticatedUser $root,
+        bool $required,
+    ): array {
+        return $service->update(
+            actor: $root,
+            registrationEnabled: true,
+            mfaRequiredForAdminRoles: $required,
+            roomMessageRetentionDays: 0,
+            directMessageRetentionDays: 0,
+            auditRetentionDays: 0,
+            deletedAttachmentRetentionDays: 30,
+            orphanAttachmentGraceHours: 24,
+            realtimeEventRetentionHours: 168,
+            loginAttemptRetentionDays: 30,
+            ipAddress: '127.0.0.1',
         );
     }
 }

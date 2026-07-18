@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use ChitChat\Auth\AuthService;
+use ChitChat\Auth\MfaService;
 use ChitChat\Auth\SessionManager;
 use ChitChat\Database;
 use ChitChat\Http\ApiResult;
@@ -16,17 +17,29 @@ Endpoint::run($config, static function () use ($config): ApiResult {
     Request::requireMethod('POST');
     SessionManager::requireCsrf(Request::csrfHeader());
     $payload = Request::json();
-
-    $auth = new AuthService(Database::connect($config), $config);
-    $user = $auth->login(
+    $ipAddress = Request::clientIp();
+    $pdo = Database::connect($config);
+    $auth = new AuthService($pdo, $config);
+    $user = $auth->authenticatePassword(
         Request::string($payload, 'username'),
         Request::string($payload, 'password'),
-        Request::clientIp(),
+        $ipAddress,
     );
-    SessionManager::login($user);
 
+    if ((new MfaService($pdo, $config))->requiresMfaForLogin($user)) {
+        SessionManager::beginMfaLogin($user, $ipAddress, $config->mfaPendingLoginTtlSeconds);
+        return new ApiResult([
+            'csrf_token' => SessionManager::csrfToken(),
+            'mfa_required' => true,
+            'methods' => ['passkey', 'recovery_code'],
+        ], 202);
+    }
+
+    $auth->completeLogin($user, $ipAddress);
+    SessionManager::login($user);
     return ApiResult::ok([
         'csrf_token' => SessionManager::csrfToken(),
         'user' => $user->toSessionArray(),
+        'mfa_required' => false,
     ]);
 });

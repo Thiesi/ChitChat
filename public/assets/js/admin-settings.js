@@ -11,6 +11,7 @@ window.addEventListener('DOMContentLoaded', () => {
     'settings-error',
     'settings-form',
     'registration-enabled',
+    'admin-mfa-required',
     'room-retention',
     'dm-retention',
     'audit-retention',
@@ -50,6 +51,7 @@ async function bootstrap() {
 function renderSettings(settings) {
   currentSettings = settings;
   elements['registration-enabled'].value = settings.registration_enabled ? '1' : '0';
+  elements['admin-mfa-required'].value = settings.mfa_required_for_admin_roles ? '1' : '0';
   elements['room-retention'].value = String(settings.room_message_retention_days);
   elements['dm-retention'].value = String(settings.direct_message_retention_days);
   elements['audit-retention'].value = String(settings.audit_retention_days);
@@ -65,6 +67,7 @@ async function saveSettings(event) {
   elements['settings-error'].textContent = '';
   const payload = {
     registration_enabled: elements['registration-enabled'].value === '1',
+    mfa_required_for_admin_roles: elements['admin-mfa-required'].value === '1',
     room_message_retention_days: numberValue('room-retention'),
     direct_message_retention_days: numberValue('dm-retention'),
     audit_retention_days: numberValue('audit-retention'),
@@ -83,6 +86,16 @@ async function saveSettings(event) {
   if (destructive && !window.confirm(
     'Nonzero retention values permanently delete older data when maintenance runs. Save this policy?',
   )) {
+    return;
+  }
+
+  if (
+    payload.mfa_required_for_admin_roles
+    && !currentSettings?.mfa_required_for_admin_roles
+    && !window.confirm(
+      'Require passkey-based MFA for every administrative role? Existing administrators must already be enrolled, and future role grants will be refused until the target account enrolls.',
+    )
+  ) {
     return;
   }
 

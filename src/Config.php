@@ -41,75 +41,70 @@ final readonly class Config
         public int $maintenanceMaxAgeHours = 26,
         public int $privilegedStepUpMaxAgeSeconds = 600,
         ?RateLimitPolicySet $rateLimits = null,
+        public string $webauthnRpId = '',
+        public string $webauthnOrigin = '',
+        public int $webauthnChallengeTtlSeconds = 300,
+        public int $mfaPendingLoginTtlSeconds = 300,
     ) {
         if ($this->databasePort < 1 || $this->databasePort > 65535) {
             throw new InvalidArgumentException('DB_PORT must be between 1 and 65535.');
         }
-
         if ($this->loginMaxAttempts < 1) {
             throw new InvalidArgumentException('LOGIN_MAX_ATTEMPTS must be at least 1.');
         }
-
         if ($this->loginLockMinutes < 1) {
             throw new InvalidArgumentException('LOGIN_LOCK_MINUTES must be at least 1.');
         }
-
         if ($this->presenceLeaseSeconds < 30 || $this->presenceLeaseSeconds > 300) {
             throw new InvalidArgumentException('PRESENCE_LEASE_SECONDS must be between 30 and 300.');
         }
-
         if ($this->inactivityWarningSeconds < 10 || $this->inactivityWarningSeconds > 3600) {
             throw new InvalidArgumentException('INACTIVITY_WARNING_SECONDS must be between 10 and 3600.');
         }
-
         if ($this->attachmentMaxBytes < 1024 || $this->attachmentMaxBytes > 104_857_600) {
             throw new InvalidArgumentException('ATTACHMENT_MAX_BYTES must be between 1024 and 104857600.');
         }
-
         if ($this->sseConnectionLeaseSeconds < 20 || $this->sseConnectionLeaseSeconds > 300) {
             throw new InvalidArgumentException('SSE_CONNECTION_LEASE_SECONDS must be between 20 and 300.');
         }
-
         if ($this->metricsBearerToken !== '' && strlen($this->metricsBearerToken) < 24) {
             throw new InvalidArgumentException('METRICS_BEARER_TOKEN must contain at least 24 characters when enabled.');
         }
-
         if ($this->maintenanceMaxAgeHours < 1 || $this->maintenanceMaxAgeHours > 720) {
             throw new InvalidArgumentException('MAINTENANCE_MAX_AGE_HOURS must be between 1 and 720.');
         }
-
         if ($this->privilegedStepUpMaxAgeSeconds < 60 || $this->privilegedStepUpMaxAgeSeconds > 3600) {
             throw new InvalidArgumentException('PRIVILEGED_STEP_UP_MAX_AGE_SECONDS must be between 60 and 3600.');
         }
-
+        if ($this->webauthnChallengeTtlSeconds < 60 || $this->webauthnChallengeTtlSeconds > 600) {
+            throw new InvalidArgumentException('WEBAUTHN_CHALLENGE_TTL_SECONDS must be between 60 and 600.');
+        }
+        if ($this->mfaPendingLoginTtlSeconds < 60 || $this->mfaPendingLoginTtlSeconds > 900) {
+            throw new InvalidArgumentException('MFA_PENDING_LOGIN_TTL_SECONDS must be between 60 and 900.');
+        }
         if (!self::isAbsolutePath($this->attachmentStoragePath)) {
             throw new InvalidArgumentException('ATTACHMENT_STORAGE_PATH must be an absolute path.');
         }
-
         $storagePath = self::normalizePath($this->attachmentStoragePath);
         $publicPath = self::normalizePath(dirname(__DIR__) . '/public');
         if ($storagePath === $publicPath || str_starts_with($storagePath, $publicPath . '/')) {
             throw new InvalidArgumentException('ATTACHMENT_STORAGE_PATH must be outside the public web root.');
         }
-
         if (!in_array($this->directMessageInspectionRole, ['super_admin', 'admin'], true)) {
             throw new InvalidArgumentException('DM_ADMIN_INSPECTION_ROLE must be super_admin or admin.');
         }
-
         if (!in_array($this->messageRevisionReviewRole, ['super_admin', 'admin'], true)) {
             throw new InvalidArgumentException('MESSAGE_REVISION_REVIEW_ROLE must be super_admin or admin.');
         }
-
         if ($this->sessionCookieSameSite === 'None' && !$this->sessionCookieSecure) {
             throw new InvalidArgumentException('SameSite=None requires a secure session cookie.');
         }
-
         foreach ([$this->databaseHost, $this->databaseName, $this->databaseUser, $this->sessionName] as $required) {
             if ($required === '') {
                 throw new InvalidArgumentException('Required application configuration is missing.');
             }
         }
-
+        $this->validateWebAuthnConfiguration();
         $this->rateLimits = $rateLimits ?? RateLimitPolicySet::defaults(
             $this->loginMaxAttempts,
             $this->loginLockMinutes * 60,
@@ -120,7 +115,6 @@ final readonly class Config
     {
         $loginMaxAttempts = self::envInt('LOGIN_MAX_ATTEMPTS', 10);
         $loginLockMinutes = self::envInt('LOGIN_LOCK_MINUTES', 15);
-
         return new self(
             environment: self::env('APP_ENV', 'production'),
             debug: self::envBool('APP_DEBUG', false),
@@ -153,6 +147,10 @@ final readonly class Config
                 $loginMaxAttempts,
                 $loginLockMinutes * 60,
             ),
+            webauthnRpId: strtolower(self::env('WEBAUTHN_RP_ID', '')),
+            webauthnOrigin: self::env('WEBAUTHN_ORIGIN', ''),
+            webauthnChallengeTtlSeconds: self::envInt('WEBAUTHN_CHALLENGE_TTL_SECONDS', 300),
+            mfaPendingLoginTtlSeconds: self::envInt('MFA_PENDING_LOGIN_TTL_SECONDS', 300),
         );
     }
 
@@ -161,31 +159,31 @@ final readonly class Config
         return $this->rateLimits->get($name);
     }
 
+    public function webauthnEnabled(): bool
+    {
+        return $this->webauthnRpId !== '' && $this->webauthnOrigin !== '';
+    }
+
     public static function loadEnvFile(string $path): void
     {
         if (!is_file($path) || !is_readable($path)) {
             return;
         }
-
         $lines = file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
         if ($lines === false) {
             return;
         }
-
         foreach ($lines as $line) {
             $line = trim($line);
             if ($line === '' || str_starts_with($line, '#') || !str_contains($line, '=')) {
                 continue;
             }
-
             [$key, $value] = explode('=', $line, 2);
             $key = trim($key);
             $value = trim($value);
-
             if ($key === '' || getenv($key) !== false) {
                 continue;
             }
-
             if (strlen($value) >= 2) {
                 $first = $value[0];
                 $last = $value[strlen($value) - 1];
@@ -193,10 +191,48 @@ final readonly class Config
                     $value = substr($value, 1, -1);
                 }
             }
-
             putenv($key . '=' . $value);
             $_ENV[$key] = $value;
             $_SERVER[$key] = $value;
+        }
+    }
+
+    private function validateWebAuthnConfiguration(): void
+    {
+        if (($this->webauthnRpId === '') !== ($this->webauthnOrigin === '')) {
+            throw new InvalidArgumentException('WEBAUTHN_RP_ID and WEBAUTHN_ORIGIN must be configured together.');
+        }
+        if (!$this->webauthnEnabled()) {
+            return;
+        }
+        if (
+            strlen($this->webauthnRpId) > 253
+            || preg_match('/\A(?=.{1,253}\z)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)*[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\z/D', $this->webauthnRpId) !== 1
+        ) {
+            throw new InvalidArgumentException('WEBAUTHN_RP_ID must be a lowercase DNS domain without scheme or port.');
+        }
+        $parts = parse_url($this->webauthnOrigin);
+        if (!is_array($parts) || !isset($parts['scheme'], $parts['host'])) {
+            throw new InvalidArgumentException('WEBAUTHN_ORIGIN must be an absolute origin.');
+        }
+        $scheme = strtolower((string) $parts['scheme']);
+        $host = strtolower((string) $parts['host']);
+        $localDevelopment = in_array($this->environment, ['development', 'test'], true)
+            && in_array($host, ['localhost', '127.0.0.1', '::1'], true);
+        if ($scheme !== 'https' && !($scheme === 'http' && $localDevelopment)) {
+            throw new InvalidArgumentException('WEBAUTHN_ORIGIN must use HTTPS except for local development or tests.');
+        }
+        if (
+            isset($parts['user'])
+            || isset($parts['pass'])
+            || isset($parts['query'])
+            || isset($parts['fragment'])
+            || (isset($parts['path']) && $parts['path'] !== '' && $parts['path'] !== '/')
+        ) {
+            throw new InvalidArgumentException('WEBAUTHN_ORIGIN must contain only scheme, host, and optional port.');
+        }
+        if ($host !== $this->webauthnRpId && !str_ends_with($host, '.' . $this->webauthnRpId)) {
+            throw new InvalidArgumentException('WEBAUTHN_ORIGIN host must equal or be a subdomain of WEBAUTHN_RP_ID.');
         }
     }
 
@@ -212,11 +248,9 @@ final readonly class Config
         if ($value === false || trim($value) === '') {
             return $default;
         }
-
         if (filter_var($value, FILTER_VALIDATE_INT) === false) {
             throw new InvalidArgumentException($name . ' must be an integer.');
         }
-
         return (int) $value;
     }
 
@@ -226,7 +260,6 @@ final readonly class Config
         if ($value === false || trim($value) === '') {
             return $default;
         }
-
         return match (strtolower(trim($value))) {
             '1', 'true', 'yes', 'on' => true,
             '0', 'false', 'no', 'off' => false,
@@ -241,7 +274,6 @@ final readonly class Config
         if (!in_array($value, ['Lax', 'Strict', 'None'], true)) {
             throw new InvalidArgumentException($name . ' must be Lax, Strict, or None.');
         }
-
         return $value;
     }
 
@@ -252,7 +284,6 @@ final readonly class Config
         if (!in_array($value, ['super_admin', 'admin'], true)) {
             throw new InvalidArgumentException($name . ' must be super_admin or admin.');
         }
-
         return $value;
     }
 

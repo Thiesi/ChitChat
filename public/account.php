@@ -17,6 +17,7 @@ $appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUT
   <link rel="stylesheet" href="/assets/css/components.css">
   <link rel="stylesheet" href="/assets/css/accessibility.css">
   <link rel="stylesheet" href="/assets/css/account.css">
+  <link rel="stylesheet" href="/assets/css/step-up.css" data-step-up-styles="true">
 </head>
 <body>
   <div id="account-loading" class="app-loading" role="status">Loading account…</div>
@@ -39,7 +40,7 @@ $appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUT
 
       <p>
         Create a machine-readable JSON snapshot of the account and retained data currently associated with you.
-        Preparing the export requires your current password and is recorded in the audit log.
+        Preparing the export requires recent privileged authentication and is recorded in the audit log.
       </p>
 
       <details class="account-details">
@@ -96,5 +97,6 @@ $appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUT
   </main>
 
   <script type="module" src="/assets/js/account.js"></script>
+  <script type="module" src="/assets/js/mfa-account.js"></script>
 </body>
 </html>

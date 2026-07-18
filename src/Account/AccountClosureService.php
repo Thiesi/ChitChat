@@ -140,24 +140,57 @@ SQL, 'account-closure state update');
         }
     }
 
-    public function restore(string $usernameInput, string $password, string $ipAddress): AuthenticatedUser
-    {
+    public function authenticateRestore(
+        string $usernameInput,
+        string $password,
+        string $ipAddress,
+    ): AuthenticatedUser {
         $canonical = Username::canonical($usernameInput);
         $this->rateLimiter->consume('account_restore', 'username:' . $canonical . '|ip:' . $ipAddress);
 
-        $this->pdo->beginTransaction();
-        try {
-            $lookup = $this->prepare(<<<'SQL'
-SELECT id, password_hash, account_state, closure_finalizes_at
+        $lookup = $this->prepare(<<<'SQL'
+SELECT id, username, password_hash, session_version, account_state, closure_finalizes_at
 FROM users
 WHERE username_canonical = :canonical
-FOR UPDATE
-SQL, 'account-restoration lookup');
-            $lookup->execute(['canonical' => $canonical]);
-            $user = $lookup->fetch();
-            if (!is_array($user) || !password_verify($password, (string) $user['password_hash'])) {
-                throw new ApiException(401, 'invalid_credentials', 'Invalid username or password.');
-            }
+SQL, 'account-restoration authentication');
+        $lookup->execute(['canonical' => $canonical]);
+        $user = $lookup->fetch();
+        if (!is_array($user) || !password_verify($password, (string) $user['password_hash'])) {
+            throw new ApiException(401, 'invalid_credentials', 'Invalid username or password.');
+        }
+        if ((string) $user['account_state'] === 'closed') {
+            throw new ApiException(410, 'account_closed', 'This account has already been permanently closed.');
+        }
+        if ((string) $user['account_state'] !== 'closure_pending') {
+            throw new ApiException(409, 'account_not_pending', 'This account is not awaiting closure.');
+        }
+        if (new DateTimeImmutable((string) $user['closure_finalizes_at']) <= new DateTimeImmutable()) {
+            throw new ApiException(410, 'account_restoration_expired', 'The account-restoration deadline has passed.');
+        }
+        if ($this->users->activeBan((int) $user['id']) !== null) {
+            throw new ApiException(403, 'account_banned', 'This account is banned.');
+        }
+
+        return new AuthenticatedUser(
+            id: (int) $user['id'],
+            username: (string) $user['username'],
+            roles: [],
+            sessionVersion: (int) $user['session_version'],
+        );
+    }
+
+    public function restore(string $usernameInput, string $password, string $ipAddress): AuthenticatedUser
+    {
+        $pending = $this->authenticateRestore($usernameInput, $password, $ipAddress);
+        return $this->completeRestore($pending->id, $ipAddress);
+    }
+
+    public function completeRestore(int $userId, string $ipAddress): AuthenticatedUser
+    {
+        $this->pdo->beginTransaction();
+        try {
+            $mfaPolicyRequired = $this->lockGlobalAccountPolicy();
+            $user = $this->userForUpdate($userId);
             if ((string) $user['account_state'] === 'closed') {
                 throw new ApiException(410, 'account_closed', 'This account has already been permanently closed.');
             }
@@ -176,10 +209,18 @@ WHERE user_id = :user_id
   AND finalized_at IS NULL
 FOR UPDATE
 SQL, 'pending account-closure lookup');
-            $closureLookup->execute(['user_id' => (int) $user['id']]);
+            $closureLookup->execute(['user_id' => $userId]);
             $closure = $closureLookup->fetch();
             if (!is_array($closure)) {
                 throw new RuntimeException('Pending account-closure lifecycle is missing.');
+            }
+
+            $snapshotRoles = $this->decodeRoles((string) $closure['role_snapshot']);
+            $restoredRoles = $snapshotRoles;
+            $withheldRoles = [];
+            if ($mfaPolicyRequired && !$this->hasPasskeyMfa($userId)) {
+                $restoredRoles = [];
+                $withheldRoles = $snapshotRoles;
             }
 
             $this->execute(
@@ -196,27 +237,31 @@ SET account_state = 'active',
     session_version = session_version + 1,
     updated_at = NOW()
 WHERE id = :user_id
-SQL, ['user_id' => (int) $user['id']], 'account restoration');
+SQL, ['user_id' => $userId], 'account restoration');
 
             $insertRole = $this->prepare(
                 'INSERT INTO user_roles (user_id, role) VALUES (:user_id, :role) ON CONFLICT DO NOTHING',
                 'restored role assignment',
             );
-            foreach ($this->decodeRoles((string) $closure['role_snapshot']) as $role) {
-                $insertRole->execute(['user_id' => (int) $user['id'], 'role' => $role]);
+            foreach ($restoredRoles as $role) {
+                $insertRole->execute(['user_id' => $userId, 'role' => $role]);
             }
 
             $this->audit->log(
-                (int) $user['id'],
+                $userId,
                 'account.closure_restored',
                 'user',
-                (string) $user['id'],
-                ['closure_id' => (int) $closure['id']],
+                (string) $userId,
+                [
+                    'closure_id' => (int) $closure['id'],
+                    'restored_roles' => $restoredRoles,
+                    'withheld_roles' => $withheldRoles,
+                ],
                 $ipAddress,
             );
             $this->pdo->commit();
 
-            $restored = $this->users->findAuthenticatedById((int) $user['id']);
+            $restored = $this->users->findAuthenticatedById($userId);
             if ($restored === null) {
                 throw new RuntimeException('Restored account could not be reloaded.');
             }
@@ -334,12 +379,32 @@ SQL, [
         );
     }
 
-    private function lockGlobalAccountPolicy(): void
+    private function lockGlobalAccountPolicy(): bool
     {
-        $statement = $this->pdo->query('SELECT id FROM system_settings WHERE id = 1 FOR UPDATE');
-        if ($statement === false || $statement->fetchColumn() === false) {
+        $statement = $this->pdo->query(
+            'SELECT mfa_required_for_admin_roles::int FROM system_settings WHERE id = 1 FOR UPDATE',
+        );
+        if ($statement === false) {
             throw new RuntimeException('Unable to serialize account closure with global role changes.');
         }
+        $required = $statement->fetchColumn();
+        if ($required === false) {
+            throw new RuntimeException('System settings are missing.');
+        }
+        return (int) $required === 1;
+    }
+
+    private function hasPasskeyMfa(int $userId): bool
+    {
+        $statement = $this->prepare(<<<'SQL'
+SELECT (u.mfa_enabled_at IS NOT NULL
+   AND EXISTS (SELECT 1 FROM webauthn_credentials wc WHERE wc.user_id = u.id))::int
+FROM users u
+WHERE u.id = :user_id
+SQL, 'restored-role MFA validation');
+        $statement->execute(['user_id' => $userId]);
+        $value = $statement->fetchColumn();
+        return $value !== false && (bool) $value;
     }
 
     /** @return array<string, mixed> */

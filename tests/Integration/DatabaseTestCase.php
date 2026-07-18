@@ -19,11 +19,12 @@ abstract class DatabaseTestCase extends TestCase
         $this->config = Config::fromEnvironment();
         $this->pdo = Database::connect($this->config);
         $this->pdo->exec(
-            'TRUNCATE TABLE maintenance_runs, sse_connections, rate_limit_counters, request_rate_limits, direct_message_attachments, direct_messages, attachments, room_presence, realtime_events, room_messages, room_invitations, room_members, rooms, audit_log, user_bans, login_attempts, account_closures, user_roles, users RESTART IDENTITY CASCADE',
+            'TRUNCATE TABLE maintenance_runs, sse_connections, rate_limit_counters, request_rate_limits, direct_message_attachments, direct_messages, attachments, room_presence, realtime_events, room_messages, room_invitations, room_members, rooms, audit_log, user_bans, login_attempts, account_closures, mfa_recovery_codes, webauthn_credentials, user_roles, users RESTART IDENTITY CASCADE',
         );
         $this->pdo->exec(<<<'SQL'
 UPDATE system_settings
 SET registration_enabled = TRUE,
+    mfa_required_for_admin_roles = FALSE,
     room_message_retention_days = 0,
     direct_message_retention_days = 0,
     audit_retention_days = 0,
@@ -66,6 +67,10 @@ SQL);
             metricsBearerToken: $this->config->metricsBearerToken,
             maintenanceMaxAgeHours: $this->config->maintenanceMaxAgeHours,
             privilegedStepUpMaxAgeSeconds: $this->config->privilegedStepUpMaxAgeSeconds,
+            webauthnRpId: $this->config->webauthnRpId,
+            webauthnOrigin: $this->config->webauthnOrigin,
+            webauthnChallengeTtlSeconds: $this->config->webauthnChallengeTtlSeconds,
+            mfaPendingLoginTtlSeconds: $this->config->mfaPendingLoginTtlSeconds,
         );
     }
 }

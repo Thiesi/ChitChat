@@ -57,26 +57,37 @@ Replace disposable publication pull requests with a permanent manually dispatche
 - Require explicit flags for destructive replacement and configured production targets; preserve replaced attachment storage instead of deleting it.
 - Exercise the exact commands in dedicated backup-rehearsal CI and provide ready-to-adapt daily `systemd` service/timer units.
 
-## Next: account and authentication lifecycle
+## Account and authentication lifecycle
 
 ### 5. Account closure
 
 **Status:** implemented.
 
-- Require recent password step-up before requesting closure.
+- Require recent privileged step-up before requesting closure.
 - Invalidate all sessions, revoke global roles, and prevent normal login immediately.
 - Reserve the original username during a fixed 14-day cooling-off period and provide an explicit, independently throttled credential-based restoration path.
-- Restore the saved global-role snapshot only when restoration succeeds before the deadline.
+- Keep MFA-enabled accounts closure-pending until the second factor succeeds, then recheck the deadline and current role policy in the restoration transaction.
+- Restore the saved global-role snapshot only when restoration succeeds before the deadline and the account still satisfies current administrative-MFA policy.
 - Finalize expired closures through ordinary maintenance by tombstoning username, canonical login name, password, birth date and last-login metadata.
 - Release the original username for reuse only after finalization.
 - Preserve shared room and direct-message history, immutable revisions, attachment evidence, room membership and ownership attribution, bans, and audits according to existing retention policy.
 - Remove invitations, live presence/SSE leases, block preferences, login-attempt rows tied to the old canonical username, and global privileges at the appropriate lifecycle stage.
-- Keep closure audit metadata limited to user/closure IDs, deadline, and policy duration rather than copying usernames or content.
+- Keep closure audit metadata limited to user/closure IDs, deadline, policy duration, and restored or withheld role names rather than copying usernames or content.
 - Refuse closure by the final active Super-Administrator.
 
 ### 6. Multi-factor authentication
 
-Prefer WebAuthn/passkeys with recovery codes, with TOTP considered as a compatibility fallback. Allow operators to require MFA for administrative roles. A recent strong assertion should be able to satisfy privileged step-up without weakening CSRF, role, reason, target, and audit checks.
+**Status:** implemented.
+
+- Keep the password as the first factor and require a WebAuthn passkey or one-time recovery code before creating the authenticated session.
+- Support multiple ES256 or RS256 passkeys with required user verification, exact origin/RP/challenge validation, backup-state tracking, and signature counters.
+- Generate ten 96-bit one-time recovery codes, store only hashes, and reveal each replacement set once.
+- Allow passkey enrollment, labels, additional credentials, recovery-code rotation, and policy-aware disablement from the account security surface.
+- Use the strongest configured factor for privileged step-up: password for non-MFA accounts, passkey or recovery code for MFA accounts.
+- Allow Super-Administrators to require passkey MFA for Super-Administrator, Administrator, Chat Administrator, and Global Moderator roles.
+- Validate policy activation transactionally and enforce later protected-role grants again through a PostgreSQL invariant.
+- Preserve MFA during closure cooling-off and irreversibly destroy credential and recovery material when the account is tombstoned.
+- Exercise protocol fixtures and a real Chromium virtual authenticator while retaining Firefox and WebKit regression coverage for compatible paths.
 
 ## Later: transparency and quality
 
@@ -99,4 +110,4 @@ The supported target remains one application server. Multi-node operation should
 
 ## Release grouping
 
-The operational-foundation items can land as compatible `v1.1.x` improvements where they do not alter user-facing contracts. Account closure, MFA, participant notifications, and any schema-heavy policy work are candidates for `v1.2.0` or later.
+The operational-foundation items can land as compatible `v1.1.x` improvements where they do not alter user-facing contracts. Account closure and MFA are schema- and contract-heavy changes intended for `v1.2.0`; participant notifications and later quality work follow separately.

@@ -6,7 +6,10 @@ use ChitChat\Account\AccountClosureService;
 use ChitChat\Auth\AuthService;
 use ChitChat\Auth\MfaService;
 use ChitChat\Auth\SessionManager;
+use ChitChat\Auth\UserRepository;
+use ChitChat\Auth\WebAuthnRequest;
 use ChitChat\Database;
+use ChitChat\Http\ApiException;
 use ChitChat\Http\ApiResult;
 use ChitChat\Http\Endpoint;
 use ChitChat\Http\Request;
@@ -19,38 +22,30 @@ Endpoint::run($config, static function () use ($config): ApiResult {
     SessionManager::requireCsrf(Request::csrfHeader());
     $payload = Request::json();
     $ipAddress = Request::clientIp();
+    if (!hash_equals(SessionManager::pendingMfaIpAddress(), $ipAddress)) {
+        SessionManager::clearPendingMfa();
+        throw new ApiException(401, 'mfa_login_expired', 'The multi-factor sign-in context changed. Start again.');
+    }
     $pdo = Database::connect($config);
-    $closure = new AccountClosureService($pdo, $config);
-    $pending = $closure->authenticateRestore(
-        Request::string($payload, 'username'),
-        Request::string($payload, 'password'),
+    $user = SessionManager::pendingMfaUser(new UserRepository($pdo));
+    $flow = SessionManager::pendingMfaFlow();
+    (new MfaService($pdo, $config))->finishAssertion(
+        $user,
+        'mfa_login',
+        WebAuthnRequest::credential($payload),
         $ipAddress,
     );
-
-    if ((new MfaService($pdo, $config))->requiresMfaForLogin($pending)) {
-        SessionManager::beginMfaLogin(
-            $pending,
-            $ipAddress,
-            $config->mfaPendingLoginTtlSeconds,
-            'restore',
-        );
-        return new ApiResult([
-            'csrf_token' => SessionManager::csrfToken(),
-            'restored' => false,
-            'restoration_pending' => true,
-            'mfa_required' => true,
-            'methods' => ['passkey', 'recovery_code'],
-        ], 202);
+    if ($flow === 'restore') {
+        $user = (new AccountClosureService($pdo, $config))->completeRestore($user->id, $ipAddress);
     }
-
-    $user = $closure->completeRestore($pending->id, $ipAddress);
     (new AuthService($pdo, $config))->completeLogin($user, $ipAddress);
     SessionManager::login($user);
+    SessionManager::establishPrivilegedStepUp($user, 'passkey');
+
     return ApiResult::ok([
         'csrf_token' => SessionManager::csrfToken(),
         'user' => $user->toSessionArray(),
-        'restored' => true,
-        'restoration_pending' => false,
-        'mfa_required' => false,
+        'mfa_method' => 'passkey',
+        'restored' => $flow === 'restore',
     ]);
 });

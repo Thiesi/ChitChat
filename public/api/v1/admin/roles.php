@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use ChitChat\Admin\AdminService;
+use ChitChat\Auth\MfaRepository;
 use ChitChat\Auth\SessionManager;
 use ChitChat\Auth\UserRepository;
 use ChitChat\Database;
@@ -10,6 +11,7 @@ use ChitChat\Http\ApiException;
 use ChitChat\Http\ApiResult;
 use ChitChat\Http\Endpoint;
 use ChitChat\Http\Request;
+use PDOException;
 
 /** @var ChitChat\Config $config */
 $config = require dirname(__DIR__, 4) . '/bootstrap/http.php';
@@ -37,12 +39,38 @@ Endpoint::run($config, static function () use ($config): ApiResult {
         throw new ApiException(403, 'forbidden', 'User administration requires Administrator access.');
     }
     SessionManager::requirePrivilegedStepUp($actor, $config);
-    (new AdminService($pdo))->setRoles(
-        $actor,
-        Request::integer($payload, 'target_user_id'),
-        $roles,
-        Request::clientIp(),
-    );
+    $targetUserId = Request::integer($payload, 'target_user_id');
+    $protectedRole = array_intersect($roles, ['super_admin', 'admin', 'chat_admin', 'global_moderator']) !== [];
+    $mfa = new MfaRepository($pdo);
+    if (
+        $protectedRole
+        && $mfa->policyRequiresMfaForAdminRoles()
+        && (!$mfa->isEnabled($targetUserId) || $mfa->credentialCount($targetUserId) < 1)
+    ) {
+        throw new ApiException(
+            409,
+            'mfa_required_for_role',
+            'The target account must enable MFA with at least one passkey before receiving an administrative role.',
+        );
+    }
+
+    try {
+        (new AdminService($pdo))->setRoles(
+            $actor,
+            $targetUserId,
+            $roles,
+            Request::clientIp(),
+        );
+    } catch (PDOException $exception) {
+        if (str_contains($exception->getMessage(), 'mfa_required_for_role')) {
+            throw new ApiException(
+                409,
+                'mfa_required_for_role',
+                'The target account must enable MFA with at least one passkey before receiving an administrative role.',
+            );
+        }
+        throw $exception;
+    }
 
     return ApiResult::ok(['status' => 'roles_updated']);
 });

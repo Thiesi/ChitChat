@@ -28,18 +28,24 @@ async function selectRoom(page, name) {
 
 async function selectPeer(page, username) {
   const peerName = page.locator('#dm-peer-name');
+  const selectedPeer = peerName.filter({ hasText: username });
+  const conversation = page.locator('.conversation-button', { hasText: username }).first();
+
+  await expect(selectedPeer.or(conversation).first()).toBeVisible({ timeout: 5_000 }).catch(() => {});
+  if ((await peerName.textContent()) !== username && await conversation.isVisible()) {
+    await conversation.click();
+  }
+
   if ((await peerName.textContent()) !== username) {
-    const conversation = page.locator('.conversation-button', { hasText: username }).first();
-    if (await conversation.count() > 0) {
-      await conversation.click();
-    } else {
-      await page.locator('#dm-user-search').fill(username);
-      await page.getByRole('button', { name: 'Search' }).click();
-      const result = page.locator('.dm-user-button', { hasText: username }).first();
-      await expect(result).toBeVisible();
+    await page.locator('#dm-user-search').fill(username);
+    await page.getByRole('button', { name: 'Search' }).click();
+    const result = page.locator('.dm-user-button', { hasText: username }).first();
+    await expect(selectedPeer.or(result).first()).toBeVisible();
+    if ((await peerName.textContent()) !== username) {
       await result.click();
     }
   }
+
   await expect(peerName).toHaveText(username);
   await expect(page.locator('#dm-composer')).toBeVisible();
 }

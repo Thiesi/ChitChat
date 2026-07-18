@@ -168,6 +168,7 @@ $appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUT
 
   <div id="toast-region" class="toast-region" aria-live="assertive"></div>
 
+  <script type="module" src="/assets/js/mfa-login.js"></script>
   <script type="module" src="/assets/js/app.js"></script>
   <script type="module" src="/assets/js/auth-tabs.js"></script>
   <script type="module" src="/assets/js/admin-link.js"></script>
