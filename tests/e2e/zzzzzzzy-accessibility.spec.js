@@ -114,6 +114,7 @@ test.describe.serial('ChitChat accessibility checks', () => {
 
     await page.goto('/account.php');
     await expect(page.locator('#account-shell')).toBeVisible();
+    await expect(page.locator('#mfa-summary')).not.toHaveText('');
     await expectAccessibleStructure(page);
   });
 });
