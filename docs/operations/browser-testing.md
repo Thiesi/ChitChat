@@ -1,6 +1,6 @@
 # Browser end-to-end testing
 
-ChitChat uses Playwright to exercise the deployed browser interface against real PHP workers and PostgreSQL. The browser suite is separate from PHPUnit because it validates JavaScript modules, sessions, Server-Sent Events, multipart uploads, protected downloads, and interactions between multiple logged-in browser contexts.
+ChitChat uses Playwright to exercise the deployed browser interface against real PHP workers and PostgreSQL. The browser suite is separate from PHPUnit because it validates JavaScript modules, sessions, Server-Sent Events, multipart uploads, protected downloads, accessibility semantics, responsive layout, and interactions between multiple logged-in browser contexts.
 
 ## Covered journey
 
@@ -21,7 +21,56 @@ The test uses separate browser contexts for the two accounts. Cookies, sessions,
 
 Chromium, Firefox, and WebKit run as separate CI jobs with separate PostgreSQL service containers and attachment directories. A failure in one engine does not cancel or contaminate another engine's run.
 
-The browser suite also includes dependency-free accessibility smoke checks for the signed-out chat surface and the signed-in chat, direct-message, and account pages. These checks validate document language and title, one visible main landmark and level-one heading, unique IDs, labelled visible form controls, named interactive elements and dialogs, keyboard-operated authentication tabs, and a visible focus indicator.
+## Accessibility layers
+
+The browser suite keeps accessibility checks in separate layers because each catches a different class of regression.
+
+### Structural cross-browser smoke checks
+
+Chromium, Firefox, and WebKit validate document language and title, one visible main landmark and level-one heading, unique IDs, labelled visible form controls, named interactive elements and dialogs, keyboard-operated authentication tabs, and a visible focus indicator.
+
+### axe-core semantic checks
+
+Pinned Chromium runs `@axe-core/playwright` against signed-out authentication, account restoration, signed-in chat, direct messages, Account, and Privacy notifications. The gate enables automated WCAG 2.0, 2.1, and 2.2 Level A/AA rule tags. A failure reports rule IDs, impact, help text, targets, and failure summaries.
+
+This is intentionally one deterministic semantic gate rather than three engine-identical scans. The structural and functional journeys still run across all three engines.
+
+### Reflow and user-preference checks
+
+Pinned Chromium also validates:
+
+- no document-level horizontal overflow at 640 CSS pixels, representing a 1280-pixel layout at approximately 200% zoom;
+- no document-level horizontal overflow on core account/privacy surfaces at 320 CSS pixels;
+- selected controls, primary actions, and focus indicators under forced-colors emulation;
+- negligible animation and transition durations under `prefers-reduced-motion: reduce`.
+
+Emulation cannot prove behavior with real browser zoom, Windows contrast themes, NVDA, or VoiceOver. Follow [`accessibility-review.md`](accessibility-review.md) for the required manual procedure and honest result recording.
+
+## Targeted visual regression
+
+Pinned Chromium on Linux compares three deliberately narrow screenshot baselines:
+
+- signed-out authentication at 1280×900;
+- the loaded Account page at 1280×900;
+- the loaded Account page at 390×844.
+
+The baselines protect critical typography, spacing, card, focus-independent, and responsive-layout states without snapshotting message timelines, timestamps, realtime indicators, or other frequently changing content. Animations and carets are disabled during capture. A small pixel-difference allowance absorbs antialiasing noise while still rejecting meaningful layout drift.
+
+Snapshot files live beside the visual test in:
+
+```text
+tests/e2e/zzzzzzzzz-visual.spec.js-snapshots/
+```
+
+Do not regenerate baselines merely to make CI green. Review the received actual/diff images, confirm that the product change is intentional, and regenerate only with the pinned Playwright Chromium build on Linux:
+
+```sh
+npm run test:e2e -- tests/e2e/zzzzzzzzz-visual.spec.js \
+  --project=chromium \
+  --update-snapshots=all
+```
+
+Commit the changed PNGs together with the code or CSS change that justified them. Pull requests should explain the visible difference.
 
 ## Local prerequisites
 
@@ -34,7 +83,7 @@ npm ci
 npx playwright install chromium firefox webkit
 ```
 
-Use a disposable PostgreSQL database. The browser test creates accounts, rooms, messages, attachments, DMs, audit entries, and policy changes.
+Use a disposable PostgreSQL database. The browser test creates accounts, rooms, messages, attachments, DMs, audit entries, policy changes, and visual-test accounts.
 
 ## Start the application
 
@@ -72,6 +121,13 @@ npm run test:e2e -- --project=firefox
 npm run test:e2e -- --project=webkit
 ```
 
+Run only the deep accessibility or visual layer with:
+
+```sh
+npm run test:e2e -- tests/e2e/zzzzzzzz-accessibility-deep.spec.js --project=chromium
+npm run test:e2e -- tests/e2e/zzzzzzzzz-visual.spec.js --project=chromium
+```
+
 For an interactive inspector:
 
 ```sh
@@ -86,7 +142,7 @@ CI retains these only when a browser job fails:
 
 - the PHP development-server log;
 - Playwright traces;
-- screenshots;
+- actual, expected, and diff screenshots;
 - videos;
 - the HTML report.
 
@@ -98,8 +154,8 @@ Open a trace locally with:
 npx playwright show-trace test-results/<test-directory>/trace.zip
 ```
 
-Browser failures should be fixed against the exact trace and server log. Do not merely increase timeouts unless the trace proves the application completed correctly but exceeded a legitimate operational bound.
+Browser failures should be fixed against the exact trace and server log. Do not merely increase timeouts or replace screenshot baselines unless the evidence proves the application behavior is correct and the expected result has intentionally changed.
 
 ## Scope
 
-These are deep release-smoke journeys, not visual-regression tests. The structural checks catch important accessibility regressions but do not replace assistive-technology testing, manual keyboard review, color-contrast analysis, or a complete WCAG audit.
+The release journeys and automated accessibility layers are regression gates, not a complete WCAG audit. They do not validate spoken phrasing, rotor or element-list usefulness, braille output, cognitive accessibility, real platform contrast themes, all user stylesheets, or every combination of zoom and font settings. Manual assistive-technology review remains an explicit release-quality activity rather than an implied result of green automation.
