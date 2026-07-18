@@ -20,6 +20,10 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 - Added durable participant-facing privacy notifications for administrative revision review, moderator room-message deletion, administrative password reset, and material installation-policy changes.
 - Added a paginated signed-in notification center, account-scoped individual and bulk read state, and a capped unread badge on the chat surface.
 - Added PostgreSQL integration coverage for notification recipients, no-op policy suppression, account isolation, tombstone cleanup, and exclusion of content, reasons, IP addresses, and secrets from notification context.
+- Added pinned axe-core WCAG A/AA analysis for authentication, restoration, chat, direct-message, account, and privacy-notification surfaces.
+- Added Chromium reflow checks at 640- and 320-CSS-pixel widths plus forced-colors and reduced-motion preference validation.
+- Added targeted pinned-Chromium/Linux screenshot regression for stable desktop authentication and desktop/narrow account layouts.
+- Added explicit manual NVDA, VoiceOver, keyboard, browser-zoom, Windows contrast-theme, and reduced-motion review procedures with versioned result recording.
 
 ### Security and privacy
 
@@ -32,6 +36,7 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 - Selected notifications are derived from the append-only audit log by PostgreSQL in the same transaction as the audited action, preventing an event from committing without its participant disclosure.
 - Notification rows contain only the recipient, fixed event kind, nullable audit reference, bounded structural context, and read timestamps; they do not duplicate message or revision bodies, administrator or moderation reasons, usernames, IP addresses, credentials, session state, passkey data, or recovery material.
 - Audit retention may remove the restricted source entry while preserving the participant-facing disclosure; permanent account tombstoning removes that account's private notification history.
+- Automated accessibility results remain explicitly separate from release-specific manual assistive-technology sign-off; green axe, emulation, and screenshot checks do not claim completed NVDA or VoiceOver validation.
 
 ### Compatibility
 
@@ -41,6 +46,8 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 - Forward-only migration `0016_mfa_passkeys.sql` adds the MFA schema and invariants. Older ChitChat source must not be run against a database after applying it.
 - Forward-only migration `0017_privacy_notifications.sql` adds durable notification state and audit-derived database triggers. Older ChitChat source must not be run against a database after applying it.
 - Notification correctness does not depend on Redis, a queue, email delivery, or realtime browser delivery; PostgreSQL remains authoritative and the unread badge performs a bounded periodic refresh.
+- Axe-core and visual comparison are development-only npm dependencies and introduce no production runtime package or external service.
+- Screenshot baselines are intentionally limited to pinned Chromium on Linux and stable content; Chromium, Firefox, and WebKit retain their existing functional and structural accessibility journeys.
 
 ## [1.1.0] - 2026-07-17
 
