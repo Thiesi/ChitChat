@@ -1,9 +1,9 @@
 name: Quality Baseline Bootstrap
 
 on:
-  push:
+  pull_request:
     branches:
-      - agent/deeper-accessibility
+      - main
 
 permissions:
   contents: read
