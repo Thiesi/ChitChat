@@ -352,10 +352,10 @@ SQL);
         if ($inner === '') {
             return [];
         }
-        return array_values(array_map(
+        return array_map(
             static fn (?string $item): string => (string) $item,
             str_getcsv($inner, ',', '"', '\\'),
-        ));
+        );
     }
 
     /** @param list<string> $values */
