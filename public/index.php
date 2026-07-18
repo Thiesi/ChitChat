@@ -16,6 +16,7 @@ $appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUT
   <link rel="stylesheet" href="/assets/css/components.css">
   <link rel="stylesheet" href="/assets/css/accessibility.css">
   <link rel="stylesheet" href="/assets/css/message-mutations.css">
+  <link rel="stylesheet" href="/assets/css/privacy-notifications.css">
 </head>
 <body>
   <div id="app-loading" class="app-loading" role="status">Loading <?= $appName ?>…</div>
@@ -84,6 +85,10 @@ $appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUT
       <footer class="sidebar-footer">
         <div class="current-user"><span class="current-user-label">Signed in as </span><strong id="current-user"></strong></div>
         <a class="secondary-button" href="/messages.php">Direct messages</a>
+        <a id="privacy-notifications-link" class="secondary-button" href="/notifications.php" aria-label="Privacy notifications, none unread">
+          Privacy notifications
+          <span id="privacy-notification-badge" class="privacy-notification-badge hidden" aria-hidden="true">0</span>
+        </a>
         <a class="secondary-button" href="/account.php">Account</a>
         <a id="admin-link" class="secondary-button hidden" href="/admin.php">Administration</a>
         <button id="logout-button" class="secondary-button" type="button">Sign out</button>
@@ -130,7 +135,7 @@ $appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUT
   <dialog id="room-dialog" class="room-dialog" aria-labelledby="room-dialog-title">
     <form id="room-create-form" class="form-stack" method="dialog">
       <header class="dialog-header">
-        <h2 id="room-dialog-title">Create a room</h2>
+        <h2 id="room-dialog-title">Create room</h2>
         <button id="room-dialog-cancel" class="icon-button" type="button" aria-label="Close">×</button>
       </header>
       <label>
@@ -172,6 +177,7 @@ $appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUT
   <script type="module" src="/assets/js/app.js"></script>
   <script type="module" src="/assets/js/auth-tabs.js"></script>
   <script type="module" src="/assets/js/admin-link.js"></script>
+  <script type="module" src="/assets/js/privacy-notification-badge.js"></script>
   <script type="module" src="/assets/js/room-message-mutations.js"></script>
 </body>
 </html>
