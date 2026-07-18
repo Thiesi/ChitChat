@@ -17,6 +17,9 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 - Added bounded `mfa_assertion`, `mfa_recovery`, and `mfa_management` rate-limit policies and authentication audits that exclude challenges, signatures, credential identifiers, public keys, and recovery material.
 - Added protocol-level WebAuthn fixtures, MFA lifecycle integration tests, and a Chromium virtual-authenticator journey for enrollment, passkey login, recovery login, and one-time-code reuse rejection.
 - Added passkey deployment, API, security-model, and recovery operating documentation.
+- Added durable participant-facing privacy notifications for administrative revision review, moderator room-message deletion, administrative password reset, and material installation-policy changes.
+- Added a paginated signed-in notification center, account-scoped individual and bulk read state, and a capped unread badge on the chat surface.
+- Added PostgreSQL integration coverage for notification recipients, no-op policy suppression, account isolation, tombstone cleanup, and exclusion of content, reasons, IP addresses, and secrets from notification context.
 
 ### Security and privacy
 
@@ -26,6 +29,9 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 - Account restoration remains closure-pending after password verification and mutates lifecycle state only after passkey or recovery-code completion.
 - Restoration rechecks the deadline and current administrative-MFA policy; protected roles that no longer qualify are withheld and named in audit metadata rather than creating an unusable administrator.
 - Irreversible account tombstoning destroys WebAuthn credentials, recovery hashes, the opaque WebAuthn user handle, and the MFA activation timestamp at the database boundary.
+- Selected notifications are derived from the append-only audit log by PostgreSQL in the same transaction as the audited action, preventing an event from committing without its participant disclosure.
+- Notification rows contain only the recipient, fixed event kind, nullable audit reference, bounded structural context, and read timestamps; they do not duplicate message or revision bodies, administrator or moderation reasons, usernames, IP addresses, credentials, session state, passkey data, or recovery material.
+- Audit retention may remove the restricted source entry while preserving the participant-facing disclosure; permanent account tombstoning removes that account's private notification history.
 
 ### Compatibility
 
@@ -33,6 +39,8 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 - Production WebAuthn origins require HTTPS. Local development and tests may use `http://localhost:<port>`.
 - The PHP OpenSSL extension is required when passkeys are enabled; no external identity service or new runtime package is introduced.
 - Forward-only migration `0016_mfa_passkeys.sql` adds the MFA schema and invariants. Older ChitChat source must not be run against a database after applying it.
+- Forward-only migration `0017_privacy_notifications.sql` adds durable notification state and audit-derived database triggers. Older ChitChat source must not be run against a database after applying it.
+- Notification correctness does not depend on Redis, a queue, email delivery, or realtime browser delivery; PostgreSQL remains authoritative and the unread badge performs a bounded periodic refresh.
 
 ## [1.1.0] - 2026-07-17
 
