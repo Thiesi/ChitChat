@@ -42,7 +42,7 @@ jobs:
           composer analyse -- --error-format=raw 2>&1 | tee phpstan-output.txt
       - name: Upload PHPStan diagnostics
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: phpstan-output
           path: phpstan-output.txt
@@ -96,7 +96,7 @@ jobs:
         run: composer maintenance:dry-run
       - name: Upload PHPUnit diagnostics
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: phpunit-output
           path: phpunit-output.txt
@@ -173,7 +173,7 @@ jobs:
         run: npm run test:e2e -- --project="${{ matrix.project }}"
       - name: Upload browser diagnostics
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: browser-diagnostics-${{ matrix.project }}
           path: |
@@ -233,7 +233,7 @@ jobs:
         run: bash tests/stabilization/rehearse-release.sh
       - name: Upload release rehearsal diagnostics
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: release-rehearsal-diagnostics
           path: ${{ runner.temp }}/chitchat-release-rehearsal/
@@ -291,7 +291,7 @@ jobs:
         run: bash tests/stabilization/rehearse-nginx-sse.sh
       - name: Upload reverse-proxy diagnostics
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: reverse-proxy-diagnostics
           path: ${{ runner.temp }}/chitchat-nginx-rehearsal/
