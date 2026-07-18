@@ -71,7 +71,7 @@ SQL);
         self::assertArrayHasKey('maintenance_run_rows', $result);
 
         $status = (new SystemStatusService($this->pdo, $config))->forAdministrator($root);
-        self::assertSame('1.2.0-rc.1', $status['application']['version']);
+        self::assertSame('1.2.0', $status['application']['version']);
         self::assertGreaterThanOrEqual(0.0, $status['database']['query_latency_ms']);
         self::assertTrue($status['attachments']['storage_available']);
         self::assertSame(1, $status['realtime']['active_sse_connections']);
