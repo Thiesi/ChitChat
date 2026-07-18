@@ -77,54 +77,19 @@ RETURNS TRIGGER
 LANGUAGE plpgsql
 AS $$
 BEGIN
-    IF NOT EXISTS (
-        SELECT 1
-        FROM new_user_states new_state
-        JOIN old_user_states old_state USING (id)
-        WHERE old_state.account_state <> 'closed'
-          AND new_state.account_state = 'closed'
-    ) THEN
-        RETURN NULL;
+    IF OLD.account_state <> 'closed' AND NEW.account_state = 'closed' THEN
+        DELETE FROM webauthn_credentials WHERE user_id = OLD.id;
+        DELETE FROM mfa_recovery_codes WHERE user_id = OLD.id;
+        NEW.webauthn_user_handle := NULL;
+        NEW.mfa_enabled_at := NULL;
     END IF;
-
-    DELETE FROM webauthn_credentials
-    WHERE user_id IN (
-        SELECT new_state.id
-        FROM new_user_states new_state
-        JOIN old_user_states old_state USING (id)
-        WHERE old_state.account_state <> 'closed'
-          AND new_state.account_state = 'closed'
-    );
-
-    DELETE FROM mfa_recovery_codes
-    WHERE user_id IN (
-        SELECT new_state.id
-        FROM new_user_states new_state
-        JOIN old_user_states old_state USING (id)
-        WHERE old_state.account_state <> 'closed'
-          AND new_state.account_state = 'closed'
-    );
-
-    UPDATE users
-    SET webauthn_user_handle = NULL,
-        mfa_enabled_at = NULL
-    WHERE id IN (
-        SELECT new_state.id
-        FROM new_user_states new_state
-        JOIN old_user_states old_state USING (id)
-        WHERE old_state.account_state <> 'closed'
-          AND new_state.account_state = 'closed'
-    )
-      AND (webauthn_user_handle IS NOT NULL OR mfa_enabled_at IS NOT NULL);
-
-    RETURN NULL;
+    RETURN NEW;
 END;
 $$;
 
 CREATE TRIGGER users_clear_mfa_on_tombstone
-AFTER UPDATE ON users
-REFERENCING OLD TABLE AS old_user_states NEW TABLE AS new_user_states
-FOR EACH STATEMENT
+BEFORE UPDATE OF account_state ON users
+FOR EACH ROW
 EXECUTE FUNCTION clear_mfa_on_account_tombstone();
 
 COMMENT ON TABLE webauthn_credentials IS
