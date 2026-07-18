@@ -6,6 +6,71 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-07-18
+
+Third stable release of the clean ChitChat reconstruction. This release promotes the `v1.2.0-rc.1` feature set after controlled evaluation completed without a reported defect. It adds deployment-configurable throttling, supported backup and restore tooling, account closure and restoration, passkey multi-factor authentication, participant-facing privacy notifications, and deeper accessibility and visual-regression coverage.
+
+### Stabilized since 1.2.0-rc.1
+
+- No application defect was reported during the release-candidate evaluation period.
+- No database migration, runtime behavior, API contract, privacy policy, retention rule, production dependency, or deployment configuration requirement changed after the release candidate.
+- Stabilized the WebKit structural-accessibility test by waiting for the asynchronous MFA account summary before enumerating visible account controls; this is a test-only timing fix.
+- Updated version declarations, tests, repository status, changelog, and release metadata for stable `v1.2.0`.
+
+### Added
+
+- Added bounded named rate-limit policies and aggregate privacy-preserving counters for authentication, account, messaging, upload, invitation, search, inspection, revision-review, restoration, and MFA paths.
+- Added supported manifest-bound PostgreSQL-plus-attachment backup, verification, safe staged restore, and dedicated backup-rehearsal automation.
+- Added step-up-protected account closure, a 14-day cooling-off and restoration flow, maintenance-driven profile tombstoning, and final-Super-Administrator protection.
+- Added optional password-first WebAuthn MFA with multiple passkeys, ten one-time recovery codes, MFA-aware login/step-up/restoration, and enforceable administrative-MFA policy.
+- Added durable participant-facing privacy notifications for revision review, moderator deletion, administrative password reset, and material installation-policy changes.
+- Added pinned axe-core, reflow, forced-colors, reduced-motion, screenshot-regression, and explicit human assistive-technology review procedures.
+
+### Security and privacy
+
+- Rate-limit configuration remains deployment-only and aggregate counters contain only fixed policy names and coarse totals.
+- Backup manifests contain no database password; publication requires self-verification, and restore rejects unsafe archives and accidental production replacement.
+- Closure destroys private credentials and profile identifiers at finalization while preserving shared retained conversation history and immutable evidence according to policy.
+- MFA-enabled accounts cannot establish an authenticated session or privileged step-up from a password alone; recovery-code plaintext is revealed only on creation and each code is consumed atomically once.
+- Selected participant notifications commit atomically with their append-only audit source and exclude restricted bodies, reasons, usernames, IP addresses, credentials, passkey data, and recovery material.
+- Automated accessibility results remain separate from release-specific manual NVDA and VoiceOver sign-off.
+
+### Compatibility
+
+- `v1.2.0` supports an in-place upgrade from stable `v1.1.0` after PostgreSQL and attachment storage are backed up together.
+- The upgrade applies forward-only migrations `0014_rate_limit_observability.sql`, `0015_account_closure.sql`, `0016_mfa_passkeys.sql`, and `0017_privacy_notifications.sql`.
+- An installation already migrated for `v1.2.0-rc.1` requires no additional database migration, data conversion, runtime dependency, or configuration redesign.
+- Once migrations `0014`–`0017` are applied, older ChitChat source must not be pointed at the upgraded database. Rollback requires restoring a matching pre-upgrade database and attachment backup.
+- Passkeys remain disabled unless both `WEBAUTHN_RP_ID` and `WEBAUTHN_ORIGIN` are configured. Production WebAuthn origins require HTTPS; the PHP OpenSSL extension is required when passkeys are enabled.
+- Existing password-only installations retain password login and password step-up behavior while WebAuthn remains unconfigured.
+- No external identity service, queue, Redis deployment, or other new production runtime service is required. Axe-core and screenshot comparison are development-only npm dependencies.
+
+### Upgrade notes
+
+Fresh installations should follow `INSTALL.md` and `docs/releases/v1.2.0.md`.
+
+Existing `v1.1.0` installations should:
+
+1. stop or drain application writes;
+2. back up PostgreSQL and attachment storage together and verify the backup;
+3. deploy `v1.2.0` while preserving `.env` and attachment storage;
+4. compare the existing `.env` with `.env.example`, keeping WebAuthn disabled unless a durable HTTPS RP ID and origin have been chosen;
+5. run `composer install --no-dev --classmap-authoritative`;
+6. run `composer migrate` once;
+7. run `composer maintenance:dry-run` and review the result;
+8. verify `/health.php`, `/ready.php`, login, rooms, direct messages, attachments, SSE through the production reverse proxy, system status, account closure/restoration, backup verification, privacy notifications, and any enabled passkey flow.
+
+Existing `v1.2.0-rc.1` installations should create and verify a backup, deploy stable source, change an explicitly pinned `APP_VERSION` to `1.2.0`, run the same Composer, migration, and maintenance commands, and verify representative behavior. `composer migrate` should find no new stable-release migration.
+
+### Known limitations
+
+- The supported deployment target remains one application server; horizontal scaling and Redis-backed event delivery are not implemented.
+- PostgreSQL is the only supported database.
+- Direct messages are not end-to-end encrypted.
+- Maintenance, backup scheduling, retention, alerting, and release-specific manual assistive-technology testing remain operator responsibilities.
+- The committed automated accessibility suite is not a substitute for a complete manual WCAG audit.
+- No supported in-place upgrade exists from the incomplete legacy `v0.10.25` snapshot.
+
 ## [1.2.0-rc.1] - 2026-07-18
 
 First release candidate for ChitChat v1.2.0. This pre-release adds deployment-configurable throttling, supported backup and restore tooling, account closure and restoration, passkey multi-factor authentication, participant-facing privacy notifications, and deeper accessibility and visual-regression coverage. It is intended for controlled evaluation and upgrade rehearsal before the stable release.
