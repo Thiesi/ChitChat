@@ -1,0 +1,300 @@
+name: Prepare v1.2.0-rc.1 metadata
+
+on:
+  push:
+    branches:
+      - agent/release-v1.2.0-rc.1
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    name: Prepare release metadata
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/release-v1.2.0-rc.1
+          fetch-depth: 0
+
+      - name: Update version declarations and release documentation
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+
+          version = '1.2.0-rc.1'
+          tag = f'v{version}'
+          release_date = '2026-07-18'
+
+          env_path = Path('.env.example')
+          env_text = env_path.read_text()
+          old = 'APP_VERSION=1.1.0'
+          new = f'APP_VERSION={version}'
+          if env_text.count(old) != 1:
+              raise SystemExit(f'Expected exactly one {old!r} declaration')
+          env_path.write_text(env_text.replace(old, new))
+
+          config_path = Path('src/Config.php')
+          config_text = config_path.read_text()
+          old = "applicationVersion: self::env('APP_VERSION', '1.1.0')"
+          new = f"applicationVersion: self::env('APP_VERSION', '{version}')"
+          if config_text.count(old) != 1:
+              raise SystemExit('Expected exactly one Config APP_VERSION default')
+          config_path.write_text(config_text.replace(old, new))
+
+          readme_path = Path('README.md')
+          readme_text = readme_path.read_text()
+          replacements = {
+              'ChitChat is a small, self-hosted browser chat application. The clean reconstruction has reached **v1.1.0**, its second stable release.':
+                  'ChitChat is a small, self-hosted browser chat application. The clean reconstruction has reached **v1.2.0-rc.1**, the first release candidate for its third stable release.',
+              '`v1.1.0` is the supported baseline for fresh single-server deployments and in-place upgrades from stable `v1.0.0`. Operators should review the documented privacy defaults, forward-only migrations, resource requirements, maintenance schedule, backup procedure, and known limitations before exposing an installation to users.':
+                  '`v1.1.0` remains the supported stable baseline. `v1.2.0-rc.1` is available for controlled evaluation and in-place upgrade rehearsal from `v1.1.0`; it is not yet an unconditional production recommendation. Operators should review the documented privacy defaults, forward-only migrations, resource requirements, maintenance schedule, backup procedure, and known limitations before exposing an installation to users.',
+              'See [CHANGELOG.md](CHANGELOG.md), the [v1.1.0 release notes](docs/releases/v1.1.0.md), and the [project roadmap](docs/roadmap.md).':
+                  'See [CHANGELOG.md](CHANGELOG.md), the [v1.2.0-rc.1 release notes](docs/releases/v1.2.0-rc.1.md), the [v1.1.0 stable release notes](docs/releases/v1.1.0.md), and the [project roadmap](docs/roadmap.md).',
+          }
+          for old, new in replacements.items():
+              if readme_text.count(old) != 1:
+                  raise SystemExit(f'Expected exactly one README fragment: {old}')
+              readme_text = readme_text.replace(old, new)
+          readme_path.write_text(readme_text)
+
+          changelog_path = Path('CHANGELOG.md')
+          changelog_text = changelog_path.read_text()
+          start = changelog_text.index('## [Unreleased]')
+          previous = changelog_text.index('## [1.1.0]')
+          entry = f'''## [Unreleased]
+
+## [{version}] - {release_date}
+
+First release candidate for ChitChat v1.2.0. This pre-release adds deployment-configurable throttling, supported backup and restore tooling, account closure and restoration, passkey multi-factor authentication, participant-facing privacy notifications, and deeper accessibility and visual-regression coverage. It is intended for controlled evaluation and upgrade rehearsal before the stable release.
+
+### Added
+
+- Added bounded named rate-limit policies for authentication, account, messaging, upload, invitation, search, inspection, revision-review, restoration, and MFA paths, configured through deployment environment variables.
+- Added aggregate privacy-preserving allowed/rejected rate-limit counters to Administrator system status and Prometheus without account, IP, room, message, search-term, or request-body identifiers.
+- Added supported `chitchat-backup`, `chitchat-verify-backup`, and `chitchat-restore` commands with a versioned manifest binding PostgreSQL and attachment storage by exact size and SHA-256 checksum.
+- Added safe staged restore into new targets by default, explicit destructive-replacement flags, attachment archive traversal/link/special-file rejection, and a dedicated backup-rehearsal CI gate.
+- Added step-up-protected account closure with immediate session invalidation, global-role revocation, a fixed 14-day cooling-off period, independently throttled credential-based restoration, and maintenance-driven irreversible tombstoning.
+- Added optional password-first WebAuthn multi-factor authentication with multiple labelled ES256 or RS256 passkeys, ten one-time recovery codes, account credential management, and passkey or recovery-code completion for login, privileged step-up, and restoration.
+- Added optional Super-Administrator enforcement of passkey MFA for all global administrative roles, with transactional activation checks and a PostgreSQL role-assignment invariant.
+- Added durable participant-facing privacy notifications for administrative revision review, moderator room-message deletion, administrative password reset, and material installation-policy changes.
+- Added a paginated signed-in notification center, account-scoped individual and bulk read state, and a capped unread badge.
+- Added pinned axe-core WCAG A/AA analysis for core signed-out and signed-in surfaces, Chromium reflow checks at 640 and 320 CSS pixels, forced-colors and reduced-motion checks, and targeted pinned-Chromium/Linux screenshot regression for stable authentication and account layouts.
+- Added explicit manual NVDA, VoiceOver, keyboard-only, browser-zoom, Windows contrast-theme, and reduced-motion review procedures with versioned result recording.
+
+### Security and privacy
+
+- Rate-limit configuration remains deployment-only so a compromised browser administration session cannot weaken anti-abuse controls; aggregate counters use only fixed policy names and coarse totals.
+- Backup manifests contain no database password, backup sets publish only after self-verification, and restore refuses unsafe archives, public-root overlap, and configured production targets without explicit acknowledgement.
+- Closure preserves shared room and direct-message history, immutable revisions, attachment evidence, membership and ownership attribution, bans, and audits according to retention policy while destroying private credentials and profile identifiers at finalization.
+- A correct password for an MFA-enabled account creates only a short-lived pending context and does not establish an authenticated session or successful login until a passkey or unused recovery code succeeds.
+- Recovery-code plaintext is returned only when a set is created or replaced; PostgreSQL stores SHA-256 hashes of 96-bit random values and consumes codes atomically once.
+- Selected privacy notifications are derived from append-only audit records inside the same PostgreSQL transaction and contain only a fixed event kind, recipient, nullable audit reference, bounded structural context, and read timestamps.
+- Notification context excludes message and revision bodies, administrator or moderation reasons, usernames, IP addresses, credentials, session state, passkey data, and recovery material.
+- Automated accessibility results remain separate from release-specific manual assistive-technology sign-off; green axe, emulation, and screenshot checks do not claim completed NVDA or VoiceOver validation.
+
+### Compatibility
+
+- `{tag}` supports an in-place upgrade from stable `v1.1.0` after PostgreSQL and attachment storage are backed up together.
+- The upgrade applies forward-only migrations `0014_rate_limit_observability.sql`, `0015_account_closure.sql`, `0016_mfa_passkeys.sql`, and `0017_privacy_notifications.sql`.
+- Once these migrations are applied, older ChitChat source must not be pointed at the upgraded database. Rollback requires restoring a matching pre-upgrade database and attachment backup.
+- Passkeys remain disabled unless both `WEBAUTHN_RP_ID` and `WEBAUTHN_ORIGIN` are configured. Production WebAuthn origins require HTTPS; the PHP OpenSSL extension is required when passkeys are enabled.
+- Existing password-only installations retain password login and password step-up behavior while WebAuthn remains unconfigured.
+- No external identity service, queue, Redis deployment, or other new production runtime service is required. Axe-core and screenshot comparison are development-only npm dependencies.
+- This is a release candidate: compatible fixes may land before `v1.2.0`, but operators must not assume database or configuration compatibility with later pre-releases without reading their notes.
+
+### Upgrade notes
+
+Fresh installations should follow `INSTALL.md` and the release-candidate evaluation guidance in `docs/releases/{tag}.md`.
+
+Existing `v1.1.0` installations should:
+
+1. stop or drain application writes;
+2. back up PostgreSQL and attachment storage together and verify the backup;
+3. deploy `{tag}` while preserving `.env` and attachment storage;
+4. compare the existing `.env` with `.env.example`, keeping WebAuthn disabled unless a durable HTTPS RP ID and origin have been chosen;
+5. run `composer install --no-dev --classmap-authoritative`;
+6. run `composer migrate` once;
+7. run `composer maintenance:dry-run` and review the result;
+8. verify `/health.php`, `/ready.php`, login, rooms, direct messages, attachments, SSE through the production reverse proxy, system status, account closure/restoration, backup verification, privacy notifications, and any enabled passkey flow.
+
+### Known limitations
+
+- The supported deployment target remains one application server; horizontal scaling and Redis-backed event delivery are not implemented.
+- PostgreSQL is the only supported database.
+- Direct messages are not end-to-end encrypted.
+- Maintenance, backup scheduling, retention, alerting, and release-specific manual assistive-technology testing remain operator responsibilities.
+- The committed automated accessibility suite is not a substitute for a complete manual WCAG audit.
+- This is a pre-release intended for controlled evaluation rather than an unconditional production recommendation.
+- No supported in-place upgrade exists from the incomplete legacy `v0.10.25` snapshot.
+
+'''
+          changelog_path.write_text(changelog_text[:start] + entry + changelog_text[previous:])
+
+          release_note = f'''# ChitChat {tag}
+
+`{tag}` is the first release candidate for ChitChat v1.2.0. It is intended for controlled evaluation, deployment rehearsal, and upgrade testing; `v1.1.0` remains the supported stable baseline until v1.2.0 is released.
+
+This is an in-place application upgrade from `v1.1.0`. It applies forward-only database migrations `0014` through `0017`; after migration, do not run older ChitChat source against the upgraded database.
+
+## Highlights
+
+### Configurable and observable throttling
+
+- Authentication, account, messaging, upload, invitation, search, inspection, revision-review, restoration, and MFA paths use bounded named policies loaded from deployment environment variables.
+- Existing limits remain enforced, formerly unbounded sensitive paths now have deliberately generous controls, and configuration stays outside the browser administration surface.
+- Administrator status and Prometheus expose effective policies and aggregate allowed/rejected decisions without account, IP, room, message, search-term, or request-body identifiers.
+
+### Supported backup and restore
+
+- `chitchat-backup`, `chitchat-verify-backup`, and `chitchat-restore` bind PostgreSQL and attachment storage into one versioned manifest-driven backup set.
+- Each set records application version, ordered migrations, database metadata, attachment inventory, tool versions, exact sizes, and SHA-256 checksums without storing the database password.
+- Restore targets new database and attachment names by default, stages extraction, verifies restored inventory and migration state, and requires explicit flags before replacing existing or configured production targets.
+
+### Account closure and restoration
+
+- Account closure requires recent privileged step-up and immediately invalidates sessions, revokes global roles, denies normal login, and removes live presence and SSE leases.
+- A fixed 14-day cooling-off period reserves the username and provides an explicit independently throttled restoration flow using current credentials and, where configured, the account's passkey or recovery code.
+- Expired closures are finalized through ordinary maintenance by tombstoning profile identifiers and credentials while retaining shared conversation history, revisions, attachment evidence, attribution, bans, and audits according to retention policy.
+- The final active Super-Administrator cannot close their account.
+
+### Passkey multi-factor authentication
+
+- Optional password-first MFA supports multiple labelled WebAuthn passkeys and ten one-time recovery codes.
+- ChitChat validates exact RP ID, origin, challenge and ceremony type, requires user presence and verification, supports ES256 and RS256 credentials, tracks backup state, and validates nonzero signature counters.
+- Passkeys and recovery codes complete ordinary login, privileged step-up, and closure restoration; MFA-enabled accounts cannot fall back to password-only step-up.
+- Super-Administrators may require passkey MFA for every global administrative role, with transactional activation checks and a PostgreSQL invariant for later role grants.
+- Passkeys remain disabled until both `WEBAUTHN_RP_ID` and `WEBAUTHN_ORIGIN` are configured.
+
+### Participant-facing privacy notifications
+
+- Durable notifications disclose administrative revision review, moderator room-message deletion, administrative password reset, and material installation-policy changes to affected participants.
+- PostgreSQL derives them from append-only audit records in the same transaction, so the restricted action cannot commit without its bounded participant disclosure.
+- The notification center provides pagination, individual and bulk read state, and a capped unread badge.
+- Notifications do not copy message bodies, revisions, administrator reasons, usernames, IP addresses, credentials, passkey data, or recovery material.
+
+### Accessibility and visual regression
+
+- Chromium runs pinned axe-core WCAG A/AA analysis across authentication, restoration, chat, direct messages, account, and notification surfaces.
+- Automated coverage includes 640- and 320-CSS-pixel reflow, forced-colors affordances, reduced-motion behavior, and three deliberately stable Linux screenshot baselines.
+- Chromium, Firefox, and WebKit retain their independent functional, structural, and keyboard journeys.
+- A documented human procedure covers NVDA, VoiceOver, keyboard-only operation, 200%/400% zoom, Windows contrast themes, and reduced motion. Automated success does not constitute manual assistive-technology sign-off.
+
+## What to evaluate
+
+Operators evaluating this release candidate should exercise:
+
+- a fresh installation and an in-place upgrade from an actual `v1.1.0` archive;
+- existing login, room, direct-message, attachment, moderation, inspection, export, retention, maintenance, and reverse-proxy SSE behavior;
+- effective rate-limit settings and privacy-preserving counters under representative traffic;
+- creation, verification, off-host retention, and isolated restore of a complete PostgreSQL-plus-attachment backup set;
+- closure, immediate access denial, restoration before the deadline, final-Super-Administrator protection, and maintenance dry-run reporting;
+- passkey enrollment, additional credentials, recovery-code rotation and one-time consumption, passkey login, MFA step-up, restoration, and any administrative-MFA policy;
+- participant notification recipient selection, unread state, material-policy-change suppression for no-op updates, and tombstone cleanup;
+- narrow/zoomed layouts, keyboard navigation, contrast themes, reduced motion, and the documented NVDA and VoiceOver journeys on real target platforms.
+
+Record defects against `{tag}`. Do not move or recreate the release tag; fixes require a later release-candidate or stable version.
+
+## Database changes
+
+The upgrade applies these forward-only migrations:
+
+- `0014_rate_limit_observability.sql` — aggregate rate-limit decision state;
+- `0015_account_closure.sql` — closure lifecycle, saved role state, restoration, and database-bound tombstoning;
+- `0016_mfa_passkeys.sql` — WebAuthn credentials, challenges, recovery codes, and administrative-MFA invariants;
+- `0017_privacy_notifications.sql` — durable account notification state and audit-derived triggers.
+
+Back up PostgreSQL and attachment storage together before migration. Rolling back requires restoring a matching pre-upgrade database and attachment backup; there is no down-migration path.
+
+## Upgrade from v1.1.0
+
+1. Stop or drain application writes.
+2. Back up PostgreSQL and the complete attachment-storage directory together using the existing operating procedure, and verify the backup before deployment.
+3. Preserve `.env` and the existing attachment-storage path.
+4. Deploy `{tag}` source.
+5. Compare `.env` with `.env.example`. Retain existing values; add rate-limit overrides only deliberately, and configure WebAuthn only after choosing a durable HTTPS RP ID and origin.
+6. Run:
+
+   ```sh
+   composer install --no-dev --classmap-authoritative
+   composer migrate
+   composer maintenance:dry-run
+   ```
+
+7. Review the effective rate-limit policies in Administrator system status.
+8. Create and verify a new first-class backup set, then perform an isolated restore rehearsal before relying on the new tooling operationally.
+9. Verify `/health.php`, `/ready.php`, login, room and direct-message history, attachments, SSE through the production reverse proxy, account export, system status, account closure/restoration, privacy notifications, and any enabled passkey flow.
+
+The automated release rehearsal installs the published `v1.1.0` archive, seeds representative data, preserves PostgreSQL and attachment bytes through backup/restore, advances to the release-candidate migrations, and verifies retained application behavior.
+
+## Fresh installation
+
+Follow `INSTALL.md`. Expose only `public/`, keep attachment and backup storage outside the web root, use HTTPS and secure cookies, provide enough PHP workers for open SSE requests, schedule maintenance and backups, and document the installation's inspection, retention, closure, MFA, notification, and restore policies before onboarding users.
+
+## Security and privacy defaults
+
+- Direct messages are server-side PostgreSQL records and are **not end-to-end encrypted**.
+- Administrative canonical DM inspection remains enabled for Super-Administrators by default, requires recent step-up plus a reason, and audits every successful page.
+- Historical revision review remains disabled by default and uses an authorization policy independent from ordinary DM inspection and moderation roles.
+- Retention values of `0` mean permanent retention until a Super-Administrator changes policy and maintenance runs.
+- Account closure removes private access and privileges but does not erase shared retained conversation history or immutable evidence.
+- Passkeys are opt-in at deployment level; existing password-only installations behave as before while WebAuthn configuration is absent.
+- Participant notifications disclose selected sensitive actions without duplicating restricted content or reasons.
+- Backup encryption, access control, off-host retention, restore authorization, maintenance scheduling, and release-specific manual assistive-technology validation remain operator responsibilities.
+
+## Validation required for publication
+
+The exact merged release commit must pass:
+
+- locked Composer and npm dependency audits;
+- PHP lint, JavaScript and stabilization-shell syntax checks, and PHPStan level 8;
+- every migration and the complete PHPUnit suite against PostgreSQL 16;
+- maintenance dry-run;
+- the full two-session release journey independently in Chromium, Firefox, and WebKit;
+- structural and keyboard accessibility checks in all three engines;
+- Chromium axe-core, reflow, forced-colors, reduced-motion, virtual-WebAuthn-authenticator, and targeted screenshot checks;
+- installation from the published `v1.1.0` archive followed by backup, restore, migration, and retained-data verification;
+- the dedicated first-class backup rehearsal;
+- authenticated unbuffered SSE delivery through real Nginx and PHP-FPM.
+
+Publication validation checks those named results on the exact 40-character merge commit before the annotated tag and GitHub pre-release are created.
+
+## Known limitations
+
+- This is a release candidate, not yet an unconditional production recommendation; compatible fixes may precede `v1.2.0`.
+- The supported deployment target remains one application server; horizontal scaling and Redis-backed event delivery are not implemented.
+- PostgreSQL is the only supported database.
+- Direct messages are not end-to-end encrypted.
+- Automated accessibility coverage is not a complete manual WCAG audit and does not prove NVDA or VoiceOver behavior.
+- Maintenance, backup scheduling, alerting, retention decisions, and policy disclosure remain operator responsibilities.
+- No supported upgrade path exists from the incomplete legacy `v0.10.25` snapshot.
+
+Detailed individual changes are listed in `CHANGELOG.md`.
+'''
+          release_path = Path(f'docs/releases/{tag}.md')
+          if release_path.exists():
+              raise SystemExit(f'{release_path} already exists')
+          release_path.write_text(release_note)
+          PY
+
+      - name: Validate prepared metadata
+        run: |
+          set -euo pipefail
+          grep -Fqx 'APP_VERSION=1.2.0-rc.1' .env.example
+          grep -Fq "applicationVersion: self::env('APP_VERSION', '1.2.0-rc.1')" src/Config.php
+          grep -Fq '## [1.2.0-rc.1] - 2026-07-18' CHANGELOG.md
+          [[ "$(head -n 1 docs/releases/v1.2.0-rc.1.md)" == '# ChitChat v1.2.0-rc.1' ]]
+          grep -Fq 'v1.2.0-rc.1' README.md
+
+      - name: Commit prepared release metadata
+        run: |
+          set -euo pipefail
+          rm .github/workflows/prepare-v1.2.0-rc.1.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .env.example src/Config.php README.md CHANGELOG.md docs/releases/v1.2.0-rc.1.md .github/workflows/prepare-v1.2.0-rc.1.yml
+          git commit -m 'Prepare v1.2.0-rc.1 release candidate'
+          git push origin HEAD:agent/release-v1.2.0-rc.1
