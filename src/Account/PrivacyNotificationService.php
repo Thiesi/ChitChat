@@ -180,6 +180,7 @@ SQL);
         $context = $this->decodeContext((string) $row['context']);
         $title = 'Privacy notification';
         $message = 'A privacy- or security-relevant account event occurred.';
+        /** @var list<string> $details */
         $details = [];
 
         if ($kind === 'revision_review') {
@@ -233,11 +234,15 @@ SQL);
         return is_array($decoded) ? $decoded : [];
     }
 
-    /** @param array<string, mixed> $context @return list<string> */
+    /**
+     * @param array<string, mixed> $context
+     * @return list<string>
+     */
     private function policyDetails(array $context): array
     {
         $old = is_array($context['old'] ?? null) ? $context['old'] : [];
         $new = is_array($context['new'] ?? null) ? $context['new'] : [];
+        /** @var list<string> $details */
         $details = [];
 
         foreach (self::POLICY_LABELS as $key => $label) {
