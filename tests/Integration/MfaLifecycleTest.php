@@ -91,12 +91,17 @@ SQL);
         self::assertSame(0, $this->countRowsForUser('webauthn_credentials', $user->id));
         self::assertSame(0, $this->countRowsForUser('mfa_recovery_codes', $user->id));
         $state = $this->pdo->query(sprintf(
-            'SELECT (webauthn_user_handle IS NULL)::int, (mfa_enabled_at IS NULL)::int FROM users WHERE id = %d',
+            <<<'SQL'
+SELECT (webauthn_user_handle IS NULL)::int AS user_handle_cleared,
+       (mfa_enabled_at IS NULL)::int AS mfa_enabled_at_cleared
+FROM users
+WHERE id = %d
+SQL,
             $user->id,
         ))->fetch();
         self::assertIsArray($state);
-        self::assertSame(1, (int) $state[0]);
-        self::assertSame(1, (int) $state[1]);
+        self::assertSame(1, (int) $state['user_handle_cleared']);
+        self::assertSame(1, (int) $state['mfa_enabled_at_cleared']);
     }
 
     private function seedPasskeyMfa(int $userId, bool $withRecoveryCode): void
