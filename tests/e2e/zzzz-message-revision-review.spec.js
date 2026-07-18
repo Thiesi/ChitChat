@@ -97,11 +97,13 @@ async function openNotifications(page) {
 
 async function clearUnreadNotifications(page) {
   await openNotifications(page);
+  const status = page.locator('#privacy-notifications-status');
   const markAll = page.locator('#privacy-notifications-mark-all');
+  await expect(status).toHaveText(/unread privacy notification/);
   if (await markAll.isEnabled()) {
     await markAll.click();
   }
-  await expect(page.locator('#privacy-notifications-status')).toHaveText('You have no unread privacy notifications.');
+  await expect(status).toHaveText('You have no unread privacy notifications.');
 }
 
 test('Super-Administrator reviews exact room and DM revision chains with participant disclosure', async ({ browser }) => {
