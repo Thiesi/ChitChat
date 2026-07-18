@@ -21,13 +21,19 @@ async function signOut(page) {
     await page.goto('/');
   }
   await expect(page.locator('#chat-shell')).toBeVisible();
-  const responsePromise = page.waitForResponse((response) => (
+  const logoutPromise = page.waitForResponse((response) => (
     response.url().endsWith('/api/v1/logout.php')
     && response.request().method() === 'POST'
   ));
+  const csrfRefreshPromise = page.waitForResponse((response) => (
+    response.url().endsWith('/api/v1/session.php')
+    && response.request().method() === 'GET'
+    && response.ok()
+  ));
   await page.locator('#logout-button').click();
-  const response = await responsePromise;
-  expect(response.ok()).toBeTruthy();
+  const logoutResponse = await logoutPromise;
+  expect(logoutResponse.ok()).toBeTruthy();
+  await csrfRefreshPromise;
   await expect(page.locator('#auth-shell')).toBeVisible();
 }
 
