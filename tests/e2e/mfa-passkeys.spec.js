@@ -25,15 +25,17 @@ async function signOut(page) {
     response.url().endsWith('/api/v1/logout.php')
     && response.request().method() === 'POST'
   ));
-  const csrfRefreshPromise = page.waitForResponse((response) => (
+  await page.locator('#logout-button').click();
+  const logoutResponse = await logoutPromise;
+  expect(logoutResponse.ok()).toBeTruthy();
+
+  const sessionBootstrap = page.waitForResponse((response) => (
     response.url().endsWith('/api/v1/session.php')
     && response.request().method() === 'GET'
     && response.ok()
   ));
-  await page.locator('#logout-button').click();
-  const logoutResponse = await logoutPromise;
-  expect(logoutResponse.ok()).toBeTruthy();
-  await csrfRefreshPromise;
+  await page.goto('/');
+  await sessionBootstrap;
   await expect(page.locator('#auth-shell')).toBeVisible();
 }
 
