@@ -9,6 +9,25 @@ textarea:focus-visible,
   outline-offset: 3px;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .room-dialog::backdrop {
+    backdrop-filter: none;
+  }
+}
+
 @media (forced-colors: active) {
   a:focus-visible,
   button:focus-visible,
@@ -18,5 +37,29 @@ textarea:focus-visible,
   textarea:focus-visible,
   [tabindex]:focus-visible {
     outline-color: CanvasText;
+  }
+
+  .primary-button,
+  .danger-button,
+  .auth-tabs button[aria-selected="true"],
+  .room-button.active,
+  .privacy-notification-unread {
+    border: 2px solid Highlight;
+  }
+
+  .primary-button,
+  .danger-button {
+    background: ButtonFace;
+    color: ButtonText;
+  }
+
+  .connection-status::before,
+  .presence-user::before {
+    forced-color-adjust: none;
+    background: CanvasText;
+  }
+
+  .connection-status[data-state="connected"]::before {
+    background: Highlight;
   }
 }
