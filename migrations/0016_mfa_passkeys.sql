@@ -78,17 +78,20 @@ LANGUAGE plpgsql
 AS $$
 BEGIN
     IF OLD.account_state <> 'closed' AND NEW.account_state = 'closed' THEN
-        DELETE FROM webauthn_credentials WHERE user_id = OLD.id;
-        DELETE FROM mfa_recovery_codes WHERE user_id = OLD.id;
-        NEW.webauthn_user_handle := NULL;
-        NEW.mfa_enabled_at := NULL;
+        DELETE FROM webauthn_credentials WHERE user_id = NEW.id;
+        DELETE FROM mfa_recovery_codes WHERE user_id = NEW.id;
+        UPDATE users
+        SET webauthn_user_handle = NULL,
+            mfa_enabled_at = NULL
+        WHERE id = NEW.id
+          AND (webauthn_user_handle IS NOT NULL OR mfa_enabled_at IS NOT NULL);
     END IF;
     RETURN NEW;
 END;
 $$;
 
 CREATE TRIGGER users_clear_mfa_on_tombstone
-BEFORE UPDATE OF account_state ON users
+AFTER UPDATE OF account_state ON users
 FOR EACH ROW
 EXECUTE FUNCTION clear_mfa_on_account_tombstone();
 
