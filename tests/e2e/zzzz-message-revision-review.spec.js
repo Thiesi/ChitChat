@@ -89,7 +89,13 @@ async function reviewMessage(page, kind, messageId, reason, password = null) {
   await expect(page.locator('#revision-review-summary')).toContainText(String(messageId));
 }
 
-test('Super-Administrator reviews exact room and DM revision chains with a reason', async ({ browser }) => {
+async function openNotifications(page) {
+  await page.goto('/notifications.php');
+  await expect(page.locator('#privacy-notifications-shell')).toBeVisible();
+  await expect(page.locator('#privacy-notifications-loading')).toBeHidden();
+}
+
+test('Super-Administrator reviews exact room and DM revision chains with participant disclosure', async ({ browser }) => {
   const adminContext = await browser.newContext({ baseURL });
   const memberContext = await browser.newContext({ baseURL });
 
@@ -127,6 +133,14 @@ test('Super-Administrator reviews exact room and DM revision chains with a reaso
     await expect(roomBodies.nth(0)).toHaveText('Revision review room evidence');
     await expect(roomBodies.nth(1)).toHaveText('Revision review room evidence edited');
 
+    await openNotifications(memberPage);
+    const roomNotification = memberPage.locator('.privacy-notification-unread').first();
+    await expect(roomNotification).toContainText('Message revision history reviewed');
+    await expect(roomNotification).toContainText('General E2E');
+    await expect(roomNotification).not.toContainText('Reviewing the reported room-message edit history');
+    await roomNotification.getByRole('button', { name: 'Mark as read' }).click();
+    await expect(memberPage.locator('#privacy-notifications-status')).toHaveText('You have no unread privacy notifications.');
+
     await memberPage.goto('/messages.php');
     await expect(memberPage.locator('#messages-shell')).toBeVisible();
     await selectPeer(memberPage, admin.username);
@@ -156,6 +170,12 @@ test('Super-Administrator reviews exact room and DM revision chains with a reaso
     await expect(deleteCard).toContainText('Deletion');
     await expect(deleteCard.locator('.revision-body').nth(0)).toHaveText('Revision review private evidence edited');
     await expect(deleteCard.locator('.revision-body').nth(1)).toHaveText('Message deleted after this revision.');
+
+    await openNotifications(memberPage);
+    const directNotification = memberPage.locator('.privacy-notification-unread').first();
+    await expect(directNotification).toContainText('Message revision history reviewed');
+    await expect(directNotification).toContainText('direct-message conversation');
+    await expect(directNotification).not.toContainText('Reviewing the disputed direct-message edit and deletion');
   } finally {
     await memberContext.close();
     await adminContext.close();
