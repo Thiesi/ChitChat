@@ -93,7 +93,15 @@ Replace disposable publication pull requests with a permanent manually dispatche
 
 ### 7. Participant-facing privacy notifications
 
-Add durable in-app notifications for security- and privacy-relevant events such as administrative revision review, moderator deletion, administrative password reset, and material policy changes. Operators may need configurable timing, but policy disclosure must remain unavoidable.
+**Status:** implemented.
+
+- Derive durable participant-facing notifications atomically from selected append-only audit actions so an audited event and its disclosure commit together.
+- Notify the affected room-message author or direct-message participants when retained revision history is reviewed.
+- Notify an author when a moderator deletes a room message and notify an account when an administrator resets its password.
+- Notify every active account when material registration, administrative-MFA, retention, cleanup, realtime, or login-history policy values change.
+- Store only a fixed event kind, recipient, audit reference, bounded structural context, and read timestamps; do not copy message bodies, administrator reasons, IP addresses, credentials, or recovery material.
+- Provide an authenticated paginated notification center, account-scoped read state, mark-all-read, and an unread badge without making realtime delivery a correctness requirement.
+- Preserve notifications during account-closure cooling-off where relevant and delete the private notification history when tombstoning becomes irreversible.
 
 ### 8. Deeper accessibility and visual regression
 
