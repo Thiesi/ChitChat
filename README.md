@@ -1,14 +1,14 @@
 # ChitChat
 
-ChitChat is a small, self-hosted browser chat application. The clean reconstruction has reached **v1.2.0**, its third stable release, with post-release participant search and moderation features now continuing on `main`.
+ChitChat is a small, self-hosted browser chat application. The clean reconstruction has reached **v1.3.0-rc.1**, the first release candidate for v1.3.0, adding participant search and a moderation queue on top of the stable `v1.2.0` baseline.
 
 ## Repository status
 
-`v1.2.0` is the supported stable baseline. It supports fresh installation and an in-place upgrade from `v1.1.0`; installations already evaluating `v1.2.0-rc.1` may promote in place without an additional stable-release migration. Post-release `main` adds forward-only migrations `0018_message_search.sql` and `0019_moderation_reports.sql`; operators deploying unreleased `main` must back up PostgreSQL and attachment storage together and must not point older source at the advanced database.
+`v1.2.0` remains the supported stable baseline. `v1.3.0-rc.1` is intended for controlled evaluation and applies forward-only migrations `0018_message_search.sql` and `0019_moderation_reports.sql` in place from `v1.2.0`; operators deploying it must back up PostgreSQL and attachment storage together and must not point older source at the migrated database.
 
 The former `v0.10.25` source snapshot is incomplete and is not considered runnable or a supported upgrade predecessor. It is preserved on the `legacy/v0.10.25` branch for reference.
 
-See [CHANGELOG.md](CHANGELOG.md), the [v1.2.0 stable release notes](docs/releases/v1.2.0.md), and the [project roadmap](docs/roadmap.md).
+See [CHANGELOG.md](CHANGELOG.md), the [v1.3.0-rc.1 release-candidate notes](docs/releases/v1.3.0-rc.1.md), the [v1.2.0 stable release notes](docs/releases/v1.2.0.md), and the [project roadmap](docs/roadmap.md).
 
 ## v1 architecture
 
