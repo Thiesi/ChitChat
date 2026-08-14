@@ -70,7 +70,7 @@ The committed gates cover structural and keyboard accessibility across Chromium,
 
 ### Replies and mentions
 
-**Status:** planned next; data model, authorization boundary and product decisions resolved in [ADR 0004](architecture/0004-replies-and-mentions.md). Implementation not started.
+**Status:** backend implemented per [ADR 0004](architecture/0004-replies-and-mentions.md) as migration `0020_replies_mentions.sql` — reply storage/resolution, mention parsing/authorization/notifications, and personal-data export. No composer/browser-facing UI yet: message composition, @mention autocomplete and reply affordances remain to be built before this reaches participants.
 
 - Store durable reply references by canonical message ID rather than copying a second authoritative body.
 - Render an authorization-aware preview and a clear placeholder when the referenced message is unavailable, deleted or expired.

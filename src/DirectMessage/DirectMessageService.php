@@ -6,6 +6,8 @@ namespace ChitChat\DirectMessage;
 use ChitChat\Auth\AuthenticatedUser;
 use ChitChat\Auth\UserRepository;
 use ChitChat\Http\ApiException;
+use ChitChat\Mentions\DirectMessageMentionResolver;
+use ChitChat\Mentions\MentionNotifier;
 use ChitChat\Realtime\EventRepository;
 use PDO;
 use RuntimeException;
@@ -16,12 +18,14 @@ final class DirectMessageService
     private readonly UserRepository $users;
     private readonly EventRepository $events;
     private readonly DirectMessageBlockService $blocks;
+    private readonly MentionNotifier $mentionNotifier;
 
     public function __construct(private readonly PDO $pdo)
     {
         $this->users = new UserRepository($pdo);
         $this->events = new EventRepository($pdo);
         $this->blocks = new DirectMessageBlockService($pdo);
+        $this->mentionNotifier = new MentionNotifier($pdo);
     }
 
     /** @return list<array{id:int, username:string}> */
@@ -157,7 +161,8 @@ SQL);
      *   body:string,
      *   read_at:?string,
      *   created_at:string,
-     *   outgoing:bool
+     *   outgoing:bool,
+     *   reply_to:?array{kind:string, message_id:int, available:bool, message:?array<string, mixed>}
      * }>
      */
     public function history(
@@ -182,10 +187,19 @@ SELECT dm.id,
        recipient.username AS recipient_username,
        dm.body,
        dm.recipient_read_at,
-       dm.created_at
+       dm.created_at,
+       dm.reply_to_message_kind,
+       dm.reply_to_message_id,
+       rt.id AS reply_target_id,
+       rt.sender_user_id AS reply_target_sender_id,
+       rtu.username AS reply_target_sender_username,
+       rt.body AS reply_target_body,
+       (rt.deleted_at IS NOT NULL)::int AS reply_target_deleted
 FROM direct_messages dm
 JOIN users sender ON sender.id = dm.sender_user_id
 JOIN users recipient ON recipient.id = dm.recipient_user_id
+LEFT JOIN direct_messages rt ON rt.id = dm.reply_to_message_id
+LEFT JOIN users rtu ON rtu.id = rt.sender_user_id
 WHERE (
         dm.sender_user_id = :actor_sender
         AND dm.recipient_user_id = :other_recipient
@@ -232,18 +246,26 @@ SQL;
      *   body:string,
      *   read_at:?string,
      *   created_at:string,
-     *   outgoing:bool
+     *   outgoing:bool,
+     *   reply_to:?array{kind:string, message_id:int, available:bool, message:?array<string, mixed>}
      * }
      */
-    public function send(AuthenticatedUser $actor, int $recipientUserId, string $bodyInput): array
-    {
-        $this->requireOtherUser($actor, $recipientUserId);
+    public function send(
+        AuthenticatedUser $actor,
+        int $recipientUserId,
+        string $bodyInput,
+        ?int $replyToMessageId = null,
+    ): array {
+        $recipient = $this->requireOtherUser($actor, $recipientUserId);
         $body = trim($bodyInput);
         if ($body === '') {
             throw new ApiException(400, 'empty_message', 'Direct message body cannot be empty.');
         }
         if (mb_strlen($body, 'UTF-8') > 4000) {
             throw new ApiException(400, 'message_too_long', 'Direct message body must not exceed 4000 characters.');
+        }
+        if ($replyToMessageId !== null) {
+            $this->requireReplyTargetInConversation($replyToMessageId, $actor->id, $recipientUserId);
         }
 
         $this->pdo->beginTransaction();
@@ -252,8 +274,8 @@ SQL;
             $this->blocks->requireMessagingAvailable($actor, $recipientUserId);
 
             $statement = $this->pdo->prepare(<<<'SQL'
-INSERT INTO direct_messages (sender_user_id, recipient_user_id, body)
-VALUES (:sender_user_id, :recipient_user_id, :body)
+INSERT INTO direct_messages (sender_user_id, recipient_user_id, body, reply_to_message_kind, reply_to_message_id)
+VALUES (:sender_user_id, :recipient_user_id, :body, :reply_to_message_kind, :reply_to_message_id)
 RETURNING id
 SQL);
             if ($statement === false) {
@@ -263,12 +285,18 @@ SQL);
                 'sender_user_id' => $actor->id,
                 'recipient_user_id' => $recipientUserId,
                 'body' => $body,
+                'reply_to_message_kind' => $replyToMessageId === null ? null : 'direct',
+                'reply_to_message_id' => $replyToMessageId,
             ]);
             $messageIdValue = $statement->fetchColumn();
             if ($messageIdValue === false) {
                 throw new RuntimeException('Direct-message send did not return an ID.');
             }
             $messageId = (int) $messageIdValue;
+
+            $mentions = DirectMessageMentionResolver::resolve($recipientUserId, $recipient->username, $body);
+            $this->mentionNotifier->recordDirectMessageMentions($messageId, $mentions);
+
             $senderMessage = $this->messageById($messageId, $actor->id);
             $recipientMessage = $this->messageById($messageId, $recipientUserId);
 
@@ -340,7 +368,8 @@ SQL);
      *   body:string,
      *   read_at:?string,
      *   created_at:string,
-     *   outgoing:bool
+     *   outgoing:bool,
+     *   reply_to:?array{kind:string, message_id:int, available:bool, message:?array<string, mixed>}
      * }
      */
     private function messageById(int $messageId, int $viewerUserId): array
@@ -353,10 +382,19 @@ SELECT dm.id,
        recipient.username AS recipient_username,
        dm.body,
        dm.recipient_read_at,
-       dm.created_at
+       dm.created_at,
+       dm.reply_to_message_kind,
+       dm.reply_to_message_id,
+       rt.id AS reply_target_id,
+       rt.sender_user_id AS reply_target_sender_id,
+       rtu.username AS reply_target_sender_username,
+       rt.body AS reply_target_body,
+       (rt.deleted_at IS NOT NULL)::int AS reply_target_deleted
 FROM direct_messages dm
 JOIN users sender ON sender.id = dm.sender_user_id
 JOIN users recipient ON recipient.id = dm.recipient_user_id
+LEFT JOIN direct_messages rt ON rt.id = dm.reply_to_message_id
+LEFT JOIN users rtu ON rtu.id = rt.sender_user_id
 WHERE dm.id = :id
 SQL);
         if ($statement === false) {
@@ -371,6 +409,33 @@ SQL);
         return $this->hydrate($row, $viewerUserId);
     }
 
+    private function requireReplyTargetInConversation(int $replyToMessageId, int $actorId, int $otherUserId): void
+    {
+        if ($replyToMessageId < 1) {
+            throw new ApiException(400, 'validation_error', 'reply_to_message_id must be positive.');
+        }
+
+        $statement = $this->pdo->prepare(
+            'SELECT sender_user_id, recipient_user_id FROM direct_messages WHERE id = :id',
+        );
+        if ($statement === false) {
+            throw new RuntimeException('Unable to prepare reply-target lookup.');
+        }
+        $statement->execute(['id' => $replyToMessageId]);
+        $row = $statement->fetch();
+        $participants = is_array($row) ? [(int) $row['sender_user_id'], (int) $row['recipient_user_id']] : [];
+        sort($participants);
+        $expected = [$actorId, $otherUserId];
+        sort($expected);
+        if ($participants !== $expected) {
+            throw new ApiException(
+                400,
+                'invalid_reply_target',
+                'The message being replied to must be in this conversation.',
+            );
+        }
+    }
+
     /**
      * @param array<string, mixed> $row
      * @return array{
@@ -380,7 +445,8 @@ SQL);
      *   body:string,
      *   read_at:?string,
      *   created_at:string,
-     *   outgoing:bool
+     *   outgoing:bool,
+     *   reply_to:?array{kind:string, message_id:int, available:bool, message:?array<string, mixed>}
      * }
      */
     private function hydrate(array $row, int $viewerUserId): array
@@ -399,6 +465,39 @@ SQL);
             'read_at' => $row['recipient_read_at'] === null ? null : (string) $row['recipient_read_at'],
             'created_at' => (string) $row['created_at'],
             'outgoing' => (int) $row['sender_user_id'] === $viewerUserId,
+            'reply_to' => $this->hydrateReplyTo($row),
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $row
+     * @return ?array{kind:string, message_id:int, available:bool, message:?array<string, mixed>}
+     */
+    private function hydrateReplyTo(array $row): ?array
+    {
+        if (!array_key_exists('reply_to_message_id', $row) || $row['reply_to_message_id'] === null) {
+            return null;
+        }
+
+        $targetExists = $row['reply_target_id'] !== null;
+
+        return [
+            'kind' => (string) $row['reply_to_message_kind'],
+            'message_id' => (int) $row['reply_to_message_id'],
+            'available' => $targetExists,
+            // A soft-deleted direct message already stores the fixed 'Message
+            // deleted.' placeholder as its body (enforced by
+            // direct_messages_body_check), so unlike the room-message preview
+            // there is no separate body/deleted split to reconstruct here.
+            'message' => !$targetExists ? null : [
+                'id' => (int) $row['reply_target_id'],
+                'sender' => [
+                    'id' => (int) $row['reply_target_sender_id'],
+                    'username' => (string) $row['reply_target_sender_username'],
+                ],
+                'body' => (string) $row['reply_target_body'],
+                'deleted' => (int) $row['reply_target_deleted'] === 1,
+            ],
         ];
     }
 }

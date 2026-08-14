@@ -6,6 +6,8 @@ namespace ChitChat\Room;
 use ChitChat\Audit\AuditLogger;
 use ChitChat\Auth\AuthenticatedUser;
 use ChitChat\Http\ApiException;
+use ChitChat\Mentions\MentionNotifier;
+use ChitChat\Mentions\RoomMentionResolver;
 use ChitChat\Realtime\EventRepository;
 use ChitChat\Upload\AttachmentPolicy;
 use PDO;
@@ -17,12 +19,16 @@ final class MessageService
     private readonly RoomRepository $rooms;
     private readonly AuditLogger $audit;
     private readonly EventRepository $events;
+    private readonly RoomMentionResolver $mentions;
+    private readonly MentionNotifier $mentionNotifier;
 
     public function __construct(private readonly PDO $pdo)
     {
         $this->rooms = new RoomRepository($pdo);
         $this->audit = new AuditLogger($pdo);
         $this->events = new EventRepository($pdo);
+        $this->mentions = new RoomMentionResolver($pdo);
+        $this->mentionNotifier = new MentionNotifier($pdo);
     }
 
     /**
@@ -35,7 +41,8 @@ final class MessageService
      *   body:?string,
      *   attachment:?array{id:int, name:string, mime_type:string, size_bytes:int, sha256:string, previewable:bool},
      *   deleted:bool,
-     *   created_at:string
+     *   created_at:string,
+     *   reply_to:?array{kind:string, message_id:int, available:bool, message:?array<string, mixed>}
      * }>
      */
     public function history(
@@ -63,6 +70,14 @@ SELECT m.id,
        m.body,
        m.created_at,
        (m.deleted_at IS NOT NULL)::int AS deleted,
+       m.reply_to_message_kind,
+       m.reply_to_message_id,
+       rt.id AS reply_target_id,
+       rt.sender_id AS reply_target_sender_id,
+       rtu.username AS reply_target_username,
+       rt.message_type AS reply_target_type,
+       rt.body AS reply_target_body,
+       (rt.deleted_at IS NOT NULL)::int AS reply_target_deleted,
        a.id AS attachment_id,
        a.original_name AS attachment_name,
        a.mime_type AS attachment_mime_type,
@@ -71,6 +86,8 @@ SELECT m.id,
        a.deleted_at AS attachment_deleted_at
 FROM room_messages m
 LEFT JOIN users u ON u.id = m.sender_id
+LEFT JOIN room_messages rt ON rt.id = m.reply_to_message_id
+LEFT JOIN users rtu ON rtu.id = rt.sender_id
 LEFT JOIN attachments a ON a.message_id = m.id
 WHERE m.room_id = :room_id
 SQL;
@@ -110,13 +127,15 @@ SQL;
      *   body:?string,
      *   attachment:?array{id:int, name:string, mime_type:string, size_bytes:int, sha256:string, previewable:bool},
      *   deleted:bool,
-     *   created_at:string
+     *   created_at:string,
+     *   reply_to:?array{kind:string, message_id:int, available:bool, message:?array<string, mixed>}
      * }
      */
     public function send(
         AuthenticatedUser $actor,
         int $roomId,
         string $bodyInput,
+        ?int $replyToMessageId = null,
     ): array {
         $room = $this->requireRoom($actor, $roomId);
         if (!$room->isMember()) {
@@ -124,11 +143,15 @@ SQL;
         }
 
         [$messageType, $body] = $this->parseMessage($bodyInput);
+        if ($replyToMessageId !== null) {
+            $this->requireReplyTargetInRoom($replyToMessageId, $roomId);
+        }
+
         $this->pdo->beginTransaction();
         try {
             $statement = $this->pdo->prepare(<<<'SQL'
-INSERT INTO room_messages (room_id, sender_id, message_type, body)
-VALUES (:room_id, :sender_id, :message_type, :body)
+INSERT INTO room_messages (room_id, sender_id, message_type, body, reply_to_message_kind, reply_to_message_id)
+VALUES (:room_id, :sender_id, :message_type, :body, :reply_to_message_kind, :reply_to_message_id)
 RETURNING id
 SQL);
             if ($statement === false) {
@@ -139,13 +162,19 @@ SQL);
                 'sender_id' => $actor->id,
                 'message_type' => $messageType,
                 'body' => $body,
+                'reply_to_message_kind' => $replyToMessageId === null ? null : 'room',
+                'reply_to_message_id' => $replyToMessageId,
             ]);
             $messageId = $statement->fetchColumn();
             if ($messageId === false) {
                 throw new RuntimeException('Message send did not return an ID.');
             }
+            $messageId = (int) $messageId;
 
-            $message = $this->storedMessage((int) $messageId);
+            $mentions = $this->mentions->resolve($roomId, $actor->id, $body);
+            $this->mentionNotifier->recordRoomMentions($messageId, $roomId, $mentions);
+
+            $message = $this->storedMessage($messageId);
             $this->events->publish(
                 type: 'room_message',
                 payload: ['message' => $message],
@@ -250,10 +279,35 @@ SQL);
      *   body:?string,
      *   attachment:?array{id:int, name:string, mime_type:string, size_bytes:int, sha256:string, previewable:bool},
      *   deleted:bool,
-     *   created_at:string
+     *   created_at:string,
+     *   reply_to:?array{kind:string, message_id:int, available:bool, message:?array<string, mixed>}
      * }
      */
     public function storedMessage(int $messageId): array
+    {
+        $message = $this->findStoredMessage($messageId);
+        if ($message === null) {
+            throw new RuntimeException('Stored message could not be reloaded.');
+        }
+
+        return $message;
+    }
+
+    /**
+     * @return ?array{
+     *   id:int,
+     *   room_id:int,
+     *   sender_id:?int,
+     *   username:?string,
+     *   type:string,
+     *   body:?string,
+     *   attachment:?array{id:int, name:string, mime_type:string, size_bytes:int, sha256:string, previewable:bool},
+     *   deleted:bool,
+     *   created_at:string,
+     *   reply_to:?array{kind:string, message_id:int, available:bool, message:?array<string, mixed>}
+     * }
+     */
+    public function findStoredMessage(int $messageId): ?array
     {
         $statement = $this->pdo->prepare(<<<'SQL'
 SELECT m.id,
@@ -264,6 +318,14 @@ SELECT m.id,
        m.body,
        m.created_at,
        (m.deleted_at IS NOT NULL)::int AS deleted,
+       m.reply_to_message_kind,
+       m.reply_to_message_id,
+       rt.id AS reply_target_id,
+       rt.sender_id AS reply_target_sender_id,
+       rtu.username AS reply_target_username,
+       rt.message_type AS reply_target_type,
+       rt.body AS reply_target_body,
+       (rt.deleted_at IS NOT NULL)::int AS reply_target_deleted,
        a.id AS attachment_id,
        a.original_name AS attachment_name,
        a.mime_type AS attachment_mime_type,
@@ -272,6 +334,8 @@ SELECT m.id,
        a.deleted_at AS attachment_deleted_at
 FROM room_messages m
 LEFT JOIN users u ON u.id = m.sender_id
+LEFT JOIN room_messages rt ON rt.id = m.reply_to_message_id
+LEFT JOIN users rtu ON rtu.id = rt.sender_id
 LEFT JOIN attachments a ON a.message_id = m.id
 WHERE m.id = :id
 SQL);
@@ -281,7 +345,7 @@ SQL);
         $statement->execute(['id' => $messageId]);
         $row = $statement->fetch();
         if (!is_array($row)) {
-            throw new RuntimeException('Stored message could not be reloaded.');
+            return null;
         }
 
         return $this->hydrateMessage($row);
@@ -327,6 +391,23 @@ SQL);
         return [$messageType, $body];
     }
 
+    private function requireReplyTargetInRoom(int $replyToMessageId, int $roomId): void
+    {
+        if ($replyToMessageId < 1) {
+            throw new ApiException(400, 'validation_error', 'reply_to_message_id must be positive.');
+        }
+
+        $statement = $this->pdo->prepare('SELECT room_id FROM room_messages WHERE id = :id');
+        if ($statement === false) {
+            throw new RuntimeException('Unable to prepare reply-target lookup.');
+        }
+        $statement->execute(['id' => $replyToMessageId]);
+        $targetRoomId = $statement->fetchColumn();
+        if ($targetRoomId === false || (int) $targetRoomId !== $roomId) {
+            throw new ApiException(400, 'invalid_reply_target', 'The message being replied to must be in this room.');
+        }
+    }
+
     /**
      * @param array<string, mixed> $row
      * @return array{
@@ -338,7 +419,8 @@ SQL);
      *   body:?string,
      *   attachment:?array{id:int, name:string, mime_type:string, size_bytes:int, sha256:string, previewable:bool},
      *   deleted:bool,
-     *   created_at:string
+     *   created_at:string,
+     *   reply_to:?array{kind:string, message_id:int, available:bool, message:?array<string, mixed>}
      * }
      */
     private function hydrateMessage(array $row): array
@@ -371,6 +453,37 @@ SQL);
             'attachment' => $attachment,
             'deleted' => $deleted,
             'created_at' => (string) $row['created_at'],
+            'reply_to' => $this->hydrateReplyTo($row),
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $row
+     * @return ?array{kind:string, message_id:int, available:bool, message:?array<string, mixed>}
+     */
+    private function hydrateReplyTo(array $row): ?array
+    {
+        if ($row['reply_to_message_id'] === null) {
+            return null;
+        }
+
+        $targetExists = $row['reply_target_id'] !== null;
+        $targetDeleted = $targetExists && (int) $row['reply_target_deleted'] === 1;
+
+        return [
+            'kind' => (string) $row['reply_to_message_kind'],
+            'message_id' => (int) $row['reply_to_message_id'],
+            'available' => $targetExists,
+            'message' => !$targetExists ? null : [
+                'id' => (int) $row['reply_target_id'],
+                'sender' => $row['reply_target_sender_id'] === null ? null : [
+                    'id' => (int) $row['reply_target_sender_id'],
+                    'username' => $row['reply_target_username'] === null ? null : (string) $row['reply_target_username'],
+                ],
+                'type' => (string) $row['reply_target_type'],
+                'body' => $targetDeleted ? null : (string) $row['reply_target_body'],
+                'deleted' => $targetDeleted,
+            ],
         ];
     }
 }
