@@ -1,5 +1,6 @@
 import { ApiError, apiGet, apiPost } from './api.js';
 import { openMessageReportDialog } from './message-report-dialog.js';
+import { renderMessageBody } from './message-content.js';
 import './realtime-bridge.js';
 
 let enhancementQueued = false;
@@ -83,6 +84,7 @@ function applyState(article, state) {
     state.can_edit,
     state.can_delete,
     canReport,
+    state.mentions,
   ]);
   if (article.dataset.mutationSignature === signature) return;
   article.dataset.mutationSignature = signature;
@@ -93,7 +95,13 @@ function applyState(article, state) {
   const body = article.querySelector('.dm-message-body');
   const meta = article.querySelector('.dm-message-meta');
   article.classList.toggle('deleted', Boolean(state.deleted));
-  if (body) body.textContent = state.deleted ? 'Message deleted by sender.' : (state.body ?? '');
+  if (body) {
+    if (state.deleted) {
+      body.textContent = 'Message deleted by sender.';
+    } else {
+      renderMessageBody(body, state.body ?? '', state.mentions);
+    }
+  }
 
   if (!state.deleted && state.edited_at && meta) {
     const indicator = document.createElement('span');

@@ -14,8 +14,14 @@ final class MentionNotifier
     }
 
     /** @param list<array{user_id:int, broadcast:bool}> $mentions */
-    public function recordRoomMentions(int $messageId, int $roomId, array $mentions): void
-    {
+    public function recordRoomMentions(
+        int $messageId,
+        int $roomId,
+        string $roomName,
+        int $senderUserId,
+        string $senderUsername,
+        array $mentions,
+    ): void {
         if ($mentions === []) {
             return;
         }
@@ -39,14 +45,21 @@ SQL);
                 'message_kind' => 'room',
                 'message_id' => $messageId,
                 'room_id' => $roomId,
+                'room_name' => $roomName,
                 'broadcast' => $mention['broadcast'],
+                'sender_user_id' => $senderUserId,
+                'sender_username' => $senderUsername,
             ]);
         }
     }
 
     /** @param list<array{user_id:int, broadcast:bool}> $mentions */
-    public function recordDirectMessageMentions(int $messageId, array $mentions): void
-    {
+    public function recordDirectMessageMentions(
+        int $messageId,
+        int $senderUserId,
+        string $senderUsername,
+        array $mentions,
+    ): void {
         if ($mentions === []) {
             return;
         }
@@ -70,6 +83,8 @@ SQL);
                 'message_kind' => 'direct',
                 'message_id' => $messageId,
                 'broadcast' => false,
+                'sender_user_id' => $senderUserId,
+                'sender_username' => $senderUsername,
             ]);
         }
     }

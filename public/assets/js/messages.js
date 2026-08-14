@@ -1,4 +1,5 @@
 import { ApiError, apiGet, apiPost, setCsrfToken } from './api.js';
+import { renderMessageBody, buildReplyPreview } from './message-content.js';
 
 const state = {
   user: null,
@@ -10,6 +11,7 @@ const state = {
   messageIds: new Set(),
   oldestMessageId: null,
   eventSource: null,
+  replyTo: null,
 };
 const elements = {};
 
@@ -26,6 +28,7 @@ function bindElements() {
     'dm-conversation-list', 'dm-peer-name', 'dm-peer-status', 'dm-block-toggle',
     'dm-empty-state', 'dm-message-list', 'dm-load-older', 'dm-composer',
     'dm-message-input', 'dm-send', 'toast-region',
+    'dm-reply-banner', 'dm-reply-banner-text', 'dm-reply-banner-cancel',
   ]) {
     const element = document.getElementById(id);
     if (!element) throw new Error(`Missing direct-message interface element: ${id}`);
@@ -38,6 +41,7 @@ function bindEvents() {
   elements['dm-load-older'].addEventListener('click', loadOlder);
   elements['dm-composer'].addEventListener('submit', sendMessage);
   elements['dm-block-toggle'].addEventListener('click', toggleBlock);
+  elements['dm-reply-banner-cancel'].addEventListener('click', clearReplyTo);
   elements['dm-message-input'].addEventListener('keydown', (event) => {
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
@@ -178,6 +182,7 @@ async function selectUser(user) {
   state.messages = [];
   state.messageIds = new Set();
   state.oldestMessageId = null;
+  clearReplyTo();
   elements['dm-peer-name'].textContent = user.username;
   elements['dm-peer-status'].textContent = 'Loading conversation…';
   elements['dm-composer'].classList.add('hidden');
@@ -309,16 +314,70 @@ function buildMessage(message) {
   article.classList.toggle('outgoing', Boolean(message.outgoing));
   article.dataset.messageId = String(message.id);
 
+  const preview = buildReplyPreview(message.reply_to);
+  if (preview) {
+    preview.addEventListener('click', () => focusReplyTarget(message.reply_to));
+    article.append(preview);
+  }
+
   const body = document.createElement('p');
   body.className = 'dm-message-body';
-  body.textContent = message.body;
+  renderMessageBody(body, message.body ?? '', message.mentions);
 
   const meta = document.createElement('span');
   meta.className = 'dm-message-meta';
   const read = message.outgoing && message.read_at ? ' · read' : '';
   meta.textContent = `${message.sender.username} · ${formatDateTime(message.created_at)}${read}`;
-  article.append(body, meta);
+
+  const actions = document.createElement('span');
+  actions.className = 'dm-message-actions';
+  const replyButton = document.createElement('button');
+  replyButton.type = 'button';
+  replyButton.className = 'message-reply-button';
+  replyButton.textContent = 'Reply';
+  replyButton.addEventListener('click', () => setReplyTo(message));
+  actions.append(replyButton);
+
+  article.append(body, meta, actions);
   return article;
+}
+
+function setReplyTo(message) {
+  state.replyTo = {
+    id: message.id,
+    username: message.sender.username,
+    body: message.body,
+    deleted: false,
+  };
+  renderReplyBanner();
+  elements['dm-message-input'].focus();
+}
+
+function clearReplyTo() {
+  if (state.replyTo === null) return;
+  state.replyTo = null;
+  renderReplyBanner();
+}
+
+function renderReplyBanner() {
+  const reply = state.replyTo;
+  elements['dm-reply-banner'].classList.toggle('hidden', reply === null);
+  if (!reply) return;
+  const excerpt = truncateForBanner(reply.body ?? '');
+  elements['dm-reply-banner-text'].textContent = `Replying to ${reply.username}: “${excerpt}”`;
+}
+
+function truncateForBanner(text) {
+  const collapsed = text.replace(/\s+/gu, ' ').trim();
+  return collapsed.length > 80 ? `${collapsed.slice(0, 79).trimEnd()}…` : collapsed;
+}
+
+function focusReplyTarget(replyTo) {
+  if (!replyTo?.available) return;
+  const target = elements['dm-message-list'].querySelector(`article[data-message-id="${replyTo.message_id}"]`);
+  if (!(target instanceof HTMLElement)) return;
+  target.classList.add('search-result-target');
+  target.scrollIntoView({ block: 'center', behavior: 'auto' });
 }
 
 async function sendMessage(event) {
@@ -328,11 +387,11 @@ async function sendMessage(event) {
   if (!user || !body || !state.relationship?.messaging_available) return;
   elements['dm-send'].disabled = true;
   try {
-    const response = await apiPost('/api/v1/direct-messages/send.php', {
-      recipient_user_id: user.id,
-      body,
-    });
+    const payload = { recipient_user_id: user.id, body };
+    if (state.replyTo) payload.reply_to_message_id = state.replyTo.id;
+    const response = await apiPost('/api/v1/direct-messages/send.php', payload);
     elements['dm-message-input'].value = '';
+    clearReplyTo();
     appendMessage(response.message, true);
     await loadConversations(user.id);
   } catch (error) {

@@ -1,5 +1,6 @@
 import { ApiError, apiGet, apiPost, setCsrfToken } from './api.js';
 import { createPresenceClient } from './presence.js';
+import { renderMessageBody, buildReplyPreview } from './message-content.js';
 
 const state = {
   user: null,
@@ -9,6 +10,7 @@ const state = {
   messageIds: new Set(),
   oldestMessageId: null,
   eventSource: null,
+  replyTo: null,
 };
 
 const elements = {};
@@ -68,6 +70,9 @@ function bindElements() {
     'room-inactivity-timeout',
     'room-dialog-error',
     'room-dialog-cancel',
+    'reply-banner',
+    'reply-banner-text',
+    'reply-banner-cancel',
   ]) {
     const element = document.getElementById(id);
     if (!element) {
@@ -92,6 +97,7 @@ function bindEvents() {
     }
   });
   elements['load-older-button'].addEventListener('click', loadOlderMessages);
+  elements['reply-banner-cancel'].addEventListener('click', clearReplyTo);
   elements['new-room-button'].addEventListener('click', openRoomDialog);
   elements['room-dialog-cancel'].addEventListener('click', () => elements['room-dialog'].close());
   elements['room-create-form'].addEventListener('submit', createRoom);
@@ -259,6 +265,7 @@ async function selectRoom(room) {
   state.messages = [];
   state.messageIds = new Set();
   state.oldestMessageId = null;
+  clearReplyTo();
   renderRoomList();
   renderRoomHeader();
   renderMessages();
@@ -435,19 +442,81 @@ function buildMessageElement(message) {
   time.dateTime = message.created_at;
   time.textContent = formatDateTime(message.created_at);
 
+  header.append(author, time);
+
+  if (canReplyInCurrentRoom() && !message.deleted) {
+    const replyButton = document.createElement('button');
+    replyButton.type = 'button';
+    replyButton.className = 'message-reply-button';
+    replyButton.textContent = 'Reply';
+    replyButton.addEventListener('click', () => setReplyTo(message));
+    header.append(replyButton);
+  }
+
   const body = document.createElement('p');
   body.className = 'message-body';
   if (message.deleted) {
     body.textContent = 'Message deleted by a moderator.';
   } else if (message.type === 'emote') {
-    body.textContent = `* ${message.username ?? 'Someone'} ${message.body}`;
+    body.append(document.createTextNode(`* ${message.username ?? 'Someone'} `));
+    const action = document.createElement('span');
+    renderMessageBody(action, message.body ?? '', message.mentions);
+    body.append(action);
   } else {
-    body.textContent = message.body ?? '';
+    renderMessageBody(body, message.body ?? '', message.mentions);
   }
 
-  header.append(author, time);
-  article.append(header, body);
+  article.append(header);
+  const preview = buildReplyPreview(message.reply_to);
+  if (preview) {
+    preview.addEventListener('click', () => focusReplyTarget(message.reply_to));
+    article.append(preview);
+  }
+  article.append(body);
   return article;
+}
+
+function canReplyInCurrentRoom() {
+  return Boolean(state.currentRoom) && !elements['composer-wrap'].classList.contains('hidden');
+}
+
+function setReplyTo(message) {
+  state.replyTo = {
+    id: message.id,
+    username: message.username,
+    body: message.body,
+    deleted: message.deleted,
+  };
+  renderReplyBanner();
+  elements['composer-input'].focus();
+}
+
+function clearReplyTo() {
+  if (state.replyTo === null) return;
+  state.replyTo = null;
+  renderReplyBanner();
+}
+
+function renderReplyBanner() {
+  const reply = state.replyTo;
+  elements['reply-banner'].classList.toggle('hidden', reply === null);
+  if (!reply) return;
+  const author = reply.username ?? 'Someone';
+  const excerpt = reply.deleted ? 'Message deleted.' : truncateForBanner(reply.body ?? '');
+  elements['reply-banner-text'].textContent = `Replying to ${author}: “${excerpt}”`;
+}
+
+function truncateForBanner(text) {
+  const collapsed = text.replace(/\s+/gu, ' ').trim();
+  return collapsed.length > 80 ? `${collapsed.slice(0, 79).trimEnd()}…` : collapsed;
+}
+
+function focusReplyTarget(replyTo) {
+  if (!replyTo?.available) return;
+  const target = elements['message-list'].querySelector(`article[data-message-id="${replyTo.message_id}"]`);
+  if (!(target instanceof HTMLElement)) return;
+  target.classList.add('search-result-target');
+  target.scrollIntoView({ block: 'center', behavior: 'auto' });
 }
 
 async function submitMessage(event) {
@@ -460,11 +529,11 @@ async function submitMessage(event) {
 
   elements['send-button'].disabled = true;
   try {
-    const response = await apiPost('/api/v1/rooms/send.php', {
-      room_id: room.id,
-      body,
-    });
+    const payload = { room_id: room.id, body };
+    if (state.replyTo) payload.reply_to_message_id = state.replyTo.id;
+    const response = await apiPost('/api/v1/rooms/send.php', payload);
     elements['composer-input'].value = '';
+    clearReplyTo();
     await presence.interact();
 
     if (response.message) {
@@ -756,6 +825,7 @@ function forceSignedOut(message) {
   state.messages = [];
   state.messageIds = new Set();
   state.oldestMessageId = null;
+  clearReplyTo();
   elements['chat-shell'].classList.add('hidden');
   elements['auth-shell'].classList.remove('hidden');
   showAuthMode('login');

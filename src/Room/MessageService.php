@@ -70,6 +70,19 @@ SELECT m.id,
        m.body,
        m.created_at,
        (m.deleted_at IS NOT NULL)::int AS deleted,
+       (
+           SELECT json_agg(
+               json_build_object(
+                   'user_id', mm.mentioned_user_id,
+                   'username', mu.username,
+                   'broadcast', mm.broadcast
+               )
+               ORDER BY mm.id
+           )
+           FROM room_message_mentions mm
+           JOIN users mu ON mu.id = mm.mentioned_user_id
+           WHERE mm.message_id = m.id
+       ) AS mentions_json,
        m.reply_to_message_kind,
        m.reply_to_message_id,
        rt.id AS reply_target_id,
@@ -172,7 +185,14 @@ SQL);
             $messageId = (int) $messageId;
 
             $mentions = $this->mentions->resolve($roomId, $actor->id, $body);
-            $this->mentionNotifier->recordRoomMentions($messageId, $roomId, $mentions);
+            $this->mentionNotifier->recordRoomMentions(
+                $messageId,
+                $roomId,
+                $room->name,
+                $actor->id,
+                $actor->username,
+                $mentions,
+            );
 
             $message = $this->storedMessage($messageId);
             $this->events->publish(
@@ -318,6 +338,19 @@ SELECT m.id,
        m.body,
        m.created_at,
        (m.deleted_at IS NOT NULL)::int AS deleted,
+       (
+           SELECT json_agg(
+               json_build_object(
+                   'user_id', mm.mentioned_user_id,
+                   'username', mu.username,
+                   'broadcast', mm.broadcast
+               )
+               ORDER BY mm.id
+           )
+           FROM room_message_mentions mm
+           JOIN users mu ON mu.id = mm.mentioned_user_id
+           WHERE mm.message_id = m.id
+       ) AS mentions_json,
        m.reply_to_message_kind,
        m.reply_to_message_id,
        rt.id AS reply_target_id,
@@ -420,7 +453,8 @@ SQL);
      *   attachment:?array{id:int, name:string, mime_type:string, size_bytes:int, sha256:string, previewable:bool},
      *   deleted:bool,
      *   created_at:string,
-     *   reply_to:?array{kind:string, message_id:int, available:bool, message:?array<string, mixed>}
+     *   reply_to:?array{kind:string, message_id:int, available:bool, message:?array<string, mixed>},
+     *   mentions:list<array{user_id:int, username:string, broadcast:bool}>
      * }
      */
     private function hydrateMessage(array $row): array
@@ -454,7 +488,39 @@ SQL);
             'deleted' => $deleted,
             'created_at' => (string) $row['created_at'],
             'reply_to' => $this->hydrateReplyTo($row),
+            'mentions' => $this->hydrateMentions($row),
         ];
+    }
+
+    /**
+     * @param array<string, mixed> $row
+     * @return list<array{user_id:int, username:string, broadcast:bool}>
+     */
+    private function hydrateMentions(array $row): array
+    {
+        $encoded = $row['mentions_json'] ?? null;
+        if (!is_string($encoded) || $encoded === '') {
+            return [];
+        }
+
+        $decoded = json_decode($encoded, true, 8, JSON_THROW_ON_ERROR);
+        if (!is_array($decoded)) {
+            return [];
+        }
+
+        $mentions = [];
+        foreach ($decoded as $entry) {
+            if (!is_array($entry)) {
+                continue;
+            }
+            $mentions[] = [
+                'user_id' => (int) $entry['user_id'],
+                'username' => (string) $entry['username'],
+                'broadcast' => $entry['broadcast'] === true,
+            ];
+        }
+
+        return $mentions;
     }
 
     /**

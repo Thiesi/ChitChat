@@ -111,6 +111,10 @@ $appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUT
       </section>
 
       <div id="composer-wrap" class="composer-wrap hidden">
+        <div id="reply-banner" class="reply-banner hidden">
+          <span id="reply-banner-text"></span>
+          <button id="reply-banner-cancel" class="reply-banner-cancel" type="button" aria-label="Cancel reply">Cancel</button>
+        </div>
         <form id="composer-form" class="composer">
           <div class="attachment-picker">
             <label class="secondary-button attachment-button" for="attachment-input">Attach file</label>

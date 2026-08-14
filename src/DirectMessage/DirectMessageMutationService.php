@@ -33,7 +33,8 @@ final class DirectMessageMutationService
      *   edited_at:?string,
      *   deleted:bool,
      *   can_edit:bool,
-     *   can_delete:bool
+     *   can_delete:bool,
+     *   mentions:list<array{user_id:int, username:string}>
      * }>
      */
     public function metadata(AuthenticatedUser $actor, array $messageIds): array
@@ -63,7 +64,19 @@ SELECT dm.id,
                    b.blocker_user_id = dm.recipient_user_id
                    AND b.blocked_user_id = dm.sender_user_id
                  )
-       ) AS messaging_available
+       ) AS messaging_available,
+       (
+           SELECT json_agg(
+               json_build_object(
+                   'user_id', dmm.mentioned_user_id,
+                   'username', mu.username
+               )
+               ORDER BY dmm.id
+           )
+           FROM direct_message_mentions dmm
+           JOIN users mu ON mu.id = dmm.mentioned_user_id
+           WHERE dmm.message_id = dm.id
+       ) AS mentions_json
 FROM direct_messages dm
 WHERE dm.id IN ({$placeholders})
   AND (
@@ -92,10 +105,41 @@ SQL);
                 'deleted' => $deleted,
                 'can_edit' => $owned && $available && !$deleted,
                 'can_delete' => $owned && !$deleted,
+                'mentions' => $deleted ? [] : $this->hydrateMentions($row),
             ];
         }
 
         return $result;
+    }
+
+    /**
+     * @param array<string, mixed> $row
+     * @return list<array{user_id:int, username:string}>
+     */
+    private function hydrateMentions(array $row): array
+    {
+        $encoded = $row['mentions_json'] ?? null;
+        if (!is_string($encoded) || $encoded === '') {
+            return [];
+        }
+
+        $decoded = json_decode($encoded, true, 8, JSON_THROW_ON_ERROR);
+        if (!is_array($decoded)) {
+            return [];
+        }
+
+        $mentions = [];
+        foreach ($decoded as $entry) {
+            if (!is_array($entry)) {
+                continue;
+            }
+            $mentions[] = [
+                'user_id' => (int) $entry['user_id'],
+                'username' => (string) $entry['username'],
+            ];
+        }
+
+        return $mentions;
     }
 
     /**

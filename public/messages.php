@@ -75,6 +75,10 @@ $appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUT
         </section>
 
         <form id="dm-composer" class="dm-composer hidden">
+          <div id="dm-reply-banner" class="reply-banner hidden">
+            <span id="dm-reply-banner-text"></span>
+            <button id="dm-reply-banner-cancel" class="reply-banner-cancel" type="button" aria-label="Cancel reply">Cancel</button>
+          </div>
           <div class="attachment-picker dm-attachment-picker">
             <label class="secondary-button attachment-button" for="dm-attachment-input">Attach file</label>
             <input

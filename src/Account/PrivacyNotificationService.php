@@ -37,6 +37,7 @@ final class PrivacyNotificationService
      *     title:string,
      *     message:string,
      *     details:list<string>,
+     *     link:?string,
      *     read:bool,
      *     read_at:?string,
      *     created_at:string
@@ -169,6 +170,7 @@ SQL);
      *   title:string,
      *   message:string,
      *   details:list<string>,
+     *   link:?string,
      *   read:bool,
      *   read_at:?string,
      *   created_at:string
@@ -182,6 +184,7 @@ SQL);
         $message = 'A privacy- or security-relevant account event occurred.';
         /** @var list<string> $details */
         $details = [];
+        $link = null;
 
         if ($kind === 'revision_review') {
             $title = 'Message revision history reviewed';
@@ -206,6 +209,9 @@ SQL);
             $title = 'Installation policy changed';
             $message = 'A Super-Administrator changed one or more installation policies.';
             $details = $this->policyDetails($context);
+        } elseif ($kind === 'mentioned') {
+            [$title, $message] = $this->mentionText($context);
+            $link = $this->mentionLink($context);
         }
 
         $readAt = $row['read_at'] === null ? null : (string) $row['read_at'];
@@ -216,6 +222,7 @@ SQL);
             'title' => $title,
             'message' => $message,
             'details' => $details,
+            'link' => $link,
             'read' => $readAt !== null,
             'read_at' => $readAt,
             'created_at' => (string) $row['created_at'],
@@ -280,5 +287,59 @@ SQL);
     private function nonEmptyString(mixed $value): ?string
     {
         return is_string($value) && trim($value) !== '' ? $value : null;
+    }
+
+    /**
+     * @param array<string, mixed> $context
+     * @return array{0:string, 1:string}
+     */
+    private function mentionText(array $context): array
+    {
+        $sender = $this->nonEmptyString($context['sender_username'] ?? null) ?? 'Someone';
+        $broadcast = ($context['broadcast'] ?? false) === true;
+
+        if (($context['message_kind'] ?? null) === 'room') {
+            $roomName = $this->nonEmptyString($context['room_name'] ?? null);
+            $title = $broadcast ? 'Mentioned in a room broadcast' : 'You were mentioned';
+            $where = $roomName === null ? 'a room' : sprintf('“%s”', $roomName);
+            $message = $broadcast
+                ? sprintf('%s mentioned everyone in %s, including you.', $sender, $where)
+                : sprintf('%s mentioned you in %s.', $sender, $where);
+
+            return [$title, $message];
+        }
+
+        return ['You were mentioned', sprintf('%s mentioned you in a direct message.', $sender)];
+    }
+
+    /** @param array<string, mixed> $context */
+    private function mentionLink(array $context): ?string
+    {
+        $messageId = $context['message_id'] ?? null;
+        if (!is_int($messageId)) {
+            return null;
+        }
+
+        if (($context['message_kind'] ?? null) === 'room') {
+            $roomId = $context['room_id'] ?? null;
+            if (!is_int($roomId)) {
+                return null;
+            }
+
+            return sprintf('/?room_id=%d&message_id=%d', $roomId, $messageId);
+        }
+
+        $senderUserId = $context['sender_user_id'] ?? null;
+        $senderUsername = $this->nonEmptyString($context['sender_username'] ?? null);
+        if (!is_int($senderUserId) || $senderUsername === null) {
+            return null;
+        }
+
+        return sprintf(
+            '/messages.php?user_id=%d&peer_name=%s&message_id=%d',
+            $senderUserId,
+            rawurlencode($senderUsername),
+            $messageId,
+        );
     }
 }
