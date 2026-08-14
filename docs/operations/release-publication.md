@@ -8,7 +8,15 @@ The workflow deliberately separates validation from publication. Validation has 
 
 Create a GitHub Actions environment named `release` in the repository settings and configure required reviewers. Restrict deployment branches to `main`; this is part of the publication trust boundary, not an optional convenience.
 
-The workflow references the environment even when no protection rule exists, but the approval boundary is effective only after required reviewers and the `main` deployment-branch restriction are configured in GitHub.
+**The workflow references the `release` environment unconditionally, but that reference only pauses the publication job if required reviewers are actually configured on it.** Without a configured required-reviewer rule, dispatching with `publication: stable` or `publication: prerelease` tags and publishes immediately — the same run, with no pause and no second chance to reconsider. A branch-deployment restriction on the environment (limiting it to `main`) does not by itself add an approval pause; only required reviewers do.
+
+Verify current configuration before relying on it:
+
+```sh
+gh api repos/<owner>/<repo>/environments/release --jq '.protection_rules'
+```
+
+A `required_reviewers` entry in that output means dispatching `stable` or `prerelease` will pause for approval. Its absence — even with a `branch_policy` entry present — means it will not.
 
 ## Prepare the release commit
 
@@ -51,7 +59,7 @@ Run the workflow again from `main` with the same version and SHA, selecting:
 - `stable` for a version without a pre-release suffix; or
 - `prerelease` for a version such as `1.2.0-rc.1`.
 
-The validation job runs again. The publication job then waits on the `release` environment approval, revalidates the exact state, creates an annotated `v<version>` tag, and creates the GitHub release from the committed notes.
+The validation job runs again. The publication job then enters the `release` environment — pausing for approval only if required reviewers are configured on it, per the one-time setup above — then revalidates the exact state, creates an annotated `v<version>` tag, and creates the GitHub release from the committed notes. Treat this dispatch as publishing, not as a request that something else will confirm.
 
 Stable releases are marked latest. Pre-releases are marked as pre-releases.
 
