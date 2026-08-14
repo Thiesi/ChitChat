@@ -142,6 +142,25 @@ SQL);
         return $this->membershipRole($roomId, $userId) !== null;
     }
 
+    /** @return list<int> */
+    public function memberIds(int $roomId): array
+    {
+        $statement = $this->pdo->prepare(<<<'SQL'
+SELECT rm.user_id
+FROM room_members rm
+JOIN users u ON u.id = rm.user_id
+WHERE rm.room_id = :room_id
+  AND u.account_state = 'active'
+SQL);
+        if ($statement === false) {
+            throw new RuntimeException('Unable to prepare room member list.');
+        }
+
+        $statement->execute(['room_id' => $roomId]);
+
+        return array_values(array_map(static fn (mixed $id): int => (int) $id, $statement->fetchAll(PDO::FETCH_COLUMN)));
+    }
+
     /** @param array<string, mixed> $row */
     private function hydrate(array $row): Room
     {

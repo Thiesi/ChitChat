@@ -6,6 +6,23 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ## [Unreleased]
 
+### Added
+
+- Added durable reply references on room and direct messages, resolved through the same authorization-scoped read path as ordinary history, with a distinct placeholder when the referenced message is unavailable, deleted or expired.
+- Added `@username` mentions, plus room-scoped `@room`/`@here` broadcast mentions, resolved and authorized once at send time. Unauthorized or unresolvable tokens render as plain text without notifying anyone.
+- Added durable `mentioned` participant notifications, and a dedicated `RATE_LIMIT_ROOM_BROADCAST_MENTION` policy independent of ordinary room-send throttling.
+- Added the account's own sent and received mentions to personal-data export, excluding other participants' message bodies.
+
+### Security and privacy
+
+- Reply targets must be in the same room or the same direct-message conversation as the reply; a reply cannot point across rooms or DM threads.
+- Mention authorization is re-checked against current room access and minimum-age eligibility for every candidate, individual or broadcast; a message body's mention count is otherwise unbounded and relies on existing message-length and send rate limits rather than a separate cap.
+- Mentions of another participant never disclose that participant's message body in the mentioned account's own personal-data export.
+
+### Compatibility
+
+- Adds forward-only migration `0020_replies_mentions.sql` without introducing an external notification, queue or search service.
+
 ## [1.3.0-rc.1] - 2026-08-14
 
 First release candidate for ChitChat v1.3.0. This pre-release adds authorization-aware participant message search and a participant reporting and moderation queue on top of the stable `v1.2.0` baseline. It is intended for controlled evaluation and upgrade rehearsal before the stable release.

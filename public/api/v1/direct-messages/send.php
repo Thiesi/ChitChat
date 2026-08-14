@@ -30,6 +30,7 @@ Endpoint::run($config, static function () use ($config): ApiResult {
             $actor,
             Request::integer($payload, 'recipient_user_id'),
             Request::string($payload, 'body'),
+            Request::optionalInteger($payload, 'reply_to_message_id'),
         ),
     ]);
 });

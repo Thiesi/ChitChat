@@ -40,6 +40,8 @@ final class PersonalDataExportService
             $directMessageRevisions = $this->directMessageRevisions($actor->id);
             $blocks = $this->blocks($actor->id);
             $submittedReports = $this->submittedReports($actor->id);
+            $mentionsSent = $this->mentionsSent($actor->id);
+            $mentionsReceived = $this->mentionsReceived($actor->id);
             $loginAttempts = $this->loginAttempts($actor->id);
             $activity = $this->activity($actor->id);
 
@@ -63,6 +65,8 @@ final class PersonalDataExportService
                         'retained revisions only for direct messages authored by the account',
                         'direct-message blocks created by the account',
                         'moderation reports submitted by the account, including its own details and retained exact-message evidence snapshots',
+                        '@username and @room/@here mentions the account sent in its own authored messages',
+                        'mentions of the account by other participants, identified by message reference only',
                         'login-attempt history associated with the account username',
                         'audit entries where the account is the recorded actor',
                     ],
@@ -72,6 +76,7 @@ final class PersonalDataExportService
                         'direct-message blocks created by other users',
                         'revision history for messages authored by other users',
                         'moderation reports submitted by other users, queue assignments and moderator resolution notes',
+                        'message bodies of other participants\' messages that mention the account',
                         'audit entries and source IP addresses belonging only to another actor',
                     ],
                 ],
@@ -93,6 +98,10 @@ final class PersonalDataExportService
                 ],
                 'moderation' => [
                     'reports_submitted' => $submittedReports,
+                ],
+                'mentions' => [
+                    'sent' => $mentionsSent,
+                    'received' => $mentionsReceived,
                 ],
                 'security_history' => [
                     'login_attempts' => $loginAttempts,
@@ -120,6 +129,8 @@ final class PersonalDataExportService
                         'direct_message_revisions' => count($directMessageRevisions),
                         'blocks_created' => count($blocks),
                         'moderation_reports_submitted' => count($submittedReports),
+                        'mentions_sent' => count($mentionsSent),
+                        'mentions_received' => count($mentionsReceived),
                         'login_attempts' => count($loginAttempts),
                         'activity_entries' => count($activity),
                     ],
@@ -482,6 +493,123 @@ SQL, ['user_id' => $userId], 'personal-data submitted moderation reports', fn (a
             'resolution_code' => $this->nullableString($row['resolution_code']),
             'resolved_at' => $this->nullableString($row['resolved_at']),
         ]);
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function mentionsSent(int $userId): array
+    {
+        $room = $this->mappedRows(<<<'SQL'
+SELECT mention.message_id,
+       mention.broadcast,
+       mention.created_at,
+       room.id AS room_id,
+       room.room_key,
+       room.name AS room_name,
+       mentioned.id AS mentioned_user_id,
+       mentioned.username AS mentioned_username
+FROM room_message_mentions mention
+JOIN room_messages message ON message.id = mention.message_id
+JOIN rooms room ON room.id = message.room_id
+JOIN users mentioned ON mentioned.id = mention.mentioned_user_id
+WHERE message.sender_id = :user_id
+ORDER BY mention.id
+SQL, ['user_id' => $userId], 'personal-data mentions sent in rooms', fn (array $row): array => [
+            'message_kind' => 'room',
+            'message_id' => (int) $row['message_id'],
+            'broadcast' => $this->databaseBoolean($row['broadcast']),
+            'room' => [
+                'id' => (int) $row['room_id'],
+                'key' => (string) $row['room_key'],
+                'name' => (string) $row['room_name'],
+            ],
+            'mentioned_user' => $this->userReference($row['mentioned_user_id'], $row['mentioned_username']),
+            'created_at' => (string) $row['created_at'],
+        ]);
+
+        $direct = $this->mappedRows(<<<'SQL'
+SELECT mention.message_id,
+       mention.created_at,
+       mentioned.id AS mentioned_user_id,
+       mentioned.username AS mentioned_username
+FROM direct_message_mentions mention
+JOIN direct_messages message ON message.id = mention.message_id
+JOIN users mentioned ON mentioned.id = mention.mentioned_user_id
+WHERE message.sender_user_id = :user_id
+ORDER BY mention.id
+SQL, ['user_id' => $userId], 'personal-data mentions sent in direct messages', fn (array $row): array => [
+            'message_kind' => 'direct',
+            'message_id' => (int) $row['message_id'],
+            'broadcast' => false,
+            'room' => null,
+            'mentioned_user' => $this->userReference($row['mentioned_user_id'], $row['mentioned_username']),
+            'created_at' => (string) $row['created_at'],
+        ]);
+
+        return $this->mergedByCreatedAt($room, $direct);
+    }
+
+    /**
+     * Identifies mentions of the account by message reference only. The
+     * mentioning message's own body belongs to another participant and is
+     * deliberately excluded, matching how other participants' moderation
+     * reports and revisions are excluded elsewhere in this export.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function mentionsReceived(int $userId): array
+    {
+        $room = $this->mappedRows(<<<'SQL'
+SELECT mention.message_id,
+       mention.broadcast,
+       mention.created_at,
+       room.id AS room_id,
+       room.room_key,
+       room.name AS room_name
+FROM room_message_mentions mention
+JOIN room_messages message ON message.id = mention.message_id
+JOIN rooms room ON room.id = message.room_id
+WHERE mention.mentioned_user_id = :user_id
+ORDER BY mention.id
+SQL, ['user_id' => $userId], 'personal-data mentions received in rooms', fn (array $row): array => [
+            'message_kind' => 'room',
+            'message_id' => (int) $row['message_id'],
+            'broadcast' => $this->databaseBoolean($row['broadcast']),
+            'room' => [
+                'id' => (int) $row['room_id'],
+                'key' => (string) $row['room_key'],
+                'name' => (string) $row['room_name'],
+            ],
+            'created_at' => (string) $row['created_at'],
+        ]);
+
+        $direct = $this->mappedRows(<<<'SQL'
+SELECT mention.message_id,
+       mention.created_at
+FROM direct_message_mentions mention
+WHERE mention.mentioned_user_id = :user_id
+ORDER BY mention.id
+SQL, ['user_id' => $userId], 'personal-data mentions received in direct messages', fn (array $row): array => [
+            'message_kind' => 'direct',
+            'message_id' => (int) $row['message_id'],
+            'broadcast' => false,
+            'room' => null,
+            'created_at' => (string) $row['created_at'],
+        ]);
+
+        return $this->mergedByCreatedAt($room, $direct);
+    }
+
+    /**
+     * @param list<array<string, mixed>> $first
+     * @param list<array<string, mixed>> $second
+     * @return list<array<string, mixed>>
+     */
+    private function mergedByCreatedAt(array $first, array $second): array
+    {
+        $merged = [...$first, ...$second];
+        usort($merged, static fn (array $a, array $b): int => (string) $a['created_at'] <=> (string) $b['created_at']);
+
+        return $merged;
     }
 
     /** @return list<array<string, mixed>> */

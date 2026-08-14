@@ -9,6 +9,7 @@ use ChitChat\Http\ApiResult;
 use ChitChat\Http\Endpoint;
 use ChitChat\Http\RateLimiter;
 use ChitChat\Http\Request;
+use ChitChat\Mentions\MentionParser;
 use ChitChat\Realtime\PingCommand;
 use ChitChat\Realtime\PingService;
 use ChitChat\Room\MessageService;
@@ -24,11 +25,16 @@ Endpoint::run($config, static function () use ($config): ApiResult {
     $actor = SessionManager::requireUser(new UserRepository($pdo));
     $roomId = Request::integer($payload, 'room_id');
     $body = Request::string($payload, 'body');
+    $replyToMessageId = Request::optionalInteger($payload, 'reply_to_message_id');
     $ping = PingCommand::parse($body);
-    (new RateLimiter($pdo, $config->rateLimits))->consume(
+    $rateLimiter = new RateLimiter($pdo, $config->rateLimits);
+    $rateLimiter->consume(
         $ping === null ? 'room_send' : 'room_ping',
         'user:' . $actor->id,
     );
+    if ($ping === null && MentionParser::containsBroadcastToken($body)) {
+        $rateLimiter->consume('room_broadcast_mention', 'user:' . $actor->id);
+    }
 
     if ($ping !== null) {
         $event = (new PingService($pdo))->send(
@@ -41,7 +47,7 @@ Endpoint::run($config, static function () use ($config): ApiResult {
         return ApiResult::created(['ping' => $event->toArray()]);
     }
 
-    $message = (new MessageService($pdo))->send($actor, $roomId, $body);
+    $message = (new MessageService($pdo))->send($actor, $roomId, $body, $replyToMessageId);
 
     return ApiResult::created(['message' => $message]);
 });
