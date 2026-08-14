@@ -69,6 +69,25 @@ final class ReplyAndMentionTest extends DatabaseTestCase
         self::assertSame(0, (int) $outsiderCount->fetchColumn());
     }
 
+    public function testRegularMemberCanMentionTheRoomCreatorInAPublicRoom(): void
+    {
+        $auth = new AuthService($this->pdo, $this->config);
+        $admin = $auth->register('Admin', 'a very secure password', '127.0.0.1');
+        $member = $auth->register('Member', 'another secure password', '127.0.0.2');
+
+        $rooms = new RoomService($this->pdo);
+        $room = $rooms->create($admin, 'general', 'General', '', 'public', 0, 0, '127.0.0.1');
+        $rooms->join($member, $room->id, '127.0.0.2');
+
+        $messages = new MessageService($this->pdo);
+        $sent = $messages->send($member, $room->id, '@Admin thanks for the context');
+
+        self::assertSame(
+            [['user_id' => $admin->id, 'username' => 'Admin', 'broadcast' => false]],
+            $sent['mentions'],
+        );
+    }
+
     public function testRoomBroadcastMentionNotifiesCurrentMembersExcludingSender(): void
     {
         $auth = new AuthService($this->pdo, $this->config);
