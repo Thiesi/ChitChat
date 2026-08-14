@@ -6,6 +6,10 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ## [Unreleased]
 
+## [1.3.0-rc.1] - 2026-08-14
+
+First release candidate for ChitChat v1.3.0. This pre-release adds authorization-aware participant message search and a participant reporting and moderation queue on top of the stable `v1.2.0` baseline. It is intended for controlled evaluation and upgrade rehearsal before the stable release.
+
 ### Added
 
 - Added authorization-aware PostgreSQL full-text search over current, undeleted room and direct-message bodies, with combined, room-only and direct-only scopes, bounded pagination, privacy-safe POST transport and exact-message deep links.
@@ -22,8 +26,34 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ### Compatibility
 
-- Post-`v1.2.0` source adds forward-only migrations `0018_message_search.sql` and `0019_moderation_reports.sql` without introducing an external search, queue, cache or moderation service.
-- Operators deploying unreleased `main` must back up PostgreSQL and attachment storage together and must not point older source at a database after these migrations have been applied.
+- `v1.3.0-rc.1` supports an in-place upgrade from stable `v1.2.0` after PostgreSQL and attachment storage are backed up together.
+- The upgrade applies forward-only migrations `0018_message_search.sql` and `0019_moderation_reports.sql` without introducing an external search, queue, cache or moderation service.
+- Once these migrations are applied, older ChitChat source must not be pointed at the upgraded database. Rollback requires restoring a matching pre-upgrade database and attachment backup.
+- This is a release candidate: compatible fixes may land before `v1.3.0`, but operators must not assume database or configuration compatibility with later pre-releases without reading their notes.
+
+### Upgrade notes
+
+Fresh installations should follow `INSTALL.md` and the release-candidate evaluation guidance in `docs/releases/v1.3.0-rc.1.md`.
+
+Existing `v1.2.0` installations should:
+
+1. stop or drain application writes;
+2. back up PostgreSQL and attachment storage together and verify the backup;
+3. deploy `v1.3.0-rc.1` while preserving `.env` and attachment storage;
+4. compare the existing `.env` with `.env.example`;
+5. run `composer install --no-dev --classmap-authoritative`;
+6. run `composer migrate` once;
+7. run `composer maintenance:dry-run` and review the result;
+8. verify `/health.php`, `/ready.php`, login, rooms, direct messages, attachments, SSE through the production reverse proxy, system status, participant search, and moderation reporting.
+
+### Known limitations
+
+- The supported deployment target remains one application server; horizontal scaling and Redis-backed event delivery are not implemented.
+- PostgreSQL is the only supported database.
+- Direct messages are not end-to-end encrypted.
+- Maintenance, backup scheduling, retention, alerting, and release-specific manual assistive-technology testing remain operator responsibilities.
+- This is a pre-release intended for controlled evaluation rather than an unconditional production recommendation.
+- No supported in-place upgrade exists from the incomplete legacy `v0.10.25` snapshot.
 
 ## [1.2.0] - 2026-07-18
 
