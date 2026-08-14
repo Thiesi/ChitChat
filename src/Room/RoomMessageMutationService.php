@@ -35,7 +35,8 @@ final class RoomMessageMutationService
      *   deleted:bool,
      *   deletion_kind:?string,
      *   can_edit:bool,
-     *   can_delete:bool
+     *   can_delete:bool,
+     *   mentions:list<array{user_id:int, username:string, broadcast:bool}>
      * }>
      */
     public function metadata(AuthenticatedUser $actor, int $roomId, array $messageIds): array
@@ -56,7 +57,20 @@ SELECT id,
        body,
        edited_at,
        deleted_at,
-       deleted_by
+       deleted_by,
+       (
+           SELECT json_agg(
+               json_build_object(
+                   'user_id', mm.mentioned_user_id,
+                   'username', mu.username,
+                   'broadcast', mm.broadcast
+               )
+               ORDER BY mm.id
+           )
+           FROM room_message_mentions mm
+           JOIN users mu ON mu.id = mm.mentioned_user_id
+           WHERE mm.message_id = room_messages.id
+       ) AS mentions_json
 FROM room_messages
 WHERE room_id = :room_id
   AND id IN ({$placeholders})
@@ -316,7 +330,8 @@ SQL);
      *   deleted:bool,
      *   deletion_kind:?string,
      *   can_edit:bool,
-     *   can_delete:bool
+     *   can_delete:bool,
+     *   mentions:list<array{user_id:int, username:string, broadcast:bool}>
      * }
      */
     private function hydrateMetadata(array $row, int $actorId, bool $isMember): array
@@ -342,7 +357,39 @@ SQL);
             'deletion_kind' => $deletionKind,
             'can_edit' => $isMember && $owned && $mutableType && !$deleted,
             'can_delete' => $isMember && $owned && $mutableType && !$deleted,
+            'mentions' => $deleted ? [] : $this->hydrateMentions($row),
         ];
+    }
+
+    /**
+     * @param array<string, mixed> $row
+     * @return list<array{user_id:int, username:string, broadcast:bool}>
+     */
+    private function hydrateMentions(array $row): array
+    {
+        $encoded = $row['mentions_json'] ?? null;
+        if (!is_string($encoded) || $encoded === '') {
+            return [];
+        }
+
+        $decoded = json_decode($encoded, true, 8, JSON_THROW_ON_ERROR);
+        if (!is_array($decoded)) {
+            return [];
+        }
+
+        $mentions = [];
+        foreach ($decoded as $entry) {
+            if (!is_array($entry)) {
+                continue;
+            }
+            $mentions[] = [
+                'user_id' => (int) $entry['user_id'],
+                'username' => (string) $entry['username'],
+                'broadcast' => $entry['broadcast'] === true,
+            ];
+        }
+
+        return $mentions;
     }
 
     /**

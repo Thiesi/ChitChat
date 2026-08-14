@@ -1,5 +1,6 @@
 import { ApiError, apiGet, apiPost } from './api.js';
 import { openMessageReportDialog } from './message-report-dialog.js';
+import { renderMessageBody } from './message-content.js';
 import './realtime-bridge.js';
 
 let enhancementQueued = false;
@@ -113,6 +114,7 @@ function applyState(article, state) {
     state.can_edit,
     state.can_delete,
     canReport,
+    state.mentions,
   ]);
   if (article.dataset.mutationSignature === signature) return;
   article.dataset.mutationSignature = signature;
@@ -130,9 +132,13 @@ function applyState(article, state) {
         ? 'Message deleted by its author.'
         : 'Message deleted by a moderator.';
     } else if (state.type === 'emote') {
-      body.textContent = `* ${author} ${state.body ?? ''}`;
+      body.replaceChildren();
+      body.append(document.createTextNode(`* ${author} `));
+      const action = document.createElement('span');
+      renderMessageBody(action, state.body ?? '', state.mentions);
+      body.append(action);
     } else {
-      body.textContent = state.body ?? '';
+      renderMessageBody(body, state.body ?? '', state.mentions);
     }
   }
 

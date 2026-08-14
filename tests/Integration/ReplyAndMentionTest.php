@@ -6,9 +6,11 @@ namespace ChitChat\Tests\Integration;
 use ChitChat\Account\PersonalDataExportService;
 use ChitChat\Account\PrivacyNotificationService;
 use ChitChat\Auth\AuthService;
+use ChitChat\DirectMessage\DirectMessageMutationService;
 use ChitChat\DirectMessage\DirectMessageService;
 use ChitChat\Http\ApiException;
 use ChitChat\Room\MessageService;
+use ChitChat\Room\RoomMessageMutationService;
 use ChitChat\Room\RoomService;
 
 final class ReplyAndMentionTest extends DatabaseTestCase
@@ -85,6 +87,31 @@ final class ReplyAndMentionTest extends DatabaseTestCase
         self::assertSame(
             [['user_id' => $admin->id, 'username' => 'Admin', 'broadcast' => false]],
             $sent['mentions'],
+        );
+    }
+
+    public function testRoomAndDirectMessageMutationMetadataIncludeMentions(): void
+    {
+        $auth = new AuthService($this->pdo, $this->config);
+        $admin = $auth->register('Admin', 'a very secure password', '127.0.0.1');
+        $member = $auth->register('Member', 'another secure password', '127.0.0.2');
+
+        $rooms = new RoomService($this->pdo);
+        $room = $rooms->create($admin, 'general', 'General', '', 'public', 0, 0, '127.0.0.1');
+        $rooms->join($member, $room->id, '127.0.0.2');
+
+        $roomMessage = (new MessageService($this->pdo))->send($member, $room->id, '@Admin room mutation metadata check');
+        $roomMetadata = (new RoomMessageMutationService($this->pdo))->metadata($member, $room->id, [$roomMessage['id']]);
+        self::assertSame(
+            [['user_id' => $admin->id, 'username' => 'Admin', 'broadcast' => false]],
+            $roomMetadata[0]['mentions'],
+        );
+
+        $directMessage = (new DirectMessageService($this->pdo))->send($member, $admin->id, '@Admin direct mutation metadata check');
+        $directMetadata = (new DirectMessageMutationService($this->pdo))->metadata($member, [$directMessage['id']]);
+        self::assertSame(
+            [['user_id' => $admin->id, 'username' => 'Admin']],
+            $directMetadata[0]['mentions'],
         );
     }
 
