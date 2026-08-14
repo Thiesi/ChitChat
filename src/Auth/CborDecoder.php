@@ -7,6 +7,8 @@ use RuntimeException;
 
 final class CborDecoder
 {
+    private const MAX_DEPTH = 32;
+
     public static function decode(string $data): mixed
     {
         $offset = 0;
@@ -18,8 +20,11 @@ final class CborDecoder
         return $value;
     }
 
-    public static function decodeAt(string $data, int &$offset): mixed
+    public static function decodeAt(string $data, int &$offset, int $depth = 0): mixed
     {
+        if ($depth > self::MAX_DEPTH) {
+            throw new RuntimeException('CBOR value nesting exceeds the supported depth.');
+        }
         $initial = self::readByte($data, $offset);
         $major = $initial >> 5;
         $additional = $initial & 0x1f;
@@ -39,31 +44,31 @@ final class CborDecoder
             1 => -1 - $length,
             2 => self::readBytes($data, $offset, $length),
             3 => self::decodeUtf8(self::readBytes($data, $offset, $length)),
-            4 => self::decodeArray($data, $offset, $length),
-            5 => self::decodeMap($data, $offset, $length),
-            6 => self::decodeAt($data, $offset),
+            4 => self::decodeArray($data, $offset, $length, $depth + 1),
+            5 => self::decodeMap($data, $offset, $length, $depth + 1),
+            6 => self::decodeAt($data, $offset, $depth + 1),
             default => throw new RuntimeException('Unsupported CBOR major type.'),
         };
     }
 
     /** @return list<mixed> */
-    private static function decodeArray(string $data, int &$offset, int $length): array
+    private static function decodeArray(string $data, int &$offset, int $length, int $depth): array
     {
         $result = [];
         for ($index = 0; $index < $length; $index++) {
-            $result[] = self::decodeAt($data, $offset);
+            $result[] = self::decodeAt($data, $offset, $depth);
         }
 
         return $result;
     }
 
     /** @return array<int|string, mixed> */
-    private static function decodeMap(string $data, int &$offset, int $length): array
+    private static function decodeMap(string $data, int &$offset, int $length, int $depth): array
     {
         $result = [];
         $seen = [];
         for ($index = 0; $index < $length; $index++) {
-            $key = self::decodeAt($data, $offset);
+            $key = self::decodeAt($data, $offset, $depth);
             if (!is_int($key) && !is_string($key)) {
                 throw new RuntimeException('CBOR map keys must be integers or strings.');
             }
@@ -72,7 +77,7 @@ final class CborDecoder
                 throw new RuntimeException('CBOR map contains a duplicate key.');
             }
             $seen[$typed] = true;
-            $result[$key] = self::decodeAt($data, $offset);
+            $result[$key] = self::decodeAt($data, $offset, $depth);
         }
 
         return $result;
