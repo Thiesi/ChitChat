@@ -26,7 +26,6 @@ export function attachMentionAutocomplete(textarea, fetchSuggestions) {
 
   textarea.setAttribute('aria-autocomplete', 'list');
   textarea.setAttribute('aria-controls', listboxId);
-  textarea.setAttribute('aria-expanded', 'false');
 
   let match = null;
   let suggestions = [];
@@ -83,7 +82,6 @@ export function attachMentionAutocomplete(textarea, fetchSuggestions) {
     });
     position();
     list.classList.remove('hidden');
-    textarea.setAttribute('aria-expanded', 'true');
     updateActiveDescendant();
   }
 
@@ -112,7 +110,6 @@ export function attachMentionAutocomplete(textarea, fetchSuggestions) {
     activeIndex = -1;
     list.classList.add('hidden');
     list.replaceChildren();
-    textarea.setAttribute('aria-expanded', 'false');
     textarea.removeAttribute('aria-activedescendant');
   }
 
