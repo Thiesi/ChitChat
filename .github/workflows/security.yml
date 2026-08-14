@@ -54,7 +54,7 @@ jobs:
 
       - name: Upload dependency audit diagnostics
         if: ${{ always() && (steps.composer-audit.outcome == 'failure' || steps.npm-audit.outcome == 'failure') }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: dependency-audit-diagnostics
           path: |
