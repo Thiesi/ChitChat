@@ -1,6 +1,6 @@
 # ADR 0004: Replies and mentions data model and authorization boundary
 
-- Status: Proposed
+- Status: Proposed (product decisions resolved; implementation not started)
 - Date: 2026-08-14
 
 ## Context
@@ -36,11 +36,28 @@ Add two tables — `room_message_mentions` and `direct_message_mentions` — eac
 
 Only currently-resolvable, currently-authorized accounts become mentions. A later room-membership change does not retroactively add or remove a mention from a message already sent — mentions are a snapshot of authorization at send time, consistent with how revisions and moderation evidence are snapshots rather than live-recomputed views.
 
+No per-message cap on individual mention count is introduced (see Decisions below); fan-out is bounded by the existing per-account send rate limits rather than a count check at write time.
+
+#### `@room` and `@here` broadcast mentions
+
+Room messages (not direct messages — a DM already has exactly one implicit recipient, so a broadcast token there is meaningless and is rendered as plain text) additionally recognize the literal tokens `@room` and `@here` as broadcast mentions, resolved at send time to every account currently a member of that room:
+
+- the sender is excluded from their own broadcast (no self-notification);
+- each resolved member gets an ordinary `room_message_mentions` row and `account_notifications` row, exactly as an individual `@username` mention would — a broadcast is not a new data shape, it is `@username` resolution applied to the room's current membership instead of a single parsed name;
+- `context_json` carries `"broadcast": true` so the notification center and any future digest can read "mentioned everyone in #room" instead of "mentioned you" without a schema change;
+- because broadcast size is bounded by room membership rather than by a per-message token count, it is not covered by any per-mention cap (there is none) or by the ordinary per-message send rate limit alone — see the new `RATE_LIMIT_ROOM_BROADCAST_MENTION` policy below, which bounds how often broadcast mentions themselves can be used, independent of how often the account sends ordinary messages.
+
 ### Notifications
 
-Extend `account_notifications.kind` with `'mentioned'` and a `context_json` shaped like the existing `revision_review` kind (`message_kind`, `message_id`, `room_id` where applicable). Unlike the `0017` notifications, mention notifications are not derived from `audit_log` via a trigger, because ordinary message sends are not audited and should not become audited merely to support this feature — audit volume is reserved for administrative and security-sensitive actions. Instead, the sending service inserts the notification row directly in the same transaction as the message and mention rows, preserving the existing invariant that a notification can't commit without the action that caused it.
+Extend `account_notifications.kind` with `'mentioned'` and a `context_json` shaped like the existing `revision_review` kind (`message_kind`, `message_id`, `room_id` where applicable, `broadcast` for `@room`/`@here`). Unlike the `0017` notifications, mention notifications are not derived from `audit_log` via a trigger, because ordinary message sends are not audited and should not become audited merely to support this feature — audit volume is reserved for administrative and security-sensitive actions. Instead, the sending service inserts the notification row directly in the same transaction as the message and mention rows, preserving the existing invariant that a notification can't commit without the action that caused it.
 
 Per the roadmap, realtime delivery is not a correctness requirement: no new `realtime_events.event_type` is required for `v1` of this feature. The existing notification-center pagination and unread badge (already polled/refreshed on reconnect) are sufficient; a `mention_notified` SSE event can be added later as a pure UX improvement without changing the notification's durable source of truth.
+
+### Rate limiting for broadcast mentions
+
+Add a new named policy, `RATE_LIMIT_ROOM_BROADCAST_MENTION`, following the existing `RateLimitPolicySet` pattern used for every other sensitive path (`RATE_LIMIT_MESSAGE_REPORT`, `RATE_LIMIT_MODERATION_ACTION`, etc.). It is checked when a message contains `@room` or `@here`, independent of — and in addition to — the ordinary `RATE_LIMIT_ROOM_SEND` check every message already passes through. This is the mechanism the mention-cap decision below relies on: instead of counting mentions per message, the *use of broadcast mentions* is itself throttled per account, since broadcast is the only case where one message's fan-out isn't bounded by a token count.
+
+Proposed default, consistent with the other low-frequency/high-impact policies already in `.env.example` (e.g. `RATE_LIMIT_MESSAGE_REPORT_MAX_ATTEMPTS=10` per hour): `RATE_LIMIT_ROOM_BROADCAST_MENTION_MAX_ATTEMPTS=5`, `RATE_LIMIT_ROOM_BROADCAST_MENTION_WINDOW_SECONDS=3600`. Aggregate allowed/rejected counts surface in Administrator system status and Prometheus exactly like every other policy — no account, room, or message identifiers.
 
 ### Interaction with edit, deletion, retention, export and moderation
 
@@ -56,10 +73,12 @@ Per the roadmap, realtime delivery is not a correctness requirement: no new `rea
 - Mention authorization is enforced once, at send time, by application services that already own the relevant authorization logic, rather than duplicated into a database trigger or re-checked at render time.
 - No new realtime event type or external service is required.
 
-## Open product decisions
+## Decisions
 
-These require an explicit call before implementation, not just an engineering default:
+The three questions this ADR originally left open have been resolved:
 
-1. Should there be a per-message cap on mention count (to bound notification fan-out and prevent a single message from paging an entire room)? A cap protects against abuse but needs a concrete number.
-2. Should `@room` or `@here`-style broadcast mentions exist in `v1`, or only individual `@username`? The roadmap only specifies `@username`; broadcast mentions substantially change the fan-out and notification-volume story and are proposed as out of scope for the first version.
-3. Should reply previews be shown for direct messages between two accounts where one has since blocked the other? The reply target resolves through the same conversation the reply lives in, so a block that predates the reply doesn't apply retroactively, but a block created afterward raises a question about whether the blocking party should still see the other's reply previews in already-existing history — proposed default is yes (blocks affect new messages, not rendering of retained history), consistent with how DM blocking already behaves for ordinary history today.
+1. **No per-message mention-count cap.** Fan-out for individual `@username` mentions is bounded implicitly (a message body has a fixed maximum length, so the number of distinct tokens it can contain is already bounded), and is otherwise left to the existing per-account send rate limits rather than an additional count check at write time. Broadcast mentions are the one case where fan-out isn't bounded by token count, so they get their own dedicated rate-limit policy instead — see `RATE_LIMIT_ROOM_BROADCAST_MENTION` above. This keeps the mitigation consistent (rate limiting, not per-message counting) rather than mixing two different bounding mechanisms.
+2. **`@room` and `@here` broadcast mentions are in scope for `v1`,** alongside individual `@username` mentions, per the design above. This is a wider scope than the roadmap bullet's literal wording ("Add `@username` mentions only where...") and than this ADR originally proposed; `docs/roadmap.md` has been updated to say so explicitly.
+3. **Reply previews render normally for retained history regardless of a later block.** Blocking affects new messages only, consistent with how DM blocking already behaves for existing history today. No special-case check against current block state is added to preview resolution.
+
+No open product decisions remain; the next step is implementation, starting with migration `0020_replies_mentions.sql`.
