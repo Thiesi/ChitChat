@@ -10,8 +10,9 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 - Added durable reply references on room and direct messages, resolved through the same authorization-scoped read path as ordinary history, with a distinct placeholder when the referenced message is unavailable, deleted or expired.
 - Added `@username` mentions, plus room-scoped `@room`/`@here` broadcast mentions, resolved and authorized once at send time. Unauthorized or unresolvable tokens render as plain text without notifying anyone.
-- Added durable `mentioned` participant notifications, and a dedicated `RATE_LIMIT_ROOM_BROADCAST_MENTION` policy independent of ordinary room-send throttling.
+- Added durable `mentioned` participant notifications, with a human-readable timeline entry and a deep link to the exact message, and a dedicated `RATE_LIMIT_ROOM_BROADCAST_MENTION` policy independent of ordinary room-send throttling.
 - Added the account's own sent and received mentions to personal-data export, excluding other participants' message bodies.
+- Added reply and `@mention` composer support to the room and direct-message browser clients: a reply banner with cancel, a quoted preview of the replied-to message with click-to-scroll, and highlighting limited to mentions the server actually resolved and authorized.
 
 ### Security and privacy
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace ChitChat\Tests\Integration;
 
 use ChitChat\Account\PersonalDataExportService;
+use ChitChat\Account\PrivacyNotificationService;
 use ChitChat\Auth\AuthService;
 use ChitChat\DirectMessage\DirectMessageService;
 use ChitChat\Http\ApiException;
@@ -40,6 +41,15 @@ final class ReplyAndMentionTest extends DatabaseTestCase
         )->fetch();
         self::assertSame($member->id, (int) $row['mentioned_user_id']);
         self::assertFalse((bool) $row['broadcast']);
+
+        self::assertSame(
+            [['user_id' => $member->id, 'username' => 'Member', 'broadcast' => false]],
+            $sent['mentions'],
+        );
+        self::assertSame(
+            $sent['mentions'],
+            (new MessageService($this->pdo))->storedMessage($sent['id'])['mentions'],
+        );
 
         $notification = $this->pdo->prepare(
             "SELECT context_json FROM account_notifications WHERE user_id = :id AND kind = 'mentioned'",
@@ -97,11 +107,15 @@ final class ReplyAndMentionTest extends DatabaseTestCase
         $outsider = $auth->register('Outsider', 'yet another secure password', '127.0.0.3');
 
         $direct = new DirectMessageService($this->pdo);
-        $direct->send($sender, $recipient->id, 'Hi @Recipient, and hi @Outsider and @room too');
+        $sent = $direct->send($sender, $recipient->id, 'Hi @Recipient, and hi @Outsider and @room too');
 
         self::assertSame(
             1,
             (int) $this->pdo->query('SELECT COUNT(*) FROM direct_message_mentions')->fetchColumn(),
+        );
+        self::assertSame(
+            [['user_id' => $recipient->id, 'username' => 'Recipient']],
+            $sent['mentions'],
         );
         $mentionedUserId = $this->pdo->query(
             'SELECT mentioned_user_id FROM direct_message_mentions',
@@ -193,5 +207,39 @@ final class ReplyAndMentionTest extends DatabaseTestCase
         $adminExport = (new PersonalDataExportService($this->pdo, $this->config))->export($admin, '127.0.0.1');
         self::assertCount(1, $adminExport['mentions']['sent']);
         self::assertSame('Member', $adminExport['mentions']['sent'][0]['mentioned_user']['username']);
+    }
+
+    public function testMentionNotificationRendersTextAndDeepLinkForRoomAndDirectMessages(): void
+    {
+        $auth = new AuthService($this->pdo, $this->config);
+        $admin = $auth->register('Admin', 'a very secure password', '127.0.0.1');
+        $member = $auth->register('Member', 'another secure password', '127.0.0.2');
+
+        $rooms = new RoomService($this->pdo);
+        $room = $rooms->create($admin, 'general', 'General', '', 'public', 0, 0, '127.0.0.1');
+        $rooms->join($member, $room->id, '127.0.0.2');
+        $roomMessage = (new MessageService($this->pdo))->send($admin, $room->id, 'Hello @Member');
+
+        $notifications = new PrivacyNotificationService($this->pdo);
+        $timeline = $notifications->timeline($member);
+        self::assertCount(1, $timeline['notifications']);
+        $roomNotification = $timeline['notifications'][0];
+        self::assertSame('mentioned', $roomNotification['kind']);
+        self::assertSame('You were mentioned', $roomNotification['title']);
+        self::assertSame('Admin mentioned you in “General”.', $roomNotification['message']);
+        self::assertSame(
+            sprintf('/?room_id=%d&message_id=%d', $room->id, $roomMessage['id']),
+            $roomNotification['link'],
+        );
+
+        $direct = new DirectMessageService($this->pdo);
+        $directMessage = $direct->send($admin, $member->id, 'Hi @Member');
+        $updatedTimeline = $notifications->timeline($member);
+        $directNotification = $updatedTimeline['notifications'][0];
+        self::assertSame('Admin mentioned you in a direct message.', $directNotification['message']);
+        self::assertSame(
+            sprintf('/messages.php?user_id=%d&peer_name=Admin&message_id=%d', $admin->id, $directMessage['id']),
+            $directNotification['link'],
+        );
     }
 }

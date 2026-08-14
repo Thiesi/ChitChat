@@ -188,6 +188,18 @@ SELECT dm.id,
        dm.body,
        dm.recipient_read_at,
        dm.created_at,
+       (
+           SELECT json_agg(
+               json_build_object(
+                   'user_id', dmm.mentioned_user_id,
+                   'username', mu.username
+               )
+               ORDER BY dmm.id
+           )
+           FROM direct_message_mentions dmm
+           JOIN users mu ON mu.id = dmm.mentioned_user_id
+           WHERE dmm.message_id = dm.id
+       ) AS mentions_json,
        dm.reply_to_message_kind,
        dm.reply_to_message_id,
        rt.id AS reply_target_id,
@@ -295,7 +307,7 @@ SQL);
             $messageId = (int) $messageIdValue;
 
             $mentions = DirectMessageMentionResolver::resolve($recipientUserId, $recipient->username, $body);
-            $this->mentionNotifier->recordDirectMessageMentions($messageId, $mentions);
+            $this->mentionNotifier->recordDirectMessageMentions($messageId, $actor->id, $actor->username, $mentions);
 
             $senderMessage = $this->messageById($messageId, $actor->id);
             $recipientMessage = $this->messageById($messageId, $recipientUserId);
@@ -383,6 +395,18 @@ SELECT dm.id,
        dm.body,
        dm.recipient_read_at,
        dm.created_at,
+       (
+           SELECT json_agg(
+               json_build_object(
+                   'user_id', dmm.mentioned_user_id,
+                   'username', mu.username
+               )
+               ORDER BY dmm.id
+           )
+           FROM direct_message_mentions dmm
+           JOIN users mu ON mu.id = dmm.mentioned_user_id
+           WHERE dmm.message_id = dm.id
+       ) AS mentions_json,
        dm.reply_to_message_kind,
        dm.reply_to_message_id,
        rt.id AS reply_target_id,
@@ -446,7 +470,8 @@ SQL);
      *   read_at:?string,
      *   created_at:string,
      *   outgoing:bool,
-     *   reply_to:?array{kind:string, message_id:int, available:bool, message:?array<string, mixed>}
+     *   reply_to:?array{kind:string, message_id:int, available:bool, message:?array<string, mixed>},
+     *   mentions:list<array{user_id:int, username:string}>
      * }
      */
     private function hydrate(array $row, int $viewerUserId): array
@@ -466,7 +491,38 @@ SQL);
             'created_at' => (string) $row['created_at'],
             'outgoing' => (int) $row['sender_user_id'] === $viewerUserId,
             'reply_to' => $this->hydrateReplyTo($row),
+            'mentions' => $this->hydrateMentions($row),
         ];
+    }
+
+    /**
+     * @param array<string, mixed> $row
+     * @return list<array{user_id:int, username:string}>
+     */
+    private function hydrateMentions(array $row): array
+    {
+        $encoded = $row['mentions_json'] ?? null;
+        if (!is_string($encoded) || $encoded === '') {
+            return [];
+        }
+
+        $decoded = json_decode($encoded, true, 8, JSON_THROW_ON_ERROR);
+        if (!is_array($decoded)) {
+            return [];
+        }
+
+        $mentions = [];
+        foreach ($decoded as $entry) {
+            if (!is_array($entry)) {
+                continue;
+            }
+            $mentions[] = [
+                'user_id' => (int) $entry['user_id'],
+                'username' => (string) $entry['username'],
+            ];
+        }
+
+        return $mentions;
     }
 
     /**

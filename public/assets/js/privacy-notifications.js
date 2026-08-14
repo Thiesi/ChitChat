@@ -134,15 +134,26 @@ function renderNotification(notification) {
     }
   }
 
-  if (!notification.read && Number.isInteger(notification.id)) {
+  const hasUnreadAction = !notification.read && Number.isInteger(notification.id);
+  const hasLink = typeof notification.link === 'string' && notification.link !== '';
+  if (hasUnreadAction || hasLink) {
     const actions = document.createElement('div');
     actions.className = 'privacy-notification-actions';
-    const button = document.createElement('button');
-    button.className = 'secondary-button';
-    button.type = 'button';
-    button.textContent = 'Mark as read';
-    button.addEventListener('click', () => markOneRead(notification.id, item, button));
-    actions.append(button);
+    if (hasLink) {
+      const link = document.createElement('a');
+      link.className = 'secondary-button';
+      link.href = notification.link;
+      link.textContent = 'View message';
+      actions.append(link);
+    }
+    if (hasUnreadAction) {
+      const button = document.createElement('button');
+      button.className = 'secondary-button';
+      button.type = 'button';
+      button.textContent = 'Mark as read';
+      button.addEventListener('click', () => markOneRead(notification.id, item, button));
+      actions.append(button);
+    }
     item.append(actions);
   }
 

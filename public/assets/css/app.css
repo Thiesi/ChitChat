@@ -343,6 +343,113 @@ button:focus-visible {
   font-style: italic;
 }
 
+.message-reply-button {
+  border: 0;
+  background: transparent;
+  color: var(--muted-text, #9ca3af);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.78rem;
+  padding: 0.15rem 0.3rem;
+  text-decoration: underline;
+  text-underline-offset: 0.15rem;
+}
+
+.message-reply-button:hover,
+.message-reply-button:focus-visible {
+  color: inherit;
+}
+
+.reply-preview {
+  display: flex;
+  width: 100%;
+  gap: 0.4rem;
+  align-items: baseline;
+  max-width: 52rem;
+  margin: 0 0 0.15rem;
+  padding: 0.3rem 0.6rem;
+  border: 0;
+  border-left: 3px solid var(--border);
+  border-radius: 0.3rem;
+  background: color-mix(in srgb, var(--surface) 60%, transparent);
+  color: inherit;
+  font: inherit;
+  font-size: 0.85rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.reply-preview:hover {
+  border-left-color: var(--accent-strong);
+}
+
+.reply-preview-author {
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.reply-preview-excerpt {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reply-preview-unavailable {
+  color: var(--muted);
+  font-style: italic;
+  cursor: default;
+}
+
+.mention {
+  border-radius: 0.25rem;
+  padding: 0 0.2rem;
+  background: color-mix(in srgb, var(--accent-strong) 18%, transparent);
+  color: var(--accent-strong);
+  font-weight: 600;
+}
+
+.mention-broadcast {
+  background: color-mix(in srgb, var(--warning) 22%, transparent);
+  color: var(--warning);
+}
+
+.reply-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin-bottom: 0.6rem;
+  padding: 0.4rem 0.7rem;
+  border-radius: 0.4rem;
+  background: color-mix(in srgb, var(--accent-strong) 12%, var(--surface));
+  font-size: 0.85rem;
+}
+
+.reply-banner span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reply-banner-cancel {
+  flex-shrink: 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.78rem;
+  text-decoration: underline;
+  text-underline-offset: 0.15rem;
+}
+
+.reply-banner-cancel:hover,
+.reply-banner-cancel:focus-visible {
+  color: inherit;
+}
+
 .composer-wrap {
   padding: 1rem 1.25rem;
   border-top: 1px solid var(--border);

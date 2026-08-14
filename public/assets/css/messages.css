@@ -232,6 +232,15 @@
   font-size: 0.72rem;
 }
 
+.dm-message-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.dm-message.deleted .dm-message-actions {
+  display: none;
+}
+
 .dm-composer {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
