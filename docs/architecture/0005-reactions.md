@@ -1,6 +1,6 @@
 # ADR 0005: Reactions data model and authorization boundary
 
-- Status: Proposed
+- Status: Proposed (product decisions resolved; implementation not started)
 - Date: 2026-08-14
 
 ## Context
@@ -28,7 +28,7 @@ CREATE TABLE room_message_reactions (
 
 ### Vocabulary
 
-`VARCHAR(8) CHECK (emoji IN (...))` mirrors how `moderation_reports.category` already enumerates a fixed set inline in the migration rather than a separate lookup table — consistent with this codebase's existing preference for small controlled vocabularies. Six proposed emoji (👍 ❤️ 😂 😮 😢 🎉) match the common baseline other chat products settled on; changing the set later is a small forward-only migration (`DROP CONSTRAINT` / `ADD CONSTRAINT`, the same pattern `0006`, `0007`, `0012` and `0020` already used to extend other enumerated columns), not a schema redesign. **This exact list is the one part of this proposal I'd want explicit sign-off on rather than defaulting silently** — see Decisions below.
+`VARCHAR(8) CHECK (emoji IN (...))` mirrors how `moderation_reports.category` already enumerates a fixed set inline in the migration rather than a separate lookup table — consistent with this codebase's existing preference for small controlled vocabularies. The vocabulary is confirmed as 👍 ❤️ 😂 😮 😢 🎉 (see Decisions below). Changing the set later is a small forward-only migration (`DROP CONSTRAINT` / `ADD CONSTRAINT`, the same pattern `0006`, `0007`, `0012` and `0020` already used to extend other enumerated columns), not a schema redesign.
 
 ### Authorization boundary
 
@@ -36,9 +36,11 @@ Reacting requires exactly the same authorization as reading the message: `RoomAu
 
 Adding a reaction to an already-deleted message is rejected with the same `409 message_already_deleted` `RoomMessageMutationService::requireAuthorMutation` and the moderation-report flow already use for the same situation — reacting to a message whose body has been replaced by a deleted-state placeholder has no sensible meaning. Existing reactions on a message that gets deleted afterward are left alone (not retracted); the client simply stops rendering the reaction bar once a message is marked deleted, matching how it already stops rendering edit/delete/report actions on deleted messages. This is a display decision, not a data one — the rows persist until the message itself is hard-deleted by retention, at which point they cascade away automatically with no separate cleanup job, exactly like mentions.
 
-### Aggregate exposure, not a reactor roster
+### Reactor identity is exposed, scoped the same as authorship already is
 
-A message's `reactions` field is `list<array{emoji:string, count:int, reacted_by_me:bool}>` — aggregate counts per emoji plus whether the *viewing* participant reacted (needed for the add/remove toggle UI), never the list of every other participant who reacted. This directly implements the roadmap's stated concern: in a room, message *authorship* is already visible to every viewer (usernames appear on every message), but a member who has never posted has no other way to become visible to other viewers. Reacting would be the first and only such surface if it exposed a reactor list, so it doesn't. **This is the other point I'd want to confirm rather than assume** — see Decisions below; some products deliberately show "who reacted" as an expected, low-stakes social feature, and reasonable teams could land on either default.
+A message's `reactions` field is `list<array{emoji:string, users:list<array{id:int, username:string}>, reacted_by_me:bool}>` (`count` is `users.length`, not tracked separately). Confirmed per Decisions below: reactor identity is shown, the same way message authorship already is — a room member who has never posted becomes visible to other viewers the first time they react, which is an accepted tradeoff here rather than one this ADR forecloses on its own.
+
+This introduces no new query-authorization surface: the reactor list resolves through the same authorization-scoped read as the message itself (if a participant can already see the message and its author's username, they can see who reacted to it), and a reactor's username is a snapshot resolved the same way an author's is — shown regardless of whether that account is still a room member, and rendered however a tombstoned account's username already renders elsewhere, with no special-casing needed.
 
 ### Realtime delivery
 
@@ -60,9 +62,13 @@ Reuses the existing `room_message_mutation` / `direct_message_mutation` policies
 
 - Two new small tables with real foreign keys and a `UNIQUE` constraint keep idempotency and retention correctness enforced by the database, not application logic that could drift from it.
 - No new authorization concept, rate-limit policy, or transport is introduced; reactions compose entirely from mechanisms ADR 0004 and earlier features already established.
-- The aggregate-only exposure decision is a real product/UX tradeoff, not purely an engineering default — flagged explicitly below rather than assumed.
+- Reactor identity is visible the same way authorship already is; this is an accepted, explicitly confirmed tradeoff for a small self-hosted deployment, not a silent default.
 
-## Decisions needed before implementation
+## Decisions
 
-1. **Emoji vocabulary.** Proposed default: 👍 ❤️ 😂 😮 😢 🎉. Confirm or replace before the migration ships, since it's the one part of this schema that's opinionated rather than derived from existing precedent.
-2. **Aggregate counts only, or also expose who reacted?** Proposed default: aggregate counts plus `reacted_by_me` only, never a per-reaction reactor list, specifically to avoid making reactions the first way a silent room member becomes visible to other viewers. This is more conservative than some comparable products; confirm this is the intended tradeoff for a small self-hosted deployment before implementation.
+The two questions this ADR originally left open have been resolved:
+
+1. **Emoji vocabulary confirmed: 👍 ❤️ 😂 😮 😢 🎉.**
+2. **Reactor identity is shown, not aggregate-only.** `reactions` carries the list of participants (`id`, `username`) per emoji, matching how message authorship is already visible to every viewer. A never-posting room member becomes visible to others the first time they react — an accepted tradeoff, not a gap.
+
+No open product decisions remain; the next step is implementation, starting with migration `0021_reactions.sql`.
