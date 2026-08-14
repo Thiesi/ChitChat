@@ -450,6 +450,30 @@ button:focus-visible {
   color: inherit;
 }
 
+.mention-autocomplete {
+  position: fixed;
+  z-index: 20;
+  max-height: 14rem;
+  margin: 0 0 0.3rem;
+  padding: 0.3rem;
+  overflow-y: auto;
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+  background: var(--surface-2);
+  box-shadow: var(--shadow);
+}
+
+.mention-autocomplete-option {
+  padding: 0.4rem 0.6rem;
+  border-radius: 0.4rem;
+  cursor: pointer;
+}
+
+.mention-autocomplete-option.active {
+  background: #3f4b64;
+}
+
 .composer-wrap {
   padding: 1rem 1.25rem;
   border-top: 1px solid var(--border);

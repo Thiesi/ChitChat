@@ -161,6 +161,46 @@ SQL);
         return array_values(array_map(static fn (mixed $id): int => (int) $id, $statement->fetchAll(PDO::FETCH_COLUMN)));
     }
 
+    /**
+     * Current members whose username starts with the given prefix, for
+     * @mention autocomplete. Not an authorization surface on its own —
+     * whether a suggested account can actually be mentioned is still
+     * re-checked by RoomMentionResolver at send time.
+     *
+     * @return list<array{id:int, username:string}>
+     */
+    public function searchMembers(int $roomId, string $prefix, int $excludeUserId, int $limit): array
+    {
+        $statement = $this->pdo->prepare(<<<'SQL'
+SELECT u.id, u.username
+FROM room_members rm
+JOIN users u ON u.id = rm.user_id
+WHERE rm.room_id = :room_id
+  AND u.account_state = 'active'
+  AND u.id <> :excluded_user_id
+  AND lower(u.username) LIKE :pattern
+ORDER BY lower(u.username), u.id
+LIMIT :limit
+SQL);
+        if ($statement === false) {
+            throw new RuntimeException('Unable to prepare room member search.');
+        }
+        $statement->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+        $statement->bindValue(':excluded_user_id', $excludeUserId, PDO::PARAM_INT);
+        $statement->bindValue(':pattern', strtolower($prefix) . '%');
+        $statement->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $statement->execute();
+
+        $result = [];
+        foreach ($statement->fetchAll() as $row) {
+            if (is_array($row)) {
+                $result[] = ['id' => (int) $row['id'], 'username' => (string) $row['username']];
+            }
+        }
+
+        return $result;
+    }
+
     /** @param array<string, mixed> $row */
     private function hydrate(array $row): Room
     {

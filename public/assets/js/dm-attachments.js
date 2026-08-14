@@ -16,6 +16,7 @@ window.addEventListener('DOMContentLoaded', () => {
     'dm-message-list',
     'dm-peer-name',
     'toast-region',
+    'dm-reply-banner',
   ]) {
     const element = document.getElementById(id);
     if (!element) throw new Error(`Missing direct-message attachment interface element: ${id}`);
@@ -59,10 +60,13 @@ async function submitAttachment(event) {
     formData.append('recipient_user_id', String(peer.id));
     formData.append('caption', elements['dm-message-input'].value.trim());
     formData.append('file', file, file.name);
+    const replyToId = elements['dm-reply-banner'].dataset.replyToId;
+    if (replyToId) formData.append('reply_to_message_id', replyToId);
 
     await apiUpload('/api/v1/direct-messages/attachments/upload.php', formData);
     elements['dm-message-input'].value = '';
     clearSelectedFile();
+    clearReplyBanner();
     showToast('Attachment sent.');
     window.setTimeout(queueEnhancement, 250);
   } catch (error) {
@@ -102,6 +106,11 @@ function clearSelectedFile() {
   elements['dm-attachment-input'].value = '';
   elements['dm-attachment-name'].textContent = '';
   elements['dm-attachment-clear'].classList.add('hidden');
+}
+
+function clearReplyBanner() {
+  elements['dm-reply-banner'].classList.add('hidden');
+  delete elements['dm-reply-banner'].dataset.replyToId;
 }
 
 function queueEnhancement() {

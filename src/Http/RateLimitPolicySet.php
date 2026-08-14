@@ -165,6 +165,7 @@ final readonly class RateLimitPolicySet
             'account_restore' => self::definition(5, 3_600, 1, 100, 60, 86_400),
             'room_send' => self::definition(30, 60, 1, 1_000, 1, 3_600),
             'room_broadcast_mention' => self::definition(5, 3_600, 1, 100, 60, 86_400),
+            'room_mentionable_user_search' => self::definition(120, 60, 1, 5_000, 1, 3_600),
             'room_ping' => self::definition(30, 60, 1, 1_000, 1, 3_600),
             'room_message_mutation' => self::definition(30, 60, 1, 1_000, 1, 3_600),
             'direct_message_send' => self::definition(30, 60, 1, 1_000, 1, 3_600),

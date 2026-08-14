@@ -84,6 +84,45 @@ final class AttachmentServiceTest extends DatabaseTestCase
         self::assertSame($message['attachment']['id'], $metadata[0]['id']);
     }
 
+    public function testUploadSupportsReplyTargetAndResolvesMentionsInCaption(): void
+    {
+        [$root, $member, $room] = $this->roomWithMember('public');
+        $storage = $this->temporaryDirectory();
+        $config = $this->configWithStorage($storage);
+
+        $original = (new MessageService($this->pdo))->send($root, $room->id, 'Original message for an attachment reply');
+
+        $message = (new AttachmentService($this->pdo, $config))->upload(
+            actor: $member,
+            roomId: $room->id,
+            file: IncomingFile::forTesting('evidence.txt', $this->temporaryFile("evidence\n")),
+            captionInput: '@Root see attached',
+            ipAddress: '127.0.0.2',
+            replyToMessageId: $original['id'],
+        );
+
+        self::assertNotNull($message['reply_to']);
+        self::assertSame($original['id'], $message['reply_to']['message_id']);
+        self::assertTrue($message['reply_to']['available']);
+        self::assertSame(
+            [['user_id' => $root->id, 'username' => 'Root', 'broadcast' => false]],
+            $message['mentions'],
+        );
+
+        $rooms = new RoomService($this->pdo);
+        $otherRoom = $rooms->create($root, 'files-other', 'Other', '', 'public', 0, 0, '127.0.0.1');
+        $rooms->join($member, $otherRoom->id, '127.0.0.2');
+        $this->expectException(ApiException::class);
+        (new AttachmentService($this->pdo, $config))->upload(
+            actor: $member,
+            roomId: $otherRoom->id,
+            file: IncomingFile::forTesting('evidence2.txt', $this->temporaryFile("evidence\n")),
+            captionInput: '',
+            ipAddress: '127.0.0.2',
+            replyToMessageId: $original['id'],
+        );
+    }
+
     public function testPrivateAttachmentDownloadRequiresHistoryAuthorization(): void
     {
         $auth = new AuthService($this->pdo, $this->config);

@@ -42,7 +42,8 @@ final class MessageService
      *   attachment:?array{id:int, name:string, mime_type:string, size_bytes:int, sha256:string, previewable:bool},
      *   deleted:bool,
      *   created_at:string,
-     *   reply_to:?array{kind:string, message_id:int, available:bool, message:?array<string, mixed>}
+     *   reply_to:?array{kind:string, message_id:int, available:bool, message:?array<string, mixed>},
+     *   mentions:list<array{user_id:int, username:string, broadcast:bool}>
      * }>
      */
     public function history(
@@ -131,6 +132,38 @@ SQL;
     }
 
     /**
+     * Current room members whose username starts with $search, for
+     * @mention autocomplete while composing. An empty search returns the
+     * room's members up to $limit, letting a bare "@" suggest a starting
+     * list. This is a UX convenience only: RoomMentionResolver re-checks
+     * authorization independently when the message is actually sent, so a
+     * stale or manually-typed suggestion can never bypass it.
+     *
+     * @return list<array{id:int, username:string}>
+     */
+    public function searchMentionableUsers(
+        AuthenticatedUser $actor,
+        int $roomId,
+        string $search,
+        int $limit = 8,
+    ): array {
+        $room = $this->requireRoom($actor, $roomId);
+        RoomAuthorization::requireHistory($actor, $room);
+        $search = trim($search);
+        if (mb_strlen($search, 'UTF-8') > 32) {
+            throw new ApiException(400, 'validation_error', 'search must contain at most 32 characters.');
+        }
+        if ($search !== '' && preg_match('/\A[A-Za-z0-9_.-]+\z/D', $search) !== 1) {
+            throw new ApiException(400, 'validation_error', 'search contains unsupported characters.');
+        }
+        if ($limit < 1 || $limit > 25) {
+            throw new ApiException(400, 'validation_error', 'limit must be between 1 and 25.');
+        }
+
+        return $this->rooms->searchMembers($roomId, $search, $actor->id, $limit);
+    }
+
+    /**
      * @return array{
      *   id:int,
      *   room_id:int,
@@ -141,7 +174,8 @@ SQL;
      *   attachment:?array{id:int, name:string, mime_type:string, size_bytes:int, sha256:string, previewable:bool},
      *   deleted:bool,
      *   created_at:string,
-     *   reply_to:?array{kind:string, message_id:int, available:bool, message:?array<string, mixed>}
+     *   reply_to:?array{kind:string, message_id:int, available:bool, message:?array<string, mixed>},
+     *   mentions:list<array{user_id:int, username:string, broadcast:bool}>
      * }
      */
     public function send(
@@ -300,7 +334,8 @@ SQL);
      *   attachment:?array{id:int, name:string, mime_type:string, size_bytes:int, sha256:string, previewable:bool},
      *   deleted:bool,
      *   created_at:string,
-     *   reply_to:?array{kind:string, message_id:int, available:bool, message:?array<string, mixed>}
+     *   reply_to:?array{kind:string, message_id:int, available:bool, message:?array<string, mixed>},
+     *   mentions:list<array{user_id:int, username:string, broadcast:bool}>
      * }
      */
     public function storedMessage(int $messageId): array
@@ -324,7 +359,8 @@ SQL);
      *   attachment:?array{id:int, name:string, mime_type:string, size_bytes:int, sha256:string, previewable:bool},
      *   deleted:bool,
      *   created_at:string,
-     *   reply_to:?array{kind:string, message_id:int, available:bool, message:?array<string, mixed>}
+     *   reply_to:?array{kind:string, message_id:int, available:bool, message:?array<string, mixed>},
+     *   mentions:list<array{user_id:int, username:string, broadcast:bool}>
      * }
      */
     public function findStoredMessage(int $messageId): ?array

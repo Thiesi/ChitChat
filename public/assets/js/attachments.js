@@ -16,6 +16,7 @@ window.addEventListener('DOMContentLoaded', () => {
     'message-list',
     'room-list',
     'toast-region',
+    'reply-banner',
   ]) {
     const element = document.getElementById(id);
     if (!element) {
@@ -70,10 +71,13 @@ async function submitAttachment(event) {
     formData.append('room_id', String(roomId));
     formData.append('caption', elements['composer-input'].value.trim());
     formData.append('file', file, file.name);
+    const replyToId = elements['reply-banner'].dataset.replyToId;
+    if (replyToId) formData.append('reply_to_message_id', replyToId);
 
     await apiUpload('/api/v1/attachments/upload.php', formData);
     elements['composer-input'].value = '';
     clearSelectedFile();
+    clearReplyBanner();
     showToast('Attachment uploaded.');
     window.setTimeout(queueEnhancement, 250);
   } catch (error) {
@@ -96,6 +100,11 @@ function clearSelectedFile() {
   elements['attachment-input'].value = '';
   elements['attachment-name'].textContent = '';
   elements['attachment-clear'].classList.add('hidden');
+}
+
+function clearReplyBanner() {
+  elements['reply-banner'].classList.add('hidden');
+  delete elements['reply-banner'].dataset.replyToId;
 }
 
 function currentRoomId() {

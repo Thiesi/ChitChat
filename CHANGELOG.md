@@ -13,12 +13,15 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 - Added durable `mentioned` participant notifications, with a human-readable timeline entry and a deep link to the exact message, and a dedicated `RATE_LIMIT_ROOM_BROADCAST_MENTION` policy independent of ordinary room-send throttling.
 - Added the account's own sent and received mentions to personal-data export, excluding other participants' message bodies.
 - Added reply and `@mention` composer support to the room and direct-message browser clients: a reply banner with cancel, a quoted preview of the replied-to message with click-to-scroll, and highlighting limited to mentions the server actually resolved and authorized.
+- Added `@mention` autocomplete while composing: room suggestions come from current room membership (plus `@room`/`@here`), direct-message suggestions from the conversation's only possible recipient. A suggestion is a typing convenience only — the server independently re-authorizes every mention at send time regardless of what was suggested or typed.
+- Added reply-target and caption-mention support to room and direct-message attachment uploads, matching ordinary text messages.
 
 ### Security and privacy
 
-- Reply targets must be in the same room or the same direct-message conversation as the reply; a reply cannot point across rooms or DM threads.
+- Reply targets must be in the same room or the same direct-message conversation as the reply; a reply cannot point across rooms or DM threads. This applies equally to attachment uploads.
 - Mention authorization is re-checked against current room access and minimum-age eligibility for every candidate, individual or broadcast; a message body's mention count is otherwise unbounded and relies on existing message-length and send rate limits rather than a separate cap.
 - Mentions of another participant never disclose that participant's message body in the mentioned account's own personal-data export.
+- The mention-search endpoint behind autocomplete is scoped to a room's current membership and re-uses the same history-read authorization boundary as ordinary room access; it is a suggestion source, not an independent authorization surface.
 
 ### Compatibility
 

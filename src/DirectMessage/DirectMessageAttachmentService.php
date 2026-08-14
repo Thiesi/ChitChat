@@ -8,6 +8,8 @@ use ChitChat\Auth\AuthenticatedUser;
 use ChitChat\Auth\UserRepository;
 use ChitChat\Config;
 use ChitChat\Http\ApiException;
+use ChitChat\Mentions\DirectMessageMentionResolver;
+use ChitChat\Mentions\MentionNotifier;
 use ChitChat\Realtime\EventRepository;
 use ChitChat\Upload\AttachmentFileStore;
 use ChitChat\Upload\AttachmentPolicy;
@@ -23,6 +25,7 @@ final class DirectMessageAttachmentService
     private readonly EventRepository $events;
     private readonly AuditLogger $audit;
     private readonly AttachmentFileStore $files;
+    private readonly MentionNotifier $mentionNotifier;
 
     public function __construct(
         private readonly PDO $pdo,
@@ -33,6 +36,7 @@ final class DirectMessageAttachmentService
         $this->events = new EventRepository($pdo);
         $this->audit = new AuditLogger($pdo);
         $this->files = new AttachmentFileStore($config);
+        $this->mentionNotifier = new MentionNotifier($pdo);
     }
 
     /**
@@ -43,7 +47,9 @@ final class DirectMessageAttachmentService
      *   body:string,
      *   read_at:?string,
      *   created_at:string,
-     *   outgoing:bool
+     *   outgoing:bool,
+     *   reply_to:?array{kind:string, message_id:int, available:bool, message:?array<string, mixed>},
+     *   mentions:list<array{user_id:int, username:string}>
      * }
      */
     public function upload(
@@ -52,11 +58,15 @@ final class DirectMessageAttachmentService
         IncomingFile $file,
         string $captionInput,
         string $ipAddress,
+        ?int $replyToMessageId = null,
     ): array {
-        $this->requireOtherUser($actor, $recipientUserId);
+        $recipient = $this->requireOtherUser($actor, $recipientUserId);
         $caption = trim($captionInput);
         if (mb_strlen($caption, 'UTF-8') > 4000) {
             throw new ApiException(400, 'message_too_long', 'Attachment caption must not exceed 4000 characters.');
+        }
+        if ($replyToMessageId !== null) {
+            $this->requireReplyTargetInConversation($replyToMessageId, $actor->id, $recipientUserId);
         }
 
         $stored = $this->files->store($file);
@@ -68,8 +78,8 @@ final class DirectMessageAttachmentService
             $this->blocks->requireMessagingAvailable($actor, $recipientUserId);
 
             $messageStatement = $this->pdo->prepare(<<<'SQL'
-INSERT INTO direct_messages (sender_user_id, recipient_user_id, body)
-VALUES (:sender_user_id, :recipient_user_id, :body)
+INSERT INTO direct_messages (sender_user_id, recipient_user_id, body, reply_to_message_kind, reply_to_message_id)
+VALUES (:sender_user_id, :recipient_user_id, :body, :reply_to_message_kind, :reply_to_message_id)
 RETURNING id
 SQL);
             if ($messageStatement === false) {
@@ -79,12 +89,19 @@ SQL);
                 'sender_user_id' => $actor->id,
                 'recipient_user_id' => $recipientUserId,
                 'body' => $body,
+                'reply_to_message_kind' => $replyToMessageId === null ? null : 'direct',
+                'reply_to_message_id' => $replyToMessageId,
             ]);
             $messageIdValue = $messageStatement->fetchColumn();
             if ($messageIdValue === false) {
                 throw new RuntimeException('Direct-message attachment creation did not return an ID.');
             }
             $messageId = (int) $messageIdValue;
+
+            if ($caption !== '') {
+                $mentions = DirectMessageMentionResolver::resolve($recipientUserId, $recipient->username, $caption);
+                $this->mentionNotifier->recordDirectMessageMentions($messageId, $actor->id, $actor->username, $mentions);
+            }
 
             $attachmentStatement = $this->pdo->prepare(<<<'SQL'
 INSERT INTO direct_message_attachments (
@@ -280,7 +297,7 @@ SQL);
         ];
     }
 
-    private function requireOtherUser(AuthenticatedUser $actor, int $otherUserId): void
+    private function requireOtherUser(AuthenticatedUser $actor, int $otherUserId): AuthenticatedUser
     {
         if ($otherUserId < 1) {
             throw new ApiException(400, 'validation_error', 'recipient_user_id must be positive.');
@@ -288,8 +305,38 @@ SQL);
         if ($otherUserId === $actor->id) {
             throw new ApiException(400, 'direct_message_self_forbidden', 'You cannot send direct messages to yourself.');
         }
-        if ($this->users->findAuthenticatedById($otherUserId) === null) {
+        $other = $this->users->findAuthenticatedById($otherUserId);
+        if ($other === null) {
             throw new ApiException(404, 'user_not_found', 'User not found.');
+        }
+
+        return $other;
+    }
+
+    private function requireReplyTargetInConversation(int $replyToMessageId, int $actorId, int $otherUserId): void
+    {
+        if ($replyToMessageId < 1) {
+            throw new ApiException(400, 'validation_error', 'reply_to_message_id must be positive.');
+        }
+
+        $statement = $this->pdo->prepare(
+            'SELECT sender_user_id, recipient_user_id FROM direct_messages WHERE id = :id',
+        );
+        if ($statement === false) {
+            throw new RuntimeException('Unable to prepare reply-target lookup.');
+        }
+        $statement->execute(['id' => $replyToMessageId]);
+        $row = $statement->fetch();
+        $participants = is_array($row) ? [(int) $row['sender_user_id'], (int) $row['recipient_user_id']] : [];
+        sort($participants);
+        $expected = [$actorId, $otherUserId];
+        sort($expected);
+        if ($participants !== $expected) {
+            throw new ApiException(
+                400,
+                'invalid_reply_target',
+                'The message being replied to must be in this conversation.',
+            );
         }
     }
 
@@ -301,7 +348,9 @@ SQL);
      *   body:string,
      *   read_at:?string,
      *   created_at:string,
-     *   outgoing:bool
+     *   outgoing:bool,
+     *   reply_to:?array{kind:string, message_id:int, available:bool, message:?array<string, mixed>},
+     *   mentions:list<array{user_id:int, username:string}>
      * }
      */
     private function messageById(int $messageId, int $viewerUserId): array
@@ -314,10 +363,31 @@ SELECT dm.id,
        recipient.username AS recipient_username,
        dm.body,
        dm.recipient_read_at,
-       dm.created_at
+       dm.created_at,
+       dm.reply_to_message_kind,
+       dm.reply_to_message_id,
+       rt.id AS reply_target_id,
+       rt.sender_user_id AS reply_target_sender_id,
+       rtu.username AS reply_target_sender_username,
+       rt.body AS reply_target_body,
+       (rt.deleted_at IS NOT NULL)::int AS reply_target_deleted,
+       (
+           SELECT json_agg(
+               json_build_object(
+                   'user_id', dmm.mentioned_user_id,
+                   'username', mu.username
+               )
+               ORDER BY dmm.id
+           )
+           FROM direct_message_mentions dmm
+           JOIN users mu ON mu.id = dmm.mentioned_user_id
+           WHERE dmm.message_id = dm.id
+       ) AS mentions_json
 FROM direct_messages dm
 JOIN users sender ON sender.id = dm.sender_user_id
 JOIN users recipient ON recipient.id = dm.recipient_user_id
+LEFT JOIN direct_messages rt ON rt.id = dm.reply_to_message_id
+LEFT JOIN users rtu ON rtu.id = rt.sender_user_id
 WHERE dm.id = :id
 SQL);
         if ($statement === false) {
@@ -343,6 +413,66 @@ SQL);
             'read_at' => $row['recipient_read_at'] === null ? null : (string) $row['recipient_read_at'],
             'created_at' => (string) $row['created_at'],
             'outgoing' => (int) $row['sender_user_id'] === $viewerUserId,
+            'reply_to' => $this->hydrateReplyTo($row),
+            'mentions' => $this->hydrateMentions($row),
         ];
+    }
+
+    /**
+     * @param array<string, mixed> $row
+     * @return ?array{kind:string, message_id:int, available:bool, message:?array<string, mixed>}
+     */
+    private function hydrateReplyTo(array $row): ?array
+    {
+        if ($row['reply_to_message_id'] === null) {
+            return null;
+        }
+
+        $targetExists = $row['reply_target_id'] !== null;
+
+        return [
+            'kind' => (string) $row['reply_to_message_kind'],
+            'message_id' => (int) $row['reply_to_message_id'],
+            'available' => $targetExists,
+            'message' => !$targetExists ? null : [
+                'id' => (int) $row['reply_target_id'],
+                'sender' => [
+                    'id' => (int) $row['reply_target_sender_id'],
+                    'username' => (string) $row['reply_target_sender_username'],
+                ],
+                'body' => (string) $row['reply_target_body'],
+                'deleted' => (int) $row['reply_target_deleted'] === 1,
+            ],
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $row
+     * @return list<array{user_id:int, username:string}>
+     */
+    private function hydrateMentions(array $row): array
+    {
+        $encoded = $row['mentions_json'] ?? null;
+        if (!is_string($encoded) || $encoded === '') {
+            return [];
+        }
+
+        $decoded = json_decode($encoded, true, 8, JSON_THROW_ON_ERROR);
+        if (!is_array($decoded)) {
+            return [];
+        }
+
+        $mentions = [];
+        foreach ($decoded as $entry) {
+            if (!is_array($entry)) {
+                continue;
+            }
+            $mentions[] = [
+                'user_id' => (int) $entry['user_id'],
+                'username' => (string) $entry['username'],
+            ];
+        }
+
+        return $mentions;
     }
 }
