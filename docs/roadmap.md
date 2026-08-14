@@ -70,11 +70,11 @@ The committed gates cover structural and keyboard accessibility across Chromium,
 
 ### Replies and mentions
 
-**Status:** planned next; data model and authorization boundary proposed in [ADR 0004](architecture/0004-replies-and-mentions.md), pending review before implementation.
+**Status:** planned next; data model, authorization boundary and product decisions resolved in [ADR 0004](architecture/0004-replies-and-mentions.md). Implementation not started.
 
 - Store durable reply references by canonical message ID rather than copying a second authoritative body.
 - Render an authorization-aware preview and a clear placeholder when the referenced message is unavailable, deleted or expired.
-- Add `@username` mentions only where the mentioned account can access the conversation.
+- Add `@username` mentions, plus room-scoped `@room`/`@here` broadcast mentions, only where the mentioned account (or, for a broadcast, each current room member) can access the conversation. Broadcast mentions are throttled by a dedicated rate-limit policy independent of ordinary message sending.
 - Deliver durable in-app mention notifications without making realtime delivery a correctness requirement.
 - Define edit, deletion, retention, export and moderation behavior before implementation.
 
