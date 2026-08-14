@@ -6,6 +6,10 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ## [Unreleased]
 
+## [1.3.0-rc.2] - 2026-08-14
+
+Second release candidate for ChitChat v1.3.0, superseding `v1.3.0-rc.1`. This pre-release adds durable replies and `@mention`s (including room-scoped `@room`/`@here` broadcasts) on top of `v1.3.0-rc.1`'s participant search and moderation queue. It is intended for controlled evaluation and upgrade rehearsal before the stable release.
+
 ### Added
 
 - Added durable reply references on room and direct messages, resolved through the same authorization-scoped read path as ordinary history, with a distinct placeholder when the referenced message is unavailable, deleted or expired.
@@ -25,7 +29,37 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ### Compatibility
 
-- Adds forward-only migration `0020_replies_mentions.sql` without introducing an external notification, queue or search service.
+- `v1.3.0-rc.2` supports an in-place upgrade from stable `v1.2.0`, or from an existing `v1.3.0-rc.1` deployment, after PostgreSQL and attachment storage are backed up together.
+- Adds forward-only migration `0020_replies_mentions.sql` on top of `0018_message_search.sql` and `0019_moderation_reports.sql`, without introducing an external notification, queue or search service.
+- Once these migrations are applied, older ChitChat source must not be pointed at the upgraded database. Rollback requires restoring a matching pre-upgrade database and attachment backup.
+- This is a release candidate: compatible fixes may land before `v1.3.0`, but operators must not assume database or configuration compatibility with later pre-releases without reading their notes.
+
+### Upgrade notes
+
+Fresh installations should follow `INSTALL.md` and the release-candidate evaluation guidance in `docs/releases/v1.3.0-rc.2.md`.
+
+Existing `v1.2.0` installations should:
+
+1. stop or drain application writes;
+2. back up PostgreSQL and attachment storage together and verify the backup;
+3. deploy `v1.3.0-rc.2` while preserving `.env` and attachment storage;
+4. compare the existing `.env` with `.env.example`;
+5. run `composer install --no-dev --classmap-authoritative`;
+6. run `composer migrate` once;
+7. run `composer maintenance:dry-run` and review the result;
+8. verify `/health.php`, `/ready.php`, login, rooms, direct messages, attachments, SSE through the production reverse proxy, system status, participant search, moderation reporting, and replies/mentions.
+
+Existing `v1.3.0-rc.1` installations should redeploy source and run `composer migrate` to apply `0020_replies_mentions.sql`; no data conversion is required.
+
+### Known limitations
+
+- The supported deployment target remains one application server; horizontal scaling and Redis-backed event delivery are not implemented.
+- PostgreSQL is the only supported database.
+- Direct messages are not end-to-end encrypted.
+- Maintenance, backup scheduling, retention, alerting, and release-specific manual assistive-technology testing remain operator responsibilities.
+- No `@mention` autocomplete for room-broadcast wording beyond the literal `@room`/`@here` keywords, and no reply/mention support in administrative inspection or revision-review surfaces.
+- This is a pre-release intended for controlled evaluation rather than an unconditional production recommendation.
+- No supported in-place upgrade exists from the incomplete legacy `v0.10.25` snapshot.
 
 ## [1.3.0-rc.1] - 2026-08-14
 
