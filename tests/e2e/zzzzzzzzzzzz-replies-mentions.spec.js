@@ -111,7 +111,7 @@ test('direct-message mentions only resolve the recipient and notify them', async
     await memberPage.goto('/messages.php');
     await expect(memberPage.locator('#messages-shell')).toBeVisible();
     await memberPage.locator('#dm-user-search').fill(peer.username);
-    await memberPage.getByRole('button', { name: 'Search' }).click();
+    await memberPage.getByRole('button', { name: 'Search', exact: true }).click();
     await memberPage.locator('.dm-user-button', { hasText: peer.username }).click();
     await expect(memberPage.locator('#dm-peer-name')).toHaveText(peer.username);
 

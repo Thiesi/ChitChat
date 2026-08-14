@@ -346,7 +346,7 @@ button:focus-visible {
 .message-reply-button {
   border: 0;
   background: transparent;
-  color: var(--muted-text, #9ca3af);
+  color: var(--muted);
   cursor: pointer;
   font: inherit;
   font-size: 0.78rem;
@@ -371,7 +371,7 @@ button:focus-visible {
   border: 0;
   border-left: 3px solid var(--border);
   border-radius: 0.3rem;
-  background: color-mix(in srgb, var(--surface) 60%, transparent);
+  background: var(--surface-2);
   color: inherit;
   font: inherit;
   font-size: 0.85rem;
@@ -405,14 +405,14 @@ button:focus-visible {
 .mention {
   border-radius: 0.25rem;
   padding: 0 0.2rem;
-  background: color-mix(in srgb, var(--accent-strong) 18%, transparent);
-  color: var(--accent-strong);
+  background: #364056;
+  color: #dbe6ff;
   font-weight: 600;
 }
 
 .mention-broadcast {
-  background: color-mix(in srgb, var(--warning) 22%, transparent);
-  color: var(--warning);
+  background: #433e3b;
+  color: #ffe0b2;
 }
 
 .reply-banner {
