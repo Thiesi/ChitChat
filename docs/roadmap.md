@@ -80,7 +80,7 @@ The committed gates cover structural and keyboard accessibility across Chromium,
 
 ### Reactions
 
-**Status:** planned after replies and mentions.
+**Status:** data model, authorization boundary and product decisions resolved in [ADR 0005](architecture/0005-reactions.md) — emoji vocabulary 👍 ❤️ 😂 😮 😢 🎉, reactor identity visible the same way message authorship already is. Implementation not started.
 
 - Use a deliberately small controlled emoji vocabulary.
 - Make add/remove operations idempotent with at most one reaction of each kind per user and message.
