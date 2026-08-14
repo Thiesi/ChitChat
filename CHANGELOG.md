@@ -6,6 +6,15 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ## [Unreleased]
 
+### Added
+
+- Added message reactions (backend): a small controlled emoji vocabulary (👍 ❤️ 😂 😮 😢 🎉), idempotent add/remove enforced by a database `UNIQUE (message_id, user_id, emoji)` constraint, and a new `message_reaction_changed` realtime event carrying the message's full current reaction state. See [ADR 0005](docs/architecture/0005-reactions.md).
+- Added `reactions` to every message-shaped API response (room and direct-message history, send, mutation metadata, attachment uploads), each entry listing the reacting participants by id and username, matching how message authorship is already visible.
+
+### Security and privacy
+
+- Reacting requires exactly the same authorization as reading the message; there is no new authorization concept. Reacting to an already-deleted message is rejected with `409 message_already_deleted`. Reacting to an existing direct message stays available after a block, matching how reply previews already behave.
+
 ## [1.3.0-rc.2] - 2026-08-14
 
 Second release candidate for ChitChat v1.3.0, superseding `v1.3.0-rc.1`. This pre-release adds durable replies and `@mention`s (including room-scoped `@room`/`@here` broadcasts) on top of `v1.3.0-rc.1`'s participant search and moderation queue. It is intended for controlled evaluation and upgrade rehearsal before the stable release.

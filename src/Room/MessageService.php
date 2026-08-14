@@ -8,6 +8,7 @@ use ChitChat\Auth\AuthenticatedUser;
 use ChitChat\Http\ApiException;
 use ChitChat\Mentions\MentionNotifier;
 use ChitChat\Mentions\RoomMentionResolver;
+use ChitChat\Reactions\ReactionHydrator;
 use ChitChat\Realtime\EventRepository;
 use ChitChat\Upload\AttachmentPolicy;
 use PDO;
@@ -43,7 +44,8 @@ final class MessageService
      *   deleted:bool,
      *   created_at:string,
      *   reply_to:?array{kind:string, message_id:int, available:bool, message:?array<string, mixed>},
-     *   mentions:list<array{user_id:int, username:string, broadcast:bool}>
+     *   mentions:list<array{user_id:int, username:string, broadcast:bool}>,
+     *   reactions:list<array{emoji:string, users:list<array{id:int, username:string}>, reacted_by_me:bool}>
      * }>
      */
     public function history(
@@ -84,6 +86,7 @@ SELECT m.id,
            JOIN users mu ON mu.id = mm.mentioned_user_id
            WHERE mm.message_id = m.id
        ) AS mentions_json,
+       __REACTIONS_SUBQUERY__ AS reactions_json,
        m.reply_to_message_kind,
        m.reply_to_message_id,
        rt.id AS reply_target_id,
@@ -109,12 +112,18 @@ SQL;
             $sql .= "\n  AND m.id < :before_id";
         }
         $sql .= "\nORDER BY m.id DESC\nLIMIT :limit";
+        $sql = str_replace(
+            '__REACTIONS_SUBQUERY__',
+            ReactionHydrator::correlatedSubquery('room_message_reactions', 'm.id', ':viewer_user_id'),
+            $sql,
+        );
 
         $statement = $this->pdo->prepare($sql);
         if ($statement === false) {
             throw new RuntimeException('Unable to prepare message history.');
         }
         $statement->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+        $statement->bindValue(':viewer_user_id', $actor->id, PDO::PARAM_INT);
         if ($beforeId !== null) {
             $statement->bindValue(':before_id', $beforeId, PDO::PARAM_INT);
         }
@@ -175,7 +184,8 @@ SQL;
      *   deleted:bool,
      *   created_at:string,
      *   reply_to:?array{kind:string, message_id:int, available:bool, message:?array<string, mixed>},
-     *   mentions:list<array{user_id:int, username:string, broadcast:bool}>
+     *   mentions:list<array{user_id:int, username:string, broadcast:bool}>,
+     *   reactions:list<array{emoji:string, users:list<array{id:int, username:string}>, reacted_by_me:bool}>
      * }
      */
     public function send(
@@ -228,7 +238,7 @@ SQL);
                 $mentions,
             );
 
-            $message = $this->storedMessage($messageId);
+            $message = $this->storedMessage($messageId, $actor->id);
             $this->events->publish(
                 type: 'room_message',
                 payload: ['message' => $message],
@@ -335,12 +345,13 @@ SQL);
      *   deleted:bool,
      *   created_at:string,
      *   reply_to:?array{kind:string, message_id:int, available:bool, message:?array<string, mixed>},
-     *   mentions:list<array{user_id:int, username:string, broadcast:bool}>
+     *   mentions:list<array{user_id:int, username:string, broadcast:bool}>,
+     *   reactions:list<array{emoji:string, users:list<array{id:int, username:string}>, reacted_by_me:bool}>
      * }
      */
-    public function storedMessage(int $messageId): array
+    public function storedMessage(int $messageId, int $viewerUserId = 0): array
     {
-        $message = $this->findStoredMessage($messageId);
+        $message = $this->findStoredMessage($messageId, $viewerUserId);
         if ($message === null) {
             throw new RuntimeException('Stored message could not be reloaded.');
         }
@@ -360,12 +371,13 @@ SQL);
      *   deleted:bool,
      *   created_at:string,
      *   reply_to:?array{kind:string, message_id:int, available:bool, message:?array<string, mixed>},
-     *   mentions:list<array{user_id:int, username:string, broadcast:bool}>
+     *   mentions:list<array{user_id:int, username:string, broadcast:bool}>,
+     *   reactions:list<array{emoji:string, users:list<array{id:int, username:string}>, reacted_by_me:bool}>
      * }
      */
-    public function findStoredMessage(int $messageId): ?array
+    public function findStoredMessage(int $messageId, int $viewerUserId = 0): ?array
     {
-        $statement = $this->pdo->prepare(<<<'SQL'
+        $sql = <<<'SQL'
 SELECT m.id,
        m.room_id,
        m.sender_id,
@@ -387,6 +399,7 @@ SELECT m.id,
            JOIN users mu ON mu.id = mm.mentioned_user_id
            WHERE mm.message_id = m.id
        ) AS mentions_json,
+       __REACTIONS_SUBQUERY__ AS reactions_json,
        m.reply_to_message_kind,
        m.reply_to_message_id,
        rt.id AS reply_target_id,
@@ -407,11 +420,17 @@ LEFT JOIN room_messages rt ON rt.id = m.reply_to_message_id
 LEFT JOIN users rtu ON rtu.id = rt.sender_id
 LEFT JOIN attachments a ON a.message_id = m.id
 WHERE m.id = :id
-SQL);
+SQL;
+        $sql = str_replace(
+            '__REACTIONS_SUBQUERY__',
+            ReactionHydrator::correlatedSubquery('room_message_reactions', 'm.id', ':viewer_user_id'),
+            $sql,
+        );
+        $statement = $this->pdo->prepare($sql);
         if ($statement === false) {
             throw new RuntimeException('Unable to prepare stored-message lookup.');
         }
-        $statement->execute(['id' => $messageId]);
+        $statement->execute(['id' => $messageId, 'viewer_user_id' => $viewerUserId]);
         $row = $statement->fetch();
         if (!is_array($row)) {
             return null;
@@ -490,7 +509,8 @@ SQL);
      *   deleted:bool,
      *   created_at:string,
      *   reply_to:?array{kind:string, message_id:int, available:bool, message:?array<string, mixed>},
-     *   mentions:list<array{user_id:int, username:string, broadcast:bool}>
+     *   mentions:list<array{user_id:int, username:string, broadcast:bool}>,
+     *   reactions:list<array{emoji:string, users:list<array{id:int, username:string}>, reacted_by_me:bool}>
      * }
      */
     private function hydrateMessage(array $row): array
@@ -525,6 +545,7 @@ SQL);
             'created_at' => (string) $row['created_at'],
             'reply_to' => $this->hydrateReplyTo($row),
             'mentions' => $this->hydrateMentions($row),
+            'reactions' => ReactionHydrator::hydrateJson($row['reactions_json'] ?? null),
         ];
     }
 
