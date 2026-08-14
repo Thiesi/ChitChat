@@ -41,7 +41,7 @@ jobs:
       notes_file: ${{ steps.metadata.outputs.notes_file }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.commit_sha }}
           fetch-depth: 0
@@ -99,7 +99,7 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ needs.validate.outputs.resolved_sha }}
           fetch-depth: 0
