@@ -162,7 +162,8 @@ SQL);
      *   read_at:?string,
      *   created_at:string,
      *   outgoing:bool,
-     *   reply_to:?array{kind:string, message_id:int, available:bool, message:?array<string, mixed>}
+     *   reply_to:?array{kind:string, message_id:int, available:bool, message:?array<string, mixed>},
+     *   mentions:list<array{user_id:int, username:string}>
      * }>
      */
     public function history(
@@ -259,7 +260,8 @@ SQL;
      *   read_at:?string,
      *   created_at:string,
      *   outgoing:bool,
-     *   reply_to:?array{kind:string, message_id:int, available:bool, message:?array<string, mixed>}
+     *   reply_to:?array{kind:string, message_id:int, available:bool, message:?array<string, mixed>},
+     *   mentions:list<array{user_id:int, username:string}>
      * }
      */
     public function send(
@@ -381,7 +383,8 @@ SQL);
      *   read_at:?string,
      *   created_at:string,
      *   outgoing:bool,
-     *   reply_to:?array{kind:string, message_id:int, available:bool, message:?array<string, mixed>}
+     *   reply_to:?array{kind:string, message_id:int, available:bool, message:?array<string, mixed>},
+     *   mentions:list<array{user_id:int, username:string}>
      * }
      */
     private function messageById(int $messageId, int $viewerUserId): array
@@ -471,6 +474,7 @@ SQL);
      *   created_at:string,
      *   outgoing:bool,
      *   reply_to:?array{kind:string, message_id:int, available:bool, message:?array<string, mixed>},
+     *   mentions:list<array{user_id:int, username:string}>,
      *   mentions:list<array{user_id:int, username:string}>
      * }
      */

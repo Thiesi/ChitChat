@@ -288,4 +288,37 @@ final class ReplyAndMentionTest extends DatabaseTestCase
             $directNotification['link'],
         );
     }
+
+    public function testSearchMentionableUsersMatchesCurrentMembersExcludingSelf(): void
+    {
+        $auth = new AuthService($this->pdo, $this->config);
+        $admin = $auth->register('Admin', 'a very secure password', '127.0.0.1');
+        $alice = $auth->register('Alice', 'another secure password', '127.0.0.2');
+        $alicia = $auth->register('Alicia', 'yet another secure password', '127.0.0.3');
+        $outsider = $auth->register('Outsider', 'still another secure password', '127.0.0.4');
+
+        $rooms = new RoomService($this->pdo);
+        $room = $rooms->create($admin, 'general', 'General', '', 'public', 0, 0, '127.0.0.1');
+        $rooms->join($alice, $room->id, '127.0.0.2');
+        $rooms->join($alicia, $room->id, '127.0.0.3');
+
+        $messages = new MessageService($this->pdo);
+
+        $empty = $messages->searchMentionableUsers($alice, $room->id, '');
+        $emptyIds = array_column($empty, 'id');
+        self::assertContains($admin->id, $emptyIds);
+        self::assertContains($alicia->id, $emptyIds);
+        self::assertNotContains($alice->id, $emptyIds, 'search must exclude the searching account');
+        self::assertNotContains($outsider->id, $emptyIds, 'search must exclude non-members');
+
+        $prefixed = $messages->searchMentionableUsers($admin, $room->id, 'ali');
+        self::assertSame(['Alice', 'Alicia'], array_column($prefixed, 'username'));
+
+        try {
+            $messages->searchMentionableUsers($admin, $room->id, 'bad search!');
+            self::fail('Expected unsupported characters to be rejected.');
+        } catch (ApiException $exception) {
+            self::assertSame('validation_error', $exception->errorCode);
+        }
+    }
 }

@@ -1,6 +1,7 @@
 import { ApiError, apiGet, apiPost, setCsrfToken } from './api.js';
 import { createPresenceClient } from './presence.js';
 import { renderMessageBody, buildReplyPreview } from './message-content.js';
+import { attachMentionAutocomplete } from './mention-autocomplete.js';
 
 const state = {
   user: null,
@@ -15,6 +16,7 @@ const state = {
 
 const elements = {};
 let presence = null;
+let mentionAutocomplete = null;
 
 window.addEventListener('DOMContentLoaded', () => {
   bindElements();
@@ -92,10 +94,12 @@ function bindEvents() {
   elements['composer-form'].addEventListener('submit', submitMessage);
   elements['composer-input'].addEventListener('keydown', (event) => {
     if (event.key === 'Enter' && !event.shiftKey) {
+      if (mentionAutocomplete?.isOpen()) return;
       event.preventDefault();
       elements['composer-form'].requestSubmit();
     }
   });
+  mentionAutocomplete = attachMentionAutocomplete(elements['composer-input'], searchRoomMentions);
   elements['load-older-button'].addEventListener('click', loadOlderMessages);
   elements['reply-banner-cancel'].addEventListener('click', clearReplyTo);
   elements['new-room-button'].addEventListener('click', openRoomDialog);
@@ -480,6 +484,21 @@ function canReplyInCurrentRoom() {
   return Boolean(state.currentRoom) && !elements['composer-wrap'].classList.contains('hidden');
 }
 
+async function searchRoomMentions(prefix) {
+  const room = state.currentRoom;
+  if (!room) return [];
+  const lower = prefix.toLowerCase();
+  const broadcastKeywords = ['room', 'here']
+    .filter((keyword) => keyword.startsWith(lower))
+    .map((keyword) => ({ id: null, username: keyword }));
+
+  const parameters = new URLSearchParams({ room_id: String(room.id), search: prefix, limit: '8' });
+  const response = await apiGet(`/api/v1/rooms/mentionable-users.php?${parameters.toString()}`);
+  const users = Array.isArray(response.users) ? response.users : [];
+
+  return [...broadcastKeywords, ...users].slice(0, 8);
+}
+
 function setReplyTo(message) {
   state.replyTo = {
     id: message.id,
@@ -500,7 +519,11 @@ function clearReplyTo() {
 function renderReplyBanner() {
   const reply = state.replyTo;
   elements['reply-banner'].classList.toggle('hidden', reply === null);
-  if (!reply) return;
+  if (!reply) {
+    delete elements['reply-banner'].dataset.replyToId;
+    return;
+  }
+  elements['reply-banner'].dataset.replyToId = String(reply.id);
   const author = reply.username ?? 'Someone';
   const excerpt = reply.deleted ? 'Message deleted.' : truncateForBanner(reply.body ?? '');
   elements['reply-banner-text'].textContent = `Replying to ${author}: “${excerpt}”`;

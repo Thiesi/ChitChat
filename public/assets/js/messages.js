@@ -1,5 +1,6 @@
 import { ApiError, apiGet, apiPost, setCsrfToken } from './api.js';
 import { renderMessageBody, buildReplyPreview } from './message-content.js';
+import { attachMentionAutocomplete } from './mention-autocomplete.js';
 
 const state = {
   user: null,
@@ -14,6 +15,7 @@ const state = {
   replyTo: null,
 };
 const elements = {};
+let mentionAutocomplete = null;
 
 window.addEventListener('DOMContentLoaded', () => {
   bindElements();
@@ -44,10 +46,12 @@ function bindEvents() {
   elements['dm-reply-banner-cancel'].addEventListener('click', clearReplyTo);
   elements['dm-message-input'].addEventListener('keydown', (event) => {
     if (event.key === 'Enter' && !event.shiftKey) {
+      if (mentionAutocomplete?.isOpen()) return;
       event.preventDefault();
       elements['dm-composer'].requestSubmit();
     }
   });
+  mentionAutocomplete = attachMentionAutocomplete(elements['dm-message-input'], searchDirectMessageMentions);
 }
 
 async function bootstrap() {
@@ -342,6 +346,12 @@ function buildMessage(message) {
   return article;
 }
 
+function searchDirectMessageMentions(prefix) {
+  const peer = state.selectedUser;
+  if (!peer || !peer.username.toLowerCase().startsWith(prefix.toLowerCase())) return Promise.resolve([]);
+  return Promise.resolve([{ id: peer.id, username: peer.username }]);
+}
+
 function setReplyTo(message) {
   state.replyTo = {
     id: message.id,
@@ -362,7 +372,11 @@ function clearReplyTo() {
 function renderReplyBanner() {
   const reply = state.replyTo;
   elements['dm-reply-banner'].classList.toggle('hidden', reply === null);
-  if (!reply) return;
+  if (!reply) {
+    delete elements['dm-reply-banner'].dataset.replyToId;
+    return;
+  }
+  elements['dm-reply-banner'].dataset.replyToId = String(reply.id);
   const excerpt = truncateForBanner(reply.body ?? '');
   elements['dm-reply-banner-text'].textContent = `Replying to ${reply.username}: “${excerpt}”`;
 }

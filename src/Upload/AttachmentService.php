@@ -7,6 +7,8 @@ use ChitChat\Audit\AuditLogger;
 use ChitChat\Auth\AuthenticatedUser;
 use ChitChat\Config;
 use ChitChat\Http\ApiException;
+use ChitChat\Mentions\MentionNotifier;
+use ChitChat\Mentions\RoomMentionResolver;
 use ChitChat\Realtime\EventRepository;
 use ChitChat\Room\MessageService;
 use ChitChat\Room\RoomAuthorization;
@@ -22,6 +24,8 @@ final class AttachmentService
     private readonly RoomRepository $rooms;
     private readonly AuditLogger $audit;
     private readonly EventRepository $events;
+    private readonly RoomMentionResolver $mentions;
+    private readonly MentionNotifier $mentionNotifier;
 
     public function __construct(
         private readonly PDO $pdo,
@@ -30,6 +34,8 @@ final class AttachmentService
         $this->rooms = new RoomRepository($pdo);
         $this->audit = new AuditLogger($pdo);
         $this->events = new EventRepository($pdo);
+        $this->mentions = new RoomMentionResolver($pdo);
+        $this->mentionNotifier = new MentionNotifier($pdo);
     }
 
     /**
@@ -42,7 +48,9 @@ final class AttachmentService
      *   body:?string,
      *   attachment:?array{id:int, name:string, mime_type:string, size_bytes:int, sha256:string, previewable:bool},
      *   deleted:bool,
-     *   created_at:string
+     *   created_at:string,
+     *   reply_to:?array{kind:string, message_id:int, available:bool, message:?array<string, mixed>},
+     *   mentions:list<array{user_id:int, username:string, broadcast:bool}>
      * }
      */
     public function upload(
@@ -51,6 +59,7 @@ final class AttachmentService
         IncomingFile $file,
         string $captionInput,
         string $ipAddress,
+        ?int $replyToMessageId = null,
     ): array {
         if ($roomId < 1) {
             throw new ApiException(400, 'validation_error', 'room_id must be positive.');
@@ -64,6 +73,9 @@ final class AttachmentService
             throw new ApiException(403, 'membership_required', 'Join the room before uploading attachments.');
         }
         (new RoomEligibility($this->rooms))->requireMinimumAge($actor, $room);
+        if ($replyToMessageId !== null) {
+            $this->requireReplyTargetInRoom($replyToMessageId, $roomId);
+        }
 
         $originalName = $this->normalizeOriginalName($file->originalName);
         $caption = trim($captionInput);
@@ -112,8 +124,8 @@ final class AttachmentService
 
             $this->pdo->beginTransaction();
             $messageStatement = $this->pdo->prepare(<<<'SQL'
-INSERT INTO room_messages (room_id, sender_id, message_type, body)
-VALUES (:room_id, :sender_id, 'attachment', :body)
+INSERT INTO room_messages (room_id, sender_id, message_type, body, reply_to_message_kind, reply_to_message_id)
+VALUES (:room_id, :sender_id, 'attachment', :body, :reply_to_message_kind, :reply_to_message_id)
 RETURNING id
 SQL);
             if ($messageStatement === false) {
@@ -123,12 +135,26 @@ SQL);
                 'room_id' => $roomId,
                 'sender_id' => $actor->id,
                 'body' => $body,
+                'reply_to_message_kind' => $replyToMessageId === null ? null : 'room',
+                'reply_to_message_id' => $replyToMessageId,
             ]);
             $messageIdValue = $messageStatement->fetchColumn();
             if ($messageIdValue === false) {
                 throw new RuntimeException('Attachment message creation did not return an ID.');
             }
             $messageId = (int) $messageIdValue;
+
+            if ($caption !== '') {
+                $mentions = $this->mentions->resolve($roomId, $actor->id, $caption);
+                $this->mentionNotifier->recordRoomMentions(
+                    $messageId,
+                    $roomId,
+                    $room->name,
+                    $actor->id,
+                    $actor->username,
+                    $mentions,
+                );
+            }
 
             $attachmentStatement = $this->pdo->prepare(<<<'SQL'
 INSERT INTO attachments (
@@ -276,6 +302,23 @@ SQL);
             'sha256' => (string) $row['sha256'],
             'previewable' => AttachmentPolicy::isPreviewable($mimeType),
         ];
+    }
+
+    private function requireReplyTargetInRoom(int $replyToMessageId, int $roomId): void
+    {
+        if ($replyToMessageId < 1) {
+            throw new ApiException(400, 'validation_error', 'reply_to_message_id must be positive.');
+        }
+
+        $statement = $this->pdo->prepare('SELECT room_id FROM room_messages WHERE id = :id');
+        if ($statement === false) {
+            throw new RuntimeException('Unable to prepare reply-target lookup.');
+        }
+        $statement->execute(['id' => $replyToMessageId]);
+        $targetRoomId = $statement->fetchColumn();
+        if ($targetRoomId === false || (int) $targetRoomId !== $roomId) {
+            throw new ApiException(400, 'invalid_reply_target', 'The message being replied to must be in this room.');
+        }
     }
 
     private function detectMimeType(string $path): string

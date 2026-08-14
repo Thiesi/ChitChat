@@ -34,6 +34,10 @@ Endpoint::run($config, static function () use ($config): ApiResult {
     if (!is_string($caption)) {
         throw new ApiException(400, 'validation_error', 'caption must be a string form field.');
     }
+    $replyToValue = $_POST['reply_to_message_id'] ?? null;
+    if ($replyToValue !== null && (!is_string($replyToValue) || filter_var($replyToValue, FILTER_VALIDATE_INT) === false)) {
+        throw new ApiException(400, 'validation_error', 'reply_to_message_id must be an integer form field.');
+    }
 
     $message = (new DirectMessageAttachmentService($pdo, $config))->upload(
         actor: $actor,
@@ -41,6 +45,7 @@ Endpoint::run($config, static function () use ($config): ApiResult {
         file: IncomingFile::fromGlobal('file'),
         captionInput: $caption,
         ipAddress: Request::clientIp(),
+        replyToMessageId: $replyToValue === null ? null : (int) $replyToValue,
     );
 
     return ApiResult::created(['message' => $message]);

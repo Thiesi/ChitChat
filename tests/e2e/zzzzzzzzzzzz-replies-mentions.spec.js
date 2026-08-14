@@ -130,3 +130,44 @@ test('direct-message mentions only resolve the recipient and notify them', async
     await memberContext.close();
   }
 });
+
+test('@mention autocomplete suggests and inserts a username in room and direct-message composers', async ({ browser }) => {
+  const memberContext = await browser.newContext({ baseURL });
+
+  try {
+    const memberPage = await memberContext.newPage();
+    await login(memberPage, member);
+
+    await memberPage.locator('.room-button', { hasText: '# General E2E' }).click();
+    await expect(memberPage.locator('#room-title')).toHaveText('# General E2E');
+
+    const roomInput = memberPage.locator('#composer-input');
+    // "Root" (not "Roo") deliberately avoids also matching the "room"
+    // broadcast keyword, which would otherwise outrank it as suggestion 0.
+    await roomInput.fill('Hey @Root');
+    const roomOption = memberPage.getByRole('option', { name: '@RootE2E' });
+    await expect(roomOption).toBeVisible();
+    await roomInput.press('Enter');
+    await expect(roomOption).toBeHidden();
+    await expect(roomInput).toHaveValue('Hey @RootE2E ');
+    await roomInput.press('Enter');
+    const sent = await stableMessage(memberPage, 'article.message', 'Hey @RootE2E');
+    await expect(sent.locator('.message-body .mention')).toHaveText('@RootE2E');
+
+    await memberPage.goto('/messages.php');
+    await expect(memberPage.locator('#messages-shell')).toBeVisible();
+    await memberPage.locator('#dm-user-search').fill('MentionPeerE2E');
+    await memberPage.getByRole('button', { name: 'Search', exact: true }).click();
+    await memberPage.locator('.dm-user-button', { hasText: 'MentionPeerE2E' }).click();
+    await expect(memberPage.locator('#dm-peer-name')).toHaveText('MentionPeerE2E');
+
+    const dmInput = memberPage.locator('#dm-message-input');
+    await dmInput.fill('Hi @Ment');
+    const dmOption = memberPage.getByRole('option', { name: '@MentionPeerE2E' });
+    await expect(dmOption).toBeVisible();
+    await dmOption.click();
+    await expect(dmInput).toHaveValue('Hi @MentionPeerE2E ');
+  } finally {
+    await memberContext.close();
+  }
+});

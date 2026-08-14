@@ -89,6 +89,44 @@ final class DirectMessageAttachmentServiceTest extends DatabaseTestCase
         );
     }
 
+    public function testUploadSupportsReplyTargetAndResolvesMentionsInCaption(): void
+    {
+        $auth = new AuthService($this->pdo, $this->config);
+        $alice = $auth->register('Alice', 'a very secure password', '127.0.0.1');
+        $bob = $auth->register('Bob', 'another secure password', '127.0.0.2');
+        $carol = $auth->register('Carol', 'different secure password', '127.0.0.3');
+        $storage = $this->temporaryDirectory();
+        $config = $this->configWithStorage($storage);
+        $service = new DirectMessageAttachmentService($this->pdo, $config);
+
+        $original = (new DirectMessageService($this->pdo))->send($alice, $bob->id, 'Original direct message');
+
+        $message = $service->upload(
+            actor: $bob,
+            recipientUserId: $alice->id,
+            file: IncomingFile::forTesting('evidence.txt', $this->temporaryFile("evidence\n")),
+            captionInput: '@Alice see attached',
+            ipAddress: '127.0.0.2',
+            replyToMessageId: $original['id'],
+        );
+
+        self::assertNotNull($message['reply_to']);
+        self::assertSame($original['id'], $message['reply_to']['message_id']);
+        self::assertTrue($message['reply_to']['available']);
+        self::assertSame([['user_id' => $alice->id, 'username' => 'Alice']], $message['mentions']);
+
+        $wrongConversation = (new DirectMessageService($this->pdo))->send($alice, $carol->id, 'Different conversation');
+        $this->expectException(ApiException::class);
+        $service->upload(
+            actor: $bob,
+            recipientUserId: $alice->id,
+            file: IncomingFile::forTesting('evidence2.txt', $this->temporaryFile("evidence\n")),
+            captionInput: '',
+            ipAddress: '127.0.0.2',
+            replyToMessageId: $wrongConversation['id'],
+        );
+    }
+
     public function testBlockAndFilePolicyFailuresLeaveNoRowsOrStoredFiles(): void
     {
         $auth = new AuthService($this->pdo, $this->config);
