@@ -108,7 +108,8 @@ final class ReactionServiceTest extends DatabaseTestCase
             (new RoomReactionService($this->pdo))->add($outsider, $message['id'], '👍');
             self::fail('Expected an outsider to be denied.');
         } catch (ApiException $exception) {
-            self::assertSame(404, $exception->status);
+            self::assertSame(403, $exception->status);
+            self::assertSame('room_forbidden', $exception->errorCode);
         }
     }
 
