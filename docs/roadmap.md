@@ -70,7 +70,7 @@ The committed gates cover structural and keyboard accessibility across Chromium,
 
 ### Replies and mentions
 
-**Status:** planned next.
+**Status:** planned next; data model and authorization boundary proposed in [ADR 0004](architecture/0004-replies-and-mentions.md), pending review before implementation.
 
 - Store durable reply references by canonical message ID rather than copying a second authoritative body.
 - Render an authorization-aware preview and a clear placeholder when the referenced message is unavailable, deleted or expired.
