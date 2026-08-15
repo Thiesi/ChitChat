@@ -90,7 +90,7 @@ The committed gates cover structural and keyboard accessibility across Chromium,
 
 ### Notification preferences and optional Web Push
 
-**Status:** backend implemented per [ADR 0006](architecture/0006-web-push.md) as migration `0022_web_push.sql` — subscriptions, per-category preferences, quiet hours, and the `bin/dispatch-web-push` sweep. Client-side subscribe/preferences UI not started.
+**Status:** implemented per [ADR 0006](architecture/0006-web-push.md) as migration `0022_web_push.sql` — subscriptions, per-category preferences, quiet hours, the `bin/dispatch-web-push` sweep, and a client subscribe/preferences section on the privacy-notifications page.
 
 - Use a small controlled set of push-eligible notification kinds, reusing the existing privacy-safe `account_notifications` presentation text rather than a second payload path.
 - Deliver push through a periodic operator-scheduled CLI sweep over undelivered notifications, not a request-time side effect or a new queue/Redis service.

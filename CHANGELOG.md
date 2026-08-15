@@ -8,8 +8,9 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ### Added
 
-- Added Web Push notification delivery (backend): browser push subscriptions, per-category notification preferences (mute for `mentioned`), per-account quiet hours, and a new `bin/dispatch-web-push` periodic operator-scheduled command that sweeps undelivered notifications rather than sending push as a request-time side effect. See [ADR 0006](docs/architecture/0006-web-push.md).
+- Added Web Push notification delivery: browser push subscriptions, per-category notification preferences (mute for `mentioned`), per-account quiet hours, and a new `bin/dispatch-web-push` periodic operator-scheduled command that sweeps undelivered notifications rather than sending push as a request-time side effect. See [ADR 0006](docs/architecture/0006-web-push.md).
 - Added `minishlink/web-push` as this project's first production Composer dependency, for VAPID JWT signing and RFC 8291 payload encryption. Disabled unless `WEB_PUSH_VAPID_PUBLIC_KEY`, `WEB_PUSH_VAPID_PRIVATE_KEY`, and `WEB_PUSH_VAPID_SUBJECT` are all configured, mirroring how WebAuthn stays inert without `WEBAUTHN_RP_ID`/`WEBAUTHN_ORIGIN`.
+- Added a "Push notifications" section to the privacy-notifications page: enable/disable push for the current device, mute `@mentions`, per-account quiet hours, and a device list with per-device revocation. Silently hidden if the browser lacks push support or the installation hasn't configured VAPID keys.
 
 ### Security and privacy
 
