@@ -7,6 +7,7 @@ namespace ChitChat\Room;
 use ChitChat\Audit\AuditLogger;
 use ChitChat\Auth\AuthenticatedUser;
 use ChitChat\Http\ApiException;
+use ChitChat\Reactions\ReactionHydrator;
 use ChitChat\Realtime\EventRepository;
 use PDO;
 use RuntimeException;
@@ -36,7 +37,8 @@ final class RoomMessageMutationService
      *   deletion_kind:?string,
      *   can_edit:bool,
      *   can_delete:bool,
-     *   mentions:list<array{user_id:int, username:string, broadcast:bool}>
+     *   mentions:list<array{user_id:int, username:string, broadcast:bool}>,
+     *   reactions:list<array{emoji:string, users:list<array{id:int, username:string}>, reacted_by_me:bool}>
      * }>
      */
     public function metadata(AuthenticatedUser $actor, int $roomId, array $messageIds): array
@@ -50,6 +52,12 @@ final class RoomMessageMutationService
 
         [$placeholders, $parameters] = $this->idParameters($messageIds);
         $parameters['room_id'] = $roomId;
+        $parameters['viewer_user_id'] = $actor->id;
+        $reactionsSubquery = ReactionHydrator::correlatedSubquery(
+            'room_message_reactions',
+            'room_messages.id',
+            ':viewer_user_id',
+        );
         $statement = $this->pdo->prepare(<<<SQL
 SELECT id,
        sender_id,
@@ -70,7 +78,8 @@ SELECT id,
            FROM room_message_mentions mm
            JOIN users mu ON mu.id = mm.mentioned_user_id
            WHERE mm.message_id = room_messages.id
-       ) AS mentions_json
+       ) AS mentions_json,
+       {$reactionsSubquery} AS reactions_json
 FROM room_messages
 WHERE room_id = :room_id
   AND id IN ({$placeholders})
@@ -150,7 +159,7 @@ SQL);
                 ['room_id' => $room->id],
                 $ipAddress,
             );
-            $message = (new MessageService($this->pdo))->storedMessage($messageId);
+            $message = (new MessageService($this->pdo))->storedMessage($messageId, $actor->id);
             $this->events->publish(
                 type: 'room_message',
                 payload: ['message' => $message],
@@ -331,7 +340,8 @@ SQL);
      *   deletion_kind:?string,
      *   can_edit:bool,
      *   can_delete:bool,
-     *   mentions:list<array{user_id:int, username:string, broadcast:bool}>
+     *   mentions:list<array{user_id:int, username:string, broadcast:bool}>,
+     *   reactions:list<array{emoji:string, users:list<array{id:int, username:string}>, reacted_by_me:bool}>
      * }
      */
     private function hydrateMetadata(array $row, int $actorId, bool $isMember): array
@@ -358,6 +368,7 @@ SQL);
             'can_edit' => $isMember && $owned && $mutableType && !$deleted,
             'can_delete' => $isMember && $owned && $mutableType && !$deleted,
             'mentions' => $deleted ? [] : $this->hydrateMentions($row),
+            'reactions' => ReactionHydrator::hydrateJson($row['reactions_json'] ?? null),
         ];
     }
 

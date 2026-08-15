@@ -8,6 +8,7 @@ use ChitChat\Auth\UserRepository;
 use ChitChat\Http\ApiException;
 use ChitChat\Mentions\DirectMessageMentionResolver;
 use ChitChat\Mentions\MentionNotifier;
+use ChitChat\Reactions\ReactionHydrator;
 use ChitChat\Realtime\EventRepository;
 use PDO;
 use RuntimeException;
@@ -163,7 +164,8 @@ SQL);
      *   created_at:string,
      *   outgoing:bool,
      *   reply_to:?array{kind:string, message_id:int, available:bool, message:?array<string, mixed>},
-     *   mentions:list<array{user_id:int, username:string}>
+     *   mentions:list<array{user_id:int, username:string}>,
+     *   reactions:list<array{emoji:string, users:list<array{id:int, username:string}>, reacted_by_me:bool}>
      * }>
      */
     public function history(
@@ -201,6 +203,7 @@ SELECT dm.id,
            JOIN users mu ON mu.id = dmm.mentioned_user_id
            WHERE dmm.message_id = dm.id
        ) AS mentions_json,
+       __REACTIONS_SUBQUERY__ AS reactions_json,
        dm.reply_to_message_kind,
        dm.reply_to_message_id,
        rt.id AS reply_target_id,
@@ -222,6 +225,11 @@ WHERE (
         AND dm.recipient_user_id = :actor_recipient
       )
 SQL;
+        $sql = str_replace(
+            '__REACTIONS_SUBQUERY__',
+            ReactionHydrator::correlatedSubquery('direct_message_reactions', 'dm.id', ':viewer_user_id'),
+            $sql,
+        );
         if ($beforeId !== null) {
             $sql = 'SELECT * FROM (' . $sql . ') conversation WHERE conversation.id < :before_id';
         }
@@ -235,6 +243,7 @@ SQL;
         $statement->bindValue(':other_recipient', $otherUserId, PDO::PARAM_INT);
         $statement->bindValue(':other_sender', $otherUserId, PDO::PARAM_INT);
         $statement->bindValue(':actor_recipient', $actor->id, PDO::PARAM_INT);
+        $statement->bindValue(':viewer_user_id', $actor->id, PDO::PARAM_INT);
         if ($beforeId !== null) {
             $statement->bindValue(':before_id', $beforeId, PDO::PARAM_INT);
         }
@@ -261,7 +270,8 @@ SQL;
      *   created_at:string,
      *   outgoing:bool,
      *   reply_to:?array{kind:string, message_id:int, available:bool, message:?array<string, mixed>},
-     *   mentions:list<array{user_id:int, username:string}>
+     *   mentions:list<array{user_id:int, username:string}>,
+     *   reactions:list<array{emoji:string, users:list<array{id:int, username:string}>, reacted_by_me:bool}>
      * }
      */
     public function send(
@@ -384,12 +394,13 @@ SQL);
      *   created_at:string,
      *   outgoing:bool,
      *   reply_to:?array{kind:string, message_id:int, available:bool, message:?array<string, mixed>},
-     *   mentions:list<array{user_id:int, username:string}>
+     *   mentions:list<array{user_id:int, username:string}>,
+     *   reactions:list<array{emoji:string, users:list<array{id:int, username:string}>, reacted_by_me:bool}>
      * }
      */
     private function messageById(int $messageId, int $viewerUserId): array
     {
-        $statement = $this->pdo->prepare(<<<'SQL'
+        $sql = <<<'SQL'
 SELECT dm.id,
        dm.sender_user_id,
        sender.username AS sender_username,
@@ -410,6 +421,7 @@ SELECT dm.id,
            JOIN users mu ON mu.id = dmm.mentioned_user_id
            WHERE dmm.message_id = dm.id
        ) AS mentions_json,
+       __REACTIONS_SUBQUERY__ AS reactions_json,
        dm.reply_to_message_kind,
        dm.reply_to_message_id,
        rt.id AS reply_target_id,
@@ -423,11 +435,17 @@ JOIN users recipient ON recipient.id = dm.recipient_user_id
 LEFT JOIN direct_messages rt ON rt.id = dm.reply_to_message_id
 LEFT JOIN users rtu ON rtu.id = rt.sender_user_id
 WHERE dm.id = :id
-SQL);
+SQL;
+        $sql = str_replace(
+            '__REACTIONS_SUBQUERY__',
+            ReactionHydrator::correlatedSubquery('direct_message_reactions', 'dm.id', ':viewer_user_id'),
+            $sql,
+        );
+        $statement = $this->pdo->prepare($sql);
         if ($statement === false) {
             throw new RuntimeException('Unable to prepare direct-message lookup.');
         }
-        $statement->execute(['id' => $messageId]);
+        $statement->execute(['id' => $messageId, 'viewer_user_id' => $viewerUserId]);
         $row = $statement->fetch();
         if (!is_array($row)) {
             throw new RuntimeException('Direct message could not be reloaded.');
@@ -475,7 +493,7 @@ SQL);
      *   outgoing:bool,
      *   reply_to:?array{kind:string, message_id:int, available:bool, message:?array<string, mixed>},
      *   mentions:list<array{user_id:int, username:string}>,
-     *   mentions:list<array{user_id:int, username:string}>
+     *   reactions:list<array{emoji:string, users:list<array{id:int, username:string}>, reacted_by_me:bool}>
      * }
      */
     private function hydrate(array $row, int $viewerUserId): array
@@ -496,6 +514,7 @@ SQL);
             'outgoing' => (int) $row['sender_user_id'] === $viewerUserId,
             'reply_to' => $this->hydrateReplyTo($row),
             'mentions' => $this->hydrateMentions($row),
+            'reactions' => ReactionHydrator::hydrateJson($row['reactions_json'] ?? null),
         ];
     }
 

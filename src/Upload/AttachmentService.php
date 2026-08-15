@@ -50,7 +50,8 @@ final class AttachmentService
      *   deleted:bool,
      *   created_at:string,
      *   reply_to:?array{kind:string, message_id:int, available:bool, message:?array<string, mixed>},
-     *   mentions:list<array{user_id:int, username:string, broadcast:bool}>
+     *   mentions:list<array{user_id:int, username:string, broadcast:bool}>,
+     *   reactions:list<array{emoji:string, users:list<array{id:int, username:string}>, reacted_by_me:bool}>
      * }
      */
     public function upload(
@@ -198,7 +199,7 @@ SQL);
             }
             $attachmentId = (int) $attachmentIdValue;
 
-            $message = (new MessageService($this->pdo))->storedMessage($messageId);
+            $message = (new MessageService($this->pdo))->storedMessage($messageId, $actor->id);
             $this->audit->log(
                 actorUserId: $actor->id,
                 action: 'room.attachment_uploaded',

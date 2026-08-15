@@ -7,6 +7,7 @@ namespace ChitChat\DirectMessage;
 use ChitChat\Audit\AuditLogger;
 use ChitChat\Auth\AuthenticatedUser;
 use ChitChat\Http\ApiException;
+use ChitChat\Reactions\ReactionHydrator;
 use ChitChat\Realtime\EventRepository;
 use PDO;
 use RuntimeException;
@@ -34,7 +35,8 @@ final class DirectMessageMutationService
      *   deleted:bool,
      *   can_edit:bool,
      *   can_delete:bool,
-     *   mentions:list<array{user_id:int, username:string}>
+     *   mentions:list<array{user_id:int, username:string}>,
+     *   reactions:list<array{emoji:string, users:list<array{id:int, username:string}>, reacted_by_me:bool}>
      * }>
      */
     public function metadata(AuthenticatedUser $actor, array $messageIds): array
@@ -46,6 +48,12 @@ final class DirectMessageMutationService
         [$placeholders, $parameters] = $this->idParameters($messageIds);
         $parameters['actor_sender'] = $actor->id;
         $parameters['actor_recipient'] = $actor->id;
+        $parameters['viewer_user_id'] = $actor->id;
+        $reactionsSubquery = ReactionHydrator::correlatedSubquery(
+            'direct_message_reactions',
+            'dm.id',
+            ':viewer_user_id',
+        );
         $statement = $this->pdo->prepare(<<<SQL
 SELECT dm.id,
        dm.sender_user_id,
@@ -76,7 +84,8 @@ SELECT dm.id,
            FROM direct_message_mentions dmm
            JOIN users mu ON mu.id = dmm.mentioned_user_id
            WHERE dmm.message_id = dm.id
-       ) AS mentions_json
+       ) AS mentions_json,
+       {$reactionsSubquery} AS reactions_json
 FROM direct_messages dm
 WHERE dm.id IN ({$placeholders})
   AND (
@@ -106,6 +115,7 @@ SQL);
                 'can_edit' => $owned && $available && !$deleted,
                 'can_delete' => $owned && !$deleted,
                 'mentions' => $deleted ? [] : $this->hydrateMentions($row),
+                'reactions' => ReactionHydrator::hydrateJson($row['reactions_json'] ?? null),
             ];
         }
 
