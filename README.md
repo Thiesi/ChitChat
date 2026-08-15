@@ -1,14 +1,14 @@
 # ChitChat
 
-ChitChat is a small, self-hosted browser chat application. The clean reconstruction has reached **v1.3.0-rc.2**, the second release candidate for v1.3.0, adding participant search, a moderation queue, and replies/mentions on top of the stable `v1.2.0` baseline.
+ChitChat is a small, self-hosted browser chat application. The clean reconstruction has reached **v1.3.0**, the fourth stable release, adding participant search, a moderation queue, replies/mentions, and message reactions on top of the stable `v1.2.0` baseline.
 
 ## Repository status
 
-`v1.2.0` remains the supported stable baseline. `v1.3.0-rc.2` supersedes `v1.3.0-rc.1` and is intended for controlled evaluation; it applies forward-only migrations `0018_message_search.sql`, `0019_moderation_reports.sql` and `0020_replies_mentions.sql` in place from `v1.2.0`. Operators deploying it must back up PostgreSQL and attachment storage together and must not point older source at the migrated database. Installations already evaluating `v1.3.0-rc.1` should re-run `composer migrate` for `0020_replies_mentions.sql` and redeploy source; no data conversion is required.
+`v1.3.0` is now the supported stable baseline, superseding `v1.2.0` and the `v1.3.0-rc.1`/`v1.3.0-rc.2` release candidates. It applies forward-only migrations `0018_message_search.sql`, `0019_moderation_reports.sql`, `0020_replies_mentions.sql` and `0021_reactions.sql` in place from `v1.2.0`. Operators deploying it must back up PostgreSQL and attachment storage together and must not point older source at the migrated database. Installations already running a `v1.3.0` release candidate need only redeploy stable source and, for `rc.2`, apply `0021_reactions.sql`; no data conversion is required.
 
 The former `v0.10.25` source snapshot is incomplete and is not considered runnable or a supported upgrade predecessor. It is preserved on the `legacy/v0.10.25` branch for reference.
 
-See [CHANGELOG.md](CHANGELOG.md), the [v1.3.0-rc.2 release-candidate notes](docs/releases/v1.3.0-rc.2.md), the [v1.2.0 stable release notes](docs/releases/v1.2.0.md), and the [project roadmap](docs/roadmap.md).
+See [CHANGELOG.md](CHANGELOG.md), the [v1.3.0 stable release notes](docs/releases/v1.3.0.md), the [v1.2.0 stable release notes](docs/releases/v1.2.0.md), and the [project roadmap](docs/roadmap.md).
 
 ## v1 architecture
 
@@ -63,6 +63,8 @@ The application currently provides:
 - room-owner and room-moderator access limited to their current rooms, while global moderation roles may review DM reports without receiving surrounding conversation history;
 - retention-aware moderation evidence that survives canonical message cleanup while active and expires with the exact closure audit under configured audit retention;
 - room attachments with MIME and size allowlists, SHA-256 metadata, safe image previews, authorization-aware downloads, editable captions, and retained deletion evidence;
+- durable reply references and `@username`/`@room`/`@here` mentions on room and direct messages, resolved and authorized at send time, with composer support (reply banner, quoted preview, `@mention` autocomplete) and a durable `mentioned` notification;
+- message reactions from a small controlled emoji vocabulary, idempotent add/remove, authorization matching ordinary message-read access, and realtime delivery through the existing event system;
 - permanent-by-default two-party direct-message history, unread counts, cursor pagination, targeted realtime events, blocking, editing, delete-for-everyone, and file attachments;
 - an unavoidable direct-message privacy notice stating that messages are not end-to-end encrypted and that edits and deletions retain historical bodies until message retention removes them;
 - configurable administrative DM inspection, restricted to Super-Administrators by default, protected by recent step-up, and audited on every successful page access;
@@ -81,7 +83,7 @@ The application currently provides:
 - published-release archive installation, first-class backup/restore and forward-upgrade rehearsal;
 - real Nginx/PHP-FPM validation of authenticated, unbuffered SSE delivery.
 
-Replies and mentions, reactions, horizontal scaling, release-specific manual assistive-technology sign-off, optional identity integration, and richer notification delivery remain ongoing or future work.
+Horizontal scaling, release-specific manual assistive-technology sign-off, optional identity integration, and richer notification delivery (per-category preferences, quiet hours, Web Push) remain possible future work.
 
 ## Installation and operation
 
