@@ -90,9 +90,12 @@ The committed gates cover structural and keyboard accessibility across Chromium,
 
 ### Notification preferences and optional Web Push
 
-**Status:** possible later work.
+**Status:** data model, dependency choice and product decisions resolved in [ADR 0006](architecture/0006-web-push.md) — `minishlink/web-push` (the project's first production Composer dependency), all five notification kinds push-eligible with only `mentioned` per-account mutable, new subscriptions default to on. Implementation not started.
 
-Per-category preferences, quiet hours and privacy-preserving Web Push are candidates after replies/mentions establish a broader user-notification model. Push payloads should omit message bodies by default.
+- Use a small controlled set of push-eligible notification kinds, reusing the existing privacy-safe `account_notifications` presentation text rather than a second payload path.
+- Deliver push through a periodic operator-scheduled CLI sweep over undelivered notifications, not a request-time side effect or a new queue/Redis service.
+- Support per-account quiet hours and a per-category mute for the one social/conversational notification kind; security/audit notifications remain non-optional short of removing all subscriptions.
+- Keep push best-effort and non-authoritative; the durable in-app notification timeline remains the source of truth.
 
 ### Optional OpenID Connect login
 
