@@ -56,6 +56,7 @@ Values are validated at application startup. Invalid integers and values outside
 | `message_report` | 10 / 3600 s | Participant submission of a room or direct-message report |
 | `moderation_queue` | 120 / 60 s | Authorization-scoped moderation queue and case reads |
 | `moderation_action` | 60 / 3600 s | Case assignment, release, dismissal, and resolution |
+| `push_subscription_management` | 20 / 3600 s | Web Push subscribe, unsubscribe, preference updates, and device revocation |
 
 The complete variable list with current defaults is in `.env.example`.
 

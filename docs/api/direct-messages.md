@@ -14,11 +14,14 @@ All endpoints require authentication. State-changing user requests, every admini
   "body": "Hello",
   "read_at": null,
   "created_at": "2026-07-17T00:00:00+00:00",
-  "outgoing": true
+  "outgoing": true,
+  "reply_to": null,
+  "mentions": [],
+  "reactions": []
 }
 ```
 
-`outgoing` is calculated from the requesting or event-target account's perspective. Sender and recipient SSE events therefore carry separate perspective-correct payloads.
+`outgoing` is calculated from the requesting or event-target account's perspective. Sender and recipient SSE events therefore carry separate perspective-correct payloads. `reply_to`, `mentions`, and `reactions` follow the same shape as room messages; see [`rooms.md`](rooms.md#message-representation). A direct-message mention only ever resolves the conversation's other participant.
 
 Edits and deletions preserve historical bodies in append-only revision rows until direct-message retention hard-deletes the canonical message. Participant history never exposes those revision rows. Deleted canonical DMs use the fixed compatibility body `Message deleted.`.
 
@@ -107,11 +110,12 @@ Block, unblock and send operations serialize on the same PostgreSQL advisory loc
 ```json
 {
   "recipient_user_id": 7,
-  "body": "Hello"
+  "body": "Hello",
+  "reply_to_message_id": null
 }
 ```
 
-The body must contain 1-4,000 characters after trimming. Self-messaging is rejected. If either participant has blocked the other, the endpoint returns HTTP 403 with `direct_message_unavailable`; the error does not identify who set the block. Otherwise the insert and both targeted `direct_message` events are one transaction. The successful response is HTTP 201.
+The body must contain 1-4,000 characters after trimming. Self-messaging is rejected. `reply_to_message_id` is an optional positive integer identifying another message in the same conversation. If either participant has blocked the other, the endpoint returns HTTP 403 with `direct_message_unavailable`; the error does not identify who set the block. Otherwise the insert and both targeted `direct_message` events are one transaction. The successful response is HTTP 201.
 
 ## `POST /api/v1/direct-messages/read.php`
 

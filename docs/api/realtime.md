@@ -31,8 +31,10 @@ The stream releases the PHP session lock before polling, so the same browser ses
 
 - `global_broadcast`: visible to every authenticated user.
 - `room_message`, `message_deleted`, `room_broadcast`, and `presence_changed`: visible to current room members and global room moderators.
+- `message_reaction_changed`: for a room message, visible to current room members and global room moderators, as one shared event; for a direct message, published as two separate targeted events, one to each participant.
 - `ping`: visible only to the targeted user.
 - `forced_logout`: visible only to the targeted user.
+- `direct_message`: visible only to the sender and recipient, as separate perspective-correct events; see [`direct-messages.md`](direct-messages.md#realtime-delivery).
 
 Public room history remains readable through the paginated message endpoint, but realtime room delivery begins only after joining the room.
 
@@ -72,15 +74,38 @@ Emitted in the same transaction that stores a room message.
     "username": "Alice",
     "type": "text",
     "body": "Hello",
+    "attachment": null,
     "deleted": false,
-    "created_at": "2026-07-16 21:00:00+00"
+    "created_at": "2026-07-16 21:00:00+00",
+    "reply_to": null,
+    "mentions": [],
+    "reactions": []
   }
 }
 ```
 
+The message shape matches [`rooms.md`](rooms.md#message-representation) exactly, since the event is published from the same row that ordinary history reads.
+
 ### `message_deleted`
 
 Emitted in the same transaction as an audited soft deletion.
+
+### `message_reaction_changed`
+
+Emitted whenever a reaction is added or removed, carrying the message's complete current reaction state rather than a single delta:
+
+```json
+{
+  "message_kind": "room",
+  "message_id": 80,
+  "room_id": 42,
+  "reactions": [
+    {"emoji": "👍", "users": [{"id": 17, "username": "Alice"}], "reacted_by_me": true}
+  ]
+}
+```
+
+`message_kind` is `room` or `direct`; a direct-message payload omits `room_id`. For a room message this is one shared broadcast to every current member, so `reacted_by_me` reflects only the acting account's perspective — a recipient other than the actor must not treat it as their own reaction state. For a direct message, ChitChat publishes two separately computed targeted events (one per participant), each with `reacted_by_me` correct for that recipient, matching how other direct-message events are already perspective-correct.
 
 ### `ping`
 

@@ -1,6 +1,8 @@
 # API documentation
 
 - [Authentication and sessions](authentication.md)
+- [Multi-factor authentication (passkeys and recovery codes)](mfa.md)
+- [Account (security, export, closure)](account.md)
 - [Rooms](rooms.md)
 - [Realtime events](realtime.md)
 - [Presence](presence.md)
@@ -8,4 +10,10 @@
 - [Direct messages](direct-messages.md)
 - [Direct-message attachments](direct-message-attachments.md)
 - [Message editing and author deletion](message-mutations.md)
+- [Message search](message-search.md)
+- [Moderation reports](moderation-reports.md)
+- [Message-revision review](message-revision-review.md)
+- [Privacy notifications](privacy-notifications.md)
+- [Web Push subscriptions and preferences](web-push.md)
+- [Administration](admin.md)
 - [System settings](system-settings.md)

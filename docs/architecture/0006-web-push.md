@@ -1,6 +1,6 @@
 # ADR 0006: Notification preferences and Web Push
 
-- Status: Proposed (product decisions resolved; implementation not started)
+- Status: Accepted; implemented as migration `0022_web_push.sql`, merged to `main` and pending its first stable release
 - Date: 2026-08-15
 
 ## Context
@@ -99,4 +99,4 @@ The three questions this ADR originally left open have been resolved:
 2. **All five notification kinds are push-eligible.** `revision_review`, `moderator_message_deleted`, `admin_password_reset`, and `system_policy_changed` push immediately alongside `mentioned`, but are non-mutable — no per-account opt-out for those four, only quiet-hours suppression applies to them the same as everything else. Only `mentioned` has a `notification_preferences` mute toggle.
 3. **New subscriptions default to push-on** for every category until explicitly muted; the OS-level permission prompt is treated as the meaningful consent step.
 
-No open product decisions remain; the next step is implementation, starting with migration `0022_web_push.sql`.
+No open product decisions remained; implementation followed as migration `0022_web_push.sql`, merged to `main` and pending its first stable release.

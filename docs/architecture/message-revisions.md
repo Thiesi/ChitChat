@@ -33,4 +33,4 @@ Revision review is a separate capability with its own disabled-by-default enviro
 
 The audit entry stores the reviewer, IP, reason, message context, and returned revision IDs and actions. It never duplicates historical bodies into audit JSON.
 
-ChitChat does not notify participants when revision review occurs. The administrative page and API documentation make that limitation explicit, the DM interface discloses retained revisions, and deployment operators are responsible for broader policy disclosure.
+A successful review creates a durable `revision_review` privacy notification for the retained message's author (both participants, for a direct message) — see [privacy notifications](../api/privacy-notifications.md). The notification discloses only that review occurred, not the reviewer's identity, stated reason, or any historical body. The DM interface separately discloses that retained revisions exist at all, and deployment operators remain responsible for broader policy disclosure.
