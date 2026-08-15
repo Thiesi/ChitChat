@@ -34,12 +34,12 @@
   display: grid;
   grid-template-columns: minmax(8rem, 1fr) minmax(0, 1.4fr);
   gap: 1rem;
-  border-top: 1px solid var(--border-color);
+  border-top: 1px solid var(--border);
   padding-top: 0.75rem;
 }
 
 .status-card dt {
-  color: var(--muted-text);
+  color: var(--muted);
 }
 
 .status-card dd {
@@ -61,7 +61,7 @@
 
 .status-table th,
 .status-table td {
-  border-top: 1px solid var(--border-color);
+  border-top: 1px solid var(--border);
   padding: 0.7rem 0.75rem;
   text-align: left;
   vertical-align: top;
@@ -69,7 +69,7 @@
 }
 
 .status-table thead th {
-  color: var(--muted-text);
+  color: var(--muted);
   font-size: 0.9rem;
 }
 
@@ -83,7 +83,7 @@
 }
 
 .status-badge {
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border);
   border-radius: 999px;
   padding: 0.25rem 0.65rem;
   font-size: 0.85rem;
@@ -96,7 +96,7 @@
 
 .status-badge.warning,
 .status-warning-card {
-  border-color: var(--danger-color, #c05c5c);
+  border-color: var(--danger);
 }
 
 @media (max-width: 42rem) {

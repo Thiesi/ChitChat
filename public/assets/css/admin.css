@@ -188,7 +188,6 @@
 
 .role-fieldset label {
   display: flex;
-  grid-template-columns: auto 1fr;
   align-items: center;
   gap: 0.55rem;
 }
@@ -219,6 +218,11 @@
 .admin-empty {
   color: var(--muted);
   text-align: center;
+}
+
+.warning-text {
+  border-color: var(--warning);
+  background: color-mix(in srgb, var(--warning) 9%, var(--surface));
 }
 
 @media (max-width: 70rem) {

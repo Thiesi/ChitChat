@@ -19,6 +19,12 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 - Push is best-effort and never a delivery guarantee or a source of truth; the existing durable in-app notification timeline remains authoritative.
 - Push subscriptions and notification preferences are cleared at the same account-tombstone point durable privacy notifications already are.
 
+### Fixed
+
+- Fixed several CSS custom-property references (`--warning`, `--border-color`, `--muted-text`, `--danger-color`, `--panel-background`, `--code-surface`, `--warning-border`, `--warning-surface`) that pointed at design tokens never defined anywhere in the stylesheet tree, so the affected borders, backgrounds and text colors were silently dropped. Most visibly, the privileged step-up dialog — shown on any page for any sensitive action — could render as a barely visible near-white box; moderation notices, privacy notices, the DM block toggle, the revision-review warning banner, and the Administrator system-status page's dividers and badges lost their intended styling the same way. All affected declarations now reference the actual token set (`--border`, `--muted`, `--danger`, `--surface`, `--bg`) or the newly added `--warning` token.
+- Fixed the destructive-retention warning banner on Operational Settings (`.warning-text`) and the direct-message inbox header's action-button row (`.messages-header-actions`), both of which had no matching CSS rule anywhere and rendered as plain, unstyled elements.
+- Removed dead CSS (`grid-template-columns` on a `display: flex` rule in `.role-fieldset label`) and aligned `color-scheme` between every page's `<meta>` tag and `app.css` (both now declare `dark` only, matching the fact that no light theme exists).
+
 ## [1.3.0] - 2026-08-15
 
 Fourth stable release of the clean ChitChat reconstruction. This release promotes the evaluated `v1.3.0-rc.1`/`v1.3.0-rc.2` feature set — participant search, a moderation queue, and replies/mentions — and adds message reactions on top before stabilizing. Reactions did not go through its own release-candidate evaluation window; it was validated the same way every merge to `main` already is, through full CI (PHPUnit integration tests plus the complete Chromium/Firefox/WebKit browser matrix) on each of its two pull requests.

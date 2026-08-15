@@ -7,9 +7,9 @@
 .revision-review-warning {
   margin: 1rem 0;
   padding: 1rem 1.25rem;
-  border: 1px solid var(--warning-border, #8a6d1d);
+  border: 1px solid var(--warning);
   border-radius: 0.75rem;
-  background: var(--warning-surface, rgba(138, 109, 29, 0.12));
+  background: color-mix(in srgb, var(--warning) 12%, var(--surface));
 }
 
 .revision-review-warning h2 {
@@ -25,7 +25,7 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1rem;
   padding: 1rem;
-  border: 1px solid var(--border-color, rgba(127, 127, 127, 0.35));
+  border: 1px solid var(--border);
   border-radius: 0.75rem;
 }
 
@@ -55,7 +55,7 @@
   gap: 0.35rem 1rem;
   margin: 1rem 0;
   padding: 1rem;
-  border: 1px solid var(--border-color, rgba(127, 127, 127, 0.35));
+  border: 1px solid var(--border);
   border-radius: 0.75rem;
 }
 
@@ -75,7 +75,7 @@
 
 .revision-card {
   padding: 1rem;
-  border: 1px solid var(--border-color, rgba(127, 127, 127, 0.35));
+  border: 1px solid var(--border);
   border-radius: 0.75rem;
 }
 
@@ -109,9 +109,9 @@
   overflow: auto;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  border: 1px solid var(--border-color, rgba(127, 127, 127, 0.35));
+  border: 1px solid var(--border);
   border-radius: 0.5rem;
-  background: var(--code-surface, rgba(127, 127, 127, 0.08));
+  background: var(--bg);
   font: inherit;
 }
 
