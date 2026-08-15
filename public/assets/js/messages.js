@@ -1,5 +1,5 @@
 import { ApiError, apiGet, apiPost, setCsrfToken } from './api.js';
-import { renderMessageBody, buildReplyPreview } from './message-content.js';
+import { renderMessageBody, buildReplyPreview, buildReactionBar } from './message-content.js';
 import { attachMentionAutocomplete } from './mention-autocomplete.js';
 
 const state = {
@@ -343,7 +343,29 @@ function buildMessage(message) {
   actions.append(replyButton);
 
   article.append(body, meta, actions);
+  article.append(buildReactionBar(message.reactions, state.user?.id, (emoji, reactedByMe) => {
+    toggleReaction(message.id, emoji, reactedByMe);
+  }));
   return article;
+}
+
+async function toggleReaction(messageId, emoji, reactedByMe) {
+  try {
+    const endpoint = reactedByMe ? '/api/v1/direct-messages/unreact.php' : '/api/v1/direct-messages/react.php';
+    const response = await apiPost(endpoint, { message_id: messageId, emoji });
+    updateMessageReactions(messageId, response.reactions);
+  } catch (error) {
+    handleApiFailure(error);
+  }
+}
+
+function updateMessageReactions(messageId, reactions) {
+  const message = state.messages.find((candidate) => candidate.id === messageId);
+  if (!message) {
+    return;
+  }
+  message.reactions = Array.isArray(reactions) ? reactions : [];
+  renderMessages();
 }
 
 function searchDirectMessageMentions(prefix) {
@@ -459,6 +481,14 @@ function startEventStream() {
       toast(`New message from ${peer.username}.`);
     }
     refreshConversationsOnly().catch(handleApiFailure);
+  });
+
+  source.addEventListener('message_reaction_changed', (event) => {
+    const envelope = parseEvent(event);
+    const payload = envelope?.payload;
+    if (payload?.message_kind === 'direct') {
+      updateMessageReactions(payload.message_id, payload.reactions);
+    }
   });
   source.addEventListener('forced_logout', () => window.location.assign('/'));
 }
