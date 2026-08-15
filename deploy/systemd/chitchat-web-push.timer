@@ -1,0 +1,10 @@
+[Unit]
+Description=Run the ChitChat Web Push dispatch sweep frequently
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec=30s
+Unit=chitchat-web-push.service
+
+[Install]
+WantedBy=timers.target

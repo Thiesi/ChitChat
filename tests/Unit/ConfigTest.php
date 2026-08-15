@@ -33,6 +33,9 @@ final class ConfigTest extends TestCase
             'DM_ADMIN_INSPECTION_ROLE',
             'MESSAGE_REVISION_REVIEW_ENABLED',
             'MESSAGE_REVISION_REVIEW_ROLE',
+            'WEB_PUSH_VAPID_PUBLIC_KEY',
+            'WEB_PUSH_VAPID_PRIVATE_KEY',
+            'WEB_PUSH_VAPID_SUBJECT',
         ] as $name) {
             putenv($name);
             unset($_ENV[$name], $_SERVER[$name]);
@@ -207,5 +210,52 @@ final class ConfigTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('MESSAGE_REVISION_REVIEW_ROLE');
         Config::fromEnvironment();
+    }
+
+    public function testWebPushIsDisabledByDefault(): void
+    {
+        $config = Config::fromEnvironment();
+        self::assertFalse($config->webPushEnabled());
+    }
+
+    public function testWebPushVapidKeysMustBeConfiguredTogether(): void
+    {
+        putenv('WEB_PUSH_VAPID_PUBLIC_KEY=public-key-value');
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('WEB_PUSH_VAPID_PUBLIC_KEY and WEB_PUSH_VAPID_PRIVATE_KEY');
+        Config::fromEnvironment();
+    }
+
+    public function testWebPushRequiresASubjectWhenEnabled(): void
+    {
+        putenv('WEB_PUSH_VAPID_PUBLIC_KEY=public-key-value');
+        putenv('WEB_PUSH_VAPID_PRIVATE_KEY=private-key-value');
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('WEB_PUSH_VAPID_SUBJECT');
+        Config::fromEnvironment();
+    }
+
+    public function testWebPushSubjectMustBeAMailtoAddressOrHttpsUrl(): void
+    {
+        putenv('WEB_PUSH_VAPID_PUBLIC_KEY=public-key-value');
+        putenv('WEB_PUSH_VAPID_PRIVATE_KEY=private-key-value');
+        putenv('WEB_PUSH_VAPID_SUBJECT=admin@example.org');
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('WEB_PUSH_VAPID_SUBJECT must be a mailto: address or an https: URL.');
+        Config::fromEnvironment();
+    }
+
+    public function testWebPushIsEnabledWhenFullyConfigured(): void
+    {
+        putenv('WEB_PUSH_VAPID_PUBLIC_KEY=public-key-value');
+        putenv('WEB_PUSH_VAPID_PRIVATE_KEY=private-key-value');
+        putenv('WEB_PUSH_VAPID_SUBJECT=mailto:admin@example.org');
+
+        $config = Config::fromEnvironment();
+        self::assertTrue($config->webPushEnabled());
+        self::assertSame('public-key-value', $config->webPushVapidPublicKey);
     }
 }

@@ -1,0 +1,24 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use ChitChat\Database;
+use ChitChat\WebPush\WebPushDispatcher;
+
+if (PHP_SAPI !== 'cli') {
+    fwrite(STDERR, "This command may only run from the CLI.\n");
+    exit(1);
+}
+
+/** @var ChitChat\Config $config */
+$config = require dirname(__DIR__) . '/bootstrap/app.php';
+
+try {
+    $result = (new WebPushDispatcher(Database::connect($config), $config))->dispatch();
+    fwrite(STDOUT, json_encode($result, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT) . "\n");
+    exit(0);
+} catch (Throwable $exception) {
+    fwrite(STDERR, $exception->getMessage() . "\n");
+    exit(1);
+}
