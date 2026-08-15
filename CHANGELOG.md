@@ -8,8 +8,9 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ### Added
 
-- Added message reactions (backend): a small controlled emoji vocabulary (👍 ❤️ 😂 😮 😢 🎉), idempotent add/remove enforced by a database `UNIQUE (message_id, user_id, emoji)` constraint, and a new `message_reaction_changed` realtime event carrying the message's full current reaction state. See [ADR 0005](docs/architecture/0005-reactions.md).
+- Added message reactions: a small controlled emoji vocabulary (👍 ❤️ 😂 😮 😢 🎉), idempotent add/remove enforced by a database `UNIQUE (message_id, user_id, emoji)` constraint, and a new `message_reaction_changed` realtime event carrying the message's full current reaction state. See [ADR 0005](docs/architecture/0005-reactions.md).
 - Added `reactions` to every message-shaped API response (room and direct-message history, send, mutation metadata, attachment uploads), each entry listing the reacting participants by id and username, matching how message authorship is already visible.
+- Added a reaction bar to the room and direct-message clients: pills for emoji already in use (click toggles your own reaction) plus an "Add reaction" control for the full vocabulary, updated live via `message_reaction_changed`.
 
 ### Security and privacy
 
