@@ -1,0 +1,20 @@
+[Unit]
+Description=ChitChat Web Push dispatch sweep
+Documentation=file:/srv/chitchat/docs/architecture/0006-web-push.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=www-data
+Group=www-data
+WorkingDirectory=/srv/chitchat
+ExecStart=/usr/bin/php /srv/chitchat/bin/dispatch-web-push
+Nice=10
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+UMask=0077
+
+# Adapt User, Group, WorkingDirectory, and ExecStart to the installation.

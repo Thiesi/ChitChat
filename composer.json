@@ -4,11 +4,15 @@
   "type": "project",
   "require": {
     "php": "^8.2 || ^8.3 || ^8.4",
+    "ext-curl": "*",
     "ext-fileinfo": "*",
     "ext-json": "*",
     "ext-mbstring": "*",
     "ext-pdo": "*",
-    "ext-pdo_pgsql": "*"
+    "ext-pdo_pgsql": "*",
+    "minishlink/web-push": "^11.0",
+    "nyholm/psr7": "^1.8",
+    "php-http/curl-client": "^2.4"
   },
   "require-dev": {
     "phpstan/phpstan": "^2.1",
@@ -28,6 +32,7 @@
     "migrate": "php bin/migrate",
     "maintenance": "php bin/maintenance-cleanup",
     "maintenance:dry-run": "php bin/maintenance-cleanup --dry-run",
+    "dispatch-web-push": "php bin/dispatch-web-push",
     "backup": "php bin/chitchat-backup",
     "backup:verify": "php bin/chitchat-verify-backup",
     "restore": "php bin/chitchat-restore",

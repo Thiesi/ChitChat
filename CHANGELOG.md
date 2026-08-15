@@ -6,6 +6,18 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ## [Unreleased]
 
+### Added
+
+- Added Web Push notification delivery (backend): browser push subscriptions, per-category notification preferences (mute for `mentioned`), per-account quiet hours, and a new `bin/dispatch-web-push` periodic operator-scheduled command that sweeps undelivered notifications rather than sending push as a request-time side effect. See [ADR 0006](docs/architecture/0006-web-push.md).
+- Added `minishlink/web-push` as this project's first production Composer dependency, for VAPID JWT signing and RFC 8291 payload encryption. Disabled unless `WEB_PUSH_VAPID_PUBLIC_KEY`, `WEB_PUSH_VAPID_PRIVATE_KEY`, and `WEB_PUSH_VAPID_SUBJECT` are all configured, mirroring how WebAuthn stays inert without `WEBAUTHN_RP_ID`/`WEBAUTHN_ORIGIN`.
+
+### Security and privacy
+
+- Push payloads carry only the same sender/room/title text already considered safe for the in-app notification timeline, never a raw message body.
+- `revision_review`, `moderator_message_deleted`, `admin_password_reset`, and `system_policy_changed` pushes are non-mutable — a participant cannot silence those categories short of removing all push subscriptions, matching how they're already non-optional in-app. Only `mentioned` has a per-account mute.
+- Push is best-effort and never a delivery guarantee or a source of truth; the existing durable in-app notification timeline remains authoritative.
+- Push subscriptions and notification preferences are cleared at the same account-tombstone point durable privacy notifications already are.
+
 ## [1.3.0] - 2026-08-15
 
 Fourth stable release of the clean ChitChat reconstruction. This release promotes the evaluated `v1.3.0-rc.1`/`v1.3.0-rc.2` feature set — participant search, a moderation queue, and replies/mentions — and adds message reactions on top before stabilizing. Reactions did not go through its own release-candidate evaluation window; it was validated the same way every merge to `main` already is, through full CI (PHPUnit integration tests plus the complete Chromium/Firefox/WebKit browser matrix) on each of its two pull requests.

@@ -180,6 +180,33 @@ SQL);
     {
         $kind = (string) $row['kind'];
         $context = $this->decodeContext((string) $row['context']);
+        $rendered = $this->renderText($kind, $context);
+        $readAt = $row['read_at'] === null ? null : (string) $row['read_at'];
+
+        return [
+            'id' => (int) $row['id'],
+            'kind' => $kind,
+            'title' => $rendered['title'],
+            'message' => $rendered['message'],
+            'details' => $rendered['details'],
+            'link' => $rendered['link'],
+            'read' => $readAt !== null,
+            'read_at' => $readAt,
+            'created_at' => (string) $row['created_at'],
+        ];
+    }
+
+    /**
+     * Renders the same privacy-safe title/message/link used by the in-app
+     * timeline. Shared with WebPushDispatcher so a push payload never
+     * carries more than what's already considered safe for a durable,
+     * exportable notification record — never a raw message body.
+     *
+     * @param array<string, mixed> $context
+     * @return array{title:string, message:string, details:list<string>, link:?string}
+     */
+    public function renderText(string $kind, array $context): array
+    {
         $title = 'Privacy notification';
         $message = 'A privacy- or security-relevant account event occurred.';
         /** @var list<string> $details */
@@ -214,23 +241,11 @@ SQL);
             $link = $this->mentionLink($context);
         }
 
-        $readAt = $row['read_at'] === null ? null : (string) $row['read_at'];
-
-        return [
-            'id' => (int) $row['id'],
-            'kind' => $kind,
-            'title' => $title,
-            'message' => $message,
-            'details' => $details,
-            'link' => $link,
-            'read' => $readAt !== null,
-            'read_at' => $readAt,
-            'created_at' => (string) $row['created_at'],
-        ];
+        return ['title' => $title, 'message' => $message, 'details' => $details, 'link' => $link];
     }
 
     /** @return array<string, mixed> */
-    private function decodeContext(string $encoded): array
+    public function decodeContext(string $encoded): array
     {
         try {
             $decoded = json_decode($encoded, true, 64, JSON_THROW_ON_ERROR);

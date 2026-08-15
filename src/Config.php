@@ -45,6 +45,9 @@ final readonly class Config
         public string $webauthnOrigin = '',
         public int $webauthnChallengeTtlSeconds = 300,
         public int $mfaPendingLoginTtlSeconds = 300,
+        public string $webPushVapidPublicKey = '',
+        public string $webPushVapidPrivateKey = '',
+        public string $webPushVapidSubject = '',
     ) {
         if ($this->databasePort < 1 || $this->databasePort > 65535) {
             throw new InvalidArgumentException('DB_PORT must be between 1 and 65535.');
@@ -105,6 +108,7 @@ final readonly class Config
             }
         }
         $this->validateWebAuthnConfiguration();
+        $this->validateWebPushConfiguration();
         $this->rateLimits = $rateLimits ?? RateLimitPolicySet::defaults(
             $this->loginMaxAttempts,
             $this->loginLockMinutes * 60,
@@ -151,6 +155,9 @@ final readonly class Config
             webauthnOrigin: self::env('WEBAUTHN_ORIGIN', ''),
             webauthnChallengeTtlSeconds: self::envInt('WEBAUTHN_CHALLENGE_TTL_SECONDS', 300),
             mfaPendingLoginTtlSeconds: self::envInt('MFA_PENDING_LOGIN_TTL_SECONDS', 300),
+            webPushVapidPublicKey: self::env('WEB_PUSH_VAPID_PUBLIC_KEY', ''),
+            webPushVapidPrivateKey: self::env('WEB_PUSH_VAPID_PRIVATE_KEY', ''),
+            webPushVapidSubject: self::env('WEB_PUSH_VAPID_SUBJECT', ''),
         );
     }
 
@@ -162,6 +169,11 @@ final readonly class Config
     public function webauthnEnabled(): bool
     {
         return $this->webauthnRpId !== '' && $this->webauthnOrigin !== '';
+    }
+
+    public function webPushEnabled(): bool
+    {
+        return $this->webPushVapidPublicKey !== '' && $this->webPushVapidPrivateKey !== '';
     }
 
     public static function loadEnvFile(string $path): void
@@ -233,6 +245,25 @@ final readonly class Config
         }
         if ($host !== $this->webauthnRpId && !str_ends_with($host, '.' . $this->webauthnRpId)) {
             throw new InvalidArgumentException('WEBAUTHN_ORIGIN host must equal or be a subdomain of WEBAUTHN_RP_ID.');
+        }
+    }
+
+    private function validateWebPushConfiguration(): void
+    {
+        if (($this->webPushVapidPublicKey === '') !== ($this->webPushVapidPrivateKey === '')) {
+            throw new InvalidArgumentException('WEB_PUSH_VAPID_PUBLIC_KEY and WEB_PUSH_VAPID_PRIVATE_KEY must be configured together.');
+        }
+        if (!$this->webPushEnabled()) {
+            return;
+        }
+        if ($this->webPushVapidSubject === '') {
+            throw new InvalidArgumentException('WEB_PUSH_VAPID_SUBJECT is required when Web Push is configured.');
+        }
+        if (
+            !str_starts_with($this->webPushVapidSubject, 'mailto:')
+            && !str_starts_with($this->webPushVapidSubject, 'https://')
+        ) {
+            throw new InvalidArgumentException('WEB_PUSH_VAPID_SUBJECT must be a mailto: address or an https: URL.');
         }
     }
 

@@ -35,6 +35,10 @@ SQL);
         'csrf_token' => SessionManager::csrfToken(),
         'user' => $user?->toSessionArray(),
         'registration_enabled' => (int) $policy['registration_enabled'] === 1,
+        'web_push' => [
+            'enabled' => $config->webPushEnabled(),
+            'vapid_public_key' => $config->webPushEnabled() ? $config->webPushVapidPublicKey : null,
+        ],
         'security' => [
             'privileged_step_up' => $user === null
                 ? [
