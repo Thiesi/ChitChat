@@ -30,6 +30,12 @@
   margin: 0;
 }
 
+.messages-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
 .messages-eyebrow {
   color: var(--accent-strong);
   font-size: 0.78rem;
@@ -354,6 +360,15 @@
   .inspection-header {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .messages-header-actions {
+    width: 100%;
+  }
+
+  .messages-header-actions .secondary-button {
+    flex: 1 1 auto;
+    text-align: center;
   }
 
   .dm-message {

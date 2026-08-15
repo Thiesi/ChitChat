@@ -9,7 +9,7 @@ $appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUT
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="dark light">
+  <meta name="color-scheme" content="dark">
   <meta name="description" content="<?= $appName ?> self-hosted browser chat">
   <title><?= $appName ?></title>
   <link rel="stylesheet" href="/assets/css/app.css">

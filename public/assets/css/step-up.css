@@ -1,11 +1,11 @@
 .step-up-dialog {
   width: min(30rem, calc(100vw - 2rem));
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border);
   border-radius: 0.9rem;
   padding: 0;
-  background: var(--panel-background, Canvas);
+  background: var(--surface);
   color: inherit;
-  box-shadow: 0 1.5rem 4rem rgb(0 0 0 / 35%);
+  box-shadow: var(--shadow);
 }
 
 .step-up-dialog::backdrop {
