@@ -97,12 +97,6 @@ The committed gates cover structural and keyboard accessibility across Chromium,
 - Support per-account quiet hours and a per-category mute for the one social/conversational notification kind; security/audit notifications remain non-optional short of removing all subscriptions.
 - Keep push best-effort and non-authoritative; the durable in-app notification timeline remains the source of truth.
 
-### Optional OpenID Connect login
-
-**Status:** possible later work.
-
-External identity may be linked to local accounts while ChitChat retains local authorization, room roles, lifecycle rules and at least one local break-glass Super-Administrator.
-
 ## Deliberately deferred
 
 ### End-to-end-encrypted direct messages
@@ -112,3 +106,9 @@ This would conflict with current server-side history, revision retention, report
 ### Horizontal scaling
 
 The supported target remains one application server. Multi-node operation should begin only when measured capacity or availability requirements justify shared sessions, shared/object attachment storage, cross-node SSE wake-ups, maintenance leadership, deployment draining and migration coordination. Redis or another coordination service will not be added merely to advertise scalability.
+
+### Optional OpenID Connect login
+
+**Status:** postponed indefinitely, not ruled out.
+
+Unlike the other entries in this section, this isn't blocked by a concrete technical conflict — it's postponed because its fit with the guiding principles above is genuinely unclear. An external identity provider is exactly the kind of horizontal complexity the guiding principles ask to justify with a measured deployment need rather than add speculatively, and it sits awkwardly next to "keep the supported deployment understandable for a small self-hosted installation": it would pull in a new external dependency and a second authentication path for installations that, by definition, are small enough not to need federated identity. If a real deployment need makes the case, the shape sketched below remains the starting point — external identity linked to local accounts, with ChitChat retaining local authorization, room roles, lifecycle rules and at least one local break-glass Super-Administrator — but nothing is scheduled against it.

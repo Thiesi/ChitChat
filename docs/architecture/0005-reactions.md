@@ -1,6 +1,6 @@
 # ADR 0005: Reactions data model and authorization boundary
 
-- Status: Proposed (product decisions resolved; implementation not started)
+- Status: Accepted; implemented as migration `0021_reactions.sql`, released in `v1.3.0`
 - Date: 2026-08-14
 
 ## Context
@@ -71,4 +71,4 @@ The two questions this ADR originally left open have been resolved:
 1. **Emoji vocabulary confirmed: 👍 ❤️ 😂 😮 😢 🎉.**
 2. **Reactor identity is shown, not aggregate-only.** `reactions` carries the list of participants (`id`, `username`) per emoji, matching how message authorship is already visible to every viewer. A never-posting room member becomes visible to others the first time they react — an accepted tradeoff, not a gap.
 
-No open product decisions remain; the next step is implementation, starting with migration `0021_reactions.sql`.
+No open product decisions remained; implementation followed as migration `0021_reactions.sql`, released in `v1.3.0`.

@@ -36,7 +36,7 @@ Use this checklist for every ChitChat pre-release and stable release.
 - [ ] Attachment storage is outside the web root with restrictive ownership and permissions.
 - [ ] PHP and proxy upload limits match the configured application limit.
 - [ ] DM inspection is explicitly accepted or disabled, and user disclosure matches the policy.
-- [ ] Historical revision review is explicitly accepted or remains disabled, and the participant-notification limitation is documented.
+- [ ] Historical revision review is explicitly accepted or remains disabled, and the bounded participant-notification behavior (a durable notice only — no reviewer identity, reason, or body) is documented.
 - [ ] Retention values are intentional; `0` means permanent retention.
 - [ ] The maintenance schedule and alerting for nonzero exit status are configured.
 - [ ] Backup encryption, access control, retention, and restore ownership are documented.

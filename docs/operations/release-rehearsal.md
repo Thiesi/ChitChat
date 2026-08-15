@@ -29,7 +29,7 @@ It then restores into a new database and a new storage path. The original databa
 
 ## Upgrade rehearsal
 
-The current branch is pointed at the restored `v1.0.0` database and attachment directory. It applies forward migrations `0010` through `0013`, starts the application, and verifies through the public API that:
+The current branch is pointed at the restored `v1.0.0` database and attachment directory. It runs `composer migrate` unconditionally, so it always applies every migration newer than the archived tag — currently `0010` through `0022` — rather than a number pinned in the rehearsal script itself; that range grows automatically as new migrations are added. It then starts the application and verifies through the public API that:
 
 - both users remain usable;
 - the room and all three room-message records remain present;

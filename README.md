@@ -45,7 +45,8 @@ The application currently provides:
 - session-version invalidation for active sessions and privileged elevation;
 - a user-facing, step-up-protected JSON export of retained account data with explicit privacy boundaries and audited generation;
 - step-up-protected account closure with immediate session invalidation, a 14-day cooling-off period, MFA-preserving restoration, maintenance-driven profile tombstoning, and documented username-reuse and retained-shared-data rules;
-- durable participant-facing notifications for revision review, moderator room-message deletion, administrator password reset, and material installation-policy changes, with bounded context, account-scoped read state, and an unread badge;
+- durable participant-facing notifications for revision review, moderator room-message deletion, administrator password reset, material installation-policy changes, and mentions, with bounded context, account-scoped read state, and an unread badge;
+- optional Web Push delivery of that same notification set to subscribed browsers, with a per-category mute for mentions, per-account quiet hours, per-device subscription management, and delivery through a periodic operator-scheduled sweep rather than a request-time side effect;
 - public, unlisted, and invitation-only private rooms;
 - room owners, moderators, members, minimum-age enforcement, and optional inactivity policies;
 - persistent room-message history with pagination;
@@ -83,7 +84,7 @@ The application currently provides:
 - published-release archive installation, first-class backup/restore and forward-upgrade rehearsal;
 - real Nginx/PHP-FPM validation of authenticated, unbuffered SSE delivery.
 
-Horizontal scaling, release-specific manual assistive-technology sign-off, optional identity integration, and richer notification delivery (per-category preferences, quiet hours, Web Push) remain possible future work.
+Horizontal scaling and release-specific manual assistive-technology sign-off remain possible future work. Optional external identity (OpenID Connect) integration is postponed indefinitely — see the [roadmap](docs/roadmap.md) for why.
 
 ## Installation and operation
 

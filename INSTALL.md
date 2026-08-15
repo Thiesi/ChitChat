@@ -1,16 +1,16 @@
 # ChitChat installation and operation
 
-This document applies to stable `v1.1.0` and the current forward-compatible development line of the clean reconstruction. The supported initial deployment model is one application server backed by PostgreSQL; review the privacy defaults, forward-only migrations, known limitations, backup procedure, authentication configuration, and worker-capacity requirements before serving users.
+This document applies to stable `v1.3.0` and the current forward-compatible development line of the clean reconstruction. The supported initial deployment model is one application server backed by PostgreSQL; review the privacy defaults, forward-only migrations, known limitations, backup procedure, authentication configuration, and worker-capacity requirements before serving users.
 
 ## Requirements
 
 - PHP 8.2 or newer
 - Composer 2
 - PostgreSQL 15 or newer
-- PHP extensions: `pdo`, `pdo_pgsql`, `json`, `mbstring`, `fileinfo`, `openssl`
+- PHP extensions: `pdo`, `pdo_pgsql`, `json`, `mbstring`, `fileinfo`, `openssl`, and `curl` (needed only if Web Push is enabled)
 - Node.js 24 or newer only for CI-equivalent JavaScript and browser tests
 
-The deployed browser client has no Node.js runtime dependency and uses no npm packages.
+The deployed browser client has no Node.js runtime dependency and uses no npm packages. `minishlink/web-push` (a Composer dependency, pulled in for Web Push's VAPID signing and payload encryption) is the only production dependency beyond PHP itself; see [ADR 0006](docs/architecture/0006-web-push.md).
 
 ## Setup
 
@@ -31,7 +31,20 @@ The deployed browser client has no Node.js runtime dependency and uses no npm pa
    ```
 
    Leave both variables unset to keep passkeys disabled. Changing either value after enrollment invalidates the relationship between existing credentials and the installation. See `docs/operations/passkeys.md` before enabling the feature.
-6. Install dependencies:
+6. To enable Web Push, generate a VAPID keypair and set all three values in `.env`:
+
+   ```sh
+   npx web-push generate-vapid-keys
+   ```
+
+   ```text
+   WEB_PUSH_VAPID_PUBLIC_KEY=<generated public key>
+   WEB_PUSH_VAPID_PRIVATE_KEY=<generated private key>
+   WEB_PUSH_VAPID_SUBJECT=mailto:admin@example.org
+   ```
+
+   Leave all three unset to keep Web Push disabled. See `docs/operations/web-push.md` for the dispatch sweep, scheduling, and notification-category details before enabling the feature.
+7. Install dependencies:
 
    ```sh
    composer install
@@ -43,26 +56,26 @@ The deployed browser client has no Node.js runtime dependency and uses no npm pa
    composer install --no-dev --classmap-authoritative
    ```
 
-7. Apply the migrations:
+8. Apply the migrations:
 
    ```sh
    composer migrate
    ```
 
-8. Ensure the attachment storage directory is writable by the PHP process. By default ChitChat uses `var/uploads`, which is outside the served `public/` tree:
+9. Ensure the attachment storage directory is writable by the PHP process. By default ChitChat uses `var/uploads`, which is outside the served `public/` tree:
 
    ```sh
    mkdir -p var/uploads
    chmod 700 var/uploads
    ```
 
-9. Start PHP's built-in server with `public/` as the document root for local evaluation:
+10. Start PHP's built-in server with `public/` as the document root for local evaluation:
 
-   ```sh
-   PHP_CLI_SERVER_WORKERS=8 php -S 127.0.0.1:8080 -t public
-   ```
+    ```sh
+    PHP_CLI_SERVER_WORKERS=8 php -S 127.0.0.1:8080 -t public
+    ```
 
-10. Open `http://127.0.0.1:8080/`.
+11. Open `http://127.0.0.1:8080/`.
 
 For local passkey evaluation use `WEBAUTHN_RP_ID=localhost`, `WEBAUTHN_ORIGIN=http://localhost:8080`, and open that exact origin rather than `127.0.0.1`.
 
@@ -139,6 +152,9 @@ Incorrect password, passkey and recovery-code attempts are independently audited
 - `/messages.php` serves the direct-message inbox and its fixed privacy notice.
 - `/account.php` serves account security, personal-data export, and account closure controls.
 - `/restore-account.php` serves closure restoration and its MFA completion flow.
+- `/search.php` serves authorization-aware full-text search over room and direct-message history.
+- `/moderation.php` serves the authorization-scoped moderation queue for eligible room and global moderators.
+- `/notifications.php` serves the signed-in participant's privacy-notification center and Web Push subscription/preference controls.
 - `/admin.php` serves the permission-aware administration console.
 - `/admin-messages.php` serves audited direct-message inspection for eligible administrators.
 - `/admin-message-revisions.php` serves exact-ID, reason-required revision review when separately enabled.
@@ -151,13 +167,19 @@ Incorrect password, passkey and recovery-code attempts are independently audited
 - `/api/v1/mfa/` contains passkey and recovery-code login and privileged-step-up endpoints.
 - `/api/v1/account/mfa/` contains status, enrollment, passkey management, recovery-code rotation, and MFA disablement endpoints.
 - `/api/v1/account/export.php` creates a step-up-protected retained-data JSON export for the signed-in account.
+- `/api/v1/account/notifications/` contains privacy-notification list and mark-read endpoints.
 - `/api/v1/events/stream.php` provides the authenticated SSE stream.
 - `/api/v1/presence/heartbeat.php` renews a browser tab's presence lease.
 - `/api/v1/rooms/presence.php` lists active users in an authorized room.
 - `/api/v1/attachments/` contains upload, protected download, and bounded metadata endpoints.
 - `/api/v1/direct-messages/` contains user search, conversation, history, blocking, mutation, attachment, send, and read-acknowledgement endpoints.
+- `/api/v1/search/messages.php` provides authorization-aware full-text search over room and direct-message history.
+- `/api/v1/reports/message.php` submits a participant report for one specific visible, undeleted room or direct message.
+- `/api/v1/moderation/` contains moderation-queue case listing, claim, and resolution endpoints for eligible moderators.
+- `/api/v1/push/` contains Web Push subscribe, unsubscribe, preference, and device-management endpoints; inert unless VAPID keys are configured (see [`docs/operations/web-push.md`](docs/operations/web-push.md)).
 - `/api/v1/admin/direct-messages/` contains inspection user search and audited inspection endpoints.
 - `/api/v1/admin/message-revisions/` contains the audited exact-message revision-review endpoint.
+- `/api/v1/admin/rooms/` contains room-scoped administrative membership, invitation, and search endpoints.
 - `/api/v1/admin/settings/` contains Super-Administrator settings read and update endpoints.
 - `/api/v1/admin/system-status.php` contains the Administrator status snapshot used by the browser page.
 - API contracts are documented in `docs/api/`.

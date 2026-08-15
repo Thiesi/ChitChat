@@ -57,13 +57,15 @@ Only rows in the requested authorized room are returned.
       "deleted": false,
       "deletion_kind": null,
       "can_edit": true,
-      "can_delete": true
+      "can_delete": true,
+      "mentions": [],
+      "reactions": []
     }
   ]
 }
 ```
 
-For deleted messages, `body` is `null`, controls are false, and `deletion_kind` is `author` or `moderator`.
+For deleted messages, `body` is `null`, controls are false, `deletion_kind` is `author` or `moderator`, and `mentions` is emptied. `reactions` follows the same shape documented in [`rooms.md`](rooms.md#message-representation) regardless of deletion state; a deleted message's reactions remain visible since removing them would misrepresent history that already happened.
 
 ### `POST /api/v1/rooms/edit-message.php`
 
@@ -103,13 +105,15 @@ Only messages involving the authenticated account are returned.
       "edited_at": "2026-07-17T08:00:00+00:00",
       "deleted": false,
       "can_edit": true,
-      "can_delete": true
+      "can_delete": true,
+      "mentions": [],
+      "reactions": []
     }
   ]
 }
 ```
 
-`can_edit` becomes false while messaging is blocked in either direction. The sender may still receive `can_delete: true` for an active message.
+`can_edit` becomes false while messaging is blocked in either direction. The sender may still receive `can_delete: true` for an active message. `mentions` and `reactions` follow the same rules as the room-message metadata endpoint above.
 
 ### `POST /api/v1/direct-messages/edit.php`
 

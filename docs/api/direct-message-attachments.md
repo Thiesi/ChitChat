@@ -9,10 +9,11 @@ Attachments are not end-to-end encrypted. The file and its message caption follo
 `POST /api/v1/direct-messages/attachments/upload.php` requires authentication, the current `X-CSRF-Token`, and `multipart/form-data` fields:
 
 - `recipient_user_id`: positive integer;
-- `caption`: optional UTF-8 text, at most 4,000 characters after trimming;
+- `caption`: optional UTF-8 text, at most 4,000 characters after trimming; parsed for a mention of the recipient the same way an ordinary message body is;
+- `reply_to_message_id`: optional positive integer form field identifying another message in the same conversation;
 - `file`: one uploaded file.
 
-If the caption is empty, the normalized original filename becomes the direct-message body. The upload is limited to 10 successful attempts per authenticated user per hour, in addition to the web server and PHP request-size limits.
+If the caption is empty, the normalized original filename becomes the direct-message body. The upload is limited to 10 successful attempts per authenticated user per hour, in addition to the web server and PHP request-size limits. The returned message object carries `reply_to`, `mentions`, and `reactions` in the same shape as an ordinary direct message; see [`direct-messages.md`](direct-messages.md#message-representation).
 
 The service writes the file under a random 64-character storage key outside `public/`, verifies its actual size and SHA-256 digest, and then serializes on the same unordered user-pair advisory lock used by text sends and block operations. If either participant has blocked the other, the upload returns HTTP 403 with `direct_message_unavailable` and the stored file is removed.
 

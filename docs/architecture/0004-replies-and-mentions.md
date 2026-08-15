@@ -1,6 +1,6 @@
 # ADR 0004: Replies and mentions data model and authorization boundary
 
-- Status: Proposed (product decisions resolved; implementation not started)
+- Status: Accepted; implemented as migration `0020_replies_mentions.sql`, released in `v1.3.0`
 - Date: 2026-08-14
 
 ## Context
@@ -81,4 +81,4 @@ The three questions this ADR originally left open have been resolved:
 2. **`@room` and `@here` broadcast mentions are in scope for `v1`,** alongside individual `@username` mentions, per the design above. This is a wider scope than the roadmap bullet's literal wording ("Add `@username` mentions only where...") and than this ADR originally proposed; `docs/roadmap.md` has been updated to say so explicitly.
 3. **Reply previews render normally for retained history regardless of a later block.** Blocking affects new messages only, consistent with how DM blocking already behaves for existing history today. No special-case check against current block state is added to preview resolution.
 
-No open product decisions remain; the next step is implementation, starting with migration `0020_replies_mentions.sql`.
+No open product decisions remained; implementation followed as migration `0020_replies_mentions.sql`, released in `v1.3.0`.

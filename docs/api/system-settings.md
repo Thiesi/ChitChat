@@ -16,6 +16,7 @@ Response:
 {
   "settings": {
     "registration_enabled": true,
+    "mfa_required_for_admin_roles": false,
     "room_message_retention_days": 0,
     "direct_message_retention_days": 0,
     "audit_retention_days": 0,
@@ -45,6 +46,7 @@ The request must include every field returned above except `updated_at`:
 ```json
 {
   "registration_enabled": false,
+  "mfa_required_for_admin_roles": false,
   "room_message_retention_days": 90,
   "direct_message_retention_days": 180,
   "audit_retention_days": 365,
@@ -56,6 +58,8 @@ The request must include every field returned above except `updated_at`:
 ```
 
 The response returns the complete updated settings object. The old and new snapshots are written to the audit log in the same transaction. The earlier step-up success has its own authentication audit record; it does not replace the settings-change audit.
+
+Setting `mfa_required_for_admin_roles` from `false` to `true` additionally requires every currently active `super_admin`, `admin`, `chat_admin`, and `global_moderator` account to already have passkey MFA enrolled and at least one unused recovery code. If any qualifying account is missing either, the request is rejected with `409 administrators_missing_mfa` and the count of accounts still missing enrollment, before any setting changes or audit record is written. Turning the policy back off has no such precondition.
 
 Changing settings does not immediately delete data. The operator must run `php bin/maintenance-cleanup`; see `docs/operations/maintenance.md`.
 

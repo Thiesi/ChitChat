@@ -23,18 +23,22 @@ Room history and `room_message` realtime events include an `attachment` field on
     "previewable": true
   },
   "deleted": false,
-  "created_at": "2026-07-17T00:00:00+00:00"
+  "created_at": "2026-07-17T00:00:00+00:00",
+  "reply_to": null,
+  "mentions": [],
+  "reactions": []
 }
 ```
 
-The filename is display metadata only and never determines the storage path. Clients must use the attachment ID with the download endpoint.
+The filename is display metadata only and never determines the storage path. Clients must use the attachment ID with the download endpoint. `reply_to`, `mentions`, and `reactions` follow the same shape as ordinary text messages; see [`rooms.md`](rooms.md#message-representation).
 
 ## `POST /api/v1/attachments/upload.php`
 
 Send `multipart/form-data` with:
 
 - `room_id`: positive integer form field;
-- `caption`: optional UTF-8 string of at most 4,000 characters;
+- `caption`: optional UTF-8 string of at most 4,000 characters; parsed for `@username`/`@room`/`@here` mentions the same way an ordinary message body is;
+- `reply_to_message_id`: optional positive integer form field identifying another message in the same room;
 - `file`: one uploaded file.
 
 The request must include `X-CSRF-Token`. The caller must be a persistent member of the room and satisfy its minimum-age policy.
@@ -56,7 +60,10 @@ Example response, HTTP 201:
       "sha256": "...",
       "previewable": true
     },
-    "deleted": false
+    "deleted": false,
+    "reply_to": null,
+    "mentions": [],
+    "reactions": []
   }
 }
 ```
@@ -119,4 +126,4 @@ This bounded endpoint lets the browser enhance visible message nodes without exp
 
 ## Deletion and retention
 
-Authorized message deletion marks the linked attachment deleted in the same transaction and immediately blocks metadata and downloads. The physical opaque file is retained for the initial release; automated retention and orphan cleanup will be added later.
+Authorized message deletion marks the linked attachment deleted in the same transaction and immediately blocks metadata and downloads. The physical opaque file is retained until the configured `deleted_attachment_retention_days` policy elapses, at which point `composer maintenance` removes the metadata and binary together; a failed upload's orphaned file is removed after the separate orphan grace period. See [`docs/operations/maintenance.md`](../operations/maintenance.md).
