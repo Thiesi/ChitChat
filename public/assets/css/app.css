@@ -410,6 +410,94 @@ button:focus-visible {
   font-weight: 600;
 }
 
+.reaction-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: 0.3rem;
+}
+
+.reaction-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  padding: 0.1rem 0.5rem;
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.reaction-button:hover,
+.reaction-button:focus-visible {
+  border-color: var(--accent-strong);
+}
+
+.reaction-button-active {
+  border-color: var(--accent);
+  background: #2a3550;
+  color: #dbe6ff;
+}
+
+.reaction-button-count {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+.reaction-button-active .reaction-button-count {
+  color: inherit;
+}
+
+.reaction-add-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font: inherit;
+  line-height: 1;
+}
+
+.reaction-add-button:hover,
+.reaction-add-button:focus-visible {
+  color: var(--text);
+  border-color: var(--accent-strong);
+}
+
+.reaction-picker {
+  display: flex;
+  flex-basis: 100%;
+  gap: 0.25rem;
+  margin-top: 0.2rem;
+}
+
+.reaction-picker[hidden] {
+  display: none;
+}
+
+.reaction-picker-option {
+  border: 1px solid var(--border);
+  border-radius: 0.3rem;
+  padding: 0.1rem 0.4rem;
+  background: var(--surface-2);
+  cursor: pointer;
+  font-size: 0.95rem;
+}
+
+.reaction-picker-option:hover,
+.reaction-picker-option:focus-visible {
+  border-color: var(--accent-strong);
+}
+
 .mention-broadcast {
   background: #433e3b;
   color: #ffe0b2;
