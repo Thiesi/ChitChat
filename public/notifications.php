@@ -32,6 +32,71 @@ $appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUT
       <a class="secondary-button" href="/">Back to chat</a>
     </header>
 
+    <section class="account-card" aria-labelledby="push-heading">
+      <p class="account-eyebrow">Real-time delivery</p>
+      <h2 id="push-heading">Push notifications</h2>
+      <p>
+        Get a browser notification for select account events even when no ChitChat tab is open. A push
+        payload never carries a message body — only the same sender and room text already shown below —
+        and is a best-effort nudge, not a delivery guarantee; this timeline remains the complete record.
+      </p>
+      <p id="push-unsupported" class="account-muted hidden">This browser does not support push notifications.</p>
+      <p id="push-status" class="account-muted" role="status" aria-live="polite"></p>
+      <div class="account-action-row">
+        <button id="push-subscribe-toggle" class="secondary-button" type="button" disabled>Enable push notifications</button>
+      </div>
+
+      <div id="push-settings" class="hidden">
+        <form id="push-preferences-form" class="form-stack">
+          <label>
+            <input id="push-mentioned-enabled" type="checkbox">
+            Notify me when I'm mentioned (@username, @room, or @here)
+          </label>
+
+          <h3>Quiet hours</h3>
+          <p class="account-muted">Push is suppressed during this local time window; the in-app timeline is unaffected.</p>
+          <label>
+            <span>Start hour</span>
+            <select id="push-quiet-start">
+              <option value="">Off</option>
+              <?php for ($hour = 0; $hour < 24; $hour++): ?>
+                <option value="<?= $hour ?>"><?= sprintf('%02d:00', $hour) ?></option>
+              <?php endfor; ?>
+            </select>
+          </label>
+          <label>
+            <span>End hour</span>
+            <select id="push-quiet-end">
+              <option value="">Off</option>
+              <?php for ($hour = 0; $hour < 24; $hour++): ?>
+                <option value="<?= $hour ?>"><?= sprintf('%02d:00', $hour) ?></option>
+              <?php endfor; ?>
+            </select>
+          </label>
+          <label>
+            <span>Timezone</span>
+            <input id="push-quiet-timezone" type="text" placeholder="e.g. Europe/Berlin" list="push-timezone-options" autocomplete="off">
+            <datalist id="push-timezone-options">
+              <?php foreach (DateTimeZone::listIdentifiers() as $identifier): ?>
+                <option value="<?= htmlspecialchars($identifier, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>"></option>
+              <?php endforeach; ?>
+            </datalist>
+          </label>
+
+          <div class="account-action-row">
+            <button id="push-preferences-save" class="secondary-button" type="submit">Save notification preferences</button>
+            <p id="push-preferences-status" class="account-muted" role="status" aria-live="polite"></p>
+          </div>
+        </form>
+
+        <h3>Devices receiving push</h3>
+        <ul id="push-device-list" class="push-device-list" aria-label="Devices subscribed to push notifications"></ul>
+        <p id="push-device-empty" class="account-muted hidden">No devices are currently subscribed.</p>
+      </div>
+
+      <p id="push-error" class="error-text" role="alert"></p>
+    </section>
+
     <section class="account-card" aria-labelledby="privacy-notifications-heading">
       <div class="privacy-notifications-heading-row">
         <div>
@@ -58,6 +123,7 @@ $appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUT
     <p id="privacy-notifications-error" class="error-text" role="alert"></p>
   </main>
 
+  <script type="module" src="/assets/js/push-notifications.js"></script>
   <script type="module" src="/assets/js/privacy-notifications.js"></script>
 </body>
 </html>
