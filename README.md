@@ -1,14 +1,18 @@
 # ChitChat
 
-ChitChat is a small, self-hosted browser chat application. The clean reconstruction has reached **v1.3.0**, the fourth stable release, adding participant search, a moderation queue, replies/mentions, and message reactions on top of the stable `v1.2.0` baseline.
+ChitChat is a small, self-hosted browser chat application. The clean reconstruction has reached **v2.0.0**, the fifth and final stable release, adding Web Push notification delivery on top of the stable `v1.3.0` baseline.
+
+## Project status: feature-complete
+
+ChitChat is considered feature-complete. `v2.0.0` is the final planned release, and development has officially concluded. This is not an abandonment notice: the project remains supported in the sense that it will only resume work to fix a bug discovered in the shipped surface, or to evaluate a specific, concretely proposed new feature — not to pursue an open-ended roadmap. See the [project roadmap](docs/roadmap.md) for the full status of every feature that was ever considered, and the [`v2.0.0` release notes](docs/releases/v2.0.0.md) for what shipped in the final release.
 
 ## Repository status
 
-`v1.3.0` is now the supported stable baseline, superseding `v1.2.0` and the `v1.3.0-rc.1`/`v1.3.0-rc.2` release candidates. It applies forward-only migrations `0018_message_search.sql`, `0019_moderation_reports.sql`, `0020_replies_mentions.sql` and `0021_reactions.sql` in place from `v1.2.0`. Operators deploying it must back up PostgreSQL and attachment storage together and must not point older source at the migrated database. Installations already running a `v1.3.0` release candidate need only redeploy stable source and, for `rc.2`, apply `0021_reactions.sql`; no data conversion is required.
+`v2.0.0` is now the supported stable baseline, superseding `v1.3.0`. It applies the forward-only migration `0022_web_push.sql` in place from `v1.3.0`. Operators deploying it must back up PostgreSQL and attachment storage together and must not point older source at the migrated database.
 
 The former `v0.10.25` source snapshot is incomplete and is not considered runnable or a supported upgrade predecessor. It is preserved on the `legacy/v0.10.25` branch for reference.
 
-See [CHANGELOG.md](CHANGELOG.md), the [v1.3.0 stable release notes](docs/releases/v1.3.0.md), the [v1.2.0 stable release notes](docs/releases/v1.2.0.md), and the [project roadmap](docs/roadmap.md).
+See [CHANGELOG.md](CHANGELOG.md), the [v2.0.0 stable release notes](docs/releases/v2.0.0.md), the [v1.3.0 stable release notes](docs/releases/v1.3.0.md), and the [project roadmap](docs/roadmap.md).
 
 ## v1 architecture
 
@@ -84,7 +88,7 @@ The application currently provides:
 - published-release archive installation, first-class backup/restore and forward-upgrade rehearsal;
 - real Nginx/PHP-FPM validation of authenticated, unbuffered SSE delivery.
 
-Horizontal scaling and release-specific manual assistive-technology sign-off remain possible future work. Optional external identity (OpenID Connect) integration is postponed indefinitely — see the [roadmap](docs/roadmap.md) for why.
+Horizontal scaling and optional external identity (OpenID Connect) integration were considered and intentionally left out of the final release — see the [roadmap](docs/roadmap.md) for why each was deferred rather than pursued. Release-specific manual assistive-technology sign-off remains, as it always has, a per-installation operator responsibility rather than something automated CI can certify once for every deployment.
 
 ## Installation and operation
 

@@ -1,6 +1,6 @@
 # ChitChat installation and operation
 
-This document applies to stable `v1.3.0` and the current forward-compatible development line of the clean reconstruction. The supported initial deployment model is one application server backed by PostgreSQL; review the privacy defaults, forward-only migrations, known limitations, backup procedure, authentication configuration, and worker-capacity requirements before serving users.
+This document applies to stable `v2.0.0`, the final release of the clean reconstruction. The supported initial deployment model is one application server backed by PostgreSQL; review the privacy defaults, forward-only migrations, known limitations, backup procedure, authentication configuration, and worker-capacity requirements before serving users.
 
 ## Requirements
 

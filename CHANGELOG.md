@@ -6,6 +6,16 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ## [Unreleased]
 
+No changes since `v2.0.0`. ChitChat is feature-complete; see [Project status](README.md#project-status-feature-complete) and the [roadmap](docs/roadmap.md) for the maintenance-only policy going forward. Entries will only appear here again for a discovered bug fix or an accepted new feature request.
+
+## [2.0.0] - 2026-08-15
+
+Fifth and **final** stable release of the clean ChitChat reconstruction. Adds Web Push notification delivery on top of the stable `v1.3.0` baseline, then declares the project feature-complete: see [Project status](README.md#project-status-feature-complete), the [roadmap](docs/roadmap.md), and the [`v2.0.0` release notes](docs/releases/v2.0.0.md).
+
+### Project status
+
+- ChitChat is now considered feature-complete. Development has officially concluded; the project will only resume work to fix a discovered bug or evaluate a specific, concretely proposed new feature request, not to pursue further open-ended roadmap work.
+
 ### Added
 
 - Added Web Push notification delivery: browser push subscriptions, per-category notification preferences (mute for `mentioned`), per-account quiet hours, and a new `bin/dispatch-web-push` periodic operator-scheduled command that sweeps undelivered notifications rather than sending push as a request-time side effect. See [ADR 0006](docs/architecture/0006-web-push.md).
@@ -24,6 +34,15 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 - Fixed several CSS custom-property references (`--warning`, `--border-color`, `--muted-text`, `--danger-color`, `--panel-background`, `--code-surface`, `--warning-border`, `--warning-surface`) that pointed at design tokens never defined anywhere in the stylesheet tree, so the affected borders, backgrounds and text colors were silently dropped. Most visibly, the privileged step-up dialog — shown on any page for any sensitive action — could render as a barely visible near-white box; moderation notices, privacy notices, the DM block toggle, the revision-review warning banner, and the Administrator system-status page's dividers and badges lost their intended styling the same way. All affected declarations now reference the actual token set (`--border`, `--muted`, `--danger`, `--surface`, `--bg`) or the newly added `--warning` token.
 - Fixed the destructive-retention warning banner on Operational Settings (`.warning-text`) and the direct-message inbox header's action-button row (`.messages-header-actions`), both of which had no matching CSS rule anywhere and rendered as plain, unstyled elements.
 - Removed dead CSS (`grid-template-columns` on a `display: flex` rule in `.role-fieldset label`) and aligned `color-scheme` between every page's `<meta>` tag and `app.css` (both now declare `dark` only, matching the fact that no light theme exists).
+
+### Testing
+
+- Added a browser end-to-end journey for message reactions (`zzzzzzzzzzzzz-reactions.spec.js`): aggregation of two participants' reactions onto one pill, idempotent add/remove toggling, and realtime delivery via `message_reaction_changed` on both room and direct messages. Reactions previously had PHPUnit integration coverage only; every other post-`v1.2.0` feature already had a dedicated browser journey.
+
+### Changed
+
+- Replaced the BSD-3-Clause `LICENSE` with BSD-2-Clause (drops the non-endorsement clause) and declared it in `composer.json`.
+- Brought README, INSTALL, and every file under `docs/` current with everything shipped since `v1.2.0`: previously undocumented endpoints (`/search.php`, `/moderation.php`, `/notifications.php`, six API route groups, and a new `docs/api/web-push.md` for five previously undocumented Web Push endpoints), three ADRs still marked "Proposed, implementation not started" for features that had already shipped, a `docs/api/README.md` index missing 8 of its 17 entries, and two independently-confirmed contradictions (`message-revisions.md` and `api/message-revision-review.md` both incorrectly claimed revision review never notifies participants — it does).
 
 ## [1.3.0] - 2026-08-15
 
