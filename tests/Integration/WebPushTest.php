@@ -9,6 +9,8 @@ use ChitChat\Http\ApiException;
 use ChitChat\WebPush\NotificationPreferenceService;
 use ChitChat\WebPush\PushSubscriptionService;
 use ChitChat\WebPush\WebPushDispatcher;
+use DateTimeImmutable;
+use DateTimeZone;
 use Minishlink\WebPush\VAPID;
 
 final class WebPushTest extends DatabaseTestCase
@@ -144,8 +146,16 @@ final class WebPushTest extends DatabaseTestCase
         $muted = $auth->register('Muted', 'another secure password', '127.0.0.2');
         $quiet = $auth->register('Quiet', 'yet another secure password', '127.0.0.3');
 
+        // Window covering the current UTC hour, so this deterministically counts as
+        // "quiet now" regardless of when the test runs (including across the wrap
+        // at midnight), rather than relying on a fixed hour range like 0-23 which
+        // would flake once per day at the boundary hour.
+        $currentHour = (int) (new DateTimeImmutable('now', new DateTimeZone('UTC')))->format('G');
+        $quietStart = $currentHour;
+        $quietEnd = ($currentHour + 1) % 24;
+
         (new NotificationPreferenceService($this->pdo))->setMentionedPushEnabled($muted->id, false);
-        (new NotificationPreferenceService($this->pdo))->setQuietHours($quiet->id, 0, 23, 'UTC');
+        (new NotificationPreferenceService($this->pdo))->setQuietHours($quiet->id, $quietStart, $quietEnd, 'UTC');
 
         $this->insertMentionedNotification($muted->id);
         $this->insertMentionedNotification($quiet->id);

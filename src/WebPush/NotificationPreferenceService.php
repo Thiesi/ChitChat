@@ -30,7 +30,10 @@ final class NotificationPreferenceService
             throw new RuntimeException('Unable to prepare notification preference lookup.');
         }
         $preferenceStatement->execute(['user_id' => $userId]);
-        $enabled = $preferenceStatement->fetchColumn();
+        $preferenceRow = $preferenceStatement->fetch();
+        $mentionedPushEnabled = is_array($preferenceRow)
+            ? $this->databaseBoolean($preferenceRow['push_enabled'])
+            : true;
 
         $quietHoursStatement = $this->pdo->prepare(<<<'SQL'
 SELECT push_quiet_hours_start, push_quiet_hours_end, push_quiet_hours_timezone
@@ -57,7 +60,7 @@ SQL);
         }
 
         return [
-            'mentioned_push_enabled' => $this->databaseBoolean($enabled ?? true),
+            'mentioned_push_enabled' => $mentionedPushEnabled,
             'quiet_hours' => $quietHours,
         ];
     }
@@ -72,7 +75,9 @@ SQL);
         if ($statement === false) {
             throw new RuntimeException('Unable to prepare notification preference update.');
         }
-        $statement->execute(['user_id' => $userId, 'enabled' => $enabled]);
+        $statement->bindValue(':user_id', $userId, PDO::PARAM_INT);
+        $statement->bindValue(':enabled', $enabled, PDO::PARAM_BOOL);
+        $statement->execute();
     }
 
     public function setQuietHours(int $userId, ?int $start, ?int $end, ?string $timezone): void

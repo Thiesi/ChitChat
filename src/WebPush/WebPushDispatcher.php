@@ -27,17 +27,26 @@ final class WebPushDispatcher
 
     private readonly PrivacyNotificationService $notifications;
     private readonly NotificationPreferenceService $preferences;
-    private readonly WebPush $webPush;
+    private ?WebPush $webPush = null;
 
     public function __construct(private readonly PDO $pdo, private readonly Config $config)
     {
         $this->notifications = new PrivacyNotificationService($pdo);
         $this->preferences = new NotificationPreferenceService($pdo);
-        $this->webPush = new WebPush([
+    }
+
+    /**
+     * Constructed lazily so an unconfigured (disabled) installation never
+     * runs VAPID key validation against empty configuration values — only
+     * reached once dispatch() has already confirmed webPushEnabled().
+     */
+    private function webPush(): WebPush
+    {
+        return $this->webPush ??= new WebPush([
             'VAPID' => [
-                'subject' => $config->webPushVapidSubject,
-                'publicKey' => $config->webPushVapidPublicKey,
-                'privateKey' => $config->webPushVapidPrivateKey,
+                'subject' => $this->config->webPushVapidSubject,
+                'publicKey' => $this->config->webPushVapidPublicKey,
+                'privateKey' => $this->config->webPushVapidPrivateKey,
             ],
         ]);
     }
@@ -184,7 +193,7 @@ SQL);
         ]);
 
         try {
-            $report = $this->webPush->sendOneNotification($subscription, $payload);
+            $report = $this->webPush()->sendOneNotification($subscription, $payload);
         } catch (Throwable) {
             return;
         }
