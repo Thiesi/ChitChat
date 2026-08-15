@@ -2,6 +2,7 @@
   "name": "thiesi/chitchat",
   "description": "A small self-hosted browser chat application",
   "type": "project",
+  "license": "BSD-2-Clause",
   "require": {
     "php": "^8.2 || ^8.3 || ^8.4",
     "ext-curl": "*",

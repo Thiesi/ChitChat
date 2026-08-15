@@ -89,3 +89,7 @@ Horizontal scaling and release-specific manual assistive-technology sign-off rem
 ## Installation and operation
 
 See [INSTALL.md](INSTALL.md). API contracts are documented in [`docs/api/`](docs/api/), operating procedures in [`docs/operations/`](docs/operations/), and release procedures in [`docs/releases/`](docs/releases/).
+
+## License
+
+ChitChat is licensed under the [BSD 2-Clause License](LICENSE).
