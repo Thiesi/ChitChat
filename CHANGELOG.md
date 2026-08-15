@@ -6,15 +6,66 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-08-15
+
+Fourth stable release of the clean ChitChat reconstruction. This release promotes the evaluated `v1.3.0-rc.1`/`v1.3.0-rc.2` feature set — participant search, a moderation queue, and replies/mentions — and adds message reactions on top before stabilizing. Reactions did not go through its own release-candidate evaluation window; it was validated the same way every merge to `main` already is, through full CI (PHPUnit integration tests plus the complete Chromium/Firefox/WebKit browser matrix) on each of its two pull requests.
+
 ### Added
 
+- Added authorization-aware PostgreSQL full-text search over current, undeleted room and direct-message bodies, with combined, room-only and direct-only scopes, bounded pagination, privacy-safe POST transport and exact-message deep links.
+- Added participant reporting for one specific visible, undeleted room message or incoming direct message, plus an authorization-scoped moderation queue with immutable evidence snapshots, aggregation, assignment and explicit resolution states.
+- Added submitted moderation reports to the reporting participant's personal-data export without exposing other reporters, queue assignments or private moderator notes.
+- Added durable reply references on room and direct messages, resolved through the same authorization-scoped read path as ordinary history, with a distinct placeholder when the referenced message is unavailable, deleted or expired.
+- Added `@username` mentions, plus room-scoped `@room`/`@here` broadcast mentions, resolved and authorized once at send time. Unauthorized or unresolvable tokens render as plain text without notifying anyone.
+- Added durable `mentioned` participant notifications, with a human-readable timeline entry and a deep link to the exact message, and a dedicated `RATE_LIMIT_ROOM_BROADCAST_MENTION` policy independent of ordinary room-send throttling.
+- Added the account's own sent and received mentions, and submitted moderation reports, to personal-data export, excluding other participants' message bodies.
+- Added reply and `@mention` composer support to the room and direct-message browser clients: a reply banner with cancel, a quoted preview of the replied-to message with click-to-scroll, `@mention` autocomplete, and highlighting limited to mentions the server actually resolved and authorized.
+- Added reply-target and caption-mention support to room and direct-message attachment uploads, matching ordinary text messages.
 - Added message reactions: a small controlled emoji vocabulary (👍 ❤️ 😂 😮 😢 🎉), idempotent add/remove enforced by a database `UNIQUE (message_id, user_id, emoji)` constraint, and a new `message_reaction_changed` realtime event carrying the message's full current reaction state. See [ADR 0005](docs/architecture/0005-reactions.md).
 - Added `reactions` to every message-shaped API response (room and direct-message history, send, mutation metadata, attachment uploads), each entry listing the reacting participants by id and username, matching how message authorship is already visible.
 - Added a reaction bar to the room and direct-message clients: pills for emoji already in use (click toggles your own reaction) plus an "Add reaction" control for the full vocabulary, updated live via `message_reaction_changed`.
 
 ### Security and privacy
 
+- Search enforces room discoverability, membership, invitation, minimum-age and DM-participant authorization inside the query and never joins retained revision bodies; search terms are excluded from URLs, ChitChat audits, rate-limit identifiers, aggregate counters and Prometheus labels.
+- Room-scoped moderators see only cases from rooms they currently moderate; global moderation roles may review DM cases but receive only submitted exact-message snapshots rather than surrounding conversation history or attachment bytes. Report bodies, participant details and moderator resolution notes are excluded from moderation audit metadata.
+- Reply targets must be in the same room or the same direct-message conversation as the reply; a reply cannot point across rooms or DM threads. This applies equally to attachment uploads.
+- Mention authorization is re-checked against current room access and minimum-age eligibility for every candidate, individual or broadcast, and never discloses another participant's message body in the mentioned account's own personal-data export.
 - Reacting requires exactly the same authorization as reading the message; there is no new authorization concept. Reacting to an already-deleted message is rejected with `409 message_already_deleted`. Reacting to an existing direct message stays available after a block, matching how reply previews already behave.
+
+### Compatibility
+
+- `v1.3.0` supports an in-place upgrade from stable `v1.2.0`, or promotion of an existing `v1.3.0-rc.1`/`v1.3.0-rc.2` deployment, after PostgreSQL and attachment storage are backed up together.
+- The upgrade applies forward-only migrations `0018_message_search.sql`, `0019_moderation_reports.sql`, `0020_replies_mentions.sql` and `0021_reactions.sql` without introducing an external search, queue, cache or moderation service.
+- Once these migrations are applied, older ChitChat source must not be pointed at the upgraded database. Rollback requires restoring a matching pre-upgrade database and attachment backup.
+- An installation already migrated through `0020_replies_mentions.sql` (i.e. `v1.3.0-rc.2`) needs only `0021_reactions.sql` and a redeployed source tree; no data conversion is required.
+
+### Upgrade notes
+
+Fresh installations should follow `INSTALL.md` and `docs/releases/v1.3.0.md`.
+
+Existing `v1.2.0` installations should:
+
+1. stop or drain application writes;
+2. back up PostgreSQL and attachment storage together and verify the backup;
+3. deploy `v1.3.0` while preserving `.env` and attachment storage;
+4. compare the existing `.env` with `.env.example`;
+5. run `composer install --no-dev --classmap-authoritative`;
+6. run `composer migrate` once;
+7. run `composer maintenance:dry-run` and review the result;
+8. verify `/health.php`, `/ready.php`, login, rooms, direct messages, attachments, SSE through the production reverse proxy, system status, participant search, moderation reporting, replies/mentions, and reactions.
+
+Existing `v1.3.0-rc.1`/`v1.3.0-rc.2` installations should create and verify a backup, deploy stable source, change an explicitly pinned `APP_VERSION` to `1.3.0`, run the same Composer, migration, and maintenance commands, and verify representative behavior. `composer migrate` applies only the migrations not already present on that installation.
+
+### Known limitations
+
+- The supported deployment target remains one application server; horizontal scaling and Redis-backed event delivery are not implemented.
+- PostgreSQL is the only supported database.
+- Direct messages are not end-to-end encrypted.
+- No reply/mention/reaction support in administrative DM inspection or revision-review surfaces.
+- Maintenance, backup scheduling, retention, alerting, and release-specific manual assistive-technology testing remain operator responsibilities.
+- The committed automated accessibility suite is not a substitute for a complete manual WCAG audit.
+- No supported in-place upgrade exists from the incomplete legacy `v0.10.25` snapshot.
 
 ## [1.3.0-rc.2] - 2026-08-14
 
