@@ -1,5 +1,7 @@
 # ChitChat roadmap
 
+**Project status: feature-complete.** `v2.0.0` is the final planned release. Every item this roadmap once listed as active work is now implemented, deliberately deferred, or postponed for the reasons stated in place below. Development has officially concluded and this document is now a historical record rather than a forward-looking plan: it will only be revisited to fix a bug discovered in the shipped surface, or to evaluate a specific, concretely proposed new feature — not to resume open-ended feature work. See the [`v2.0.0` release notes](releases/v2.0.0.md) for what that final release covers.
+
 This roadmap records the agreed direction after the stable `v1.2.0` release. It is directional rather than a promise of dates: security, privacy, data integrity, release safety, and operational simplicity take precedence over feature count.
 
 ## Guiding principles
