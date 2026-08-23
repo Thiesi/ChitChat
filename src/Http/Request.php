@@ -136,6 +136,14 @@ final class Request
         return trim((string) ($_SERVER['HTTP_X_CSRF_TOKEN'] ?? ''));
     }
 
+    /**
+     * Deliberately reads REMOTE_ADDR only. ChitChat does not trust
+     * X-Forwarded-For or similar headers, since doing so without a
+     * configured trusted-proxy allowlist (which does not exist here) would
+     * let any client spoof its own address. This requires the deployment's
+     * Nginx to terminate the client's TCP connection directly — see
+     * docs/operations/nginx-php-fpm.md.
+     */
     public static function clientIp(): string
     {
         $ip = trim((string) ($_SERVER['REMOTE_ADDR'] ?? 'unknown'));

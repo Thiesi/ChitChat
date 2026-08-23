@@ -215,7 +215,7 @@ final class MfaService
             }
             $this->mfa->updateAssertionState(
                 $stored['id'],
-                $verified['sign_count'],
+                max($stored['sign_count'], $verified['sign_count']),
                 $verified['backup_eligible'],
                 $verified['backup_state'],
             );

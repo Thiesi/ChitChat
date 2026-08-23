@@ -4,6 +4,19 @@ This configuration is the reference single-server deployment for ChitChat. CI st
 
 Use HTTPS in production. The example listens on plain HTTP only to show the application and SSE-specific directives.
 
+## Do not add another proxy or CDN in front of this Nginx
+
+ChitChat derives the client IP address from the TCP connection's `REMOTE_ADDR` only (`src/Http/Request.php::clientIp()`). It does not read or trust `X-Forwarded-For` or similar headers from any upstream, by design, since a client-supplied forwarding header cannot be trusted without an explicit, configured allowlist of trusted proxies, which ChitChat does not currently implement.
+
+This means the Nginx instance described on this page must be the component that terminates the client's TCP connection. Putting anything else in front of it (a CDN, a load balancer, another reverse proxy, a cloud provider's edge network) will make every request's `REMOTE_ADDR` the address of that intermediary instead of the real client, which silently breaks several IP-based controls at once:
+
+- the per-IP login and account-restoration throttles (`login_ip`, `account_restore_ip`) collapse onto the single intermediary address instead of separating real clients;
+- the pending-MFA IP pin, the only control that ties a half-authenticated MFA session to a network location, becomes a no-op;
+- every `userId|ip`-keyed rate limit collapses to one shared bucket;
+- audit log entries record the intermediary's address rather than the actual client.
+
+If a deployment genuinely needs an edge proxy or CDN in front of ChitChat's Nginx, that additional hop is out of scope for the currently supported architecture; see the [roadmap](../roadmap.md) on horizontal complexity being added only against a measured need, not speculatively.
+
 ## PHP-FPM pool
 
 Use a dedicated pool and operating-system account. Capacity must include one worker for every open SSE request plus workers for ordinary API, upload, download, and page requests.

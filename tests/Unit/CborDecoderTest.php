@@ -53,4 +53,17 @@ final class CborDecoderTest extends TestCase
         $this->expectExceptionMessage('depth');
         CborDecoder::decode($data);
     }
+
+    public function testRejectsMapKeysThatCollideAfterPhpIntegerStringCoercion(): void
+    {
+        // Map {3: -257, "3": -7}: an integer key 3 and a string key "3" collide once
+        // PHP coerces the numeric string array key to an integer, even though they
+        // are distinct CBOR keys of different major types.
+        $data = hex2bin('a203390100613326');
+        self::assertIsString($data);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('duplicate');
+        CborDecoder::decode($data);
+    }
 }

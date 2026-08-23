@@ -1,18 +1,18 @@
 # ChitChat
 
-ChitChat is a small, self-hosted browser chat application. The clean reconstruction has reached **v2.0.0**, the fifth and final stable release, adding Web Push notification delivery on top of the stable `v1.3.0` baseline.
+ChitChat is a small, self-hosted browser chat application. The clean reconstruction reached **v2.0.0**, the fifth and final planned stable release, adding Web Push notification delivery on top of the stable `v1.3.0` baseline. `v2.0.1` is a bug-fix update on top of it, described below.
 
 ## Project status: feature-complete
 
-ChitChat is considered feature-complete. `v2.0.0` is the final planned release, and development has officially concluded. This is not an abandonment notice: the project remains supported in the sense that it will only resume work to fix a bug discovered in the shipped surface, or to evaluate a specific, concretely proposed new feature — not to pursue an open-ended roadmap. See the [project roadmap](docs/roadmap.md) for the full status of every feature that was ever considered, and the [`v2.0.0` release notes](docs/releases/v2.0.0.md) for what shipped in the final release.
+ChitChat is considered feature-complete. `v2.0.0` was the final planned release, and development has officially concluded. This is not an abandonment notice: the project remains supported in the sense that it will only resume work to fix a bug discovered in the shipped surface, or to evaluate a specific, concretely proposed new feature — not to pursue an open-ended roadmap. `v2.0.1` is exactly that: a bug-fix release fixing findings from an independent post-release security review of the authentication and WebAuthn implementation, with no new feature and no database migration. See the [project roadmap](docs/roadmap.md) for the full status of every feature that was ever considered, the [`v2.0.0` release notes](docs/releases/v2.0.0.md) for what shipped in the final planned release, and the [`v2.0.1` release notes](docs/releases/v2.0.1.md) for the bug-fix update.
 
 ## Repository status
 
-`v2.0.0` is now the supported stable baseline, superseding `v1.3.0`. It applies the forward-only migration `0022_web_push.sql` in place from `v1.3.0`. Operators deploying it must back up PostgreSQL and attachment storage together and must not point older source at the migrated database.
+`v2.0.1` is now the supported stable baseline, superseding `v2.0.0`. It is a bug-fix update with no database migration; operators may deploy it over `v2.0.0` without a backup/restore cycle beyond ordinary operational practice. `v2.0.0` itself applied the forward-only migration `0022_web_push.sql` in place from `v1.3.0`. Operators deploying either release must back up PostgreSQL and attachment storage together and must not point older source at the migrated database.
 
 The former `v0.10.25` source snapshot is incomplete and is not considered runnable or a supported upgrade predecessor. It is preserved on the `legacy/v0.10.25` branch for reference.
 
-See [CHANGELOG.md](CHANGELOG.md), the [v2.0.0 stable release notes](docs/releases/v2.0.0.md), the [v1.3.0 stable release notes](docs/releases/v1.3.0.md), and the [project roadmap](docs/roadmap.md).
+See [CHANGELOG.md](CHANGELOG.md), the [v2.0.1 stable release notes](docs/releases/v2.0.1.md), the [v2.0.0 stable release notes](docs/releases/v2.0.0.md), the [v1.3.0 stable release notes](docs/releases/v1.3.0.md), and the [project roadmap](docs/roadmap.md).
 
 ## v1 architecture
 

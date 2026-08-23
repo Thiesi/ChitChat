@@ -79,6 +79,40 @@ final class WebAuthnProtocolTest extends TestCase
         self::assertSame(1, $assertion['sign_count']);
     }
 
+    public function testRejectsCredentialIdLongerThanTheSpecMaximum(): void
+    {
+        [, $coseKey] = $this->generateEs256Credential();
+        $protocol = new WebAuthnProtocol(self::RP_ID, self::ORIGIN, 'ChitChat');
+        $credentialId = random_bytes(1024);
+        $registrationChallenge = random_bytes(32);
+        $registrationClientData = $this->clientData('webauthn.create', $registrationChallenge);
+        $registrationAuthenticatorData = hash('sha256', self::RP_ID, true)
+            . chr(0x45)
+            . pack('N', 0)
+            . str_repeat("\0", 16)
+            . pack('n', strlen($credentialId))
+            . $credentialId
+            . $coseKey;
+        $attestationObject = $this->cborMap([
+            [$this->cborText('fmt'), $this->cborText('none')],
+            [$this->cborText('attStmt'), $this->cborMap([])],
+            [$this->cborText('authData'), $this->cborBytes($registrationAuthenticatorData)],
+        ]);
+
+        $this->expectException(ApiException::class);
+        $this->expectExceptionMessage('identifier');
+        $protocol->verifyRegistration([
+            'id' => Base64Url::encode($credentialId),
+            'rawId' => Base64Url::encode($credentialId),
+            'type' => 'public-key',
+            'response' => [
+                'clientDataJSON' => Base64Url::encode($registrationClientData),
+                'attestationObject' => Base64Url::encode($attestationObject),
+                'transports' => [],
+            ],
+        ], $registrationChallenge);
+    }
+
     public function testRejectsWrongOriginBeforeCredentialStorage(): void
     {
         [, $coseKey] = $this->generateEs256Credential();
@@ -125,6 +159,37 @@ final class WebAuthnProtocolTest extends TestCase
         $credentialId = random_bytes(32);
         $clientData = $this->clientData('webauthn.get', $challenge);
         $authenticatorData = hash('sha256', self::RP_ID, true) . chr(0x05) . pack('N', 4);
+        $signature = '';
+        self::assertTrue(openssl_sign(
+            $authenticatorData . hash('sha256', $clientData, true),
+            $signature,
+            $privateKey,
+            OPENSSL_ALGO_SHA256,
+        ));
+
+        $this->expectException(ApiException::class);
+        $this->expectExceptionMessage('counter');
+        $protocol->verifyAssertion([
+            'id' => Base64Url::encode($credentialId),
+            'rawId' => Base64Url::encode($credentialId),
+            'type' => 'public-key',
+            'response' => [
+                'clientDataJSON' => Base64Url::encode($clientData),
+                'authenticatorData' => Base64Url::encode($authenticatorData),
+                'signature' => Base64Url::encode($signature),
+                'userHandle' => null,
+            ],
+        ], $challenge, $coseKey, 4);
+    }
+
+    public function testRejectsZeroSignatureCounterWhenStoredCounterIsNonzero(): void
+    {
+        [$privateKey, $coseKey] = $this->generateEs256Credential();
+        $protocol = new WebAuthnProtocol(self::RP_ID, self::ORIGIN, 'ChitChat');
+        $challenge = random_bytes(32);
+        $credentialId = random_bytes(32);
+        $clientData = $this->clientData('webauthn.get', $challenge);
+        $authenticatorData = hash('sha256', self::RP_ID, true) . chr(0x05) . pack('N', 0);
         $signature = '';
         self::assertTrue(openssl_sign(
             $authenticatorData . hash('sha256', $clientData, true),
