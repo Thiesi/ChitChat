@@ -30,7 +30,8 @@ Values are validated at application startup. Invalid integers and values outside
 
 | Policy | Default | Protected actions |
 | --- | ---: | --- |
-| `login` | 10 / 900 s | Login requests after the existing username/IP failed-attempt lookup |
+| `login` | 10 / 900 s | Login requests, counted by canonical username |
+| `login_ip` | 30 / 900 s | Login requests, independently counted by source IP so username-targeted failures cannot exhaust a shared IP's budget |
 | `registration` | 5 / 3600 s | Account registration by source IP |
 | `privileged_step_up` | 10 / 900 s | Current-password step-up by account and IP |
 | `mfa_assertion` | 20 / 900 s | Passkey assertion attempts |
@@ -38,6 +39,7 @@ Values are validated at application startup. Invalid integers and values outside
 | `mfa_management` | 20 / 3600 s | Passkey and recovery-code management |
 | `personal_data_export` | 5 / 3600 s | Personal-data export |
 | `account_restore` | 5 / 3600 s | Explicit cooling-off restoration by canonical username and source IP |
+| `account_restore_ip` | 30 / 3600 s | Explicit cooling-off restoration, independently counted by source IP so probing many usernames from one IP is bounded |
 | `room_send` | 30 / 60 s | Ordinary room messages |
 | `room_ping` | 30 / 60 s | `/ping` commands, counted independently from ordinary messages |
 | `room_message_mutation` | 30 / 60 s | Author room-message edits and deletions |

@@ -11,6 +11,7 @@ final class WebAuthnProtocol
 {
     public const ES256 = -7;
     public const RS256 = -257;
+    private const MAX_CREDENTIAL_ID_LENGTH = 1023;
 
     public function __construct(
         private readonly string $rpId,
@@ -171,7 +172,7 @@ final class WebAuthnProtocol
         }
 
         $newSignCount = $parsed['sign_count'];
-        if ($storedSignCount !== 0 && $newSignCount !== 0 && $newSignCount <= $storedSignCount) {
+        if (($storedSignCount !== 0 || $newSignCount !== 0) && $newSignCount <= $storedSignCount) {
             throw new ApiException(403, 'passkey_counter_reuse', 'The passkey counter did not advance. The credential may have been cloned or restored unexpectedly.');
         }
 
@@ -250,7 +251,11 @@ final class WebAuthnProtocol
             $offset += 16;
             $credentialLength = $this->unsignedBigEndian(substr($data, $offset, 2));
             $offset += 2;
-            if ($credentialLength < 1 || strlen($data) < $offset + $credentialLength) {
+            if (
+                $credentialLength < 1
+                || $credentialLength > self::MAX_CREDENTIAL_ID_LENGTH
+                || strlen($data) < $offset + $credentialLength
+            ) {
                 throw new ApiException(400, 'invalid_webauthn_payload', 'The attested credential identifier is invalid.');
             }
             $credentialId = substr($data, $offset, $credentialLength);

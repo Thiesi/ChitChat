@@ -20,6 +20,7 @@ Endpoint::run($config, static function () use ($config): ApiResult {
     $payload = Request::json();
     $pdo = Database::connect($config);
     $actor = SessionManager::requireUser(new UserRepository($pdo));
+    SessionManager::requirePrivilegedStepUp($actor, $config);
 
     $target = $payload['target_user_id'] ?? null;
     if (!is_int($target)) {

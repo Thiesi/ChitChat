@@ -144,23 +144,37 @@ SQL);
         string $ipAddress,
     ): AuthenticatedUser {
         $canonical = Username::canonical($usernameInput);
-        $policy = $this->config->rateLimitPolicy('login');
+        $usernamePolicy = $this->config->rateLimitPolicy('login');
+        $ipPolicy = $this->config->rateLimitPolicy('login_ip');
 
-        if ($this->failedAttemptCount($canonical, $ipAddress, $policy->windowSeconds) >= $policy->maximumAttempts) {
+        $usernameFailures = $this->failedAttemptCountByUsername($canonical, $usernamePolicy->windowSeconds);
+        $ipFailures = $this->failedAttemptCountByIp($ipAddress, $ipPolicy->windowSeconds);
+
+        if ($usernameFailures >= $usernamePolicy->maximumAttempts || $ipFailures >= $ipPolicy->maximumAttempts) {
             $this->rateLimiter->recordDecision('login', false);
+            $this->rateLimiter->recordDecision('login_ip', false);
+            $windowSeconds = $usernameFailures >= $usernamePolicy->maximumAttempts
+                ? $usernamePolicy->windowSeconds
+                : $ipPolicy->windowSeconds;
             throw new ApiException(
                 429,
                 'login_throttled',
                 sprintf(
                     'Too many failed login attempts. Try again in up to %d minutes.',
-                    max(1, (int) ceil($policy->windowSeconds / 60)),
+                    max(1, (int) ceil($windowSeconds / 60)),
                 ),
             );
         }
         $this->rateLimiter->recordDecision('login', true);
+        $this->rateLimiter->recordDecision('login_ip', true);
 
         $credentials = $this->users->findCredentialsByCanonical($canonical);
-        if ($credentials === null || !password_verify($password, $credentials['password_hash'])) {
+        // Always run password_verify, even for a nonexistent account, against a fixed
+        // dummy hash so lookup misses and failed verifications take comparable time and
+        // the response timing cannot be used to enumerate valid usernames.
+        $hashToVerify = $credentials['password_hash'] ?? PasswordPolicy::DUMMY_PASSWORD_HASH;
+        $verified = password_verify($password, $hashToVerify);
+        if ($credentials === null || !$verified) {
             $this->recordLoginAttempt($canonical, $ipAddress, false, 'invalid_credentials');
             throw new ApiException(401, 'invalid_credentials', 'Invalid username or password.');
         }
@@ -267,14 +281,14 @@ SQL);
         return $user;
     }
 
-    private function failedAttemptCount(string $canonical, string $ipAddress, int $windowSeconds): int
+    private function failedAttemptCountByUsername(string $canonical, int $windowSeconds): int
     {
         $statement = $this->pdo->prepare(<<<'SQL'
 SELECT COUNT(*)
 FROM login_attempts
 WHERE successful = FALSE
   AND created_at >= NOW() - make_interval(secs => CAST(:seconds AS double precision))
-  AND (username_canonical = :username OR ip_address = :ip)
+  AND username_canonical = :username
 SQL);
         if ($statement === false) {
             throw new RuntimeException('Unable to prepare login throttle lookup.');
@@ -283,6 +297,26 @@ SQL);
         $statement->execute([
             'seconds' => $windowSeconds,
             'username' => $canonical,
+        ]);
+
+        return (int) $statement->fetchColumn();
+    }
+
+    private function failedAttemptCountByIp(string $ipAddress, int $windowSeconds): int
+    {
+        $statement = $this->pdo->prepare(<<<'SQL'
+SELECT COUNT(*)
+FROM login_attempts
+WHERE successful = FALSE
+  AND created_at >= NOW() - make_interval(secs => CAST(:seconds AS double precision))
+  AND ip_address = :ip
+SQL);
+        if ($statement === false) {
+            throw new RuntimeException('Unable to prepare login throttle lookup.');
+        }
+
+        $statement->execute([
+            'seconds' => $windowSeconds,
             'ip' => $ipAddress,
         ]);
 

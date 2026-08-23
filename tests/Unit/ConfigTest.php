@@ -14,6 +14,7 @@ final class ConfigTest extends TestCase
         foreach ([
             'APP_VERSION',
             'APP_DEBUG',
+            'APP_ENV',
             'DB_PORT',
             'LOGIN_MAX_ATTEMPTS',
             'LOGIN_LOCK_MINUTES',
@@ -36,6 +37,8 @@ final class ConfigTest extends TestCase
             'WEB_PUSH_VAPID_PUBLIC_KEY',
             'WEB_PUSH_VAPID_PRIVATE_KEY',
             'WEB_PUSH_VAPID_SUBJECT',
+            'WEBAUTHN_RP_ID',
+            'WEBAUTHN_ORIGIN',
         ] as $name) {
             putenv($name);
             unset($_ENV[$name], $_SERVER[$name]);
@@ -257,5 +260,24 @@ final class ConfigTest extends TestCase
         $config = Config::fromEnvironment();
         self::assertTrue($config->webPushEnabled());
         self::assertSame('public-key-value', $config->webPushVapidPublicKey);
+    }
+
+    public function testWebAuthnOriginIsNormalizedToLowercaseWithoutADefaultPort(): void
+    {
+        putenv('WEBAUTHN_RP_ID=chat.example.com');
+        putenv('WEBAUTHN_ORIGIN=HTTPS://Chat.Example.Com:443');
+
+        $config = Config::fromEnvironment();
+        self::assertSame('https://chat.example.com', $config->webauthnOrigin);
+    }
+
+    public function testWebAuthnOriginKeepsANonDefaultPort(): void
+    {
+        putenv('WEBAUTHN_RP_ID=localhost');
+        putenv('WEBAUTHN_ORIGIN=HTTP://Localhost:8080');
+        putenv('APP_ENV=development');
+
+        $config = Config::fromEnvironment();
+        self::assertSame('http://localhost:8080', $config->webauthnOrigin);
     }
 }

@@ -156,6 +156,7 @@ final readonly class RateLimitPolicySet
     {
         return [
             'login' => self::definition($loginMaximumAttempts, $loginWindowSeconds, 1, 100, 60, 86_400),
+            'login_ip' => self::definition(30, 900, 1, 1_000, 60, 86_400),
             'registration' => self::definition(5, 3_600, 1, 100, 60, 86_400),
             'privileged_step_up' => self::definition(10, 900, 1, 100, 60, 86_400),
             'mfa_assertion' => self::definition(20, 900, 1, 100, 60, 86_400),
@@ -163,6 +164,7 @@ final readonly class RateLimitPolicySet
             'mfa_management' => self::definition(20, 3_600, 1, 100, 60, 86_400),
             'personal_data_export' => self::definition(5, 3_600, 1, 100, 60, 86_400),
             'account_restore' => self::definition(5, 3_600, 1, 100, 60, 86_400),
+            'account_restore_ip' => self::definition(30, 3_600, 1, 1_000, 60, 86_400),
             'room_send' => self::definition(30, 60, 1, 1_000, 1, 3_600),
             'room_broadcast_mention' => self::definition(5, 3_600, 1, 100, 60, 86_400),
             'room_mentionable_user_search' => self::definition(120, 60, 1, 5_000, 1, 3_600),

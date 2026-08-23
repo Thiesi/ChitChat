@@ -73,7 +73,7 @@ final class CborDecoder
                 throw new RuntimeException('CBOR map keys must be integers or strings.');
             }
             $typed = (is_int($key) ? 'i:' : 's:') . (string) $key;
-            if (isset($seen[$typed])) {
+            if (isset($seen[$typed]) || array_key_exists($key, $result)) {
                 throw new RuntimeException('CBOR map contains a duplicate key.');
             }
             $seen[$typed] = true;

@@ -6,6 +6,7 @@ namespace ChitChat\Account;
 
 use ChitChat\Audit\AuditLogger;
 use ChitChat\Auth\AuthenticatedUser;
+use ChitChat\Auth\PasswordPolicy;
 use ChitChat\Auth\Username;
 use ChitChat\Auth\UserRepository;
 use ChitChat\Config;
@@ -147,6 +148,7 @@ SQL, 'account-closure state update');
     ): AuthenticatedUser {
         $canonical = Username::canonical($usernameInput);
         $this->rateLimiter->consume('account_restore', 'username:' . $canonical . '|ip:' . $ipAddress);
+        $this->rateLimiter->consume('account_restore_ip', 'ip:' . $ipAddress);
 
         $lookup = $this->prepare(<<<'SQL'
 SELECT id, username, password_hash, session_version, account_state, closure_finalizes_at
@@ -155,7 +157,11 @@ WHERE username_canonical = :canonical
 SQL, 'account-restoration authentication');
         $lookup->execute(['canonical' => $canonical]);
         $user = $lookup->fetch();
-        if (!is_array($user) || !password_verify($password, (string) $user['password_hash'])) {
+        // Always run password_verify, even for a nonexistent account, against a fixed
+        // dummy hash so the response timing cannot be used to enumerate valid usernames.
+        $hashToVerify = is_array($user) ? (string) $user['password_hash'] : PasswordPolicy::DUMMY_PASSWORD_HASH;
+        $verified = password_verify($password, $hashToVerify);
+        if (!is_array($user) || !$verified) {
             throw new ApiException(401, 'invalid_credentials', 'Invalid username or password.');
         }
         if ((string) $user['account_state'] === 'closed') {

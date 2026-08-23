@@ -56,7 +56,7 @@ Existing account-control endpoints are used by the console:
 - `POST /api/v1/admin/unban.php`
 - `POST /api/v1/admin/reset-password.php`
 
-`reset-password.php` requires active privileged step-up; kick, ban, and unban do not in this milestone. A successful password verification and the later password reset create separate audit records.
+`reset-password.php`, `kick.php`, `ban.php`, and `unban.php` all require active privileged step-up. A successful password verification and the later password reset create separate audit records.
 
 ## Audit log
 

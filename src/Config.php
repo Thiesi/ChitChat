@@ -152,7 +152,7 @@ final readonly class Config
                 $loginLockMinutes * 60,
             ),
             webauthnRpId: strtolower(self::env('WEBAUTHN_RP_ID', '')),
-            webauthnOrigin: self::env('WEBAUTHN_ORIGIN', ''),
+            webauthnOrigin: self::normalizeOrigin(self::env('WEBAUTHN_ORIGIN', '')),
             webauthnChallengeTtlSeconds: self::envInt('WEBAUTHN_CHALLENGE_TTL_SECONDS', 300),
             mfaPendingLoginTtlSeconds: self::envInt('MFA_PENDING_LOGIN_TTL_SECONDS', 300),
             webPushVapidPublicKey: self::env('WEB_PUSH_VAPID_PUBLIC_KEY', ''),
@@ -271,6 +271,53 @@ final readonly class Config
     {
         $value = getenv($name);
         return $value === false ? $default : trim($value);
+    }
+
+    /**
+     * Lowercase the scheme/host and drop an explicit default port, matching
+     * how browsers report `clientDataJSON.origin` during WebAuthn ceremonies,
+     * so a differently-cased or explicitly-default-ported WEBAUTHN_ORIGIN
+     * does not silently fail every passkey ceremony via strict string
+     * comparison. Any other component (user, pass, path, query, fragment) is
+     * preserved verbatim so the existing shape validation still rejects it.
+     */
+    private static function normalizeOrigin(string $origin): string
+    {
+        $parts = parse_url($origin);
+        if (!is_array($parts) || !isset($parts['scheme'], $parts['host'])) {
+            return $origin;
+        }
+
+        $scheme = strtolower($parts['scheme']);
+        $result = $scheme . '://';
+        if (isset($parts['user'])) {
+            $result .= $parts['user'];
+            if (isset($parts['pass'])) {
+                $result .= ':' . $parts['pass'];
+            }
+            $result .= '@';
+        }
+        $result .= strtolower($parts['host']);
+
+        $defaultPort = match ($scheme) {
+            'https' => 443,
+            'http' => 80,
+            default => null,
+        };
+        if (isset($parts['port']) && $parts['port'] !== $defaultPort) {
+            $result .= ':' . $parts['port'];
+        }
+        if (isset($parts['path'])) {
+            $result .= $parts['path'];
+        }
+        if (isset($parts['query'])) {
+            $result .= '?' . $parts['query'];
+        }
+        if (isset($parts['fragment'])) {
+            $result .= '#' . $parts['fragment'];
+        }
+
+        return $result;
     }
 
     private static function envInt(string $name, int $default): int
