@@ -6,16 +6,22 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ## [Unreleased]
 
-Bug fixes from an independent post-release security review of the authentication and WebAuthn implementation. See [Project status](README.md#project-status-feature-complete) and the [roadmap](docs/roadmap.md) for the maintenance-only policy going forward.
+No changes since `v2.0.1`. ChitChat is feature-complete; see [Project status](README.md#project-status-feature-complete) and the [roadmap](docs/roadmap.md) for the maintenance-only policy going forward. Entries will only appear here again for a discovered bug fix or an accepted new feature request.
+
+## [2.0.1] - 2026-08-23
+
+Bug-fix release. No new feature and no database migration. Fixes findings from an independent post-release security review of the authentication and WebAuthn implementation (issues #73-#81; one finding, #78, was re-evaluated and closed without a code change — see its issue for why). See [Project status](README.md#project-status-feature-complete) and the [roadmap](docs/roadmap.md) for the maintenance-only policy going forward.
 
 ### Fixed
 
 - Fixed WebAuthn passkey sign-counter clone detection: an assertion carrying a zero signature counter after a nonzero stored counter is now correctly rejected instead of silently resetting the stored counter and permanently disabling clone detection for that credential (#73).
 - Split the combined username-or-IP login throttle into two independently configurable rate-limit policies (`login`, `login_ip`) so failed attempts against one username can no longer exhaust a shared IP's login budget for unrelated users behind the same NAT/VPN/CDN egress (#74).
+- Documented that ChitChat's Nginx must terminate client connections directly: a CDN, load balancer, or additional reverse proxy in front silently breaks IP-based login/restoration throttles, the pending-MFA IP pin, and audit-log accuracy (#75).
 - Equalized `password_verify` timing between a nonexistent username and a wrong password on login and account-restoration, and added an independent per-IP throttle (`account_restore_ip`) on account restoration, closing a username-enumeration side channel (#76).
 - Fixed a `CborDecoder` map-parsing gap where a duplicate-key check could be bypassed by PHP's automatic numeric-string-to-integer array key coercion (#77).
 - Rejected control characters (including NUL) in password input, avoiding an unhandled `ValueError`/HTTP 500 from `password_hash()` on a NUL byte (#79).
 - Required active privileged step-up authentication on the admin ban, kick, and unban endpoints, matching the existing requirement on role changes and password resets (#80).
+- Normalized `WEBAUTHN_ORIGIN` (lowercase scheme/host, default port stripped) so a differently-cased or explicitly-default-ported configuration value can no longer silently break every passkey ceremony, and capped credential ID length at the WebAuthn spec's 1023-byte maximum during registration (#81).
 
 ## [2.0.0] - 2026-08-15
 
