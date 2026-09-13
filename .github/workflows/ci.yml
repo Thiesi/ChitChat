@@ -136,7 +136,7 @@ jobs:
       DB_PASSWORD: chitchat
       DB_SSLMODE: disable
       SESSION_COOKIE_SECURE: 0
-      ATTACHMENT_STORAGE_PATH: /tmp/chitchat-browser-${{ matrix.project }}-uploads
+      ATTACHMENT_STORAGE_PATH: /tmp/chitchat-${{ matrix.project }}-uploads
       CHITCHAT_BASE_URL: http://localhost:8080
       WEBAUTHN_RP_ID: localhost
       WEBAUTHN_ORIGIN: http://localhost:8080

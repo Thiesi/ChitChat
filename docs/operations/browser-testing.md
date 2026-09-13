@@ -92,13 +92,13 @@ Use a disposable PostgreSQL database. The browser test creates accounts, rooms, 
 The PHP development server must use multiple workers because each open SSE request occupies one worker for approximately 25 seconds:
 
 ```sh
-mkdir -p /tmp/chitchat-browser-uploads
-chmod 700 /tmp/chitchat-browser-uploads
+mkdir -p /tmp/chitchat-uploads
+chmod 700 /tmp/chitchat-uploads
 
 export APP_ENV=test
 export APP_DEBUG=1
 export SESSION_COOKIE_SECURE=0
-export ATTACHMENT_STORAGE_PATH=/tmp/chitchat-browser-uploads
+export ATTACHMENT_STORAGE_PATH=/tmp/chitchat-uploads
 export PHP_CLI_SERVER_WORKERS=8
 
 php -S 127.0.0.1:8080 -t public

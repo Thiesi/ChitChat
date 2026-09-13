@@ -38,7 +38,7 @@ jobs:
       DB_PASSWORD: chitchat
       DB_SSLMODE: disable
       SESSION_COOKIE_SECURE: 0
-      ATTACHMENT_STORAGE_PATH: /tmp/chitchat-browser-webkit-uploads
+      ATTACHMENT_STORAGE_PATH: /tmp/chitchat-webkit-uploads
       CHITCHAT_BASE_URL: http://127.0.0.1:8080
       MESSAGE_REVISION_REVIEW_ENABLED: 1
       RATE_LIMIT_REGISTRATION_MAX_ATTEMPTS: 100
