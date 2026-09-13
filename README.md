@@ -1,5 +1,7 @@
 # ChitChat
 
+![ChitChat — Self-hosted browser chat](docs/assets/chitchat-banner.png)
+
 ChitChat is a small, self-hosted browser chat application. The clean reconstruction reached **v2.0.0**, the fifth and final planned stable release, adding Web Push notification delivery on top of the stable `v1.3.0` baseline. `v2.0.1` is a bug-fix update on top of it, described below.
 
 ## Project status: feature-complete
