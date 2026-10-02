@@ -182,6 +182,7 @@ function renderUserResults(users) {
 
 async function selectUser(user) {
   state.selectedUser = user;
+  delete elements['dm-message-list'].dataset.highlightMessageId;
   state.relationship = null;
   state.messages = [];
   state.messageIds = new Set();
@@ -317,6 +318,11 @@ function buildMessage(message) {
   article.className = 'dm-message';
   article.classList.toggle('outgoing', Boolean(message.outgoing));
   article.dataset.messageId = String(message.id);
+  // Re-apply a reply/search highlight, since renderMessages() rebuilds every node.
+  article.classList.toggle(
+    'search-result-target',
+    elements['dm-message-list'].dataset.highlightMessageId === article.dataset.messageId,
+  );
 
   const preview = buildReplyPreview(message.reply_to);
   if (preview) {
@@ -410,8 +416,11 @@ function truncateForBanner(text) {
 
 function focusReplyTarget(replyTo) {
   if (!replyTo?.available) return;
-  const target = elements['dm-message-list'].querySelector(`article[data-message-id="${replyTo.message_id}"]`);
+  const list = elements['dm-message-list'];
+  const target = list.querySelector(`article[data-message-id="${replyTo.message_id}"]`);
   if (!(target instanceof HTMLElement)) return;
+  list.querySelectorAll('.search-result-target').forEach((node) => node.classList.remove('search-result-target'));
+  list.dataset.highlightMessageId = target.dataset.messageId;
   target.classList.add('search-result-target');
   target.scrollIntoView({ block: 'center', behavior: 'auto' });
 }

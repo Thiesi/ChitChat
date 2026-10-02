@@ -48,6 +48,8 @@ async function revealMessage(selector, loadButton) {
   for (let page = 0; page < 20; page += 1) {
     const message = document.querySelector(selector);
     if (message instanceof HTMLElement) {
+      // The list re-applies this highlight to rebuilt nodes; see buildMessageElement().
+      if (message.parentElement) message.parentElement.dataset.highlightMessageId = message.dataset.messageId;
       message.classList.add('search-result-target');
       message.tabIndex = -1;
       message.focus({ preventScroll: true });

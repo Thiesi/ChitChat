@@ -89,7 +89,7 @@ Use a disposable PostgreSQL database. The browser test creates accounts, rooms, 
 
 ## Start the application
 
-The PHP development server must use multiple workers because each open SSE request occupies one worker for approximately 25 seconds:
+The PHP development server must use multiple workers because each open SSE request occupies one worker for approximately 25 seconds, including streams from pages a previous test already closed. Multi-user tests open several pages at once, so eight workers can all be held by streams while ordinary API requests queue past the assertion timeouts; use 32:
 
 ```sh
 mkdir -p /tmp/chitchat-uploads
@@ -99,7 +99,7 @@ export APP_ENV=test
 export APP_DEBUG=1
 export SESSION_COOKIE_SECURE=0
 export ATTACHMENT_STORAGE_PATH=/tmp/chitchat-uploads
-export PHP_CLI_SERVER_WORKERS=8
+export PHP_CLI_SERVER_WORKERS=32
 
 php -S 127.0.0.1:8080 -t public
 ```

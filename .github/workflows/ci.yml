@@ -174,7 +174,7 @@ jobs:
         run: |
           mkdir -p "$ATTACHMENT_STORAGE_PATH"
           chmod 700 "$ATTACHMENT_STORAGE_PATH"
-          PHP_CLI_SERVER_WORKERS=8 php -S 127.0.0.1:8080 -t public > php-server.log 2>&1 &
+          PHP_CLI_SERVER_WORKERS=32 php -S 127.0.0.1:8080 -t public > php-server.log 2>&1 &
           echo $! > php-server.pid
           curl --fail --retry 30 --retry-delay 1 --retry-all-errors http://localhost:8080/ready.php
       - name: Run browser end-to-end tests
