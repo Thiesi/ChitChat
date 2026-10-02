@@ -62,22 +62,31 @@ jobs:
       - run: composer migrate
       - run: npm ci --no-audit --no-fund
       - run: npx playwright install --with-deps webkit
-      - name: Start ChitChat test server
+      - name: Install Nginx and PHP-FPM
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y nginx php-fpm php-pgsql php-mbstring
+      # Served as in production: php -S workers can hold a request behind a
+      # long-lived SSE stream they accepted at the same moment.
+      - name: Start ChitChat behind Nginx and PHP-FPM
         run: |
           mkdir -p "$ATTACHMENT_STORAGE_PATH"
           chmod 700 "$ATTACHMENT_STORAGE_PATH"
-          PHP_CLI_SERVER_WORKERS=32 php -S 127.0.0.1:8080 -t public > php-server.log 2>&1 &
-          echo $! > php-server.pid
+          source tests/stabilization/nginx-php-fpm.sh
+          start_nginx_php_fpm "$RUNNER_TEMP/chitchat-server" 32
           curl --fail --retry 30 --retry-delay 1 --retry-all-errors http://127.0.0.1:8080/ready.php
       - name: Run WebKit end-to-end tests
         run: npm run test:e2e -- --project=webkit
+      - name: Make server logs readable
+        if: failure()
+        run: sudo chmod -R a+rX "$RUNNER_TEMP/chitchat-server"
       - name: Upload WebKit diagnostics
         if: failure()
         uses: actions/upload-artifact@v7
         with:
           name: browser-diagnostics-webkit
           path: |
-            php-server.log
+            ${{ runner.temp }}/chitchat-server/*.log
             playwright-report/
             test-results/
           if-no-files-found: ignore

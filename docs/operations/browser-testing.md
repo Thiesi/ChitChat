@@ -89,7 +89,9 @@ Use a disposable PostgreSQL database. The browser test creates accounts, rooms, 
 
 ## Start the application
 
-The PHP development server must use multiple workers because each open SSE request occupies one worker for approximately 25 seconds, including streams from pages a previous test already closed. Multi-user tests open several pages at once, so eight workers can all be held by streams while ordinary API requests queue past the assertion timeouts; use 32:
+Each open SSE request occupies one PHP worker for approximately 25 seconds, including streams from pages a previous test already closed, and multi-user tests open several pages at once.
+
+CI serves the suite through Nginx and PHP-FPM, as production does, with 32 PHP-FPM children. PHP-FPM hands each request to the next free child, so an SSE stream never delays another request. On Linux with `nginx` and `php-fpm` installed, the same setup is available locally (it uses `sudo` to start PHP-FPM and listens on `127.0.0.1:8080`):
 
 ```sh
 mkdir -p /tmp/chitchat-uploads
@@ -99,10 +101,20 @@ export APP_ENV=test
 export APP_DEBUG=1
 export SESSION_COOKIE_SECURE=0
 export ATTACHMENT_STORAGE_PATH=/tmp/chitchat-uploads
-export PHP_CLI_SERVER_WORKERS=32
 
-php -S 127.0.0.1:8080 -t public
+source tests/stabilization/nginx-php-fpm.sh
+start_nginx_php_fpm /tmp/chitchat-server 32
 ```
+
+Logs, including an Nginx access log with each request's duration, are written to `/tmp/chitchat-server/`.
+
+The PHP development server also works, with enough workers that streams cannot occupy all of them:
+
+```sh
+PHP_CLI_SERVER_WORKERS=32 php -S 127.0.0.1:8080 -t public
+```
+
+It is less reliable for the suite. Each development-server worker accepts every pending connection at once and then serves them one after another. A request that arrives together with an SSE stream can therefore wait the stream's full 25 seconds even while other workers are idle.
 
 Set the normal `DB_*` variables for the disposable test database in the same shell or `.env`.
 
