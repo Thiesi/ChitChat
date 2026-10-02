@@ -149,10 +149,11 @@ test.describe.serial('ChitChat browser release checks', () => {
       await expect(publicRoom).toBeVisible();
       await publicRoom.click();
       await expect(memberPage.locator('#room-title')).toHaveText('# General E2E');
-      const joinButton = memberPage.locator('#join-button');
-      const composer = memberPage.locator('#composer-wrap');
+      // Both elements are always present; whichever is visible says whether a retry already joined.
+      const joinButton = memberPage.locator('#join-button:visible');
+      const composer = memberPage.locator('#composer-wrap:visible');
       await expect(joinButton.or(composer)).toBeVisible();
-      if (await joinButton.isVisible()) {
+      if (await joinButton.count() > 0) {
         await joinButton.click();
       }
       await expect(composer).toBeVisible();

@@ -41,10 +41,11 @@ export async function registerOrSignIn(page, account, register) {
     await page.locator('#login-password').fill(account.password);
     await page.getByRole('button', { name: 'Sign in', exact: true }).click();
 
-    const chatShell = page.locator('#chat-shell');
-    const authError = page.locator('#auth-error').filter({ hasText: /\S/ });
+    // Both elements are always present, so only the visible one may match.
+    const chatShell = page.locator('#chat-shell:visible');
+    const authError = page.locator('#auth-error:visible').filter({ hasText: /\S/ });
     await expect(chatShell.or(authError)).toBeVisible();
-    if (await chatShell.isVisible()) return;
+    if (await chatShell.count() > 0) return;
   }
 
   await register(page, account);
