@@ -266,6 +266,7 @@ function renderRoomList() {
 
 async function selectRoom(room) {
   state.currentRoom = room;
+  delete elements['message-list'].dataset.highlightMessageId;
   state.messages = [];
   state.messageIds = new Set();
   state.oldestMessageId = null;
@@ -433,6 +434,11 @@ function buildMessageElement(message) {
   article.classList.toggle('emote', message.type === 'emote');
   article.classList.toggle('deleted', Boolean(message.deleted));
   article.dataset.messageId = String(message.id);
+  // Re-apply a reply/search highlight, since renderMessages() rebuilds every node.
+  article.classList.toggle(
+    'search-result-target',
+    elements['message-list'].dataset.highlightMessageId === article.dataset.messageId,
+  );
 
   const header = document.createElement('div');
   header.className = 'message-header';
@@ -560,8 +566,11 @@ function truncateForBanner(text) {
 
 function focusReplyTarget(replyTo) {
   if (!replyTo?.available) return;
-  const target = elements['message-list'].querySelector(`article[data-message-id="${replyTo.message_id}"]`);
+  const list = elements['message-list'];
+  const target = list.querySelector(`article[data-message-id="${replyTo.message_id}"]`);
   if (!(target instanceof HTMLElement)) return;
+  list.querySelectorAll('.search-result-target').forEach((node) => node.classList.remove('search-result-target'));
+  list.dataset.highlightMessageId = target.dataset.messageId;
   target.classList.add('search-result-target');
   target.scrollIntoView({ block: 'center', behavior: 'auto' });
 }
