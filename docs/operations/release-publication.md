@@ -41,9 +41,9 @@ Run **Actions → Publish release → Run workflow** from the `main` branch with
 
 Validation checks the repository metadata and requires successful GitHub Actions check runs with these exact names on that same commit:
 
-- `static`;
+- `static (8.2)`, `static (8.3)`, `static (8.4)`;
 - `dependency-audit`;
-- `integration`;
+- `integration (8.2)`, `integration (8.3)`, `integration (8.4)`;
 - `browser (chromium)`;
 - `browser (firefox)`;
 - `release-rehearsal`;

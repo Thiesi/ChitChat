@@ -22,9 +22,13 @@ CHECK_RUNS=$(gh api \
     "/repos/${GITHUB_REPOSITORY}/commits/${COMMIT_SHA}/check-runs?per_page=100")
 
 REQUIRED_CHECKS=(
-    'static'
+    'static (8.2)'
+    'static (8.3)'
+    'static (8.4)'
     'dependency-audit'
-    'integration'
+    'integration (8.2)'
+    'integration (8.3)'
+    'integration (8.4)'
     'browser (chromium)'
     'browser (firefox)'
     'release-rehearsal'
