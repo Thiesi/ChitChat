@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { attemptAccount, attemptName, attemptText } from './support/attempt.js';
 
 const baseURL = process.env.CHITCHAT_BASE_URL ?? 'http://127.0.0.1:8080';
 const root = {
@@ -9,11 +10,11 @@ const member = {
   username: 'MemberE2E',
   password: 'Another Correct Horse Battery Staple 2026!',
 };
-const peer = {
+const basePeer = {
   username: 'SearchPeerE2E',
   password: 'Search Peer Correct Horse Battery Staple 2026!',
 };
-const outsider = {
+const baseOutsider = {
   username: 'SearchOutsiderE2E',
   password: 'Search Outsider Correct Horse Battery Staple 2026!',
 };
@@ -48,6 +49,12 @@ async function selectPeer(page, username) {
 }
 
 test('participants search only currently visible room and direct-message bodies', async ({ browser }) => {
+  const peer = attemptAccount(basePeer);
+  const outsider = attemptAccount(baseOutsider);
+  const privateRoomName = attemptText('Search Private E2E');
+  // The query only matches this attempt's messages, so result counts stay exact on a retry.
+  const token = attemptName('Quartzsearch');
+  const query = token.toLowerCase();
   const rootContext = await browser.newContext({ baseURL });
   const memberContext = await browser.newContext({ baseURL });
   const peerContext = await browser.newContext({ baseURL });
@@ -58,14 +65,14 @@ test('participants search only currently visible room and direct-message bodies'
     await login(rootPage, root);
     await rootPage.locator('#new-room-button').click();
     const roomDialog = rootPage.locator('#room-dialog');
-    await roomDialog.locator('#room-key').fill('searchprivatee2e');
-    await roomDialog.locator('#room-name').fill('Search Private E2E');
+    await roomDialog.locator('#room-key').fill(attemptName('searchprivatee2e').toLowerCase());
+    await roomDialog.locator('#room-name').fill(privateRoomName);
     await roomDialog.locator('#room-visibility').selectOption('private');
     await roomDialog.getByRole('button', { name: 'Create room' }).click();
-    await expect(rootPage.locator('#room-title')).toHaveText('# Search Private E2E');
-    await rootPage.locator('#composer-input').fill('Quartzsearch hidden private evidence');
+    await expect(rootPage.locator('#room-title')).toHaveText(`# ${privateRoomName}`);
+    await rootPage.locator('#composer-input').fill(`${token} hidden private evidence`);
     await rootPage.locator('#send-button').click();
-    await expect(rootPage.locator('.message-body', { hasText: 'Quartzsearch hidden private evidence' })).toBeVisible();
+    await expect(rootPage.locator('.message-body', { hasText: `${token} hidden private evidence` })).toBeVisible();
 
     const outsiderPage = await outsiderContext.newPage();
     await register(outsiderPage, outsider);
@@ -73,47 +80,47 @@ test('participants search only currently visible room and direct-message bodies'
     const peerPage = await peerContext.newPage();
     await register(peerPage, peer);
     await selectPeer(peerPage, outsider.username);
-    await peerPage.locator('#dm-message-input').fill('Quartzsearch unrelated direct evidence');
+    await peerPage.locator('#dm-message-input').fill(`${token} unrelated direct evidence`);
     await peerPage.locator('#dm-send').click();
-    await expect(peerPage.locator('.dm-message-body', { hasText: 'Quartzsearch unrelated direct evidence' })).toBeVisible();
+    await expect(peerPage.locator('.dm-message-body', { hasText: `${token} unrelated direct evidence` })).toBeVisible();
 
     const memberPage = await memberContext.newPage();
     await login(memberPage, member);
     await memberPage.locator('.room-button', { hasText: '# General E2E' }).click();
     await expect(memberPage.locator('#room-title')).toHaveText('# General E2E');
-    await memberPage.locator('#composer-input').fill('Quartzsearch public room evidence');
+    await memberPage.locator('#composer-input').fill(`${token} public room evidence`);
     await memberPage.locator('#send-button').click();
-    await expect(memberPage.locator('.message-body', { hasText: 'Quartzsearch public room evidence' })).toBeVisible();
+    await expect(memberPage.locator('.message-body', { hasText: `${token} public room evidence` })).toBeVisible();
 
     await selectPeer(memberPage, peer.username);
-    await memberPage.locator('#dm-message-input').fill('Quartzsearch participant direct evidence');
+    await memberPage.locator('#dm-message-input').fill(`${token} participant direct evidence`);
     await memberPage.locator('#dm-send').click();
-    await expect(memberPage.locator('.dm-message-body', { hasText: 'Quartzsearch participant direct evidence' })).toBeVisible();
+    await expect(memberPage.locator('.dm-message-body', { hasText: `${token} participant direct evidence` })).toBeVisible();
 
     await memberPage.goto('/search.php');
     await expect(memberPage.locator('#message-search-shell')).toBeVisible();
     await expect(memberPage.locator('.message-search-notice')).toContainText('retained revision bodies are deliberately excluded');
-    await memberPage.locator('#message-search-query').fill('quartzsearch');
+    await memberPage.locator('#message-search-query').fill(query);
     await memberPage.getByRole('button', { name: 'Search', exact: true }).click();
     await expect(memberPage.locator('#message-search-status')).toContainText('2 results shown');
-    expect(memberPage.url()).not.toContain('quartzsearch');
-    await expect(memberPage.locator('.message-search-excerpt', { hasText: 'Quartzsearch public room evidence' })).toBeVisible();
-    await expect(memberPage.locator('.message-search-excerpt', { hasText: 'Quartzsearch participant direct evidence' })).toBeVisible();
-    await expect(memberPage.locator('.message-search-excerpt', { hasText: 'Quartzsearch hidden private evidence' })).toHaveCount(0);
-    await expect(memberPage.locator('.message-search-excerpt', { hasText: 'Quartzsearch unrelated direct evidence' })).toHaveCount(0);
+    expect(memberPage.url()).not.toContain(query);
+    await expect(memberPage.locator('.message-search-excerpt', { hasText: `${token} public room evidence` })).toBeVisible();
+    await expect(memberPage.locator('.message-search-excerpt', { hasText: `${token} participant direct evidence` })).toBeVisible();
+    await expect(memberPage.locator('.message-search-excerpt', { hasText: `${token} hidden private evidence` })).toHaveCount(0);
+    await expect(memberPage.locator('.message-search-excerpt', { hasText: `${token} unrelated direct evidence` })).toHaveCount(0);
 
     await memberPage.getByRole('link', { name: '# General E2E' }).click();
     await expect(memberPage.locator('#room-title')).toHaveText('# General E2E');
-    await expect(memberPage.locator('.message.search-result-target', { hasText: 'Quartzsearch public room evidence' })).toBeVisible();
+    await expect(memberPage.locator('.message.search-result-target', { hasText: `${token} public room evidence` })).toBeVisible();
 
     await memberPage.goto('/search.php?scope=direct');
     await expect(memberPage.locator('#message-search-shell')).toBeVisible();
-    await memberPage.locator('#message-search-query').fill('quartzsearch');
+    await memberPage.locator('#message-search-query').fill(query);
     await memberPage.getByRole('button', { name: 'Search', exact: true }).click();
     await expect(memberPage.locator('#message-search-status')).toContainText('1 result shown');
     await memberPage.getByRole('link', { name: `Conversation with ${peer.username}` }).click();
     await expect(memberPage.locator('#dm-peer-name')).toHaveText(peer.username);
-    await expect(memberPage.locator('.dm-message.search-result-target', { hasText: 'Quartzsearch participant direct evidence' })).toBeVisible();
+    await expect(memberPage.locator('.dm-message.search-result-target', { hasText: `${token} participant direct evidence` })).toBeVisible();
   } finally {
     await outsiderContext.close();
     await peerContext.close();

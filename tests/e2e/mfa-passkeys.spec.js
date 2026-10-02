@@ -1,11 +1,12 @@
 import { expect, test } from '@playwright/test';
+import { attemptAccount } from './support/attempt.js';
 
-const account = {
+const passkeyAccount = {
   username: 'PasskeyE2E',
   password: 'Passkey Browser Test Password 2026!',
 };
 
-async function register(page) {
+async function register(page, account) {
   await page.goto('/');
   await expect(page.locator('#auth-shell')).toBeVisible();
   await page.locator('#register-tab').click();
@@ -39,14 +40,14 @@ async function signOut(page) {
   await expect(page.locator('#auth-shell')).toBeVisible();
 }
 
-async function submitPassword(page) {
+async function submitPassword(page, account) {
   await page.locator('#login-username').fill(account.username);
   await page.locator('#login-password').fill(account.password);
   await page.getByRole('button', { name: 'Sign in' }).click();
   await expect(page.locator('#mfa-login-panel')).toBeVisible();
 }
 
-async function completeMfaLogin(page, action) {
+async function completeMfaLogin(page, account, action) {
   const sessionPromise = page.waitForResponse((response) => (
     response.url().endsWith('/api/v1/session.php')
     && response.request().method() === 'GET'
@@ -62,6 +63,7 @@ test.describe('Passkey multi-factor authentication', () => {
   test('enrolls a passkey and supports passkey and one-time recovery login', async ({ browser, browserName }) => {
     test.skip(browserName !== 'chromium', 'Chromium CDP provides the virtual WebAuthn authenticator used by this journey.');
 
+    const account = attemptAccount(passkeyAccount);
     const context = await browser.newContext();
     const page = await context.newPage();
     const client = await context.newCDPSession(page);
@@ -78,7 +80,7 @@ test.describe('Passkey multi-factor authentication', () => {
     });
 
     try {
-      await register(page);
+      await register(page, account);
       await page.goto('/account.php');
       await expect(page.locator('#account-shell')).toBeVisible();
       await expect(page.locator('#mfa-add-form')).toBeVisible();
@@ -102,16 +104,16 @@ test.describe('Passkey multi-factor authentication', () => {
       await expect(page.locator('#mfa-recovery-status')).toContainText('10 unused recovery codes remain');
 
       await signOut(page);
-      await submitPassword(page);
-      await completeMfaLogin(page, () => page.locator('#mfa-login-passkey').click());
+      await submitPassword(page, account);
+      await completeMfaLogin(page, account, () => page.locator('#mfa-login-passkey').click());
 
       await signOut(page);
-      await submitPassword(page);
+      await submitPassword(page, account);
       await page.locator('#mfa-login-recovery-code').fill(recoveryCode);
-      await completeMfaLogin(page, () => page.getByRole('button', { name: 'Use recovery code' }).click());
+      await completeMfaLogin(page, account, () => page.getByRole('button', { name: 'Use recovery code' }).click());
 
       await signOut(page);
-      await submitPassword(page);
+      await submitPassword(page, account);
       await page.locator('#mfa-login-recovery-code').fill(recoveryCode);
       await page.getByRole('button', { name: 'Use recovery code' }).click();
       await expect(page.locator('#mfa-login-panel [role="alert"]')).toContainText('invalid or has already been used');

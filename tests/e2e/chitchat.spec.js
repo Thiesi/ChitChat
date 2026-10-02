@@ -1,4 +1,9 @@
 import { expect, test } from '@playwright/test';
+import {
+  attemptName,
+  attemptText,
+  registerOrSignIn,
+} from './support/attempt.js';
 
 const baseURL = process.env.CHITCHAT_BASE_URL ?? 'http://127.0.0.1:8080';
 const admin = {
@@ -72,6 +77,21 @@ async function setRegistrationPolicy(page, enabled, {
   await expect(page.locator('#registration-enabled')).toHaveValue(enabled ? '1' : '0');
 }
 
+async function apiPost(context, path, payload) {
+  const session = await (await context.request.get('/api/v1/session.php')).json();
+  return context.request.post(path, {
+    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': session.csrf_token },
+    data: payload,
+  });
+}
+
+// Later specs register accounts, so a failure must never leave registration disabled.
+async function restoreRegistration(context, password) {
+  await apiPost(context, '/api/v1/step-up.php', { password });
+  const { settings } = await (await context.request.get('/api/v1/admin/settings/get.php')).json();
+  await apiPost(context, '/api/v1/admin/settings/update.php', { ...settings, registration_enabled: true });
+}
+
 test.describe.serial('ChitChat browser release checks', () => {
   test('emits hardened HTTP headers and protects anonymous APIs', async ({ request }) => {
     const pageResponse = await request.get('/');
@@ -93,56 +113,75 @@ test.describe.serial('ChitChat browser release checks', () => {
     const adminContext = await browser.newContext({ baseURL });
     const memberContext = await browser.newContext({ baseURL });
     let anonymousContext = null;
+    let memberBlockedAdminId = null;
+    let registrationDisabled = false;
+    const helloText = attemptText('Hello from the member browser');
+    const emoteText = attemptText('confirms realtime delivery');
+    const attachmentName = `${attemptName('browser-e2e')}.txt`;
+    const privateHello = attemptText('Private browser hello');
+    const privateReply = attemptText('Private browser reply');
+    const blockedText = attemptText('This message must be blocked');
+    const resumedText = attemptText('Messaging resumed after unblock');
 
     try {
       const adminPage = await adminContext.newPage();
-      await register(adminPage, admin);
+      await registerOrSignIn(adminPage, admin, register);
       await expect(adminPage.locator('#admin-link')).toBeVisible();
 
-      await adminPage.locator('#new-room-button').click();
-      const roomDialog = adminPage.locator('#room-dialog');
-      await expect(roomDialog).toBeVisible();
-      await roomDialog.locator('#room-key').fill('general-e2e');
-      await roomDialog.locator('#room-name').fill('General E2E');
-      await roomDialog.locator('#room-info-line').fill('Browser release validation');
-      await roomDialog.getByRole('button', { name: 'Create room' }).click();
+      // Every later spec uses this room, so a retry reuses it rather than recreating it.
+      const { rooms } = await (await adminContext.request.get('/api/v1/rooms/list.php')).json();
+      if (rooms.some((room) => room.key === 'general-e2e')) {
+        await adminPage.locator('.room-button', { hasText: '# General E2E' }).click();
+      } else {
+        await adminPage.locator('#new-room-button').click();
+        const roomDialog = adminPage.locator('#room-dialog');
+        await expect(roomDialog).toBeVisible();
+        await roomDialog.locator('#room-key').fill('general-e2e');
+        await roomDialog.locator('#room-name').fill('General E2E');
+        await roomDialog.locator('#room-info-line').fill('Browser release validation');
+        await roomDialog.getByRole('button', { name: 'Create room' }).click();
+      }
       await expect(adminPage.locator('#room-title')).toHaveText('# General E2E');
 
       const memberPage = await memberContext.newPage();
-      await register(memberPage, member);
+      await registerOrSignIn(memberPage, member, register);
       const publicRoom = memberPage.locator('.room-button', { hasText: '# General E2E' });
       await expect(publicRoom).toBeVisible();
       await publicRoom.click();
       await expect(memberPage.locator('#room-title')).toHaveText('# General E2E');
-      await expect(memberPage.locator('#join-button')).toBeVisible();
-      await memberPage.locator('#join-button').click();
-      await expect(memberPage.locator('#composer-wrap')).toBeVisible();
+      const joinButton = memberPage.locator('#join-button');
+      const composer = memberPage.locator('#composer-wrap');
+      await expect(joinButton.or(composer)).toBeVisible();
+      if (await joinButton.isVisible()) {
+        await joinButton.click();
+      }
+      await expect(composer).toBeVisible();
       await expect(memberPage.locator('#admin-link')).toBeHidden();
 
       await expect(adminPage.locator('#presence-list')).toContainText(member.username, { timeout: 20_000 });
       await expect(memberPage.locator('#presence-list')).toContainText(admin.username, { timeout: 20_000 });
 
-      await memberPage.locator('#composer-input').fill('Hello from the member browser');
+      await memberPage.locator('#composer-input').fill(helloText);
       await memberPage.locator('#send-button').click();
-      await expect(adminPage.locator('.message-body', { hasText: 'Hello from the member browser' })).toBeVisible();
+      await expect(adminPage.locator('.message-body', { hasText: helloText })).toBeVisible();
 
-      await adminPage.locator('#composer-input').fill('/me confirms realtime delivery');
+      await adminPage.locator('#composer-input').fill(`/me ${emoteText}`);
       await adminPage.locator('#send-button').click();
-      await expect(memberPage.locator('.message.emote .message-body', { hasText: 'confirms realtime delivery' })).toBeVisible();
+      await expect(memberPage.locator('.message.emote .message-body', { hasText: emoteText })).toBeVisible();
 
       await adminPage.locator('#composer-input').fill(`/ping ${member.username} Browser ping`);
       await adminPage.locator('#send-button').click();
       await expect(memberPage.locator('#toast-region')).toContainText('Browser ping');
 
       await memberPage.locator('#attachment-input').setInputFiles({
-        name: 'browser-e2e.txt',
+        name: attachmentName,
         mimeType: 'text/plain',
         buffer: Buffer.from('attachment delivered through the browser\n'),
       });
       await memberPage.locator('#composer-input').fill('Release-test attachment');
       await memberPage.locator('#send-button').click();
       await expect(memberPage.locator('#toast-region')).toContainText('Attachment uploaded');
-      const adminDownload = adminPage.locator('a.attachment-download', { hasText: 'browser-e2e.txt' });
+      const adminDownload = adminPage.locator('a.attachment-download', { hasText: attachmentName });
       await expect(adminDownload).toBeVisible({ timeout: 20_000 });
       const href = await adminDownload.getAttribute('href');
       expect(href).not.toBeNull();
@@ -163,36 +202,38 @@ test.describe.serial('ChitChat browser release checks', () => {
       await expect(memberMessages.locator('#messages-shell')).toBeVisible();
       await selectDirectMessagePeer(memberMessages, admin.username);
       await expect(memberMessages.locator('#dm-composer')).toBeVisible();
-      await memberMessages.locator('#dm-message-input').fill('Private browser hello');
+      await memberMessages.locator('#dm-message-input').fill(privateHello);
       await memberMessages.locator('#dm-send').click();
-      await expect(adminMessages.locator('.dm-message-body', { hasText: 'Private browser hello' })).toBeVisible();
+      await expect(adminMessages.locator('.dm-message-body', { hasText: privateHello })).toBeVisible();
 
-      await adminMessages.locator('#dm-message-input').fill('Private browser reply');
+      await adminMessages.locator('#dm-message-input').fill(privateReply);
       await adminMessages.locator('#dm-send').click();
-      await expect(memberMessages.locator('.dm-message-body', { hasText: 'Private browser reply' })).toBeVisible();
+      await expect(memberMessages.locator('.dm-message-body', { hasText: privateReply })).toBeVisible();
 
+      memberBlockedAdminId = (await (await adminContext.request.get('/api/v1/session.php')).json()).user.id;
       await memberMessages.locator('#dm-block-toggle').click();
       await expect(memberMessages.locator('#dm-block-toggle')).toHaveText('Unblock user');
       await expect(memberMessages.locator('#dm-peer-status')).toContainText('You blocked this user');
       await expect(memberMessages.locator('#dm-composer')).toBeHidden();
-      await expect(memberMessages.locator('.dm-message-body', { hasText: 'Private browser reply' })).toBeVisible();
+      await expect(memberMessages.locator('.dm-message-body', { hasText: privateReply })).toBeVisible();
 
-      await adminMessages.locator('#dm-message-input').fill('This message must be blocked');
+      await adminMessages.locator('#dm-message-input').fill(blockedText);
       await adminMessages.locator('#dm-send').click();
       await expect(adminMessages.locator('#messages-error')).toContainText('Direct messaging is unavailable');
       await expect(adminMessages.locator('#dm-peer-status')).toContainText('Direct messaging is unavailable');
       await expect(adminMessages.locator('#dm-composer')).toBeHidden();
-      await expect(memberMessages.locator('.dm-message-body', { hasText: 'This message must be blocked' })).toHaveCount(0);
+      await expect(memberMessages.locator('.dm-message-body', { hasText: blockedText })).toHaveCount(0);
 
       await memberMessages.locator('#dm-block-toggle').click();
       await expect(memberMessages.locator('#dm-block-toggle')).toHaveText('Block user');
       await expect(memberMessages.locator('#dm-composer')).toBeVisible();
+      memberBlockedAdminId = null;
 
       await selectDirectMessagePeer(adminMessages, member.username);
       await expect(adminMessages.locator('#dm-composer')).toBeVisible();
-      await adminMessages.locator('#dm-message-input').fill('Messaging resumed after unblock');
+      await adminMessages.locator('#dm-message-input').fill(resumedText);
       await adminMessages.locator('#dm-send').click();
-      await expect(memberMessages.locator('.dm-message-body', { hasText: 'Messaging resumed after unblock' })).toBeVisible();
+      await expect(memberMessages.locator('.dm-message-body', { hasText: resumedText })).toBeVisible();
 
       const adminConsole = await adminContext.newPage();
       await adminConsole.goto('/admin.php');
@@ -215,6 +256,7 @@ test.describe.serial('ChitChat browser release checks', () => {
       await expect(settingsPage.locator('#room-retention')).toHaveValue('0');
       await expect(settingsPage.locator('#dm-retention')).toHaveValue('0');
 
+      registrationDisabled = true;
       await setRegistrationPolicy(settingsPage, false, {
         password: admin.password,
         expectPrompt: true,
@@ -235,7 +277,15 @@ test.describe.serial('ChitChat browser release checks', () => {
       await setRegistrationPolicy(settingsPage, true, {
         expectPrompt: false,
       });
+      registrationDisabled = false;
     } finally {
+      if (memberBlockedAdminId !== null) {
+        await apiPost(memberContext, '/api/v1/direct-messages/unblock.php', { user_id: memberBlockedAdminId })
+          .catch(() => {});
+      }
+      if (registrationDisabled) {
+        await restoreRegistration(adminContext, admin.password).catch(() => {});
+      }
       await anonymousContext?.close();
       await memberContext.close();
       await adminContext.close();

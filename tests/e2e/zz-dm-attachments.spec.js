@@ -1,15 +1,16 @@
 import { expect, test } from '@playwright/test';
+import { attemptAccount, attemptName, attemptText } from './support/attempt.js';
 
 const baseURL = process.env.CHITCHAT_BASE_URL ?? 'http://127.0.0.1:8080';
-const sender = {
+const baseSender = {
   username: 'DMAttachSender',
   password: 'Direct Message Attachment Sender 2026!',
 };
-const recipient = {
+const baseRecipient = {
   username: 'DMAttachRecipient',
   password: 'Direct Message Attachment Recipient 2026!',
 };
-const outsider = {
+const baseOutsider = {
   username: 'DMAttachOutsider',
   password: 'Direct Message Attachment Outsider 2026!',
 };
@@ -33,6 +34,11 @@ async function selectPeer(page, username) {
 }
 
 test('sends and authorizes direct-message attachments', async ({ browser }) => {
+  const sender = attemptAccount(baseSender);
+  const recipient = attemptAccount(baseRecipient);
+  const outsider = attemptAccount(baseOutsider);
+  const fileName = `${attemptName('private-browser')}.txt`;
+  const caption = attemptText('Private attachment caption');
   const senderContext = await browser.newContext({ baseURL });
   const recipientContext = await browser.newContext({ baseURL });
   const outsiderContext = await browser.newContext({ baseURL });
@@ -53,20 +59,20 @@ test('sends and authorizes direct-message attachments', async ({ browser }) => {
     await selectPeer(recipientMessages, sender.username);
 
     await senderMessages.locator('#dm-attachment-input').setInputFiles({
-      name: 'private-browser.txt',
+      name: fileName,
       mimeType: 'text/plain',
       buffer: Buffer.from('direct-message attachment bytes\n'),
     });
-    await senderMessages.locator('#dm-message-input').fill('Private attachment caption');
+    await senderMessages.locator('#dm-message-input').fill(caption);
     await senderMessages.locator('#dm-send').click();
     await expect(senderMessages.locator('#toast-region')).toContainText('Attachment sent');
 
     const recipientDownload = recipientMessages.locator('.dm-attachment-download', {
-      hasText: 'private-browser.txt',
+      hasText: fileName,
     });
     await expect(recipientDownload).toBeVisible({ timeout: 20_000 });
     await expect(recipientMessages.locator('.dm-message-body', {
-      hasText: 'Private attachment caption',
+      hasText: caption,
     })).toBeVisible();
 
     const href = await recipientDownload.getAttribute('href');

@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { attemptSuffix, attemptText, registerOrSignIn } from './support/attempt.js';
 
 const baseURL = process.env.CHITCHAT_BASE_URL ?? 'http://127.0.0.1:8080';
 const root = {
@@ -44,6 +45,8 @@ async function stableMessage(page, selector, text) {
 test('participants reply to and mention each other, with a working notification deep link', async ({ browser }) => {
   const rootContext = await browser.newContext({ baseURL });
   const memberContext = await browser.newContext({ baseURL });
+  const originalText = attemptText('Original room message awaiting a reply');
+  const replyText = attemptText('thanks for the context');
 
   try {
     const rootPage = await rootContext.newPage();
@@ -56,40 +59,40 @@ test('participants reply to and mention each other, with a working notification 
     await memberPage.locator('.room-button', { hasText: '# General E2E' }).click();
     await expect(memberPage.locator('#room-title')).toHaveText('# General E2E');
 
-    await rootPage.locator('#composer-input').fill('Original room message awaiting a reply');
+    await rootPage.locator('#composer-input').fill(originalText);
     await rootPage.locator('#send-button').click();
-    const originalMessage = await stableMessage(rootPage, 'article.message', 'Original room message awaiting a reply');
+    const originalMessage = await stableMessage(rootPage, 'article.message', originalText);
 
-    await expect(memberPage.locator('article.message', { hasText: 'Original room message awaiting a reply' }))
+    await expect(memberPage.locator('article.message', { hasText: originalText }))
       .toBeVisible({ timeout: 20_000 });
-    const memberViewOfOriginal = await stableMessage(memberPage, 'article.message', 'Original room message awaiting a reply');
+    const memberViewOfOriginal = await stableMessage(memberPage, 'article.message', originalText);
     await memberViewOfOriginal.getByRole('button', { name: 'Reply' }).click();
     await expect(memberPage.locator('#reply-banner')).toBeVisible();
     await expect(memberPage.locator('#reply-banner-text')).toContainText('Replying to RootE2E');
 
-    await memberPage.locator('#composer-input').fill('@RootE2E thanks for the context');
+    await memberPage.locator('#composer-input').fill(`@RootE2E ${replyText}`);
     await memberPage.locator('#send-button').click();
     await expect(memberPage.locator('#reply-banner')).toBeHidden();
 
-    const memberReply = await stableMessage(memberPage, 'article.message', 'thanks for the context');
+    const memberReply = await stableMessage(memberPage, 'article.message', replyText);
     await expect(memberReply.locator('.reply-preview-author')).toHaveText('RootE2E');
-    await expect(memberReply.locator('.reply-preview-excerpt')).toContainText('Original room message awaiting a reply');
+    await expect(memberReply.locator('.reply-preview-excerpt')).toContainText(originalText);
     await expect(memberReply.locator('.message-body .mention')).toHaveText('@RootE2E');
 
-    await expect(rootPage.locator('article.message', { hasText: 'thanks for the context' }))
+    await expect(rootPage.locator('article.message', { hasText: replyText }))
       .toBeVisible({ timeout: 20_000 });
-    const rootViewOfReply = await stableMessage(rootPage, 'article.message', 'thanks for the context');
+    const rootViewOfReply = await stableMessage(rootPage, 'article.message', replyText);
     await rootViewOfReply.locator('.reply-preview').click();
     await expect(originalMessage).toHaveClass(/search-result-target/);
 
     await rootPage.goto('/notifications.php');
     await expect(rootPage.locator('#privacy-notifications-shell')).toBeVisible();
-    const mentionNotification = rootPage.locator('.privacy-notification', { hasText: 'You were mentioned' });
+    const mentionNotification = rootPage.locator('.privacy-notification', { hasText: 'You were mentioned' }).first();
     await expect(mentionNotification).toBeVisible();
     await expect(mentionNotification).toContainText('MemberE2E mentioned you in “General E2E”.');
     await mentionNotification.getByRole('link', { name: 'View message' }).click();
     await expect(rootPage.locator('#room-title')).toHaveText('# General E2E');
-    await expect(rootPage.locator('article.message.search-result-target', { hasText: 'thanks for the context' }))
+    await expect(rootPage.locator('article.message.search-result-target', { hasText: replyText }))
       .toBeVisible();
   } finally {
     await memberContext.close();
@@ -106,7 +109,7 @@ test('direct-message mentions only resolve the recipient and notify them', async
     await login(memberPage, member);
 
     const peerPage = await peerContext.newPage();
-    await register(peerPage, peer);
+    await registerOrSignIn(peerPage, peer, register);
 
     await memberPage.goto('/messages.php');
     await expect(memberPage.locator('#messages-shell')).toBeVisible();
@@ -115,15 +118,19 @@ test('direct-message mentions only resolve the recipient and notify them', async
     await memberPage.locator('.dm-user-button', { hasText: peer.username }).click();
     await expect(memberPage.locator('#dm-peer-name')).toHaveText(peer.username);
 
-    await memberPage.locator('#dm-message-input').fill(`Hi @${peer.username}, and hi @NotARealUserE2E too`);
+    await memberPage.locator('#dm-message-input').fill(attemptText(`Hi @${peer.username}, and hi @NotARealUserE2E too`));
     await memberPage.locator('#dm-send').click();
-    const sentMessage = await stableMessage(memberPage, 'article.dm-message', `Hi @${peer.username}`);
+    const sentMessage = await stableMessage(
+      memberPage,
+      'article.dm-message',
+      attemptText(`Hi @${peer.username}, and hi @NotARealUserE2E too`),
+    );
     await expect(sentMessage.locator('.mention')).toHaveText(`@${peer.username}`);
     await expect(sentMessage.locator('.dm-message-body')).toContainText('@NotARealUserE2E');
 
     await peerPage.goto('/notifications.php');
     await expect(peerPage.locator('#privacy-notifications-shell')).toBeVisible();
-    const notification = peerPage.locator('.privacy-notification', { hasText: 'You were mentioned' });
+    const notification = peerPage.locator('.privacy-notification', { hasText: 'You were mentioned' }).first();
     await expect(notification).toContainText(`${member.username} mentioned you in a direct message.`);
   } finally {
     await peerContext.close();
@@ -150,8 +157,9 @@ test('@mention autocomplete suggests and inserts a username in room and direct-m
     await roomInput.press('Enter');
     await expect(roomOption).toBeHidden();
     await expect(roomInput).toHaveValue('Hey @RootE2E ');
+    if (attemptSuffix() !== '') await roomInput.pressSequentially(attemptSuffix());
     await roomInput.press('Enter');
-    const sent = await stableMessage(memberPage, 'article.message', 'Hey @RootE2E');
+    const sent = await stableMessage(memberPage, 'article.message', attemptText('Hey @RootE2E'));
     await expect(sent.locator('.message-body .mention')).toHaveText('@RootE2E');
 
     await memberPage.goto('/messages.php');

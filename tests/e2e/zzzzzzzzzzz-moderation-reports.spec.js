@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { attemptAccount, attemptText } from './support/attempt.js';
 
 const baseURL = process.env.CHITCHAT_BASE_URL ?? 'http://127.0.0.1:8080';
 const root = {
@@ -9,7 +10,7 @@ const member = {
   username: 'MemberE2E',
   password: 'Another Correct Horse Battery Staple 2026!',
 };
-const author = {
+const baseAuthor = {
   username: 'ReportedAuthorE2E',
   password: 'Reported Author Correct Horse Battery Staple 2026!',
 };
@@ -54,6 +55,10 @@ async function submitReport(page, article, category, details) {
 }
 
 test('participants submit exact-message reports and moderators review only submitted evidence', async ({ browser }) => {
+  const author = attemptAccount(baseAuthor);
+  const roomEvidence = attemptText('Moderation room evidence exact');
+  const directEvidence = attemptText('Moderation direct evidence exact');
+  const unrelatedContext = attemptText('Moderation unrelated private context');
   const authorContext = await browser.newContext({ baseURL });
   const memberContext = await browser.newContext({ baseURL });
   const rootContext = await browser.newContext({ baseURL });
@@ -66,31 +71,31 @@ test('participants submit exact-message reports and moderators review only submi
     await expect(authorPage.locator('#room-title')).toHaveText('# General E2E');
     await authorPage.locator('#join-button').click();
     await expect(authorPage.locator('#composer-wrap')).toBeVisible();
-    await authorPage.locator('#composer-input').fill('Moderation room evidence exact');
+    await authorPage.locator('#composer-input').fill(roomEvidence);
     await authorPage.locator('#send-button').click();
-    await expect(authorPage.locator('.message-body', { hasText: 'Moderation room evidence exact' })).toBeVisible();
+    await expect(authorPage.locator('.message-body', { hasText: roomEvidence })).toBeVisible();
 
     await selectPeer(authorPage, member.username);
-    await authorPage.locator('#dm-message-input').fill('Moderation direct evidence exact');
+    await authorPage.locator('#dm-message-input').fill(directEvidence);
     await authorPage.locator('#dm-send').click();
-    await expect(authorPage.locator('.dm-message-body', { hasText: 'Moderation direct evidence exact' })).toBeVisible();
-    await authorPage.locator('#dm-message-input').fill('Moderation unrelated private context');
+    await expect(authorPage.locator('.dm-message-body', { hasText: directEvidence })).toBeVisible();
+    await authorPage.locator('#dm-message-input').fill(unrelatedContext);
     await authorPage.locator('#dm-send').click();
-    await expect(authorPage.locator('.dm-message-body', { hasText: 'Moderation unrelated private context' })).toBeVisible();
+    await expect(authorPage.locator('.dm-message-body', { hasText: unrelatedContext })).toBeVisible();
     await expect(
-      authorPage.locator('.dm-message', { hasText: 'Moderation direct evidence exact' }).getByRole('button', { name: 'Report' }),
+      authorPage.locator('.dm-message', { hasText: directEvidence }).getByRole('button', { name: 'Report' }),
     ).toHaveCount(0);
 
     const memberPage = await memberContext.newPage();
     await login(memberPage, member);
     await memberPage.locator('.room-button', { hasText: '# General E2E' }).click();
-    const roomMessage = memberPage.locator('.message', { hasText: 'Moderation room evidence exact' });
+    const roomMessage = memberPage.locator('.message', { hasText: roomEvidence });
     await expect(roomMessage).toBeVisible();
     await expect(roomMessage.getByRole('button', { name: 'Report', exact: true })).toBeVisible();
     await submitReport(memberPage, roomMessage, 'harassment', 'Room report details stay out of audit metadata.');
 
     await selectPeer(memberPage, author.username);
-    const directMessage = memberPage.locator('.dm-message', { hasText: 'Moderation direct evidence exact' });
+    const directMessage = memberPage.locator('.dm-message', { hasText: directEvidence });
     await expect(directMessage).toBeVisible();
     await expect(directMessage.getByRole('button', { name: 'Report', exact: true })).toBeVisible();
     await submitReport(memberPage, directMessage, 'threats', 'Review this exact direct message only.');
@@ -106,8 +111,8 @@ test('participants submit exact-message reports and moderators review only submi
     });
     await expect(directCase).toBeVisible();
     await directCase.click();
-    await expect(rootPage.locator('.moderation-evidence', { hasText: 'Moderation direct evidence exact' })).toBeVisible();
-    await expect(rootPage.locator('body')).not.toContainText('Moderation unrelated private context');
+    await expect(rootPage.locator('.moderation-evidence', { hasText: directEvidence })).toBeVisible();
+    await expect(rootPage.locator('body')).not.toContainText(unrelatedContext);
     await expect(rootPage.locator('.moderation-report-card')).toContainText('Review this exact direct message only.');
 
     await rootPage.locator('#moderation-claim').click();
@@ -125,7 +130,7 @@ test('participants submit exact-message reports and moderators review only submi
     });
     await expect(roomCase).toBeVisible();
     await roomCase.click();
-    await expect(rootPage.locator('.moderation-evidence', { hasText: 'Moderation room evidence exact' })).toBeVisible();
+    await expect(rootPage.locator('.moderation-evidence', { hasText: roomEvidence })).toBeVisible();
     await expect(rootPage.locator('.moderation-report-card')).toContainText('Room report details stay out of audit metadata.');
   } finally {
     await rootContext.close();
