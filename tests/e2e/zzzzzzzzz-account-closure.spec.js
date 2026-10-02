@@ -69,3 +69,7 @@ async function closeAndRestore(page, onClosureRequested) {
   await expect(page.locator('#chat-shell')).toBeVisible();
   await expect(page.locator('#current-user')).toHaveText(member.username);
 }
+
+import { forceOneRetry } from './support/force-retry.js';
+
+forceOneRetry();

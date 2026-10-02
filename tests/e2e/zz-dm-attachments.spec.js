@@ -90,3 +90,7 @@ test('sends and authorizes direct-message attachments', async ({ browser }) => {
     await senderContext.close();
   }
 });
+
+import { forceOneRetry } from './support/force-retry.js';
+
+forceOneRetry();

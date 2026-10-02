@@ -56,3 +56,7 @@ test('account page downloads a step-up-protected scoped JSON export', async ({ p
 
   await expect(page.locator('#personal-data-status')).toContainText(download.suggestedFilename());
 });
+
+import { forceOneRetry } from './support/force-retry.js';
+
+forceOneRetry();

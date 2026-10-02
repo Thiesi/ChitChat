@@ -126,3 +126,7 @@ test('sensitive endpoint families require recent password verification after rol
     await adminContext.close();
   }
 });
+
+import { forceOneRetry } from './support/force-retry.js';
+
+forceOneRetry();

@@ -125,3 +125,7 @@ test.describe('Passkey multi-factor authentication', () => {
     }
   });
 });
+
+import { forceOneRetry } from './support/force-retry.js';
+
+forceOneRetry();

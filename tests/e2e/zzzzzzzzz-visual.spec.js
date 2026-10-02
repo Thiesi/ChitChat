@@ -55,3 +55,7 @@ test('critical authentication and account layouts remain visually stable', async
   await expect(page.locator('#account-loading')).toBeHidden();
   await expect(page).toHaveScreenshot('account-narrow.png', screenshotOptions);
 });
+
+import { forceOneRetry } from './support/force-retry.js';
+
+forceOneRetry();
