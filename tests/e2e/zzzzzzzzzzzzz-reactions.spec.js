@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { attemptText } from './support/attempt.js';
 
 const baseURL = process.env.CHITCHAT_BASE_URL ?? 'http://127.0.0.1:8080';
 const root = {
@@ -75,12 +76,13 @@ test('participants react to a room message, with aggregation, idempotent togglin
     await memberPage.locator('.room-button', { hasText: '# General E2E' }).click();
     await expect(memberPage.locator('#room-title')).toHaveText('# General E2E');
 
-    await rootPage.locator('#composer-input').fill('Reactable room message');
-    await rootPage.locator('#send-button').click();
-    const rootView = await stableMessage(rootPage, 'article.message', 'Reactable room message');
-    await expect(memberPage.locator('article.message', { hasText: 'Reactable room message' }))
+    const messageText = attemptText('Reactable room message');
+    await rootPage.locator('#composer-input').fill(messageText);
+    await rootPage.locator('#composer-input').press('Enter');
+    const rootView = await stableMessage(rootPage, 'article.message', messageText);
+    await expect(memberPage.locator('article.message', { hasText: messageText }))
       .toBeVisible({ timeout: 20_000 });
-    const memberView = await stableMessage(memberPage, 'article.message', 'Reactable room message');
+    const memberView = await stableMessage(memberPage, 'article.message', messageText);
 
     // Root reacts first.
     await addReaction(rootView, '👍');
@@ -137,12 +139,13 @@ test('participants react to a direct message, with idempotent toggling and realt
     await selectPeer(rootPage, member.username);
     await selectPeer(memberPage, root.username);
 
-    await rootPage.locator('#dm-message-input').fill('Reactable private message');
-    await rootPage.locator('#dm-send').click();
-    const rootView = await stableMessage(rootPage, 'article.dm-message', 'Reactable private message');
-    await expect(memberPage.locator('article.dm-message', { hasText: 'Reactable private message' }))
+    const messageText = attemptText('Reactable private message');
+    await rootPage.locator('#dm-message-input').fill(messageText);
+    await rootPage.locator('#dm-message-input').press('Enter');
+    const rootView = await stableMessage(rootPage, 'article.dm-message', messageText);
+    await expect(memberPage.locator('article.dm-message', { hasText: messageText }))
       .toBeVisible({ timeout: 20_000 });
-    const memberView = await stableMessage(memberPage, 'article.dm-message', 'Reactable private message');
+    const memberView = await stableMessage(memberPage, 'article.dm-message', messageText);
 
     // The recipient reacts. Direct-message reaction events are published as
     // two separately targeted payloads, so each side's own perspective must

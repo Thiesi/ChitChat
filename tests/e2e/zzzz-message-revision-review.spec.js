@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { attemptText } from './support/attempt.js';
 
 const baseURL = process.env.CHITCHAT_BASE_URL ?? 'http://127.0.0.1:8080';
 const admin = {
@@ -41,7 +42,7 @@ async function selectPeer(page, username) {
       await conversation.click();
     } else {
       await page.locator('#dm-user-search').fill(username);
-      await page.getByRole('button', { name: 'Search' }).click();
+      await page.getByRole('button', { name: 'Search', exact: true }).click();
       const result = page.locator('.dm-user-button', { hasText: username }).first();
       await expect(result).toBeVisible();
       await result.click();
@@ -109,6 +110,10 @@ async function clearUnreadNotifications(page) {
 test('Super-Administrator reviews exact room and DM revision chains with participant disclosure', async ({ browser }) => {
   const adminContext = await browser.newContext({ baseURL });
   const memberContext = await browser.newContext({ baseURL });
+  const roomText = attemptText('Revision review room evidence');
+  const editedRoomText = attemptText('Revision review room evidence edited');
+  const directText = attemptText('Revision review private evidence');
+  const editedDirectText = attemptText('Revision review private evidence edited');
 
   try {
     const memberPage = await memberContext.newPage();
@@ -120,12 +125,12 @@ test('Super-Administrator reviews exact room and DM revision chains with partici
       await notificationSetupPage.close();
     }
     await selectLoadedRoom(memberPage, 'General E2E');
-    await memberPage.locator('#composer-input').fill('Revision review room evidence');
-    await memberPage.locator('#send-button').click();
-    const roomMessage = await stableMessage(memberPage, 'article.message', 'Revision review room evidence');
-    acceptDialog(memberPage, 'Revision review room evidence edited');
+    await memberPage.locator('#composer-input').fill(roomText);
+    await memberPage.locator('#composer-input').press('Enter');
+    const roomMessage = await stableMessage(memberPage, 'article.message', roomText);
+    acceptDialog(memberPage, editedRoomText);
     await roomMessage.locator.getByRole('button', { name: 'Edit' }).click();
-    await expect(roomMessage.locator.locator('.message-body')).toHaveText('Revision review room evidence edited');
+    await expect(roomMessage.locator.locator('.message-body')).toHaveText(editedRoomText);
 
     const adminLoginPage = await adminContext.newPage();
     await login(adminLoginPage, admin);
@@ -147,8 +152,8 @@ test('Super-Administrator reviews exact room and DM revision chains with partici
     await expect(reviewPage.locator('#revision-review-context')).toContainText('General E2E');
     await expect(reviewPage.locator('.revision-card')).toHaveCount(1);
     const roomBodies = reviewPage.locator('.revision-card .revision-body');
-    await expect(roomBodies.nth(0)).toHaveText('Revision review room evidence');
-    await expect(roomBodies.nth(1)).toHaveText('Revision review room evidence edited');
+    await expect(roomBodies.nth(0)).toHaveText(roomText);
+    await expect(roomBodies.nth(1)).toHaveText(editedRoomText);
 
     await openNotifications(memberPage);
     const roomNotification = memberPage.locator('.privacy-notification-unread').first();
@@ -161,12 +166,12 @@ test('Super-Administrator reviews exact room and DM revision chains with partici
     await memberPage.goto('/messages.php');
     await expect(memberPage.locator('#messages-shell')).toBeVisible();
     await selectPeer(memberPage, admin.username);
-    await memberPage.locator('#dm-message-input').fill('Revision review private evidence');
-    await memberPage.locator('#dm-send').click();
-    const directMessage = await stableMessage(memberPage, 'article.dm-message', 'Revision review private evidence');
-    acceptDialog(memberPage, 'Revision review private evidence edited');
+    await memberPage.locator('#dm-message-input').fill(directText);
+    await memberPage.locator('#dm-message-input').press('Enter');
+    const directMessage = await stableMessage(memberPage, 'article.dm-message', directText);
+    acceptDialog(memberPage, editedDirectText);
     await directMessage.locator.getByRole('button', { name: 'Edit' }).click();
-    await expect(directMessage.locator.locator('.dm-message-body')).toHaveText('Revision review private evidence edited');
+    await expect(directMessage.locator.locator('.dm-message-body')).toHaveText(editedDirectText);
     acceptDialog(memberPage);
     await directMessage.locator.getByRole('button', { name: 'Delete for everyone' }).click();
     await expect(directMessage.locator.locator('.dm-message-body')).toHaveText('Message deleted by sender.');
@@ -181,11 +186,11 @@ test('Super-Administrator reviews exact room and DM revision chains with partici
     await expect(reviewPage.locator('#revision-review-context')).toContainText(admin.username);
     await expect(reviewPage.locator('.revision-card')).toHaveCount(2);
     const editCard = reviewPage.locator('.revision-card').nth(0);
-    await expect(editCard.locator('.revision-body').nth(0)).toHaveText('Revision review private evidence');
-    await expect(editCard.locator('.revision-body').nth(1)).toHaveText('Revision review private evidence edited');
+    await expect(editCard.locator('.revision-body').nth(0)).toHaveText(directText);
+    await expect(editCard.locator('.revision-body').nth(1)).toHaveText(editedDirectText);
     const deleteCard = reviewPage.locator('.revision-card').nth(1);
     await expect(deleteCard).toContainText('Deletion');
-    await expect(deleteCard.locator('.revision-body').nth(0)).toHaveText('Revision review private evidence edited');
+    await expect(deleteCard.locator('.revision-body').nth(0)).toHaveText(editedDirectText);
     await expect(deleteCard.locator('.revision-body').nth(1)).toHaveText('Message deleted after this revision.');
 
     await openNotifications(memberPage);
