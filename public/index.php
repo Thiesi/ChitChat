@@ -67,8 +67,11 @@ $appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUT
   <main id="chat-shell" class="chat-shell hidden">
     <aside class="sidebar">
       <header class="sidebar-header">
-        <h1><?= $appName ?></h1>
-        <span id="connection-status" class="connection-status" data-state="disconnected" role="status" aria-live="polite" aria-atomic="true">Offline</span>
+        <div>
+          <h1><?= $appName ?></h1>
+          <span id="connection-status" class="connection-status" data-state="disconnected" role="status" aria-live="polite" aria-atomic="true">Offline</span>
+        </div>
+        <button id="menu-toggle" class="secondary-button menu-toggle" type="button" aria-expanded="false" aria-controls="sidebar-footer">Menu</button>
       </header>
 
       <div class="rooms-heading-row">
@@ -82,7 +85,7 @@ $appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUT
         <ul id="presence-list" class="presence-list"></ul>
       </section>
 
-      <footer class="sidebar-footer">
+      <footer id="sidebar-footer" class="sidebar-footer">
         <div class="current-user"><span class="current-user-label">Signed in as </span><strong id="current-user"></strong></div>
         <a class="secondary-button" href="/search.php">Search messages</a>
         <a class="secondary-button" href="/messages.php">Direct messages</a>
@@ -116,8 +119,13 @@ $appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUT
           <button id="reply-banner-cancel" class="reply-banner-cancel" type="button" aria-label="Cancel reply">Cancel</button>
         </div>
         <form id="composer-form" class="composer">
-          <div class="attachment-picker">
-            <label class="secondary-button attachment-button" for="attachment-input">Attach file</label>
+          <div class="composer-field">
+            <label class="visually-hidden" for="composer-input">Message or attachment caption</label>
+            <textarea id="composer-input" name="message" maxlength="4000" rows="2" placeholder="Write a message…"></textarea>
+            <label class="attachment-button" for="attachment-input" title="Attach file">
+              <svg class="attachment-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+              <span class="visually-hidden">Attach file</span>
+            </label>
             <input
               id="attachment-input"
               class="visually-hidden"
@@ -125,12 +133,12 @@ $appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUT
               type="file"
               accept="image/jpeg,image/png,image/gif,image/webp,application/pdf,text/plain,text/csv,application/json,application/zip"
             >
+          </div>
+          <button id="send-button" class="primary-button" type="submit">Send</button>
+          <div class="attachment-selection">
             <span id="attachment-name" class="attachment-name" aria-live="polite"></span>
             <button id="attachment-clear" class="secondary-button hidden" type="button">Remove</button>
           </div>
-          <label class="visually-hidden" for="composer-input">Message or attachment caption</label>
-          <textarea id="composer-input" name="message" maxlength="4000" rows="2" placeholder="Write a message…"></textarea>
-          <button id="send-button" class="primary-button" type="submit">Send</button>
         </form>
         <p class="composer-help">Enter sends · Shift+Enter adds a line · Attachments may include an optional caption · Commands: <code>/me</code>, <code>/ping username</code></p>
       </div>

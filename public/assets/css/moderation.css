@@ -1,9 +1,5 @@
-:root {
-  --moderation-max: 96rem;
-}
-
 .moderation-shell {
-  width: min(var(--moderation-max), calc(100% - 2rem));
+  width: calc(100% - 2rem);
   margin: 0 auto;
   padding: 1rem 0 2rem;
 }

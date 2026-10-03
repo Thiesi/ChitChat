@@ -1,5 +1,5 @@
 .account-shell {
-  width: min(100% - 2rem, 58rem);
+  width: calc(100% - 2rem);
   margin: 0 auto;
   padding: 2rem 0 4rem;
 }
@@ -94,7 +94,7 @@
 
 @media (max-width: 40rem) {
   .account-shell {
-    width: min(100% - 1rem, 58rem);
+    width: calc(100% - 1rem);
     padding-top: 1rem;
   }
 

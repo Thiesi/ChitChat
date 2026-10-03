@@ -75,6 +75,8 @@ function bindElements() {
     'reply-banner',
     'reply-banner-text',
     'reply-banner-cancel',
+    'menu-toggle',
+    'sidebar-footer',
   ]) {
     const element = document.getElementById(id);
     if (!element) {
@@ -84,12 +86,30 @@ function bindElements() {
   }
 }
 
+// On narrow screens the sidebar's navigation links are behind the Menu button.
+function setMenuOpen(open) {
+  elements['menu-toggle'].setAttribute('aria-expanded', String(open));
+  elements['menu-toggle'].closest('.sidebar').classList.toggle('menu-open', open);
+  if (open) {
+    elements['sidebar-footer'].querySelector('a:not(.hidden), button:not(.hidden)')?.focus();
+  }
+}
+
 function bindEvents() {
   elements['login-tab'].addEventListener('click', () => showAuthMode('login'));
   elements['register-tab'].addEventListener('click', () => showAuthMode('register'));
   elements['login-form'].addEventListener('submit', submitLogin);
   elements['register-form'].addEventListener('submit', submitRegistration);
   elements['logout-button'].addEventListener('click', submitLogout);
+  elements['menu-toggle'].addEventListener('click', () => {
+    setMenuOpen(elements['menu-toggle'].getAttribute('aria-expanded') !== 'true');
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && elements['menu-toggle'].getAttribute('aria-expanded') === 'true') {
+      setMenuOpen(false);
+      elements['menu-toggle'].focus();
+    }
+  });
   elements['join-button'].addEventListener('click', joinCurrentRoom);
   elements['composer-form'].addEventListener('submit', submitMessage);
   elements['composer-input'].addEventListener('keydown', (event) => {

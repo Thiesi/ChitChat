@@ -150,7 +150,52 @@ code {
   align-self: center;
 }
 
-.attachment-picker {
+/* The attach control is a paperclip inside the message field. */
+.composer-field {
+  position: relative;
+  display: grid;
+  min-width: 0;
+}
+
+.composer-field textarea {
+  padding-left: 2.9rem;
+}
+
+.attachment-button {
+  position: absolute;
+  bottom: 0.4rem;
+  left: 0.4rem;
+  display: grid;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0.55rem;
+  color: var(--muted);
+  cursor: pointer;
+  place-items: center;
+}
+
+.attachment-button:hover,
+.composer-field:has(input[type="file"]:focus-visible) .attachment-button {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.composer-field:has(input[type="file"]:focus-visible) .attachment-button {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.composer-field:has(input[type="file"]:disabled) .attachment-button {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+/* A selected file is shown below the field; the row takes no space otherwise. */
+form:has(.attachment-selection > button:not(.hidden)) .attachment-button {
+  color: var(--accent);
+}
+
+.attachment-selection {
   display: flex;
   min-width: 0;
   grid-column: 1 / -1;
@@ -158,9 +203,8 @@ code {
   gap: 0.65rem;
 }
 
-.attachment-button {
-  cursor: pointer;
-  white-space: nowrap;
+.attachment-selection:has(> button.hidden) {
+  margin-top: -0.75rem;
 }
 
 .attachment-name {
@@ -218,12 +262,4 @@ code {
     display: none;
   }
 
-  .attachment-picker {
-    flex-wrap: wrap;
-  }
-
-  .attachment-name {
-    flex-basis: 100%;
-    order: 3;
-  }
 }
