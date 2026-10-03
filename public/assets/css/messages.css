@@ -70,9 +70,14 @@
   line-height: 1.5;
 }
 
+/* The conversation has a bounded height, so only its message list scrolls and
+   the composer stays at the bottom of it however long the history grows. The
+   header and privacy notice keep their natural size above it. */
 .messages-layout {
   display: grid;
-  min-height: calc(100vh - 15rem);
+  height: 85vh;
+  height: 85dvh;
+  min-height: 24rem;
   grid-template-columns: minmax(16rem, 22rem) minmax(0, 1fr);
   border: 1px solid var(--border);
   border-radius: 1rem;
@@ -315,6 +320,7 @@
 
 @media (max-width: 48rem) {
   .messages-layout {
+    height: auto;
     grid-template-columns: 1fr;
   }
 
@@ -325,7 +331,9 @@
   }
 
   .conversation-main {
-    min-height: 34rem;
+    height: 85vh;
+    height: 85dvh;
+    min-height: 24rem;
   }
 
   .inspection-form {
@@ -373,5 +381,26 @@
 
   .dm-message {
     max-width: 94%;
+  }
+}
+
+/* Where the viewport is tall enough to fit everything, the page is exactly one
+   viewport tall and the conversation takes the height left below the notice. */
+@media (min-width: 48.0625rem) and (min-height: 56rem) {
+  .messages-shell {
+    display: flex;
+    height: 100vh;
+    height: 100dvh;
+    flex-direction: column;
+    padding-bottom: 1rem;
+  }
+
+  .messages-shell > * {
+    flex-shrink: 0;
+  }
+
+  .messages-layout {
+    flex: 1 1 0;
+    height: auto;
   }
 }
