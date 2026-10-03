@@ -128,7 +128,3 @@ test('participants search only currently visible room and direct-message bodies'
     await rootContext.close();
   }
 });
-
-import { forceOneRetry } from './support/force-retry.js';
-
-forceOneRetry();

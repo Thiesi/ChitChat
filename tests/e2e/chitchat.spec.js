@@ -293,7 +293,3 @@ test.describe.serial('ChitChat browser release checks', () => {
     }
   });
 });
-
-import { forceOneRetry } from './support/force-retry.js';
-
-forceOneRetry();

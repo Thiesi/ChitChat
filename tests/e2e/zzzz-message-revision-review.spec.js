@@ -203,7 +203,3 @@ test('Super-Administrator reviews exact room and DM revision chains with partici
     await adminContext.close();
   }
 });
-
-import { forceOneRetry } from './support/force-retry.js';
-
-forceOneRetry();

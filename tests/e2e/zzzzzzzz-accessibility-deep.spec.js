@@ -224,7 +224,3 @@ test.describe.serial('ChitChat deeper accessibility validation', () => {
     await expect(page.locator('html')).toHaveCSS('scroll-behavior', 'auto');
   });
 });
-
-import { forceOneRetry } from './support/force-retry.js';
-
-forceOneRetry();

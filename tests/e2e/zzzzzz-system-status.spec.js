@@ -60,7 +60,3 @@ test('Administrator sees shared operational status and metrics remain disabled b
     await context.close();
   }
 });
-
-import { forceOneRetry } from './support/force-retry.js';
-
-forceOneRetry();

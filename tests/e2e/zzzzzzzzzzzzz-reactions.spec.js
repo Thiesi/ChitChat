@@ -169,7 +169,3 @@ test('participants react to a direct message, with idempotent toggling and realt
     await rootContext.close();
   }
 });
-
-import { forceOneRetry } from './support/force-retry.js';
-
-forceOneRetry();

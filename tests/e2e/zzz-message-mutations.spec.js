@@ -170,7 +170,3 @@ test('authors edit and delete room and direct messages for everyone', async ({ b
     await adminContext.close();
   }
 });
-
-import { forceOneRetry } from './support/force-retry.js';
-
-forceOneRetry();

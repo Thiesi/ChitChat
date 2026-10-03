@@ -138,7 +138,3 @@ test('participants submit exact-message reports and moderators review only submi
     await authorContext.close();
   }
 });
-
-import { forceOneRetry } from './support/force-retry.js';
-
-forceOneRetry();

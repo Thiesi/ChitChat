@@ -181,7 +181,3 @@ test('@mention autocomplete suggests and inserts a username in room and direct-m
     await memberContext.close();
   }
 });
-
-import { forceOneRetry } from './support/force-retry.js';
-
-forceOneRetry();

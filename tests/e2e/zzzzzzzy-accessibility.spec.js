@@ -156,7 +156,3 @@ test.describe.serial('ChitChat accessibility checks', () => {
     }
   });
 });
-
-import { forceOneRetry } from './support/force-retry.js';
-
-forceOneRetry();
