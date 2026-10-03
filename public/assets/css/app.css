@@ -159,18 +159,27 @@ button:focus-visible {
   color: var(--danger);
 }
 
+/* The shell is exactly one viewport tall, so the message list scrolls inside
+   it and the composer stays in view however long the conversation grows. */
 .chat-shell {
   display: grid;
   grid-template-columns: 18rem minmax(0, 1fr);
-  min-height: 100vh;
+  height: 100vh;
+  height: 100dvh;
 }
 
 .sidebar {
   display: flex;
-  min-height: 100vh;
+  min-height: 0;
   flex-direction: column;
+  overflow-y: auto;
   border-right: 1px solid var(--border);
   background: var(--surface);
+}
+
+/* Keep each section at its natural size; the sidebar scrolls as a whole instead. */
+.sidebar > * {
+  flex-shrink: 0;
 }
 
 .sidebar-header,
@@ -265,7 +274,7 @@ button:focus-visible {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
   min-width: 0;
-  min-height: 100vh;
+  min-height: 0;
 }
 
 .room-header {
@@ -631,7 +640,7 @@ button:focus-visible {
   }
 
   .sidebar {
-    min-height: auto;
+    max-height: 45dvh;
     border-right: 0;
     border-bottom: 1px solid var(--border);
   }
@@ -650,6 +659,6 @@ button:focus-visible {
   }
 
   .chat-main {
-    min-height: calc(100vh - 10rem);
+    min-height: 0;
   }
 }
