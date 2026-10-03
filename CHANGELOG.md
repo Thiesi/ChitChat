@@ -6,7 +6,23 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ## [Unreleased]
 
-No changes since `v2.0.1`. ChitChat is feature-complete; see [Project status](README.md#project-status-feature-complete) and the [roadmap](docs/roadmap.md) for the maintenance-only policy going forward. Entries will only appear here again for a discovered bug fix or an accepted new feature request.
+No changes since `v2.0.2`. ChitChat is feature-complete; see [Project status](README.md#project-status-feature-complete) and the [roadmap](docs/roadmap.md) for the maintenance-only policy going forward. Entries will only appear here again for a discovered bug fix or an accepted new feature request.
+
+## [2.0.2] - 2026-10-03
+
+Bug-fix release. No new feature and no database migration. Makes the locked dependencies installable on PHP 8.2 and 8.3 again, and fixes chat layout and message-highlight bugs found while stabilizing the browser test suite. See the [`v2.0.2` release notes](docs/releases/v2.0.2.md).
+
+### Fixed
+
+- Fixed the Composer lock requiring PHP 8.4.1 or newer despite ChitChat supporting PHP `^8.2`: `symfony/options-resolver` `v8.1.0` (via `minishlink/web-push`) is replaced by `v7.4.8`, and the lock now resolves against a PHP 8.2 platform so it cannot drift past the supported minimum again (#85).
+- Kept the room-chat composer in view: the chat page is now one viewport tall and only the message list scrolls, instead of the page growing with the conversation and pushing the composer below the fold. Reading position is preserved across message-list updates and when loading older messages (#89).
+- Kept the direct-message composer in view by bounding the conversation's height, while the privacy notice above it keeps its full size (#90).
+- Fixed reply-preview, search-result, and mention-notification highlights disappearing whenever the message list re-rendered (#86).
+
+### Maintenance
+
+- CI runs PHP static checks and PHPUnit on PHP 8.2, 8.3, and 8.4, and publication validation requires each version's result (#85).
+- Made the browser end-to-end suite reliable: it is served through Nginx and PHP-FPM as in production, specs are safe to retry, and a single failed attempt is retried automatically (#83, #86, #87, #88).
 
 ## [2.0.1] - 2026-08-23
 
