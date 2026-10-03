@@ -78,7 +78,7 @@ test('participants react to a room message, with aggregation, idempotent togglin
 
     const messageText = attemptText('Reactable room message');
     await rootPage.locator('#composer-input').fill(messageText);
-    await rootPage.locator('#send-button').click();
+    await rootPage.locator('#composer-input').press('Enter');
     const rootView = await stableMessage(rootPage, 'article.message', messageText);
     await expect(memberPage.locator('article.message', { hasText: messageText }))
       .toBeVisible({ timeout: 20_000 });
@@ -141,7 +141,7 @@ test('participants react to a direct message, with idempotent toggling and realt
 
     const messageText = attemptText('Reactable private message');
     await rootPage.locator('#dm-message-input').fill(messageText);
-    await rootPage.locator('#dm-send').click();
+    await rootPage.locator('#dm-message-input').press('Enter');
     const rootView = await stableMessage(rootPage, 'article.dm-message', messageText);
     await expect(memberPage.locator('article.dm-message', { hasText: messageText }))
       .toBeVisible({ timeout: 20_000 });

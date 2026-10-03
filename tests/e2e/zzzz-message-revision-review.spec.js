@@ -126,7 +126,7 @@ test('Super-Administrator reviews exact room and DM revision chains with partici
     }
     await selectLoadedRoom(memberPage, 'General E2E');
     await memberPage.locator('#composer-input').fill(roomText);
-    await memberPage.locator('#send-button').click();
+    await memberPage.locator('#composer-input').press('Enter');
     const roomMessage = await stableMessage(memberPage, 'article.message', roomText);
     acceptDialog(memberPage, editedRoomText);
     await roomMessage.locator.getByRole('button', { name: 'Edit' }).click();
@@ -167,7 +167,7 @@ test('Super-Administrator reviews exact room and DM revision chains with partici
     await expect(memberPage.locator('#messages-shell')).toBeVisible();
     await selectPeer(memberPage, admin.username);
     await memberPage.locator('#dm-message-input').fill(directText);
-    await memberPage.locator('#dm-send').click();
+    await memberPage.locator('#dm-message-input').press('Enter');
     const directMessage = await stableMessage(memberPage, 'article.dm-message', directText);
     acceptDialog(memberPage, editedDirectText);
     await directMessage.locator.getByRole('button', { name: 'Edit' }).click();

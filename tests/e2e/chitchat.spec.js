@@ -163,15 +163,15 @@ test.describe.serial('ChitChat browser release checks', () => {
       await expect(memberPage.locator('#presence-list')).toContainText(admin.username, { timeout: 20_000 });
 
       await memberPage.locator('#composer-input').fill(helloText);
-      await memberPage.locator('#send-button').click();
+      await memberPage.locator('#composer-input').press('Enter');
       await expect(adminPage.locator('.message-body', { hasText: helloText })).toBeVisible();
 
       await adminPage.locator('#composer-input').fill(`/me ${emoteText}`);
-      await adminPage.locator('#send-button').click();
+      await adminPage.locator('#composer-input').press('Enter');
       await expect(memberPage.locator('.message.emote .message-body', { hasText: emoteText })).toBeVisible();
 
       await adminPage.locator('#composer-input').fill(`/ping ${member.username} Browser ping`);
-      await adminPage.locator('#send-button').click();
+      await adminPage.locator('#composer-input').press('Enter');
       await expect(memberPage.locator('#toast-region')).toContainText('Browser ping');
 
       await memberPage.locator('#attachment-input').setInputFiles({
@@ -180,7 +180,7 @@ test.describe.serial('ChitChat browser release checks', () => {
         buffer: Buffer.from('attachment delivered through the browser\n'),
       });
       await memberPage.locator('#composer-input').fill('Release-test attachment');
-      await memberPage.locator('#send-button').click();
+      await memberPage.locator('#composer-input').press('Enter');
       await expect(memberPage.locator('#toast-region')).toContainText('Attachment uploaded');
       const adminDownload = adminPage.locator('a.attachment-download', { hasText: attachmentName });
       await expect(adminDownload).toBeVisible({ timeout: 20_000 });
@@ -204,11 +204,11 @@ test.describe.serial('ChitChat browser release checks', () => {
       await selectDirectMessagePeer(memberMessages, admin.username);
       await expect(memberMessages.locator('#dm-composer')).toBeVisible();
       await memberMessages.locator('#dm-message-input').fill(privateHello);
-      await memberMessages.locator('#dm-send').click();
+      await memberMessages.locator('#dm-message-input').press('Enter');
       await expect(adminMessages.locator('.dm-message-body', { hasText: privateHello })).toBeVisible();
 
       await adminMessages.locator('#dm-message-input').fill(privateReply);
-      await adminMessages.locator('#dm-send').click();
+      await adminMessages.locator('#dm-message-input').press('Enter');
       await expect(memberMessages.locator('.dm-message-body', { hasText: privateReply })).toBeVisible();
 
       memberBlockedAdminId = (await (await adminContext.request.get('/api/v1/session.php')).json()).user.id;
@@ -219,7 +219,7 @@ test.describe.serial('ChitChat browser release checks', () => {
       await expect(memberMessages.locator('.dm-message-body', { hasText: privateReply })).toBeVisible();
 
       await adminMessages.locator('#dm-message-input').fill(blockedText);
-      await adminMessages.locator('#dm-send').click();
+      await adminMessages.locator('#dm-message-input').press('Enter');
       await expect(adminMessages.locator('#messages-error')).toContainText('Direct messaging is unavailable');
       await expect(adminMessages.locator('#dm-peer-status')).toContainText('Direct messaging is unavailable');
       await expect(adminMessages.locator('#dm-composer')).toBeHidden();
@@ -233,7 +233,7 @@ test.describe.serial('ChitChat browser release checks', () => {
       await selectDirectMessagePeer(adminMessages, member.username);
       await expect(adminMessages.locator('#dm-composer')).toBeVisible();
       await adminMessages.locator('#dm-message-input').fill(resumedText);
-      await adminMessages.locator('#dm-send').click();
+      await adminMessages.locator('#dm-message-input').press('Enter');
       await expect(memberMessages.locator('.dm-message-body', { hasText: resumedText })).toBeVisible();
 
       const adminConsole = await adminContext.newPage();

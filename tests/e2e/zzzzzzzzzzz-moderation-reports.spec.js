@@ -72,15 +72,15 @@ test('participants submit exact-message reports and moderators review only submi
     await authorPage.locator('#join-button').click();
     await expect(authorPage.locator('#composer-wrap')).toBeVisible();
     await authorPage.locator('#composer-input').fill(roomEvidence);
-    await authorPage.locator('#send-button').click();
+    await authorPage.locator('#composer-input').press('Enter');
     await expect(authorPage.locator('.message-body', { hasText: roomEvidence })).toBeVisible();
 
     await selectPeer(authorPage, member.username);
     await authorPage.locator('#dm-message-input').fill(directEvidence);
-    await authorPage.locator('#dm-send').click();
+    await authorPage.locator('#dm-message-input').press('Enter');
     await expect(authorPage.locator('.dm-message-body', { hasText: directEvidence })).toBeVisible();
     await authorPage.locator('#dm-message-input').fill(unrelatedContext);
-    await authorPage.locator('#dm-send').click();
+    await authorPage.locator('#dm-message-input').press('Enter');
     await expect(authorPage.locator('.dm-message-body', { hasText: unrelatedContext })).toBeVisible();
     await expect(
       authorPage.locator('.dm-message', { hasText: directEvidence }).getByRole('button', { name: 'Report' }),

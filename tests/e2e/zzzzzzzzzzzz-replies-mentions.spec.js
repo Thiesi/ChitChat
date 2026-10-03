@@ -60,7 +60,7 @@ test('participants reply to and mention each other, with a working notification 
     await expect(memberPage.locator('#room-title')).toHaveText('# General E2E');
 
     await rootPage.locator('#composer-input').fill(originalText);
-    await rootPage.locator('#send-button').click();
+    await rootPage.locator('#composer-input').press('Enter');
     const originalMessage = await stableMessage(rootPage, 'article.message', originalText);
 
     await expect(memberPage.locator('article.message', { hasText: originalText }))
@@ -71,7 +71,7 @@ test('participants reply to and mention each other, with a working notification 
     await expect(memberPage.locator('#reply-banner-text')).toContainText('Replying to RootE2E');
 
     await memberPage.locator('#composer-input').fill(`@RootE2E ${replyText}`);
-    await memberPage.locator('#send-button').click();
+    await memberPage.locator('#composer-input').press('Enter');
     await expect(memberPage.locator('#reply-banner')).toBeHidden();
 
     const memberReply = await stableMessage(memberPage, 'article.message', replyText);
@@ -119,7 +119,7 @@ test('direct-message mentions only resolve the recipient and notify them', async
     await expect(memberPage.locator('#dm-peer-name')).toHaveText(peer.username);
 
     await memberPage.locator('#dm-message-input').fill(attemptText(`Hi @${peer.username}, and hi @NotARealUserE2E too`));
-    await memberPage.locator('#dm-send').click();
+    await memberPage.locator('#dm-message-input').press('Enter');
     const sentMessage = await stableMessage(
       memberPage,
       'article.dm-message',

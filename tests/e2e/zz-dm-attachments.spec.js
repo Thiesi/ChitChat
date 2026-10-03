@@ -64,7 +64,7 @@ test('sends and authorizes direct-message attachments', async ({ browser }) => {
       buffer: Buffer.from('direct-message attachment bytes\n'),
     });
     await senderMessages.locator('#dm-message-input').fill(caption);
-    await senderMessages.locator('#dm-send').click();
+    await senderMessages.locator('#dm-message-input').press('Enter');
     await expect(senderMessages.locator('#toast-region')).toContainText('Attachment sent');
 
     const recipientDownload = recipientMessages.locator('.dm-attachment-download', {

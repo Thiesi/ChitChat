@@ -71,7 +71,7 @@ test('participants search only currently visible room and direct-message bodies'
     await roomDialog.getByRole('button', { name: 'Create room' }).click();
     await expect(rootPage.locator('#room-title')).toHaveText(`# ${privateRoomName}`);
     await rootPage.locator('#composer-input').fill(`${token} hidden private evidence`);
-    await rootPage.locator('#send-button').click();
+    await rootPage.locator('#composer-input').press('Enter');
     await expect(rootPage.locator('.message-body', { hasText: `${token} hidden private evidence` })).toBeVisible();
 
     const outsiderPage = await outsiderContext.newPage();
@@ -81,7 +81,7 @@ test('participants search only currently visible room and direct-message bodies'
     await register(peerPage, peer);
     await selectPeer(peerPage, outsider.username);
     await peerPage.locator('#dm-message-input').fill(`${token} unrelated direct evidence`);
-    await peerPage.locator('#dm-send').click();
+    await peerPage.locator('#dm-message-input').press('Enter');
     await expect(peerPage.locator('.dm-message-body', { hasText: `${token} unrelated direct evidence` })).toBeVisible();
 
     const memberPage = await memberContext.newPage();
@@ -89,12 +89,12 @@ test('participants search only currently visible room and direct-message bodies'
     await memberPage.locator('.room-button', { hasText: '# General E2E' }).click();
     await expect(memberPage.locator('#room-title')).toHaveText('# General E2E');
     await memberPage.locator('#composer-input').fill(`${token} public room evidence`);
-    await memberPage.locator('#send-button').click();
+    await memberPage.locator('#composer-input').press('Enter');
     await expect(memberPage.locator('.message-body', { hasText: `${token} public room evidence` })).toBeVisible();
 
     await selectPeer(memberPage, peer.username);
     await memberPage.locator('#dm-message-input').fill(`${token} participant direct evidence`);
-    await memberPage.locator('#dm-send').click();
+    await memberPage.locator('#dm-message-input').press('Enter');
     await expect(memberPage.locator('.dm-message-body', { hasText: `${token} participant direct evidence` })).toBeVisible();
 
     await memberPage.goto('/search.php');

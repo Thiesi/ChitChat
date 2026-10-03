@@ -128,7 +128,7 @@ test('authors edit and delete room and direct messages for everyone', async ({ b
     await selectPeer(memberMessages, admin.username);
 
     await memberMessages.locator('#dm-message-input').fill(directText);
-    await memberMessages.locator('#dm-send').click();
+    await memberMessages.locator('#dm-message-input').press('Enter');
     const memberDirectMessage = await stableMessage(memberMessages, 'article.dm-message', directText);
     const adminDirectMessage = adminMessages.locator(
       `article.dm-message[data-message-id="${await memberDirectMessage.getAttribute('data-message-id')}"]`,
@@ -152,7 +152,7 @@ test('authors edit and delete room and direct messages for everyone', async ({ b
       buffer: Buffer.from('mutable private attachment\n'),
     });
     await memberMessages.locator('#dm-message-input').fill(attachmentText);
-    await memberMessages.locator('#dm-send').click();
+    await memberMessages.locator('#dm-message-input').press('Enter');
     const attachmentMessage = await stableMessage(memberMessages, 'article.dm-message', attachmentText);
     const download = attachmentMessage.locator('.dm-attachment-download', { hasText: attachmentName });
     await expect(download).toBeVisible({ timeout: 20_000 });
