@@ -26,6 +26,8 @@ RATE_LIMIT_<POLICY>_WINDOW_SECONDS
 
 Values are validated at application startup. Invalid integers and values outside the policy-specific safety bounds prevent startup rather than silently disabling protection.
 
+The `registration` policy's environment values are server defaults: a Super-Administrator can override its attempts and window, together with the registration bot-resistance settings, under **Operational settings → Registration protection** (see `docs/api/system-settings.md`). The system-status page shows the effective values.
+
 `LOGIN_MAX_ATTEMPTS` and `LOGIN_LOCK_MINUTES` remain supported for compatibility. They supply the default named `login` policy when the corresponding `RATE_LIMIT_LOGIN_*` variables are absent. The named variables take precedence.
 
 | Policy | Default | Protected actions |

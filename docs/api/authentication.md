@@ -57,6 +57,23 @@ Send the token in the `X-CSRF-Token` header for every POST endpoint below.
 
 `birth_date` is optional. When supplied, it uses `YYYY-MM-DD`, cannot be in the future, and is used to enforce room minimum ages.
 
+Registration also carries bot-resistance fields:
+
+```json
+{
+  "website": "",
+  "challenge_nonce": "6f1c…",
+  "challenge_solution": "48213"
+}
+```
+
+- `website` is a decoy field the browser keeps hidden from people. Any non-empty value is rejected with `400 registration_rejected`.
+- `challenge_nonce` and `challenge_solution` answer a challenge from `GET /api/v1/registration-challenge.php`, which returns `{"challenge": {"nonce": "…", "bits": 16}}`, or `{"challenge": null}` when both checks are disabled. The challenge is stored in the session and consumed by every submission, successful or not.
+- The solution is a decimal counter such that `SHA-256(nonce + ":" + solution)` starts with at least `bits` zero bits. A wrong or malformed solution is rejected with `400 registration_challenge_failed`.
+- A submission sooner than the minimum fill time after the challenge was issued is rejected with `400 registration_too_fast`; one without a matching challenge with `400 registration_challenge_missing`; and one more than 30 minutes after it with `400 registration_challenge_expired`.
+
+The minimum fill time and puzzle difficulty default to `REGISTRATION_MIN_FILL_SECONDS` and `REGISTRATION_PROOF_OF_WORK_BITS` and can be overridden by a Super-Administrator; see `docs/api/system-settings.md`. Registration attempts count against the per-IP `registration` rate limit before these checks run.
+
 Usernames are 3-32 ASCII characters. They begin with a letter or number and may additionally contain `.`, `_`, and `-`. Uniqueness is case-insensitive.
 
 Passwords must contain at least 12 characters, must not contain the username, and may contain up to 4096 characters.

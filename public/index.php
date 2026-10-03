@@ -57,6 +57,12 @@ $appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUT
           Birth date <span class="optional-label">optional; required for age-restricted rooms</span>
           <input id="register-birth-date" name="birth_date" type="date" autocomplete="bday">
         </label>
+        <div class="registration-trap" aria-hidden="true">
+          <label>
+            Website
+            <input id="register-website" name="website" type="text" tabindex="-1" autocomplete="off">
+          </label>
+        </div>
         <button class="primary-button" type="submit">Create account</button>
       </form>
 

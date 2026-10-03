@@ -57,6 +57,15 @@ button:disabled {
   color: var(--muted);
 }
 
+/* A decoy field that people never see or reach; only form-filling bots fill it. */
+.registration-trap {
+  position: absolute;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
 .auth-shell {
   display: grid;
   min-height: 100vh;

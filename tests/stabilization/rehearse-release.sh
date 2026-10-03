@@ -54,6 +54,10 @@ printf 'attachment preserved across archive install, backup, restore and upgrade
 export APP_ENV=test
 export APP_DEBUG=1
 export SESSION_COOKIE_SECURE=0
+# This rehearsal registers accounts with curl, which cannot solve the browser's
+# registration challenge.
+export REGISTRATION_MIN_FILL_SECONDS=0
+export REGISTRATION_PROOF_OF_WORK_BITS=0
 export DB_SSLMODE="${DB_SSLMODE:-disable}"
 export ATTACHMENT_STORAGE_PATH="$release_storage"
 export PGPASSWORD="$DB_PASSWORD"
