@@ -1,5 +1,5 @@
 .message-search-shell {
-  width: min(100% - 2rem, 72rem);
+  width: calc(100% - 2rem);
   margin: 0 auto;
   padding: 2rem 0 4rem;
 }

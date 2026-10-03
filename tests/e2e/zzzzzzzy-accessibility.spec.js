@@ -155,4 +155,34 @@ test.describe.serial('ChitChat accessibility checks', () => {
       await rootContext.close();
     }
   });
+
+  test('narrow screens reach navigation and settings through the menu', async ({ page }) => {
+    const menu = page.getByRole('button', { name: 'Menu' });
+    const account = page.getByRole('link', { name: 'Account' });
+
+    await loginOrRegister(page);
+    await expect(menu).toBeHidden();
+    await expect(account).toBeVisible();
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(menu).toBeVisible();
+    await expect(menu).toHaveAttribute('aria-expanded', 'false');
+    await expect(menu).toHaveAttribute('aria-controls', 'sidebar-footer');
+    await expect(account).toBeHidden();
+
+    await menu.click();
+    await expect(menu).toHaveAttribute('aria-expanded', 'true');
+    await expect(account).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Search messages' })).toBeFocused();
+
+    await page.keyboard.press('Escape');
+    await expect(menu).toHaveAttribute('aria-expanded', 'false');
+    await expect(account).toBeHidden();
+    await expect(menu).toBeFocused();
+
+    await menu.click();
+    await account.click();
+    await expect(page).toHaveURL(/\/account\.php$/);
+  });
 });

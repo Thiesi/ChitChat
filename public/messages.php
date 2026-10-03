@@ -79,8 +79,13 @@ $appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUT
             <span id="dm-reply-banner-text"></span>
             <button id="dm-reply-banner-cancel" class="reply-banner-cancel" type="button" aria-label="Cancel reply">Cancel</button>
           </div>
-          <div class="attachment-picker dm-attachment-picker">
-            <label class="secondary-button attachment-button" for="dm-attachment-input">Attach file</label>
+          <div class="composer-field">
+            <label class="visually-hidden" for="dm-message-input">Direct message or attachment caption</label>
+            <textarea id="dm-message-input" maxlength="4000" rows="3" placeholder="Write a direct message…"></textarea>
+            <label class="attachment-button" for="dm-attachment-input" title="Attach file">
+              <svg class="attachment-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+              <span class="visually-hidden">Attach file</span>
+            </label>
             <input
               id="dm-attachment-input"
               class="visually-hidden"
@@ -88,12 +93,12 @@ $appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUT
               type="file"
               accept="image/jpeg,image/png,image/gif,image/webp,application/pdf,text/plain,text/csv,application/json,application/zip"
             >
+          </div>
+          <button id="dm-send" class="primary-button" type="submit">Send</button>
+          <div class="attachment-selection">
             <span id="dm-attachment-name" class="attachment-name" aria-live="polite"></span>
             <button id="dm-attachment-clear" class="secondary-button hidden" type="button">Remove</button>
           </div>
-          <label class="visually-hidden" for="dm-message-input">Direct message or attachment caption</label>
-          <textarea id="dm-message-input" maxlength="4000" rows="3" placeholder="Write a direct message…"></textarea>
-          <button id="dm-send" class="primary-button" type="submit">Send</button>
         </form>
       </section>
     </section>

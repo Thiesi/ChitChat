@@ -1,5 +1,5 @@
 .revision-review-shell {
-  width: min(1080px, calc(100% - 2rem));
+  width: calc(100% - 2rem);
   margin: 0 auto;
   padding: 1.5rem 0 3rem;
 }
