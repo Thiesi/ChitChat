@@ -6,7 +6,11 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ## [Unreleased]
 
-No changes since `v2.0.2`. ChitChat is feature-complete; see [Project status](README.md#project-status-feature-complete) and the [roadmap](docs/roadmap.md) for the maintenance-only policy going forward. Entries will only appear here again for a discovered bug fix or an accepted new feature request.
+ChitChat is feature-complete; see [Project status](README.md#project-status-feature-complete) and the [roadmap](docs/roadmap.md) for the maintenance-only policy going forward. Entries only appear here for a discovered bug fix or an accepted new feature request.
+
+### Fixed
+
+- Fixed checkboxes rendering on a line of their own above their label text, as on the push-notification "Notify me when I'm mentioned" option and the account-closure confirmation (#92).
 
 ## [2.0.2] - 2026-10-03
 
