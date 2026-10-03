@@ -122,6 +122,20 @@ label {
   font-size: 0.92rem;
 }
 
+/* A checkbox sits on the first line of its text; the label grid above would
+   stack it on a line of its own. */
+label:has(> input[type="checkbox"]) {
+  display: flex;
+  align-items: baseline;
+  gap: 0.55rem;
+}
+
+input[type="checkbox"] {
+  width: auto;
+  flex: none;
+  padding: 0;
+}
+
 input,
 textarea {
   width: 100%;
