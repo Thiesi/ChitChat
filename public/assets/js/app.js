@@ -386,7 +386,7 @@ async function loadMessages({ replace = false, beforeId = null } = {}) {
     state.messages.sort((left, right) => left.id - right.id);
     state.oldestMessageId = state.messages[0]?.id ?? null;
     elements['load-older-button'].classList.toggle('hidden', incoming.length < 100);
-    renderMessages({ scrollToEnd: replace && beforeId === null });
+    renderMessages({ scrollToEnd: replace && beforeId === null, prepended: beforeId !== null });
   } catch (error) {
     if (error instanceof ApiError && ['age_requirement_not_met', 'birth_date_required'].includes(error.code)) {
       showEmptyState(error.message);
@@ -405,8 +405,13 @@ async function loadOlderMessages() {
   }
 }
 
-function renderMessages({ scrollToEnd = false } = {}) {
+function renderMessages({ scrollToEnd = false, prepended = false } = {}) {
   const list = elements['message-list'];
+  // The list scrolls on its own and rebuilding it resets scrollTop, so keep the
+  // reader's place: same offset for in-place updates, same messages in view
+  // when older history is prepended above them.
+  const previousTop = list.scrollTop;
+  const previousHeight = list.scrollHeight;
   list.replaceChildren();
 
   if (state.messages.length === 0) {
@@ -425,6 +430,10 @@ function renderMessages({ scrollToEnd = false } = {}) {
 
   if (scrollToEnd) {
     list.scrollTop = list.scrollHeight;
+  } else if (prepended) {
+    list.scrollTop = previousTop + (list.scrollHeight - previousHeight);
+  } else {
+    list.scrollTop = previousTop;
   }
 }
 
