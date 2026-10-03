@@ -39,7 +39,7 @@ async function selectPeer(page, username) {
 
   if ((await peerName.textContent()) !== username) {
     await page.locator('#dm-user-search').fill(username);
-    await page.getByRole('button', { name: 'Search' }).click();
+    await page.getByRole('button', { name: 'Search', exact: true }).click();
     const result = page.locator('.dm-user-button', { hasText: username }).first();
     await expect(selectedPeer.or(result).first()).toBeVisible();
     if ((await peerName.textContent()) !== username) {

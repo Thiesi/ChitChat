@@ -27,7 +27,7 @@ async function register(page, account) {
 
 async function selectPeer(page, username) {
   await page.locator('#dm-user-search').fill(username);
-  await page.getByRole('button', { name: 'Search' }).click();
+  await page.getByRole('button', { name: 'Search', exact: true }).click();
   await page.locator('.dm-user-button', { hasText: username }).click();
   await expect(page.locator('#dm-peer-name')).toHaveText(username);
   await expect(page.locator('#dm-composer')).toBeVisible();

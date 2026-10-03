@@ -42,7 +42,7 @@ async function selectPeer(page, username) {
   await page.goto('/messages.php');
   await expect(page.locator('#messages-shell')).toBeVisible();
   await page.locator('#dm-user-search').fill(username);
-  await page.getByRole('button', { name: 'Search' }).click();
+  await page.getByRole('button', { name: 'Search', exact: true }).click();
   await page.locator('.dm-user-button', { hasText: username }).click();
   await expect(page.locator('#dm-peer-name')).toHaveText(username);
   await expect(page.locator('#dm-composer')).toBeVisible();

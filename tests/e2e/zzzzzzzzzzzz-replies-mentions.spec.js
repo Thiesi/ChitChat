@@ -170,6 +170,8 @@ test('@mention autocomplete suggests and inserts a username in room and direct-m
     await expect(memberPage.locator('#dm-peer-name')).toHaveText('MentionPeerE2E');
 
     const dmInput = memberPage.locator('#dm-message-input');
+    // The suggestion list is positioned from the composer, which a typing user always has in view.
+    await dmInput.scrollIntoViewIfNeeded();
     await dmInput.fill('Hi @Ment');
     const dmOption = memberPage.getByRole('option', { name: '@MentionPeerE2E' });
     await expect(dmOption).toBeVisible();
