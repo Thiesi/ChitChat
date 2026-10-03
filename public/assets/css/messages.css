@@ -62,7 +62,6 @@
 
 .privacy-notice p,
 .inspection-warning p {
-  max-width: 75ch;
   margin-top: 0.35rem;
   line-height: 1.5;
 }

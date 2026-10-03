@@ -4,12 +4,6 @@
   padding: 2rem 0 4rem;
 }
 
-/* Panels fill the width; running text keeps a readable line length. */
-.account-shell p,
-.account-shell li {
-  max-width: 75ch;
-}
-
 .account-header {
   display: flex;
   align-items: flex-start;
