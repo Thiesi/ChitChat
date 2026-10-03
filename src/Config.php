@@ -48,6 +48,8 @@ final readonly class Config
         public string $webPushVapidPublicKey = '',
         public string $webPushVapidPrivateKey = '',
         public string $webPushVapidSubject = '',
+        public int $registrationMinimumFillSeconds = 3,
+        public int $registrationProofOfWorkBits = 16,
     ) {
         if ($this->databasePort < 1 || $this->databasePort > 65535) {
             throw new InvalidArgumentException('DB_PORT must be between 1 and 65535.');
@@ -66,6 +68,12 @@ final readonly class Config
         }
         if ($this->attachmentMaxBytes < 1024 || $this->attachmentMaxBytes > 104_857_600) {
             throw new InvalidArgumentException('ATTACHMENT_MAX_BYTES must be between 1024 and 104857600.');
+        }
+        if ($this->registrationMinimumFillSeconds < 0 || $this->registrationMinimumFillSeconds > 60) {
+            throw new InvalidArgumentException('REGISTRATION_MIN_FILL_SECONDS must be between 0 and 60.');
+        }
+        if ($this->registrationProofOfWorkBits < 0 || $this->registrationProofOfWorkBits > 22) {
+            throw new InvalidArgumentException('REGISTRATION_PROOF_OF_WORK_BITS must be between 0 and 22.');
         }
         if ($this->sseConnectionLeaseSeconds < 20 || $this->sseConnectionLeaseSeconds > 300) {
             throw new InvalidArgumentException('SSE_CONNECTION_LEASE_SECONDS must be between 20 and 300.');
@@ -158,6 +166,8 @@ final readonly class Config
             webPushVapidPublicKey: self::env('WEB_PUSH_VAPID_PUBLIC_KEY', ''),
             webPushVapidPrivateKey: self::env('WEB_PUSH_VAPID_PRIVATE_KEY', ''),
             webPushVapidSubject: self::env('WEB_PUSH_VAPID_SUBJECT', ''),
+            registrationMinimumFillSeconds: self::envInt('REGISTRATION_MIN_FILL_SECONDS', 3),
+            registrationProofOfWorkBits: self::envInt('REGISTRATION_PROOF_OF_WORK_BITS', 16),
         );
     }
 

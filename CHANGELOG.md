@@ -8,6 +8,12 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ChitChat is feature-complete; see [Project status](README.md#project-status-feature-complete) and the [roadmap](docs/roadmap.md) for the maintenance-only policy going forward. Entries only appear here for a discovered bug fix or an accepted new feature request.
 
+### Added
+
+- Added unobtrusive registration bot resistance: a hidden decoy field, a minimum form fill time (default 3 seconds), and a small proof-of-work puzzle the browser solves in the background (default 16 bits, about a second). There is no third-party CAPTCHA and no visible puzzle. Migration `0023_registration_protection.sql` adds the settings.
+- Added a **Registration protection** section to Operational settings, where a Super-Administrator can override the per-IP registration limit, the minimum fill time, and the proof-of-work difficulty. Empty fields use the server defaults from the environment.
+- The chat and other pages now fill the browser width, a **Menu** button on phones reaches search, direct messages, privacy notifications, account, administration, and sign-out, and attachments use a paperclip button inside the message field (#93).
+
 ### Fixed
 
 - Fixed checkboxes rendering on a line of their own above their label text, as on the push-notification "Notify me when I'm mentioned" option and the account-closure confirmation (#92).

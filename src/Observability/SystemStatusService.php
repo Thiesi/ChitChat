@@ -3,6 +3,7 @@
 declare(strict_types=1);
 namespace ChitChat\Observability;
 
+use ChitChat\Admin\RegistrationProtectionService;
 use ChitChat\Auth\AuthenticatedUser;
 use ChitChat\Config;
 use ChitChat\Http\ApiException;
@@ -132,7 +133,7 @@ SQL),
             'security' => [
                 'failed_logins_24h' => (int) $security['failed_logins_24h'],
                 'rate_limit_rows' => (int) $security['rate_limit_rows'],
-                'rate_limit_policies' => $this->config->rateLimits->toArray(),
+                'rate_limit_policies' => (new RegistrationProtectionService($this->pdo, $this->config))->rateLimits()->toArray(),
                 'rate_limit_decisions' => $rateLimitDecisions,
             ],
             'maintenance' => [

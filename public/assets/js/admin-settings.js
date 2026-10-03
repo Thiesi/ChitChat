@@ -22,6 +22,16 @@ window.addEventListener('DOMContentLoaded', () => {
     'settings-updated',
     'save-settings',
     'toast-region',
+    'registration-protection-form',
+    'rp-max-attempts',
+    'rp-max-attempts-default',
+    'rp-window',
+    'rp-window-default',
+    'rp-min-fill',
+    'rp-min-fill-default',
+    'rp-pow-bits',
+    'rp-pow-bits-default',
+    'rp-effective',
   ]) {
     const element = document.getElementById(id);
     if (!element) throw new Error(`Missing operational settings element: ${id}`);
@@ -29,6 +39,7 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 
   elements['settings-form'].addEventListener('submit', saveSettings);
+  elements['registration-protection-form'].addEventListener('submit', saveRegistrationProtection);
   bootstrap().catch(handleFatal);
 });
 
@@ -44,6 +55,8 @@ async function bootstrap() {
   elements['settings-identity'].textContent = `Signed in as ${session.user.username}`;
   const response = await apiGet('/api/v1/admin/settings/get.php');
   renderSettings(response.settings);
+  const protection = await apiGet('/api/v1/admin/settings/registration-protection/get.php');
+  renderRegistrationProtection(protection.registration_protection);
   elements['settings-loading'].classList.add('hidden');
   elements['settings-shell'].classList.remove('hidden');
 }
@@ -111,13 +124,59 @@ async function saveSettings(event) {
   }
 }
 
+// Each field is an optional override; an empty field uses the server default.
+const protectionFields = [
+  ['rate_limit_max_attempts', 'rp-max-attempts'],
+  ['rate_limit_window_seconds', 'rp-window'],
+  ['min_fill_seconds', 'rp-min-fill'],
+  ['proof_of_work_bits', 'rp-pow-bits'],
+];
+
+function renderRegistrationProtection(protection) {
+  for (const [name, id] of protectionFields) {
+    const override = protection.overrides[name];
+    elements[id].value = override === null ? '' : String(override);
+    elements[id].placeholder = String(protection.defaults[name]);
+    elements[`${id}-default`].textContent = `server default ${protection.defaults[name]}`;
+  }
+  const effective = protection.effective;
+  elements['rp-effective'].textContent = `In effect: ${effective.rate_limit_max_attempts} attempts per IP every `
+    + `${effective.rate_limit_window_seconds} seconds, ${effective.min_fill_seconds}-second minimum fill time, `
+    + `${effective.proof_of_work_bits}-bit proof of work.`;
+}
+
+async function saveRegistrationProtection(event) {
+  event.preventDefault();
+  elements['settings-error'].textContent = '';
+  const payload = {};
+  for (const [name, id] of protectionFields) {
+    const raw = elements[id].value.trim();
+    payload[name] = raw === '' ? null : Number.parseInt(raw, 10);
+  }
+
+  setFormBusy(elements['registration-protection-form'], true);
+  try {
+    const response = await apiPost('/api/v1/admin/settings/registration-protection/update.php', payload);
+    renderRegistrationProtection(response.registration_protection);
+    toast('Registration protection saved.');
+  } catch (error) {
+    elements['settings-error'].textContent = errorMessage(error);
+  } finally {
+    setFormBusy(elements['registration-protection-form'], false);
+  }
+}
+
 function numberValue(id) {
   const value = Number.parseInt(elements[id].value, 10);
   return Number.isInteger(value) ? value : -1;
 }
 
 function setBusy(busy) {
-  for (const control of elements['settings-form'].querySelectorAll('button, input, select')) {
+  setFormBusy(elements['settings-form'], busy);
+}
+
+function setFormBusy(form, busy) {
+  for (const control of form.querySelectorAll('button, input, select')) {
     control.disabled = busy;
   }
 }

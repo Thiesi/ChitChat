@@ -63,6 +63,35 @@ Setting `mfa_required_for_admin_roles` from `false` to `true` additionally requi
 
 Changing settings does not immediately delete data. The operator must run `php bin/maintenance-cleanup`; see `docs/operations/maintenance.md`.
 
+## Registration protection
+
+```text
+GET  /api/v1/admin/settings/registration-protection/get.php
+POST /api/v1/admin/settings/registration-protection/update.php
+```
+
+Both require a Super-Administrator; the update also requires active privileged step-up. Each setting is an optional override of a server default from the environment:
+
+| Setting | Server default | Range |
+|---|---|---|
+| `rate_limit_max_attempts` | `RATE_LIMIT_REGISTRATION_MAX_ATTEMPTS` | 1–100 |
+| `rate_limit_window_seconds` | `RATE_LIMIT_REGISTRATION_WINDOW_SECONDS` | 60–86400 |
+| `min_fill_seconds` | `REGISTRATION_MIN_FILL_SECONDS` | 0–60 (0 disables) |
+| `proof_of_work_bits` | `REGISTRATION_PROOF_OF_WORK_BITS` | 0–22 (0 disables) |
+
+The update body sets all four; `null` (or an omitted field) removes the override so the server default applies:
+
+```json
+{
+  "rate_limit_max_attempts": 10,
+  "rate_limit_window_seconds": null,
+  "min_fill_seconds": 5,
+  "proof_of_work_bits": null
+}
+```
+
+Both endpoints return `{"registration_protection": {"overrides": {…}, "defaults": {…}, "effective": {…}}}`. Changes are audited as `system.registration_protection_updated` with the old and new overrides. Unlike `system.settings_updated`, they do not notify every account, because they tune abuse resistance rather than an installation policy that affects people's data. See `docs/api/authentication.md` for how registration applies them.
+
 ## Public policy disclosure
 
 ```text

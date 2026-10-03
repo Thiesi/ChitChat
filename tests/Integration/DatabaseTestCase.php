@@ -32,6 +32,10 @@ SET registration_enabled = TRUE,
     orphan_attachment_grace_hours = 24,
     realtime_event_retention_hours = 168,
     login_attempt_retention_days = 30,
+    registration_rate_limit_max_attempts = NULL,
+    registration_rate_limit_window_seconds = NULL,
+    registration_min_fill_seconds = NULL,
+    registration_proof_of_work_bits = NULL,
     updated_at = NOW()
 WHERE id = 1
 SQL);

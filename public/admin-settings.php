@@ -98,6 +98,34 @@ $appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUT
         <button id="save-settings" class="danger-button" type="submit">Save operational settings</button>
       </section>
     </form>
+
+    <form id="registration-protection-form" class="room-admin-grid">
+      <section class="admin-card form-stack">
+        <h2>Registration protection</h2>
+        <p class="admin-muted">
+          Limits automated sign-ups without puzzles for people: a per-IP attempt limit, a minimum time to fill in the form,
+          and a small proof-of-work task the browser solves in the background. Leave a field empty to use the server default.
+        </p>
+        <label>Registration attempts per IP <span id="rp-max-attempts-default" class="optional-label"></span>
+          <input id="rp-max-attempts" type="number" min="1" max="100">
+        </label>
+        <label>Attempt window in seconds <span id="rp-window-default" class="optional-label"></span>
+          <input id="rp-window" type="number" min="60" max="86400">
+        </label>
+        <label>Minimum form fill time in seconds <span id="rp-min-fill-default" class="optional-label"></span>
+          <input id="rp-min-fill" type="number" min="0" max="60">
+        </label>
+        <label>Proof-of-work difficulty in bits <span id="rp-pow-bits-default" class="optional-label"></span>
+          <input id="rp-pow-bits" type="number" min="0" max="22">
+        </label>
+        <p class="admin-muted">
+          0 disables the fill-time check or the proof of work. Each additional bit doubles the browser's work;
+          16 bits takes about a second on a typical device.
+        </p>
+        <p id="rp-effective" class="admin-muted"></p>
+        <button id="save-registration-protection" class="secondary-button" type="submit">Save registration protection</button>
+      </section>
+    </form>
   </main>
 
   <div id="toast-region" class="toast-region" aria-live="assertive"></div>

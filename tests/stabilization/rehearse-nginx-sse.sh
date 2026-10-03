@@ -8,6 +8,11 @@ set -euo pipefail
 : "${DB_PASSWORD:?DB_PASSWORD is required}"
 : "${ATTACHMENT_STORAGE_PATH:?ATTACHMENT_STORAGE_PATH is required}"
 
+# This rehearsal registers an account with curl, which cannot solve the
+# browser's registration challenge.
+export REGISTRATION_MIN_FILL_SECONDS=0
+export REGISTRATION_PROOF_OF_WORK_BITS=0
+
 root="$(pwd)"
 work_root="${RUNNER_TEMP:-/tmp}/chitchat-nginx-rehearsal"
 fpm_log="$work_root/php-fpm.log"

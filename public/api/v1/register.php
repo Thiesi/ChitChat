@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use ChitChat\Admin\RegistrationProtectionService;
 use ChitChat\Auth\AuthService;
 use ChitChat\Auth\SessionManager;
 use ChitChat\Database;
@@ -25,7 +26,15 @@ Endpoint::run($config, static function () use ($config): ApiResult {
 
     $pdo = Database::connect($config);
     $ipAddress = Request::clientIp();
-    (new RateLimiter($pdo, $config->rateLimits))->consume('registration', 'ip:' . $ipAddress);
+    $protection = new RegistrationProtectionService($pdo, $config);
+    (new RateLimiter($pdo, $protection->rateLimits()))->consume('registration', 'ip:' . $ipAddress);
+    $protection->challenge()->verify(
+        $_SESSION,
+        $payload['website'] ?? null,
+        $payload['challenge_nonce'] ?? null,
+        $payload['challenge_solution'] ?? null,
+        time(),
+    );
     $auth = new AuthService($pdo, $config);
     $user = $auth->register(
         Request::string($payload, 'username'),

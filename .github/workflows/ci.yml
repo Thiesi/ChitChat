@@ -150,6 +150,8 @@ jobs:
       WEBAUTHN_ORIGIN: http://localhost:8080
       MESSAGE_REVISION_REVIEW_ENABLED: 1
       RATE_LIMIT_REGISTRATION_MAX_ATTEMPTS: 100
+      REGISTRATION_MIN_FILL_SECONDS: 0
+      REGISTRATION_PROOF_OF_WORK_BITS: 8
 
     steps:
       - uses: actions/checkout@v7

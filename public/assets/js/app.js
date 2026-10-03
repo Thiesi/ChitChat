@@ -2,6 +2,9 @@ import { ApiError, apiGet, apiPost, setCsrfToken } from './api.js';
 import { createPresenceClient } from './presence.js';
 import { renderMessageBody, buildReplyPreview, buildReactionBar } from './message-content.js';
 import { attachMentionAutocomplete } from './mention-autocomplete.js';
+import { createRegistrationChallenge } from './registration-challenge.js';
+
+const registrationChallenge = createRegistrationChallenge();
 
 const state = {
   user: null,
@@ -44,6 +47,7 @@ function bindElements() {
     'register-username',
     'register-password',
     'register-birth-date',
+    'register-website',
     'auth-error',
     'chat-shell',
     'connection-status',
@@ -100,6 +104,11 @@ function bindEvents() {
   elements['register-tab'].addEventListener('click', () => showAuthMode('register'));
   elements['login-form'].addEventListener('submit', submitLogin);
   elements['register-form'].addEventListener('submit', submitRegistration);
+  // The challenge's issue time starts the server's minimum-fill clock, so it is
+  // fetched as soon as the form is shown or used, however it was reached.
+  elements['register-form'].addEventListener('focusin', () => {
+    registrationChallenge.prepare().catch(() => {});
+  });
   elements['logout-button'].addEventListener('click', submitLogout);
   elements['menu-toggle'].addEventListener('click', () => {
     setMenuOpen(elements['menu-toggle'].getAttribute('aria-expanded') !== 'true');
@@ -159,6 +168,7 @@ function showAuthMode(mode) {
   elements['login-form'].classList.toggle('hidden', !login);
   elements['register-form'].classList.toggle('hidden', login);
   clearAuthError();
+  if (!login) registrationChallenge.prepare().catch(() => {});
 }
 
 async function submitLogin(event) {
@@ -186,14 +196,22 @@ async function submitRegistration(event) {
   clearAuthError();
 
   try {
+    const proof = await registrationChallenge.solution();
     const response = await apiPost('/api/v1/register.php', {
       username: elements['register-username'].value,
       password: elements['register-password'].value,
       birth_date: elements['register-birth-date'].value || null,
+      website: elements['register-website'].value,
+      challenge_nonce: proof?.nonce ?? null,
+      challenge_solution: proof?.solution ?? null,
     });
+    registrationChallenge.reset();
     elements['register-form'].reset();
     await enterApplication(response.user);
   } catch (error) {
+    // Every submission consumes the challenge, so prepare a fresh one.
+    registrationChallenge.reset();
+    registrationChallenge.prepare().catch(() => {});
     showAuthError(error);
   } finally {
     setFormBusy(elements['register-form'], false);

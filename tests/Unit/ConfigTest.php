@@ -39,6 +39,8 @@ final class ConfigTest extends TestCase
             'WEB_PUSH_VAPID_SUBJECT',
             'WEBAUTHN_RP_ID',
             'WEBAUTHN_ORIGIN',
+            'REGISTRATION_MIN_FILL_SECONDS',
+            'REGISTRATION_PROOF_OF_WORK_BITS',
         ] as $name) {
             putenv($name);
             unset($_ENV[$name], $_SERVER[$name]);
@@ -212,6 +214,37 @@ final class ConfigTest extends TestCase
 
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('MESSAGE_REVISION_REVIEW_ROLE');
+        Config::fromEnvironment();
+    }
+
+    public function testRegistrationProtectionDefaultsAndOverridesAreRead(): void
+    {
+        $defaults = Config::fromEnvironment();
+        self::assertSame(3, $defaults->registrationMinimumFillSeconds);
+        self::assertSame(16, $defaults->registrationProofOfWorkBits);
+
+        putenv('REGISTRATION_MIN_FILL_SECONDS=0');
+        putenv('REGISTRATION_PROOF_OF_WORK_BITS=8');
+        $configured = Config::fromEnvironment();
+        self::assertSame(0, $configured->registrationMinimumFillSeconds);
+        self::assertSame(8, $configured->registrationProofOfWorkBits);
+    }
+
+    public function testRegistrationMinimumFillRangeIsValidated(): void
+    {
+        putenv('REGISTRATION_MIN_FILL_SECONDS=61');
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('REGISTRATION_MIN_FILL_SECONDS');
+        Config::fromEnvironment();
+    }
+
+    public function testRegistrationProofOfWorkRangeIsValidated(): void
+    {
+        putenv('REGISTRATION_PROOF_OF_WORK_BITS=23');
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('REGISTRATION_PROOF_OF_WORK_BITS');
         Config::fromEnvironment();
     }
 
