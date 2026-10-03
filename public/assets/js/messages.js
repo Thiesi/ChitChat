@@ -287,7 +287,7 @@ async function loadHistory({ replace = false, beforeId = null } = {}) {
     state.messages.sort((left, right) => left.id - right.id);
     state.oldestMessageId = state.messages[0]?.id ?? null;
     elements['dm-load-older'].classList.toggle('hidden', incoming.length < 100);
-    renderMessages({ scrollToEnd: replace && beforeId === null });
+    renderMessages({ scrollToEnd: replace && beforeId === null, prepended: beforeId !== null });
   } catch (error) {
     handleApiFailure(error);
   } finally {
@@ -299,8 +299,13 @@ async function loadOlder() {
   if (state.oldestMessageId !== null) await loadHistory({ beforeId: state.oldestMessageId });
 }
 
-function renderMessages({ scrollToEnd = false } = {}) {
+function renderMessages({ scrollToEnd = false, prepended = false } = {}) {
   const list = elements['dm-message-list'];
+  // The list scrolls on its own and rebuilding it resets scrollTop, so keep the
+  // reader's place: same offset for in-place updates, same messages in view
+  // when older history is prepended above them.
+  const previousTop = list.scrollTop;
+  const previousHeight = list.scrollHeight;
   list.replaceChildren();
   if (state.messages.length === 0) {
     elements['dm-empty-state'].classList.remove('hidden');
@@ -311,6 +316,8 @@ function renderMessages({ scrollToEnd = false } = {}) {
   if (!elements['dm-load-older'].classList.contains('hidden')) list.append(elements['dm-load-older']);
   for (const message of state.messages) list.append(buildMessage(message));
   if (scrollToEnd) list.scrollTop = list.scrollHeight;
+  else if (prepended) list.scrollTop = previousTop + (list.scrollHeight - previousHeight);
+  else list.scrollTop = previousTop;
 }
 
 function buildMessage(message) {
