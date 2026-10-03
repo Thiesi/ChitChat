@@ -6,16 +6,21 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ## [Unreleased]
 
-ChitChat is feature-complete; see [Project status](README.md#project-status-feature-complete) and the [roadmap](docs/roadmap.md) for the maintenance-only policy going forward. Entries only appear here for a discovered bug fix or an accepted new feature request.
+No changes since `v2.1.0`. ChitChat is feature-complete; see [Project status](README.md#project-status-feature-complete) and the [roadmap](docs/roadmap.md) for the maintenance-only policy going forward. Entries only appear here for a discovered bug fix or an accepted new feature request.
+
+## [2.1.0] - 2026-10-03
+
+Maintenance release with two maintainer-requested features and interface fixes. Applies one forward-only migration, `0023_registration_protection.sql`. See the [`v2.1.0` release notes](docs/releases/v2.1.0.md).
 
 ### Added
 
-- Added unobtrusive registration bot resistance: a hidden decoy field, a minimum form fill time (default 3 seconds), and a small proof-of-work puzzle the browser solves in the background (default 16 bits, about a second). There is no third-party CAPTCHA and no visible puzzle. Migration `0023_registration_protection.sql` adds the settings.
-- Added a **Registration protection** section to Operational settings, where a Super-Administrator can override the per-IP registration limit, the minimum fill time, and the proof-of-work difficulty. Empty fields use the server defaults from the environment.
+- Added unobtrusive registration bot resistance: a hidden decoy field, a minimum form fill time (default 3 seconds), and a small proof-of-work puzzle the browser solves in the background (default 16 bits, about a second). There is no third-party CAPTCHA and no visible puzzle. Migration `0023_registration_protection.sql` adds the settings (#94).
+- Added a **Registration protection** section to Operational settings, where a Super-Administrator can override the per-IP registration limit, the minimum fill time, and the proof-of-work difficulty. Empty fields use the server defaults from the environment (#94).
 - The chat and other pages now fill the browser width, a **Menu** button on phones reaches search, direct messages, privacy notifications, account, administration, and sign-out, and attachments use a paperclip button inside the message field (#93).
 
 ### Fixed
 
+- Fixed search, direct messages, privacy notifications, account, administration, and sign-out being unreachable from the chat page on phones, where the sidebar footer was hidden (#93).
 - Fixed checkboxes rendering on a line of their own above their label text, as on the push-notification "Notify me when I'm mentioned" option and the account-closure confirmation (#92).
 
 ## [2.0.2] - 2026-10-03
