@@ -6,11 +6,23 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ## [Unreleased]
 
-ChitChat is feature-complete; see [Project status](README.md#project-status-feature-complete) and the [roadmap](docs/roadmap.md) for the maintenance-only policy going forward. Entries only appear here for a discovered bug fix or an accepted new feature request.
+No changes since `v2.4.0`. ChitChat is feature-complete; see [Project status](README.md#project-status-feature-complete) and the [roadmap](docs/roadmap.md) for the maintenance-only policy going forward. Entries only appear here for a discovered bug fix or an accepted new feature request.
+
+## [2.4.0] - 2026-10-04
+
+Maintenance release with no database migration. See the [`v2.4.0` release notes](docs/releases/v2.4.0.md).
 
 ### Added
 
-- Added an emoji picker to the room and direct-message composers: a smiley button inside the message field opens a searchable picker of 240 common emoji in six categories, with a recently used row saved on the device. It inserts at the caret, is fully keyboard operable, and needs no third-party code. Message reactions keep their fixed set of six.
+- Added an emoji picker to the room and direct-message composers: a smiley button inside the message field opens a searchable picker of 240 common emoji in six categories, with a recently used row saved on the device. It inserts at the caret, is fully keyboard operable, and needs no third-party code. Message reactions keep their fixed set of six (#101).
+
+### Changed
+
+- Gave the interface a warmer, more distinctive look: ivory/teal and ink/mint themes, an illustrated welcome screen, decorative speaker initials, quieter navigation, and cohesive room and direct-message composers, carried through the account, search, moderation, and administration pages (#102).
+
+### Fixed
+
+- Fixed replies and the composer overflowing on narrow screens, and an empty conversation misplacing its content in the chat layout (#102).
 
 ## [2.3.0] - 2026-10-04
 
