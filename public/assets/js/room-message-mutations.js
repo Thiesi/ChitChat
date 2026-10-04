@@ -1,5 +1,6 @@
 import { ApiError, apiGet, apiPost } from './api.js';
 import { openMessageReportDialog } from './message-report-dialog.js';
+import { confirmModeratorDelete } from './moderation-tools.js';
 import { renderMessageBody } from './message-content.js';
 import './realtime-bridge.js';
 import { formatDateTime } from './datetime.js';
@@ -114,6 +115,7 @@ function applyState(article, state) {
     state.deletion_kind,
     state.can_edit,
     state.can_delete,
+    state.can_moderate,
     canReport,
     state.mentions,
   ]);
@@ -151,12 +153,14 @@ function applyState(article, state) {
     header.append(indicator);
   }
 
-  if (!header || (!state.can_edit && !state.can_delete && !canReport)) return;
+  if (!header || (!state.can_edit && !state.can_delete && !state.can_moderate && !canReport)) return;
   const actions = document.createElement('span');
   actions.className = 'message-mutation-actions';
   if (state.can_edit) actions.append(actionButton('Edit', () => editMessage(article, state)));
   if (state.can_delete) actions.append(actionButton('Delete', () => deleteMessage(article, state), true));
   if (canReport) actions.append(actionButton('Report', () => openMessageReportDialog('room', state.id)));
+  // Moderators delete someone else's message right here; the server checks their rank.
+  if (state.can_moderate) actions.append(actionButton('Delete', () => moderatorDelete(article, state, author), true));
   header.append(actions);
 }
 
@@ -195,6 +199,28 @@ async function deleteMessage(article, state) {
     const response = await apiPost('/api/v1/rooms/delete-own-message.php', { message_id: state.id });
     delete article.dataset.mutationSignature;
     applyState(article, response.message);
+    toast('Message deleted.');
+  } catch (error) {
+    handleFailure(error);
+  } finally {
+    setBusy(article, false);
+  }
+}
+
+async function moderatorDelete(article, state, author) {
+  const roomName = document.getElementById('room-title')?.textContent?.replace(/^#\s*/u, '') ?? '';
+  const excerpt = (state.body ?? '').replace(/\s+/gu, ' ').trim();
+  const choice = await confirmModeratorDelete({
+    author,
+    excerpt: excerpt.length > 160 ? `${excerpt.slice(0, 159)}…` : excerpt,
+    roomName,
+  });
+  if (!choice) return;
+  setBusy(article, true);
+  try {
+    await apiPost('/api/v1/rooms/delete-message.php', { message_id: state.id, reason: choice.reason });
+    delete article.dataset.mutationSignature;
+    applyState(article, { ...state, body: null, deleted: true, deletion_kind: 'moderator', can_moderate: false, mentions: [] });
     toast('Message deleted.');
   } catch (error) {
     handleFailure(error);

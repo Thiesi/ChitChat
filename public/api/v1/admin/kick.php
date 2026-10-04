@@ -19,8 +19,8 @@ Endpoint::run($config, static function () use ($config): ApiResult {
     SessionManager::requireCsrf(Request::csrfHeader());
     $payload = Request::json();
     $pdo = Database::connect($config);
+    // Reversible and audited, so no password confirmation (unlike roles and password resets).
     $actor = SessionManager::requireUser(new UserRepository($pdo));
-    SessionManager::requirePrivilegedStepUp($actor, $config);
     $target = $payload['target_user_id'] ?? null;
     if (!is_int($target)) {
         throw new ApiException(400, 'validation_error', 'target_user_id must be an integer.');

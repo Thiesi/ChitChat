@@ -90,11 +90,26 @@ SQL);
         }
         $statement->execute($parameters);
 
+        $rows = array_values(array_filter($statement->fetchAll(), 'is_array'));
+        // Messages this viewer may delete as a moderator: others', by lower ranks.
+        $moderatable = [];
+        if (RoomAuthorization::canModerate($actor, $room)) {
+            $senders = array_values(array_unique(array_map(
+                static fn (array $row): int => (int) $row['sender_id'],
+                array_filter($rows, static fn (array $row): bool => $row['sender_id'] !== null),
+            )));
+            $moderatable = (new ModerationRank($this->pdo))->inRoomFor($actor, $room, $senders);
+        }
+
         $result = [];
-        foreach ($statement->fetchAll() as $row) {
-            if (is_array($row)) {
-                $result[] = $this->hydrateMetadata($row, $actor->id, $room->isMember());
-            }
+        foreach ($rows as $row) {
+            $sender = $row['sender_id'] === null ? null : (int) $row['sender_id'];
+            $result[] = $this->hydrateMetadata(
+                $row,
+                $actor->id,
+                $room->isMember(),
+                $sender !== null && ($moderatable[$sender] ?? false),
+            );
         }
 
         return $result;
@@ -340,11 +355,12 @@ SQL);
      *   deletion_kind:?string,
      *   can_edit:bool,
      *   can_delete:bool,
+     *   can_moderate:bool,
      *   mentions:list<array{user_id:int, username:string, broadcast:bool}>,
      *   reactions:list<array{emoji:string, users:list<array{id:int, username:string}>, reacted_by_me:bool}>
      * }
      */
-    private function hydrateMetadata(array $row, int $actorId, bool $isMember): array
+    private function hydrateMetadata(array $row, int $actorId, bool $isMember, bool $outranksSender = false): array
     {
         $deleted = $row['deleted_at'] !== null;
         $owned = $row['sender_id'] !== null && (int) $row['sender_id'] === $actorId;
@@ -367,6 +383,8 @@ SQL);
             'deletion_kind' => $deletionKind,
             'can_edit' => $isMember && $owned && $mutableType && !$deleted,
             'can_delete' => $isMember && $owned && $mutableType && !$deleted,
+            // Delete as a moderator, for someone else's message.
+            'can_moderate' => $outranksSender && !$owned && !$deleted,
             'mentions' => $deleted ? [] : $this->hydrateMentions($row),
             'reactions' => ReactionHydrator::hydrateJson($row['reactions_json'] ?? null),
         ];

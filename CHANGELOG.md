@@ -6,7 +6,20 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ## [Unreleased]
 
-No changes since `v3.0.0`. ChitChat is feature-complete; see [Project status](README.md#project-status-feature-complete) and the [roadmap](docs/roadmap.md) for the maintenance-only policy going forward. Entries only appear here for a discovered bug fix or an accepted new feature request.
+ChitChat is feature-complete; see [Project status](README.md#project-status-feature-complete) and the [roadmap](docs/roadmap.md) for the maintenance-only policy going forward. Entries only appear here for a discovered bug fix or an accepted new feature request.
+
+### Added
+
+- Added **Delete** on other people's messages in rooms for everyone allowed to moderate the room, so a moderator no longer has to report a message to act on it. It asks for confirmation with an optional reason for the audit log; everyone sees "Message deleted by a moderator." and the author is told as before.
+
+### Changed
+
+- Moderation now follows ranks: member, room moderator, room owner, Chat Admin and Global Moderator, Administrator, Super-Administrator. Moderators act only on lower ranks, so a room moderator can no longer delete the room owner's or global staff's messages, and an owner no longer global staff's. Only Super-Administrators act on their equals, which also means only a Super-Administrator may sign out, ban, reset the password of, or change the roles of an Administrator.
+- Signing someone out, banning, and lifting a ban no longer ask for the moderator's password (privileged step-up). They are reversible and audited; changing roles and resetting passwords still ask.
+
+### Fixed
+
+- Fixed the Report message dialog's buttons looking different from each other in rooms and direct messages (#126).
 
 ## [3.0.0] - 2026-10-04
 

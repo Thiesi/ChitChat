@@ -253,8 +253,8 @@ SQL);
             throw new ApiException(404, 'user_not_found', 'Target user not found.');
         }
 
-        if ($target->hasRole('super_admin') && !$actor->hasRole('super_admin')) {
-            throw new ApiException(403, 'forbidden', 'Only a Super-Administrator may manage another Super-Administrator.');
+        if (($target->hasRole('super_admin') || $target->hasRole('admin')) && !$actor->hasRole('super_admin')) {
+            throw new ApiException(403, 'forbidden', 'Only a Super-Administrator may act on an Administrator or another Super-Administrator.');
         }
 
         return $target;

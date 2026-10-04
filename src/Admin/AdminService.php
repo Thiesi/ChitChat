@@ -172,8 +172,8 @@ SQL);
             if ($target === null) {
                 throw new ApiException(404, 'user_not_found', 'Target user not found.');
             }
-            if ($target->hasRole('super_admin') && !$actor->hasRole('super_admin')) {
-                throw new ApiException(403, 'forbidden', 'Only a Super-Administrator may manage another Super-Administrator.');
+            if (($target->hasRole('super_admin') || $target->hasRole('admin')) && !$actor->hasRole('super_admin')) {
+                throw new ApiException(403, 'forbidden', 'Only a Super-Administrator may change the roles of an Administrator or another Super-Administrator.');
             }
 
             $changesSuperAdmin = in_array('super_admin', $roles, true) !== $target->hasRole('super_admin');
