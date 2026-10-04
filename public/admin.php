@@ -10,7 +10,8 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <meta charset="utf-8">
   <meta name="application-name" content="<?= $appName ?>">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="dark">
+  <meta name="color-scheme" content="light dark">
+  <script src="/assets/js/theme.js"></script>
   <meta name="description" content="<?= $appName ?> administration console">
   <title>Administration · <?= $appName ?></title>
   <link rel="stylesheet" href="/assets/css/app.css">

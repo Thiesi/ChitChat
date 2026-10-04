@@ -82,6 +82,30 @@ function secondsFromCssList(value) {
 }
 
 test.describe.serial('ChitChat deeper accessibility validation', () => {
+  test('the light theme also has no WCAG A or AA violations on core surfaces', async ({ page, browserName }) => {
+    test.skip(browserName !== 'chromium', 'The semantic accessibility gate runs once in Chromium.');
+
+    await page.emulateMedia({ colorScheme: 'light' });
+    await page.goto('/');
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+    await expect(page.locator('#auth-shell')).toBeVisible();
+    await expectNoAxeViolations(page, 'Light signed-out authentication');
+
+    await loginOrRegister(page);
+    await expectNoAxeViolations(page, 'Light signed-in chat');
+
+    for (const [path, shell, label] of [
+      ['/messages.php', '#messages-shell', 'Light direct messages'],
+      ['/search.php', '#message-search-shell', 'Light message search'],
+      ['/account.php', '#account-shell', 'Light account'],
+      ['/notifications.php', '#privacy-notifications-shell', 'Light privacy notifications'],
+    ]) {
+      await page.goto(path);
+      await expect(page.locator(shell)).toBeVisible();
+      await expectNoAxeViolations(page, label);
+    }
+  });
+
   test('axe-core finds no WCAG A or AA violations on core surfaces', async ({ page, browserName, browser }) => {
     test.skip(browserName !== 'chromium', 'The semantic accessibility gate runs once in Chromium.');
 
