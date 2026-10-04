@@ -142,7 +142,7 @@ The events expire from the event ledger after one day; the stored ping follows r
 { "room_id": 42, "user": { "id": 17, "username": "Alex" } }
 ```
 
-`room_id` is `null` in a direct conversation. Each signal expires after 8 seconds and is then never delivered; maintenance removes it. A second signal from the same person to the same place within 3 seconds is dropped (the response says `"signalled": false`), and the `typing` rate-limit policy bounds the rest. The browser signals at most every 4 seconds while someone types, sends nothing for `/commands` or an empty composer, shows a name for about 6 seconds after its last signal, removes it as soon as that person's message arrives, and never shows people the viewer ignores.
+`room_id` is `null` in a direct conversation. The indicator works both ways: an account that turned it off (`POST /api/v1/account/typing.php` with `{"share_typing": false}`; `session.php` reports `share_typing`) publishes no signals (the response says `"signalled": false`) and is delivered none. Each signal expires after 8 seconds and is then never delivered; maintenance removes it. A second signal from the same person to the same place within 3 seconds is dropped (the response says `"signalled": false`), and the `typing` rate-limit policy bounds the rest. The browser signals at most every 4 seconds while someone types, sends nothing for `/commands` or an empty composer, shows a name for about 6 seconds after its last signal, removes it as soon as that person's message arrives, and never shows people the viewer ignores.
 
 ### `room_broadcast` and `global_broadcast`
 

@@ -160,7 +160,7 @@ final class PersonalDataExportService
     private function profile(int $userId): array
     {
         $statement = $this->prepare(<<<'SQL'
-SELECT id, username, birth_date, created_at, updated_at, last_login_at, date_locale, hour_cycle
+SELECT id, username, birth_date, created_at, updated_at, last_login_at, date_locale, hour_cycle, share_typing::int AS share_typing
 FROM users
 WHERE id = :id
 SQL, 'personal-data account profile');
@@ -181,6 +181,7 @@ SQL, 'personal-data account profile');
                 'date_locale' => $this->nullableString($row['date_locale']),
                 'hour_cycle' => $this->nullableString($row['hour_cycle']),
             ],
+            'share_typing' => (int) $row['share_typing'] === 1,
         ];
     }
 

@@ -112,6 +112,19 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
       </form>
     </section>
 
+    <section class="account-card" aria-labelledby="typing-heading">
+      <div>
+        <p class="account-eyebrow">Chat</p>
+        <h2 id="typing-heading">Typing indicator</h2>
+      </div>
+      <p>“Alex is typing…” above the message box, in rooms and direct messages. It never includes what you type. It works both ways: turned off, others don’t see when you type, and you don’t see when they do.</p>
+      <label>
+        <input id="share-typing" type="checkbox" checked>
+        Show when I’m typing, and when others are
+      </label>
+      <p id="share-typing-status" class="account-muted" role="status" aria-live="polite"></p>
+    </section>
+
     <section id="password-card" class="account-card" aria-labelledby="password-heading">
       <div>
         <p class="account-eyebrow">Sign-in</p>
@@ -236,5 +249,6 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <script type="module" src="/assets/js/avatar-settings.js"></script>
   <script type="module" src="/assets/js/sign-in-methods.js"></script>
   <script type="module" src="/assets/js/password-settings.js"></script>
+  <script type="module" src="/assets/js/typing-settings.js"></script>
 </body>
 </html>

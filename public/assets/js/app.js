@@ -141,7 +141,7 @@ function bindEvents() {
   roomTyping = createTypingIndicator(elements['typing-indicator']);
   typingSignal = createTypingSignal(() => apiPost('/api/v1/typing.php', { room_id: state.currentRoom.id }));
   elements['composer-input'].addEventListener('input', () => {
-    if (state.currentRoom?.member_role) typingSignal.input(elements['composer-input'].value);
+    if (state.shareTyping && state.currentRoom?.member_role) typingSignal.input(elements['composer-input'].value);
   });
   // Before name completion, so Tab picks a command rather than a name.
   commandSuggestions = attachCommandSuggestions(elements['composer-input'], availableCommands);
@@ -171,6 +171,7 @@ async function bootstrap() {
   const session = await apiGet('/api/v1/session.php');
   setCsrfToken(session.csrf_token);
   state.ignored = new Set(Array.isArray(session.ignored_user_ids) ? session.ignored_user_ids : []);
+  state.shareTyping = session.share_typing !== false;
   renderLockdown(session.lockdown);
   renderSignInProviders(session.sign_in_providers);
   elements['app-loading'].classList.add('hidden');
