@@ -44,6 +44,11 @@ jobs:
       RATE_LIMIT_REGISTRATION_MAX_ATTEMPTS: 100
       # Many specs confirm sensitive actions as the same administrator within one window.
       RATE_LIMIT_PRIVILEGED_STEP_UP_MAX_ATTEMPTS: 100
+      # Google sign-in against the local mock provider in tests/e2e/support/mock-oidc.js.
+      GOOGLE_OIDC_CLIENT_ID: chitchat-e2e
+      GOOGLE_OIDC_CLIENT_SECRET: e2e-secret
+      OIDC_GOOGLE_ENDPOINT_OVERRIDE: http://127.0.0.1:9177
+      OIDC_REDIRECT_ORIGIN: http://127.0.0.1:8080
       REGISTRATION_MIN_FILL_SECONDS: 0
       REGISTRATION_PROOF_OF_WORK_BITS: 8
 

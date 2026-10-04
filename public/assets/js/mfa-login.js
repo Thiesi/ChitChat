@@ -10,6 +10,15 @@ window.addEventListener('DOMContentLoaded', () => {
   const panel = buildPanel();
   authCard.insertBefore(panel.root, error);
   loginForm.addEventListener('submit', (event) => submitPassword(event, panel, error), true);
+
+  // A Google or Twitch sign-in on an account with multi-factor authentication continues here.
+  const parameters = new URLSearchParams(window.location.search);
+  if (parameters.get('mfa') === 'continue') {
+    parameters.delete('mfa');
+    const query = parameters.toString();
+    window.history.replaceState(null, '', `${window.location.pathname}${query ? `?${query}` : ''}`);
+    showMfaPanel(panel);
+  }
 });
 
 async function submitPassword(event, panel, error) {

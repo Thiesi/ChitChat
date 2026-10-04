@@ -323,13 +323,7 @@ final class WebAuthnProtocol
             if (!is_string($modulus) || !is_string($exponent) || $modulus === '' || $exponent === '') {
                 throw new ApiException(400, 'invalid_webauthn_key', 'The RS256 passkey public key is malformed.');
             }
-            $rsa = $this->derSequence($this->derInteger($modulus) . $this->derInteger($exponent));
-            $algorithmIdentifier = hex2bin('300d06092a864886f70d0101010500');
-            if ($algorithmIdentifier === false) {
-                throw new ApiException(500, 'webauthn_unavailable', 'Unable to construct the RS256 public key.');
-            }
-            $der = $this->derSequence($algorithmIdentifier . $this->derBitString($rsa));
-            return ['algorithm' => self::RS256, 'pem' => $this->pem($der)];
+            return ['algorithm' => self::RS256, 'pem' => RsaPublicKey::pem($modulus, $exponent)];
         }
 
         throw new ApiException(400, 'unsupported_passkey_algorithm', 'Only ES256 and RS256 passkeys are supported.');
@@ -342,40 +336,9 @@ final class WebAuthnProtocol
             . "-----END PUBLIC KEY-----\n";
     }
 
-    private function derSequence(string $value): string
-    {
-        return "\x30" . $this->derLength(strlen($value)) . $value;
-    }
 
-    private function derBitString(string $value): string
-    {
-        $value = "\x00" . $value;
-        return "\x03" . $this->derLength(strlen($value)) . $value;
-    }
 
-    private function derInteger(string $value): string
-    {
-        $value = ltrim($value, "\x00");
-        if ($value === '') {
-            $value = "\x00";
-        } elseif ((ord($value[0]) & 0x80) !== 0) {
-            $value = "\x00" . $value;
-        }
-        return "\x02" . $this->derLength(strlen($value)) . $value;
-    }
 
-    private function derLength(int $length): string
-    {
-        if ($length < 0x80) {
-            return chr($length);
-        }
-        $encoded = '';
-        while ($length > 0) {
-            $encoded = chr($length & 0xff) . $encoded;
-            $length >>= 8;
-        }
-        return chr(0x80 | strlen($encoded)) . $encoded;
-    }
 
     private function unsignedBigEndian(string $bytes): int
     {

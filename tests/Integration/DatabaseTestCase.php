@@ -61,6 +61,23 @@ SQL);
         ));
     }
 
+    /**
+     * A copy of the test configuration with some settings replaced.
+     *
+     * @param array<string, mixed> $overrides constructor argument names to values
+     */
+    protected function configWith(array $overrides): Config
+    {
+        $arguments = [];
+        $constructor = (new \ReflectionClass(Config::class))->getConstructor();
+        foreach ($constructor === null ? [] : $constructor->getParameters() as $parameter) {
+            $name = $parameter->getName();
+            $arguments[$name] = array_key_exists($name, $overrides) ? $overrides[$name] : $this->config->{$name};
+        }
+
+        return new Config(...$arguments);
+    }
+
     protected function configWithThrottle(int $attempts, int $minutes = 15): Config
     {
         return new Config(

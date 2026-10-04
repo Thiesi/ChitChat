@@ -342,6 +342,19 @@ button:disabled {
 }
 
 /* A decoy field that people never see or reach; only form-filling bots fill it. */
+/* "Continue with Google/Twitch" under the sign-in form. */
+.sign-in-providers { display: grid; gap: 0.6rem; }
+.sign-in-divider {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0.25rem 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.sign-in-divider::before,
+.sign-in-divider::after { flex: 1; height: 1px; background: var(--border); content: ""; }
+
 .registration-trap {
   position: absolute;
   left: -10000px;

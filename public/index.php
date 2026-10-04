@@ -60,6 +60,9 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
             <input id="login-password" name="password" type="password" autocomplete="current-password" minlength="12" maxlength="4096" required>
           </label>
           <button class="primary-button" type="submit">Sign in</button>
+          <div id="sign-in-providers" class="sign-in-providers hidden">
+            <p class="sign-in-divider"><span>or</span></p>
+          </div>
           <a class="secondary-button" href="/restore-account.php">Restore a closing account</a>
         </form>
 

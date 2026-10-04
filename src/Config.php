@@ -50,6 +50,15 @@ final readonly class Config
         public string $webPushVapidSubject = '',
         public int $registrationMinimumFillSeconds = 3,
         public int $registrationProofOfWorkBits = 16,
+        /**
+         * Configured sign-in providers by name, each with client_id,
+         * client_secret, and endpoint_override (empty outside tests).
+         *
+         * @var array<string, array{client_id:string, client_secret:string, endpoint_override:string}>
+         */
+        public array $oidcProviders = [],
+        /** Public origin the providers redirect back to, e.g. https://chat.example.org. */
+        public string $oidcRedirectOrigin = '',
     ) {
         if ($this->databasePort < 1 || $this->databasePort > 65535) {
             throw new InvalidArgumentException('DB_PORT must be between 1 and 65535.');
@@ -168,7 +177,45 @@ final readonly class Config
             webPushVapidSubject: self::env('WEB_PUSH_VAPID_SUBJECT', ''),
             registrationMinimumFillSeconds: self::envInt('REGISTRATION_MIN_FILL_SECONDS', 3),
             registrationProofOfWorkBits: self::envInt('REGISTRATION_PROOF_OF_WORK_BITS', 16),
+            oidcProviders: self::oidcProviders(self::env('APP_ENV', 'production')),
+            oidcRedirectOrigin: self::normalizeOrigin(self::env('OIDC_REDIRECT_ORIGIN', self::env('WEBAUTHN_ORIGIN', ''))),
         );
+    }
+
+    /**
+     * Google and Twitch sign-in, each enabled only when both its client ID
+     * and secret are set. An endpoint override (for a local mock provider)
+     * is refused outside development and test environments.
+     *
+     * @return array<string, array{client_id:string, client_secret:string, endpoint_override:string}>
+     */
+    private static function oidcProviders(string $environment): array
+    {
+        $providers = [];
+        foreach (['google', 'twitch'] as $name) {
+            $prefix = strtoupper($name) . '_OIDC_';
+            $clientId = self::env($prefix . 'CLIENT_ID', '');
+            $clientSecret = self::env($prefix . 'CLIENT_SECRET', '');
+            $override = rtrim(self::env('OIDC_' . strtoupper($name) . '_ENDPOINT_OVERRIDE', ''), '/');
+            if ($override !== '' && !in_array($environment, ['development', 'test'], true)) {
+                throw new InvalidArgumentException('OIDC_' . strtoupper($name) . '_ENDPOINT_OVERRIDE is only allowed in development and test environments.');
+            }
+            if ($clientId === '' || $clientSecret === '') {
+                continue;
+            }
+            $providers[$name] = [
+                'client_id' => $clientId,
+                'client_secret' => $clientSecret,
+                'endpoint_override' => $override,
+            ];
+        }
+
+        return $providers;
+    }
+
+    public function oidcEnabled(): bool
+    {
+        return $this->oidcProviders !== [] && $this->oidcRedirectOrigin !== '';
     }
 
     public function rateLimitPolicy(string $name): RateLimitPolicy

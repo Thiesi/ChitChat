@@ -147,6 +147,25 @@ MFA-enabled accounts must instead use a passkey assertion or one-time recovery c
 
 Incorrect password, passkey and recovery-code attempts are independently audited and bounded by named rate-limit policies. Successful verification creates a separate audit record from the later protected action and never bypasses content, target, policy, reason or authorization checks.
 
+### Sign in with Google or Twitch
+
+Accounts can connect Google or Twitch on the Account page and then sign in with it. ChitChat uses OpenID Connect with the authorization-code flow, PKCE, a state bound to the browser session, and a nonce bound into the ID token. It requests **only the `openid` scope** and stores the provider plus its stable account identifier (`sub`), **never an email address**, name, or picture. ID tokens are verified locally (RS256 signature against the provider's published keys, issuer, audience, expiry, and nonce); the keys are cached for an hour.
+
+Each provider is disabled until configured. Register an application with the provider, use `<OIDC_REDIRECT_ORIGIN>/api/v1/oidc/callback.php` as its redirect URI, and set:
+
+```text
+OIDC_REDIRECT_ORIGIN=https://chat.example.org   # defaults to WEBAUTHN_ORIGIN
+GOOGLE_OIDC_CLIENT_ID=…
+GOOGLE_OIDC_CLIENT_SECRET=…
+TWITCH_OIDC_CLIENT_ID=…
+TWITCH_OIDC_CLIENT_SECRET=…
+```
+
+- Google: create an OAuth client of type "Web application" in the Google Cloud console; the consent screen needs no scopes beyond `openid`.
+- Twitch: register an application in the Twitch developer console with the redirect URI above.
+
+Provider sign-in follows the same rules as password sign-in: bans, maintenance lockdown, and multi-factor authentication apply (an account with passkeys still completes its second factor), it is rate-limited per IP address (`oidc_sign_in`), and it is audited. Connecting or disconnecting a provider requires privileged step-up. The server must be able to reach the provider over HTTPS for the token exchange and key download.
+
 ## Endpoints
 
 - `/` serves the browser chat client.
