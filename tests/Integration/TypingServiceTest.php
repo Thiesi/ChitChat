@@ -37,7 +37,7 @@ final class TypingServiceTest extends DatabaseTestCase
         self::assertSame([], $this->typingEvents($outsider), 'Only members see typing in a room.');
 
         // Expired signals are never delivered.
-        $this->pdo->exec("UPDATE realtime_events SET expires_at = NOW() - INTERVAL '1 second' WHERE event_type = 'typing'");
+        $this->pdo->exec("UPDATE realtime_events SET created_at = NOW() - INTERVAL '20 seconds', expires_at = NOW() - INTERVAL '1 second' WHERE event_type = 'typing'");
         self::assertSame([], $this->typingEvents($member));
 
         $this->expectExceptionObject(new ApiException(403, 'membership_required', 'Join the room before typing in it.'));
