@@ -77,6 +77,24 @@ final class AttachmentFileStore
         }
     }
 
+    /**
+     * Stores content the server generated itself (such as a re-encoded
+     * avatar) under a new random key in the same sharded layout.
+     */
+    public function storeBytes(string $content): string
+    {
+        $storageKey = bin2hex(random_bytes(32));
+        $path = $this->pathForKey($storageKey);
+        $this->prepareStorageDirectory($path);
+        if (file_put_contents($path, $content, LOCK_EX) !== strlen($content)) {
+            @unlink($path);
+            throw new RuntimeException('Unable to write the stored file.');
+        }
+        @chmod($path, 0600);
+
+        return $storageKey;
+    }
+
     public function resolve(string $storageKey, int $expectedSize): string
     {
         $path = $this->pathForKey($storageKey);

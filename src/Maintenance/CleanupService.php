@@ -369,6 +369,8 @@ SQL, $cutoff);
 SELECT storage_key FROM attachments
 UNION
 SELECT storage_key FROM direct_message_attachments
+UNION
+SELECT avatar_key FROM users WHERE avatar_key IS NOT NULL
 SQL);
         if ($statement === false) {
             throw new RuntimeException('Unable to query tracked attachment keys.');

@@ -40,7 +40,9 @@ test('Administrator sees shared operational status and metrics remain disabled b
     await expect(roomSendRow).toContainText('30 / 1m');
     await expect(roomSendRow.getByRole('rowheader')).toHaveCount(1);
     await expect(roomSendRow.getByRole('cell')).toHaveCount(4);
-    await expect(policyTable.getByRole('row', { name: /privileged_step_up/ })).toContainText('10 / 15m');
+    // CI raises this limit for the suite; the page shows whatever is in effect.
+    const stepUpAttempts = process.env.RATE_LIMIT_PRIVILEGED_STEP_UP_MAX_ATTEMPTS ?? '10';
+    await expect(policyTable.getByRole('row', { name: /privileged_step_up/ })).toContainText(`${stepUpAttempts} / 15m`);
 
     const apiResponse = await context.request.get('/api/v1/admin/system-status.php');
     expect(apiResponse.status()).toBe(200);

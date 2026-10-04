@@ -42,6 +42,8 @@ jobs:
       CHITCHAT_BASE_URL: http://127.0.0.1:8080
       MESSAGE_REVISION_REVIEW_ENABLED: 1
       RATE_LIMIT_REGISTRATION_MAX_ATTEMPTS: 100
+      # Many specs confirm sensitive actions as the same administrator within one window.
+      RATE_LIMIT_PRIVILEGED_STEP_UP_MAX_ATTEMPTS: 100
       REGISTRATION_MIN_FILL_SECONDS: 0
       REGISTRATION_PROOF_OF_WORK_BITS: 8
 
@@ -56,7 +58,7 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
-          extensions: fileinfo, mbstring, pdo_pgsql
+          extensions: fileinfo, gd, mbstring, pdo_pgsql
           coverage: none
           tools: composer:v2
 

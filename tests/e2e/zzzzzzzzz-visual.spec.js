@@ -51,6 +51,8 @@ test('critical authentication and account layouts remain visually stable', async
   await expect(page.locator('#account-shell')).toBeVisible();
   await expect(page.locator('#account-loading')).toBeHidden();
   await expect(page.locator('#date-preview-medium')).not.toBeEmpty();
+  // The profile picture, passkey, and preference cards fill in from separate requests.
+  await page.waitForLoadState('networkidle');
   await expect.soft(page).toHaveScreenshot('account-desktop.png', screenshotOptions);
 
   await page.setViewportSize({ width: 390, height: 844 });
@@ -58,5 +60,7 @@ test('critical authentication and account layouts remain visually stable', async
   await expect(page.locator('#account-shell')).toBeVisible();
   await expect(page.locator('#account-loading')).toBeHidden();
   await expect(page.locator('#date-preview-medium')).not.toBeEmpty();
+  // The profile picture, passkey, and preference cards fill in from separate requests.
+  await page.waitForLoadState('networkidle');
   await expect.soft(page).toHaveScreenshot('account-narrow.png', screenshotOptions);
 });

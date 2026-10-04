@@ -40,6 +40,7 @@ async function fixture(page, signedIn = true) {
       'rooms/presence.php': { users: [viewer, peer, { username: 'Alex' }].map((user) => ({ ...user, idle_seconds: 0 })) },
       'rooms/mentionable-users.php': { users: [peer] },
       'rooms/pings.php': { pings: [] },
+      'users/profile.php': { avatars_available: true, profile: { id: viewer.id, username: viewer.username, member_since: '2026-07-01T10:00:00Z', badge: null, has_avatar: false, avatar_version: null, can_remove_avatar: false } },
       'account/notifications/list.php': { notifications: [], unread_count: 0 },
       'account/mfa/status.php': { mfa: { enabled: false, available: false, credentials: [] } },
       'direct-messages/conversations.php': { conversations: [{ user: peer, unread_count: 0, last_message: { body: 'See you in the living room!', outgoing: false } }] },
@@ -50,6 +51,8 @@ async function fixture(page, signedIn = true) {
       'direct-messages/attachments/metadata.php': { attachments: [] },
       'direct-messages/message-mutations.php': { messages: [] },
     };
+    // Nobody in these fixtures has a profile picture, so initials are shown.
+    if (path === 'avatars/show.php') return route.fulfill({ status: 404, body: '' });
     if (!(path in responses)) throw new Error(`Missing presentation fixture: ${path}`);
     await route.fulfill({ json: responses[path] });
   });

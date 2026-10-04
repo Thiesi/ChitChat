@@ -240,6 +240,10 @@ SQL);
         } elseif ($kind === 'mentioned') {
             [$title, $message] = $this->mentionText($context);
             $link = $this->mentionLink($context);
+        } elseif ($kind === 'avatar_removed') {
+            $title = 'Profile picture removed by a moderator';
+            $message = 'A moderator removed your profile picture. Your initials are shown instead; you can upload a different picture on your Account page.';
+            $link = '/account.php';
         } elseif ($kind === 'room_deleted' || $kind === 'room_restored') {
             $roomName = $this->nonEmptyString($context['room_name'] ?? null) ?? 'a room';
             $deleted = $kind === 'room_deleted';

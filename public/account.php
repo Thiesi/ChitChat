@@ -35,6 +35,25 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
       <a class="secondary-button" href="/">Back to chat</a>
     </header>
 
+    <section class="account-card" aria-labelledby="avatar-heading">
+      <div>
+        <p class="account-eyebrow">Profile</p>
+        <h2 id="avatar-heading">Profile picture</h2>
+      </div>
+      <div class="avatar-settings">
+        <span id="avatar-preview" class="mini-avatar avatar-preview" aria-hidden="true"></span>
+        <div class="avatar-settings-text">
+          <p>Shown next to your messages, in member lists, and on your profile card instead of your initials. JPEG, PNG, or WebP up to 5 MB; you can choose the crop. The server stores a fresh 256 × 256 copy without any photo metadata, such as location.</p>
+          <div class="account-action-row">
+            <label class="secondary-button file-button" for="avatar-file">Upload a picture</label>
+            <input id="avatar-file" class="visually-hidden" type="file" accept="image/jpeg,image/png,image/webp">
+            <button id="avatar-remove" class="secondary-button hidden" type="button">Remove picture</button>
+          </div>
+          <p id="avatar-status" class="account-muted" role="status" aria-live="polite"></p>
+        </div>
+      </div>
+    </section>
+
     <section class="account-card" aria-labelledby="appearance-heading">
       <div>
         <p class="account-eyebrow">Appearance</p>
@@ -157,8 +176,30 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
     <?= \ChitChat\View\PoweredBy::html() ?>
   </main>
 
+  <dialog id="avatar-crop-dialog" class="room-dialog avatar-crop-dialog" aria-labelledby="avatar-crop-title">
+    <form method="dialog" class="form-stack">
+      <header class="dialog-header">
+        <h2 id="avatar-crop-title">Crop your picture</h2>
+      </header>
+      <div class="avatar-crop-stage">
+        <canvas id="avatar-crop-canvas" width="512" height="512" tabindex="0" aria-label="Picture crop area. Drag, or use the arrow keys, to move the picture; plus and minus zoom."></canvas>
+      </div>
+      <label>
+        Zoom
+        <input id="avatar-crop-zoom" type="range" min="1" max="4" step="0.01" value="1">
+      </label>
+      <p class="account-muted">Drag the picture or use the arrow keys to position it. The circle shows what others see.</p>
+      <div class="account-action-row">
+        <button id="avatar-crop-save" class="primary-button" type="button">Save picture</button>
+        <button id="avatar-crop-cancel" class="secondary-button" type="button">Cancel</button>
+      </div>
+    </form>
+  </dialog>
+
+
   <script type="module" src="/assets/js/account.js"></script>
   <script type="module" src="/assets/js/mfa-account.js"></script>
   <script type="module" src="/assets/js/date-time-settings.js"></script>
+  <script type="module" src="/assets/js/avatar-settings.js"></script>
 </body>
 </html>

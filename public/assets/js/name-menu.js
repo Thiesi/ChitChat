@@ -1,8 +1,11 @@
-// A small menu for any username shown as a button: it offers "Send direct
-// message" (or explains why messaging is unavailable), and points to your
-// own Account page when the name is yours. One menu serves the whole page.
-import { ApiError, apiGet } from './api.js';
-import { miniAvatar } from './avatar.js';
+// A small profile card for any username shown as a button: the person's
+// picture, any staff badge, and when they joined, with "Send direct message"
+// (or why messaging is unavailable), your own Account page when the name is
+// yours, and, for moderators, removing an inappropriate picture. One card
+// serves the whole page.
+import { ApiError, apiGet, apiPost } from './api.js';
+import { miniAvatar, refreshPhoto } from './avatar.js';
+import { formatDateTime } from './datetime.js';
 
 const phone = window.matchMedia('(max-width: 34rem)');
 const ICON_MESSAGE = ['M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'];
@@ -71,12 +74,14 @@ async function open(button) {
   button.setAttribute('aria-expanded', 'true');
 
   const identity = document.createElement('div');
-  identity.className = 'popover-identity';
+  identity.className = 'popover-identity profile-head';
   const name = document.createElement('strong');
   name.textContent = username;
   const label = document.createElement('div');
   label.append(name);
-  identity.append(miniAvatar(username, userId), label);
+  const avatar = miniAvatar(username, userId);
+  avatar.classList.add('profile-avatar');
+  identity.append(avatar, label);
   const actions = document.createElement('div');
   actions.className = 'name-menu-actions';
   menu.replaceChildren(identity, document.createElement('hr'), actions);
@@ -85,10 +90,15 @@ async function open(button) {
   backdrop.classList.toggle('hidden', !phone.matches);
   position(button);
 
+  const profileRequest = apiGet(`/api/v1/users/profile.php?user_id=${encodeURIComponent(userId)}`).catch(() => null);
   const self = (await ownUserId()) === userId;
   if (request !== sequence) return;
+  void profileRequest.then((response) => {
+    if (request === sequence && response?.profile) showProfile(label, actions, response.profile, self);
+  });
   if (self) {
     const note = document.createElement('span');
+    note.className = 'profile-meta';
     note.textContent = 'This is you';
     label.append(note);
     actions.append(menuLink('/account.php', 'Your account', ICON_PERSON));
@@ -118,6 +128,41 @@ async function open(button) {
     if (error instanceof ApiError && error.status === 404 && request === sequence) {
       actions.replaceChildren(statusText('This account is no longer available.'));
     }
+  }
+}
+
+// Fills in what the profile adds: a staff badge, when they joined, and the
+// moderator action for an inappropriate picture.
+function showProfile(label, actions, profile, self) {
+  if (profile.badge) {
+    const badge = document.createElement('span');
+    badge.className = 'profile-badge';
+    badge.textContent = profile.badge;
+    label.querySelector('strong')?.after(badge);
+  }
+  const since = document.createElement('span');
+  since.className = 'profile-meta';
+  since.textContent = `Member since ${formatDateTime(profile.member_since, { dateStyle: 'long', timeStyle: null })}`;
+  label.append(since);
+
+  if (profile.can_remove_avatar && !self) {
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'menu-item danger-item';
+    remove.textContent = 'Remove profile picture';
+    remove.addEventListener('click', async () => {
+      if (!window.confirm(`Remove ${profile.username}'s profile picture? They will be told, and it is recorded in the audit log.`)) return;
+      remove.disabled = true;
+      try {
+        await apiPost('/api/v1/account/avatar/remove.php', { user_id: profile.id });
+        refreshPhoto(profile.id);
+        remove.replaceWith(statusText('Profile picture removed.'));
+      } catch (error) {
+        remove.disabled = false;
+        remove.after(statusText(error instanceof Error ? error.message : 'Removing the picture failed.'));
+      }
+    });
+    actions.append(document.createElement('hr'), remove);
   }
 }
 
