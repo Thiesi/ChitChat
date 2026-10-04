@@ -153,6 +153,9 @@
   gap: 1rem;
 }
 
+/* "Use my Google picture" buttons join the row's wrapping like the others. */
+.avatar-providers { display: contents; }
+
 .account-action-row .account-muted {
   margin: 0;
 }

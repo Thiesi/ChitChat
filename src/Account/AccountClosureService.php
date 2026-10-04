@@ -408,6 +408,7 @@ SQL, [
         $this->deleteForUser('user_identities', 'user_id', $userId);
         $this->deleteForUser('room_reads', 'user_id', $userId);
         $this->deleteForUser('user_ignores', 'user_id', $userId);
+        $this->deleteForUser('avatar_imports', 'user_id', $userId);
         $this->execute(
             'DELETE FROM direct_message_blocks WHERE blocker_user_id = :id OR blocked_user_id = :id',
             ['id' => $userId],
@@ -495,6 +496,7 @@ SQL);
             'user_identities.user_id',
             'room_reads.user_id',
             'user_ignores.user_id',
+            'avatar_imports.user_id',
         ], true)) {
             throw new RuntimeException('Unsupported account-lifecycle cleanup target.');
         }

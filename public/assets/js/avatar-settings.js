@@ -18,7 +18,8 @@ window.addEventListener('DOMContentLoaded', async () => {
   const zoom = document.getElementById('avatar-crop-zoom');
   const save = document.getElementById('avatar-crop-save');
   const cancel = document.getElementById('avatar-crop-cancel');
-  if (!preview || !fileInput || !removeButton || !status || !dialog || !canvas || !zoom || !save || !cancel) return;
+  const providerButtons = document.getElementById('avatar-providers');
+  if (!preview || !fileInput || !providerButtons || !removeButton || !status || !dialog || !canvas || !zoom || !save || !cancel) return;
 
   // Wired before any network request, so a picture chosen right away is not missed.
   let user = null;
@@ -87,10 +88,8 @@ window.addEventListener('DOMContentLoaded', async () => {
     status.textContent = 'That image could not be read. Choose a JPEG, PNG, or WebP image.';
   });
 
-  fileInput.addEventListener('change', () => {
-    const file = fileInput.files?.[0];
-    fileInput.value = '';
-    if (!file) return;
+  // A chosen file or a fetched provider picture both open the crop step.
+  const openCrop = (file) => {
     if (!ACCEPTED.includes(file.type)) {
       status.textContent = 'Choose a JPEG, PNG, or WebP image.';
       return;
@@ -103,6 +102,11 @@ window.addEventListener('DOMContentLoaded', async () => {
     const reader = new FileReader();
     reader.addEventListener('load', () => { image.src = String(reader.result); });
     reader.readAsDataURL(file);
+  };
+  fileInput.addEventListener('change', () => {
+    const file = fileInput.files?.[0];
+    fileInput.value = '';
+    if (file) openCrop(file);
   });
 
   let drag = null;
@@ -187,4 +191,62 @@ window.addEventListener('DOMContentLoaded', async () => {
   preview.dataset.avatarUser = String(user.id);
   attachPhoto(preview, user.id);
   await showState();
+  if (!fileInput.disabled) await offerProviderPictures();
+  await continueFromProvider();
+
+  // "Use my Google picture": only for connected providers, and only when
+  // asked. That one round trip requests the picture; sign-in never does.
+  async function offerProviderPictures() {
+    let methods;
+    try {
+      methods = await apiGet('/api/v1/account/identities/list.php');
+    } catch {
+      return;
+    }
+    const configured = new Map((methods.providers ?? []).map((provider) => [provider.id, provider.label]));
+    for (const identity of methods.identities ?? []) {
+      const label = configured.get(identity.provider);
+      if (!label) continue;
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'secondary-button';
+      button.textContent = `Use my ${label} picture`;
+      button.addEventListener('click', async () => {
+        button.disabled = true;
+        status.textContent = '';
+        try {
+          const { url } = await apiPost('/api/v1/oidc/begin.php', { provider: identity.provider, purpose: 'picture' });
+          window.location.assign(url);
+        } catch (error) {
+          status.textContent = error instanceof Error ? error.message : 'That did not work.';
+          button.disabled = false;
+        }
+      });
+      providerButtons.append(button);
+    }
+  }
+
+  // Back from the provider: crop the fetched picture, or say why there is none.
+  async function continueFromProvider() {
+    const parameters = new URLSearchParams(window.location.search);
+    const outcome = parameters.get('picture');
+    if (!outcome) return;
+    const failure = parameters.get('sign_in_error');
+    parameters.delete('picture');
+    parameters.delete('sign_in_error');
+    const query = parameters.toString();
+    window.history.replaceState(null, '', `${window.location.pathname}${query ? `?${query}` : ''}`);
+    if (outcome !== 'ready') {
+      status.textContent = failure ?? 'The picture could not be fetched.';
+      return;
+    }
+    try {
+      const response = await fetch('/api/v1/account/avatar/imported.php', { credentials: 'same-origin' });
+      if (!response.ok) throw new Error('The fetched picture has expired. Please fetch it again.');
+      const blob = await response.blob();
+      openCrop(new File([blob], 'picture', { type: blob.type }));
+    } catch (error) {
+      status.textContent = error instanceof Error ? error.message : 'The picture could not be loaded.';
+    }
+  }
 });

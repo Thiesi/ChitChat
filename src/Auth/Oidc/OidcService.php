@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace ChitChat\Auth\Oidc;
 
 use ChitChat\Account\AccountClosureService;
+use ChitChat\Account\AvatarService;
 use ChitChat\Admin\LockdownService;
 use ChitChat\Audit\AuditLogger;
 use ChitChat\Auth\AuthenticatedUser;
@@ -29,13 +30,15 @@ use RuntimeException;
 final class OidcService
 {
     private const FLOW_TTL_SECONDS = 600;
-    private const PURPOSES = ['login', 'link', 'step_up', 'restore'];
+    private const PURPOSES = ['login', 'link', 'step_up', 'restore', 'picture'];
     /** Where each purpose returns to, including when it fails. */
     private const RETURN_TO = [
         'login' => '/',
         'link' => '/account.php',
         'step_up' => '/step-up-complete.php',
         'restore' => '/restore-account.php',
+        // Marked, so the Profile picture card (not Sign-in methods) shows the error.
+        'picture' => '/account.php?picture=failed',
     ];
     /** A provider-confirmed new account must be finished within this time. */
     private const SIGN_UP_TTL_SECONDS = 600;
@@ -71,12 +74,13 @@ final class OidcService
      * Starts a provider round trip and returns the provider URL to send the
      * browser to: signing in or up ('login'), restoring a closing account
      * ('restore'), or, for the signed-in account, connecting a provider
-     * ('link') or confirming a sensitive action ('step_up').
+     * ('link'), confirming a sensitive action ('step_up') or fetching its
+     * profile picture there ('picture', the one round trip that asks for it).
      */
     public function begin(string $providerName, string $purpose, ?AuthenticatedUser $user): string
     {
         $provider = OidcProvider::require($this->config, $providerName);
-        $needsUser = in_array($purpose, ['link', 'step_up'], true);
+        $needsUser = in_array($purpose, ['link', 'step_up', 'picture'], true);
         if (!in_array($purpose, self::PURPOSES, true) || $needsUser !== ($user !== null)) {
             throw new ApiException(400, 'validation_error', 'Unsupported sign-in purpose.');
         }
@@ -115,6 +119,13 @@ final class OidcService
                 $parameters['max_age'] = '0';
             } else {
                 $parameters['force_verify'] = 'true';
+            }
+        } elseif ($purpose === 'picture') {
+            // Only this round trip asks for the picture; sign-in stays "openid" only.
+            if ($provider->name === 'google') {
+                $parameters['scope'] = 'openid profile';
+            } else {
+                $parameters['claims'] = '{"id_token":{"picture":null}}';
             }
         } elseif ($provider->name === 'google') {
             $parameters['prompt'] = 'select_account';
@@ -160,6 +171,7 @@ final class OidcService
             'link' => $this->link((int) $flow['user_id'], $provider, $subject, $ipAddress),
             'step_up' => $this->stepUp((int) $flow['user_id'], $provider, $claims, $flow['created_at'], $ipAddress),
             'restore' => $this->restore($provider, $subject, $ipAddress),
+            'picture' => $this->importPicture((int) $flow['user_id'], $provider, $claims, $ipAddress),
             default => $this->signIn($provider, $subject, $ipAddress),
         };
     }
@@ -354,6 +366,40 @@ final class OidcService
         SessionManager::establishPrivilegedStepUp($current, $provider->name);
 
         return $returnTo . '?confirmed=1';
+    }
+
+    /**
+     * Fetches the profile picture of the signed-in account's connected
+     * provider account, for the crop step on the Account page. Every other
+     * claim (a name, say) is ignored.
+     *
+     * @param array<string, mixed> $claims
+     */
+    private function importPicture(int $userId, OidcProvider $provider, array $claims, string $ipAddress): string
+    {
+        $returnTo = self::RETURN_TO['picture'];
+        $current = SessionManager::currentUser($this->users);
+        if ($current === null || $current->id !== $userId) {
+            throw new OidcRedirectException($returnTo, 'Your session changed meanwhile. Please try again.');
+        }
+        if ($this->userIdFor($provider->name, (string) $claims['sub']) !== $current->id) {
+            throw new OidcRedirectException($returnTo, sprintf('That %s account is not the one connected to your account.', $provider->label));
+        }
+        $url = $provider->pictureUrl($claims['picture'] ?? null);
+        if ($url === null) {
+            throw new OidcRedirectException($returnTo, sprintf('%s has no profile picture to use.', $provider->label));
+        }
+        try {
+            (new AvatarService($this->pdo, $this->config))->stashImport(
+                $current->id,
+                $this->http->getBytes($url, AvatarService::IMPORT_MAX_BYTES),
+            );
+        } catch (ApiException $exception) {
+            throw new OidcRedirectException($returnTo, sprintf('The %s picture could not be used. %s', $provider->label, $exception->getMessage()));
+        }
+        $this->audit->log($current->id, 'account.avatar_imported', 'user', (string) $current->id, ['provider' => $provider->name], $ipAddress);
+
+        return '/account.php?picture=ready';
     }
 
     /** Restores a closing account whose owner proved it through a connected provider. */

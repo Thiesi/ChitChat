@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace ChitChat\Tests\Integration;
 
 use ChitChat\Account\AccountClosureService;
+use ChitChat\Account\AvatarService;
 use ChitChat\Admin\LockdownService;
 use ChitChat\Auth\AuthenticatedUser;
 use ChitChat\Auth\AuthService;
@@ -202,6 +203,46 @@ final class OidcServiceTest extends DatabaseTestCase
         $this->assertRedirectMessage('login', 'Restore a closing account');
     }
 
+    public function testAPictureIsFetchedOnlyOnRequestAndOnlyFromTheProvider(): void
+    {
+        [, $member] = $this->users();
+        $this->provider->subject = 'google-member';
+        $this->signInAs($member);
+        $this->oidc->complete(['state' => $this->authorize('link', $member)['state'], 'code' => 'c'], '127.0.0.2');
+
+        $query = $this->authorize('picture', $member);
+        self::assertSame('openid profile', $query['scope'], 'Only the picture round trip asks for the profile.');
+        $this->provider->pictureClaim = FakeProvider::ISSUER . '/picture.png';
+        // A 1 x 1 PNG.
+        $this->provider->picture = (string) base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==', true);
+        self::assertSame('/account.php?picture=ready', $this->oidc->complete(['state' => $query['state'], 'code' => 'c'], '127.0.0.2'));
+        $avatars = new AvatarService($this->pdo, $this->config);
+        $import = $avatars->takeImport($member->id);
+        self::assertSame('image/png', $import['media_type'] ?? null);
+        self::assertSame($this->provider->picture, $import['image'] ?? null);
+        self::assertNull($avatars->takeImport($member->id), 'The picture is handed over once.');
+
+        // An address outside the provider, or something that is no image, is refused.
+        $this->provider->pictureClaim = 'https://evil.example/picture.png';
+        $this->assertPictureRefused($member, 'has no profile picture to use');
+        $this->provider->pictureClaim = FakeProvider::ISSUER . '/picture.png';
+        $this->provider->picture = '<svg xmlns="http://www.w3.org/2000/svg"/>';
+        $this->assertPictureRefused($member, 'is not a JPEG, PNG, or WebP image');
+        self::assertNull($avatars->takeImport($member->id));
+    }
+
+    private function assertPictureRefused(AuthenticatedUser $user, string $message): void
+    {
+        $state = $this->authorize('picture', $user)['state'];
+        try {
+            $this->oidc->complete(['state' => $state, 'code' => 'c'], '127.0.0.2');
+            self::fail("Expected: {$message}");
+        } catch (OidcRedirectException $exception) {
+            self::assertSame('/account.php?picture=failed', $exception->returnTo);
+            self::assertStringContainsString($message, $exception->getMessage());
+        }
+    }
+
     private function assertStepUpRefused(AuthenticatedUser $user, string $message): void
     {
         $state = $this->authorize('step_up', $user)['state'];
@@ -270,6 +311,7 @@ final class FakeProvider implements OidcHttpClient
     public string $challenge = '';
     public ?string $nonceOverride = null;
     public ?int $authTime = null;
+    public ?string $pictureClaim = null;
     public int $keyFetches = 0;
     private \OpenSSLAsymmetricKey $key;
 
@@ -301,8 +343,19 @@ final class FakeProvider implements OidcHttpClient
         if ($this->authTime !== null) {
             $claims['auth_time'] = $this->authTime;
         }
+        if ($this->pictureClaim !== null) {
+            $claims['picture'] = $this->pictureClaim;
+            $claims['name'] = 'Ignored Full Name';
+        }
 
         return ['id_token' => $this->sign($claims)];
+    }
+
+    public string $picture = '';
+
+    public function getBytes(string $url, int $maxBytes): string
+    {
+        return $this->picture;
     }
 
     public function getJson(string $url): array

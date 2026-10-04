@@ -23,11 +23,34 @@ final class CurlOidcHttpClient implements OidcHttpClient
         return $this->request($url, [CURLOPT_HTTPHEADER => ['Accept: application/json']]);
     }
 
+    public function getBytes(string $url, int $maxBytes): string
+    {
+        $body = $this->fetch($url, [
+            CURLOPT_HTTPHEADER => ['Accept: image/jpeg, image/png, image/webp'],
+            // Stop as soon as the body grows past the limit.
+            CURLOPT_NOPROGRESS => false,
+            CURLOPT_XFERINFOFUNCTION => static fn (mixed $handle, int $total, int $now): int => max($total, $now) > $maxBytes ? 1 : 0,
+        ]);
+        if (strlen($body) > $maxBytes) {
+            throw $this->unavailable();
+        }
+
+        return $body;
+    }
+
     /**
      * @param array<int, mixed> $options
      * @return array<string, mixed>
      */
     private function request(string $url, array $options): array
+    {
+        $decoded = json_decode($this->fetch($url, $options), true);
+
+        return is_array($decoded) ? $decoded : throw $this->unavailable();
+    }
+
+    /** @param array<int, mixed> $options */
+    private function fetch(string $url, array $options): string
     {
         $handle = curl_init($url);
         if ($handle === false) {
@@ -48,9 +71,8 @@ final class CurlOidcHttpClient implements OidcHttpClient
             error_log(sprintf('Sign-in provider request to %s failed with HTTP %d.', parse_url($url, PHP_URL_HOST) ?: 'provider', $status));
             throw $this->unavailable();
         }
-        $decoded = json_decode($body, true);
 
-        return is_array($decoded) ? $decoded : throw $this->unavailable();
+        return $body;
     }
 
     private function unavailable(): ApiException

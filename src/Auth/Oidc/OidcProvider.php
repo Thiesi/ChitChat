@@ -42,6 +42,7 @@ final readonly class OidcProvider
         public string $authorizationEndpoint,
         public string $tokenEndpoint,
         public string $jwksUri,
+        public ?string $endpointOverride = null,
     ) {
     }
 
@@ -72,6 +73,7 @@ final readonly class OidcProvider
                 authorizationEndpoint: $override !== '' ? $override . '/authorize' : $known['authorization'],
                 tokenEndpoint: $override !== '' ? $override . '/token' : $known['token'],
                 jwksUri: $override !== '' ? $override . '/keys' : $known['jwks'],
+                endpointOverride: $override !== '' ? $override : null,
             );
         }
 
@@ -91,5 +93,37 @@ final readonly class OidcProvider
     public static function redirectUri(Config $config): string
     {
         return $config->oidcRedirectOrigin . '/api/v1/oidc/callback.php';
+    }
+
+    /**
+     * The picture address from an ID token, if it points at this provider's
+     * own image host; null for anything else, so the server never fetches an
+     * address a token could steer elsewhere.
+     */
+    public function pictureUrl(mixed $claim): ?string
+    {
+        if (!is_string($claim) || $claim === '') {
+            return null;
+        }
+        if ($this->endpointOverride !== null) {
+            // A local mock provider (development and test only) serves its own pictures.
+            return str_starts_with($claim, $this->endpointOverride . '/') ? $claim : null;
+        }
+        $parts = parse_url($claim);
+        if (!is_array($parts) || ($parts['scheme'] ?? '') !== 'https' || isset($parts['user']) || isset($parts['port'])) {
+            return null;
+        }
+        $host = strtolower($parts['host'] ?? '');
+        $allowed = match ($this->name) {
+            'google' => str_ends_with($host, '.googleusercontent.com'),
+            'twitch' => $host === 'static-cdn.jtvnw.net',
+            default => false,
+        };
+        if (!$allowed) {
+            return null;
+        }
+
+        // Google serves 96-pixel pictures unless asked for more; ask for enough to crop.
+        return $this->name === 'google' ? (preg_replace('/=s\d+(-c)?$/', '=s512-c', $claim) ?? $claim) : $claim;
     }
 }
