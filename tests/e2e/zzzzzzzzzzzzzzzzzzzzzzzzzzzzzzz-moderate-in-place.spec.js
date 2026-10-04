@@ -45,7 +45,9 @@ test('a moderator deletes someone else\'s message right in the chat', async ({ b
     await memberPage.locator('#composer-input').press('Enter');
 
     // The Super-Administrator sees Delete on the member's message, and only a confirmation follows.
-    const message = rootPage.locator('.message', { hasText: text });
+    // Held by its ID: once deleted, the text it was found by is gone.
+    const messageId = await rootPage.locator('.message', { hasText: text }).getAttribute('data-message-id');
+    const message = rootPage.locator(`.message[data-message-id="${messageId}"]`);
     await message.getByRole('button', { name: 'Delete' }).click();
     const dialog = rootPage.getByRole('dialog', { name: 'Delete this message?' });
     await expect(dialog).toContainText(text);
