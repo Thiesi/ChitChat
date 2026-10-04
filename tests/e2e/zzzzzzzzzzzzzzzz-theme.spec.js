@@ -23,7 +23,7 @@ test('the theme follows the system by default and remembers an explicit choice o
   await page.emulateMedia({ colorScheme: 'dark' });
   await expect(html(page)).toHaveAttribute('data-theme', 'dark');
 
-  const sidebarTheme = page.locator('.sidebar-footer').getByLabel('Theme');
+  const sidebarTheme = page.locator('.sidebar-footer').getByRole('combobox', { name: 'Theme' });
   await expect(sidebarTheme).toHaveValue('system');
   await sidebarTheme.selectOption('light');
   await expect(html(page)).toHaveAttribute('data-theme', 'light');
@@ -33,9 +33,9 @@ test('the theme follows the system by default and remembers an explicit choice o
   await expect(html(page)).toHaveAttribute('data-theme', 'light');
   await page.goto('/account.php');
   await expect(html(page)).toHaveAttribute('data-theme', 'light');
-  await expect(page.locator('#account-shell').getByLabel('Theme')).toHaveValue('light');
+  await expect(page.locator('#account-shell').getByRole('combobox', { name: 'Theme' })).toHaveValue('light');
 
-  await page.locator('#account-shell').getByLabel('Theme').selectOption('system');
+  await page.locator('#account-shell').getByRole('combobox', { name: 'Theme' }).selectOption('system');
   await expect(html(page)).toHaveAttribute('data-theme', 'dark');
   await page.emulateMedia({ colorScheme: 'light' });
   await expect(html(page)).toHaveAttribute('data-theme', 'light');
