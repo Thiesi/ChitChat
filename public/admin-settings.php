@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 /** @var ChitChat\Config $config */
 $config = require dirname(__DIR__) . '/bootstrap/app.php';
-$appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+$appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($config), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 ?><!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
+  <meta name="application-name" content="<?= $appName ?>">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark">
   <meta name="description" content="<?= $appName ?> operational settings">
@@ -96,6 +97,20 @@ $appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUT
         <h2>Apply policy</h2>
         <p id="settings-updated" class="admin-muted"></p>
         <button id="save-settings" class="danger-button" type="submit">Save operational settings</button>
+      </section>
+    </form>
+
+    <form id="application-name-form" class="room-admin-grid">
+      <section class="admin-card form-stack">
+        <h2>Application name</h2>
+        <p class="admin-muted">
+          The name this installation shows people: page titles and headings, passkey prompts, push notifications,
+          and exports. Leave it empty to use the server default.
+        </p>
+        <label>Application name <span id="app-name-default" class="optional-label"></span>
+          <input id="app-name" type="text" maxlength="64" autocomplete="off">
+        </label>
+        <button id="save-application-name" class="secondary-button" type="submit">Save application name</button>
       </section>
     </form>
 

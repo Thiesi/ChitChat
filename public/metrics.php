@@ -21,7 +21,7 @@ if (!MetricsAuthorizer::accepts(
     (string) ($_SERVER['HTTP_AUTHORIZATION'] ?? ''),
 )) {
     http_response_code(401);
-    header('WWW-Authenticate: Bearer realm="ChitChat metrics"');
+    header(sprintf('WWW-Authenticate: Bearer realm="%s metrics"', str_replace('"', '', $config->applicationName)));
     header('Content-Type: text/plain; charset=utf-8');
     echo "Unauthorized\n";
     exit;

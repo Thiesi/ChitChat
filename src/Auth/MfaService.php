@@ -3,6 +3,7 @@
 declare(strict_types=1);
 namespace ChitChat\Auth;
 
+use ChitChat\Admin\ApplicationNameService;
 use ChitChat\Audit\AuditLogger;
 use ChitChat\Config;
 use ChitChat\Http\ApiException;
@@ -35,7 +36,7 @@ final class MfaService
         $this->webauthn = new WebAuthnProtocol(
             $config->webauthnRpId,
             $config->webauthnOrigin,
-            $config->applicationName,
+            (new ApplicationNameService($pdo, $config))->effective(),
             $config->webauthnChallengeTtlSeconds * 1000,
         );
     }

@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 /** @var ChitChat\Config $config */
 $config = require dirname(__DIR__) . '/bootstrap/app.php';
-$appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+$appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($config), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 ?><!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
+  <meta name="application-name" content="<?= $appName ?>">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark">
   <meta name="description" content="Search <?= $appName ?> messages">
@@ -37,7 +38,7 @@ $appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUT
     <section class="message-search-notice" aria-labelledby="message-search-notice-heading">
       <h2 id="message-search-notice-heading">Your visible history only</h2>
       <p>Search includes current message bodies in rooms whose history you may discover and read, plus direct conversations in which you participate.</p>
-      <p>Deleted messages and retained revision bodies are deliberately excluded. Search terms are sent in a protected request body rather than the address bar, are rate-limited, and are not written to the ChitChat audit log or aggregate metrics.</p>
+      <p>Deleted messages and retained revision bodies are deliberately excluded. Search terms are sent in a protected request body rather than the address bar, are rate-limited, and are not written to the <?= $appName ?> audit log or aggregate metrics.</p>
     </section>
 
     <form id="message-search-form" class="message-search-form">

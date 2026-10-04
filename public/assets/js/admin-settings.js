@@ -22,6 +22,9 @@ window.addEventListener('DOMContentLoaded', () => {
     'settings-updated',
     'save-settings',
     'toast-region',
+    'application-name-form',
+    'app-name',
+    'app-name-default',
     'registration-protection-form',
     'rp-max-attempts',
     'rp-max-attempts-default',
@@ -40,6 +43,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
   elements['settings-form'].addEventListener('submit', saveSettings);
   elements['registration-protection-form'].addEventListener('submit', saveRegistrationProtection);
+  elements['application-name-form'].addEventListener('submit', saveApplicationName);
   bootstrap().catch(handleFatal);
 });
 
@@ -55,6 +59,8 @@ async function bootstrap() {
   elements['settings-identity'].textContent = `Signed in as ${session.user.username}`;
   const response = await apiGet('/api/v1/admin/settings/get.php');
   renderSettings(response.settings);
+  const name = await apiGet('/api/v1/admin/settings/application-name/get.php');
+  renderApplicationName(name.application_name);
   const protection = await apiGet('/api/v1/admin/settings/registration-protection/get.php');
   renderRegistrationProtection(protection.registration_protection);
   elements['settings-loading'].classList.add('hidden');
@@ -121,6 +127,31 @@ async function saveSettings(event) {
     elements['settings-error'].textContent = errorMessage(error);
   } finally {
     setBusy(false);
+  }
+}
+
+function renderApplicationName(name) {
+  elements['app-name'].value = name.override ?? '';
+  elements['app-name'].placeholder = name.default;
+  elements['app-name-default'].textContent = `server default ${name.default}`;
+}
+
+async function saveApplicationName(event) {
+  event.preventDefault();
+  elements['settings-error'].textContent = '';
+  const value = elements['app-name'].value.trim();
+
+  setFormBusy(elements['application-name-form'], true);
+  try {
+    const response = await apiPost('/api/v1/admin/settings/application-name/update.php', {
+      application_name: value === '' ? null : value,
+    });
+    renderApplicationName(response.application_name);
+    toast('Application name saved. Pages show it the next time they load.');
+  } catch (error) {
+    elements['settings-error'].textContent = errorMessage(error);
+  } finally {
+    setFormBusy(elements['application-name-form'], false);
   }
 }
 

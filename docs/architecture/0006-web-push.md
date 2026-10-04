@@ -69,7 +69,7 @@ This is a new, deliberately short-interval systemd timer (operators are expected
 
 ### Payload privacy: reuse the existing sanitized text, never the raw body
 
-The push payload is `{ "title": ..., "body": ..., "link": ... }` built from the same `title`/`message`/`link` `PrivacyNotificationService::present()` already computes for the in-app timeline — sender username and room name, never message content. This satisfies "push payloads should omit message bodies by default" without a second rendering path to keep in sync, and matches the roadmap's framing that push should carry no more than what's already considered safe for a durable, exportable, non-ephemeral in-app record.
+The push payload is `{ "title": ..., "body": ..., "link": ..., "app_name": ... }` built from the same `title`/`message`/`link` `PrivacyNotificationService::present()` already computes for the in-app timeline — sender username and room name, never message content. This satisfies "push payloads should omit message bodies by default" without a second rendering path to keep in sync, and matches the roadmap's framing that push should carry no more than what's already considered safe for a durable, exportable, non-ephemeral in-app record.
 
 ### Subscription pruning: remove on 404/410, never on any other error
 

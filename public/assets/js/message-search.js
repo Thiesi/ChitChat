@@ -1,4 +1,5 @@
 import { ApiError, apiGet, apiPost, setCsrfToken } from './api.js';
+import { applicationName } from './application-name.js';
 
 const state = {
   query: '',
@@ -150,7 +151,7 @@ function buildResult(result) {
     link.textContent = `Conversation with ${result.peer.username}`;
   } else {
     link.href = '/';
-    link.textContent = 'Open ChitChat';
+    link.textContent = `Open ${applicationName()}`;
   }
   heading.append(link);
 

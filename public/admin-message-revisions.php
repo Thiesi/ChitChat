@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 /** @var ChitChat\Config $config */
 $config = require dirname(__DIR__) . '/bootstrap/app.php';
-$appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+$appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($config), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 ?><!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
+  <meta name="application-name" content="<?= $appName ?>">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark">
   <meta name="description" content="<?= $appName ?> administrative message revision review">
@@ -34,7 +35,7 @@ $appName = htmlspecialchars($config->applicationName, ENT_QUOTES | ENT_SUBSTITUT
     <section class="revision-review-warning" aria-labelledby="revision-review-warning-heading">
       <h2 id="revision-review-warning-heading">Restricted historical-content access</h2>
       <p>This workflow is separate from direct-message inspection and requires recent current-password verification. Each successful review separately records your identity, IP address, exact message kind and ID, stated reason, and returned revision IDs. Passwords and historical bodies are not copied into audit metadata.</p>
-      <p>ChitChat does not notify message participants when a review occurs. Operators are responsible for disclosing this capability in their privacy and moderation policy.</p>
+      <p><?= $appName ?> does not notify message participants when a review occurs. Operators are responsible for disclosing this capability in their privacy and moderation policy.</p>
     </section>
 
     <p id="revision-review-error" class="error-text" role="alert"></p>

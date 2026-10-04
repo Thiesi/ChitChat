@@ -1,4 +1,5 @@
 import { apiGet, apiPost, setCsrfToken } from './api.js';
+import { applicationName } from './application-name.js';
 import { withPrivilegedStepUp } from './step-up.js';
 import { createPasskey, webAuthnSupported } from './webauthn.js';
 
@@ -239,7 +240,7 @@ function showRecoveryCodes(codes) {
   title.id = 'recovery-code-title';
   title.textContent = 'Save your recovery codes now';
   const explanation = document.createElement('p');
-  explanation.textContent = 'Each code works once. ChitChat stores only hashes and cannot show this set again.';
+  explanation.textContent = `Each code works once. ${applicationName()} stores only hashes and cannot show this set again.`;
   const pre = document.createElement('pre');
   pre.className = 'recovery-code-list';
   pre.textContent = `${codes.join('\n')}\n`;
