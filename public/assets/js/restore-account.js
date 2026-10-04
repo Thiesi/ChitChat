@@ -20,6 +20,8 @@ async function initialize() {
       return;
     }
     form.addEventListener('submit', restoreAccount);
+    renderProviders(session.sign_in_providers);
+    continueFromProvider();
   } catch (cause) {
     error.textContent = message(cause, 'Unable to initialize account restoration.');
   }
@@ -51,6 +53,50 @@ async function restoreAccount(event) {
   } finally {
     setFormBusy(false);
   }
+}
+
+// Accounts connected to Google or Twitch can be restored through them,
+// including accounts that never had a password.
+function renderProviders(providers) {
+  const container = document.querySelector('#restore-providers');
+  if (!container || !Array.isArray(providers) || providers.length === 0) return;
+  for (const provider of providers) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'secondary-button';
+    button.textContent = `Restore with ${provider.label}`;
+    button.addEventListener('click', async () => {
+      button.disabled = true;
+      error.textContent = '';
+      try {
+        const { url } = await apiPost('/api/v1/oidc/begin.php', { provider: provider.id, purpose: 'restore' });
+        window.location.assign(url);
+      } catch (cause) {
+        error.textContent = message(cause, 'Unable to start restoring with that provider.');
+        button.disabled = false;
+      }
+    });
+    container.append(button);
+  }
+  container.classList.remove('hidden');
+}
+
+// Back from the provider: show why it failed, or continue with the second factor.
+function continueFromProvider() {
+  const parameters = new URLSearchParams(window.location.search);
+  const failure = parameters.get('sign_in_error');
+  const mfa = parameters.get('mfa') === 'continue';
+  if (!failure && !mfa) return;
+  window.history.replaceState(null, '', window.location.pathname);
+  if (failure) {
+    error.textContent = failure;
+    return;
+  }
+  status.textContent = 'Account confirmed. Complete multi-factor authentication before the account is restored.';
+  form.classList.add('hidden');
+  document.querySelector('#restore-providers')?.classList.add('hidden');
+  panel.root.classList.remove('hidden');
+  (panel.passkey.disabled ? panel.code : panel.passkey).focus();
 }
 
 function buildMfaPanel() {

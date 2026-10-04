@@ -202,11 +202,24 @@ SQL);
         return (int) $version;
     }
 
+    /** False for accounts created through Google or Twitch that never set a password. */
+    public function hasPassword(int $userId): bool
+    {
+        $statement = $this->pdo->prepare('SELECT has_password::int FROM users WHERE id = :id');
+        if ($statement === false) {
+            throw new RuntimeException('Unable to prepare password lookup.');
+        }
+        $statement->execute(['id' => $userId]);
+
+        return (int) $statement->fetchColumn() === 1;
+    }
+
     public function updatePassword(int $userId, string $passwordHash): int
     {
         $statement = $this->pdo->prepare(<<<'SQL'
 UPDATE users
 SET password_hash = :password_hash,
+    has_password = TRUE,
     session_version = session_version + 1,
     updated_at = NOW()
 WHERE id = :id

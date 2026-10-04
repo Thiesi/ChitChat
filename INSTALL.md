@@ -149,7 +149,7 @@ Incorrect password, passkey and recovery-code attempts are independently audited
 
 ### Sign in with Google or Twitch
 
-Accounts can connect Google or Twitch on the Account page and then sign in with it. ChitChat uses OpenID Connect with the authorization-code flow, PKCE, a state bound to the browser session, and a nonce bound into the ID token. It requests **only the `openid` scope** and stores the provider plus its stable account identifier (`sub`), **never an email address**, name, or picture. ID tokens are verified locally (RS256 signature against the provider's published keys, issuer, audience, expiry, and nonce); the keys are cached for an hour.
+Accounts can connect Google or Twitch on the Account page and then sign in with it. New people can also sign up with a provider: they still choose a ChitChat username, and registration being open, the bot protection and maintenance lockdown apply as for a password sign-up. Such accounts have no password until they set one on the Account page; they confirm sensitive actions by signing in with the provider again in a small window (or with a passkey, if they use MFA), and restore a closing account through the provider. ChitChat uses OpenID Connect with the authorization-code flow, PKCE, a state bound to the browser session, and a nonce bound into the ID token. It requests **only the `openid` scope** and stores the provider plus its stable account identifier (`sub`), **never an email address**, name, or picture. ID tokens are verified locally (RS256 signature against the provider's published keys, issuer, audience, expiry, and nonce); the keys are cached for an hour.
 
 Each provider is disabled until configured. Register an application with the provider, use `<OIDC_REDIRECT_ORIGIN>/api/v1/oidc/callback.php` as its redirect URI, and set:
 
@@ -164,7 +164,9 @@ TWITCH_OIDC_CLIENT_SECRET=…
 - Google: create an OAuth client of type "Web application" in the Google Cloud console; the consent screen needs no scopes beyond `openid`.
 - Twitch: register an application in the Twitch developer console with the redirect URI above.
 
-Provider sign-in follows the same rules as password sign-in: bans, maintenance lockdown, and multi-factor authentication apply (an account with passkeys still completes its second factor), it is rate-limited per IP address (`oidc_sign_in`), and it is audited. Connecting or disconnecting a provider requires privileged step-up. The server must be able to reach the provider over HTTPS for the token exchange and key download.
+Provider sign-in follows the same rules as password sign-in: bans, maintenance lockdown, and multi-factor authentication apply (an account with passkeys still completes its second factor), it is rate-limited per IP address (`oidc_sign_in`), and it is audited. Connecting or disconnecting a provider requires privileged step-up, and an account without a password cannot disconnect its last provider.
+
+Confirming a sensitive action through a provider is as strong as the provider's own sign-in. ChitChat asks for a fresh sign-in: Google reports when it happened (`auth_time`) and ChitChat insists it is from this attempt; Twitch reports no such time, so ChitChat relies on Twitch's confirmation screen (`force_verify`). Members who want more should add a passkey, which then becomes the required method. The server must be able to reach the provider over HTTPS for the token exchange and key download.
 
 ## Endpoints
 

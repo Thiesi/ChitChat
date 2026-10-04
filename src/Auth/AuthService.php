@@ -34,11 +34,41 @@ final class AuthService
         string $ipAddress,
         ?string $birthDate = null,
     ): AuthenticatedUser {
+        return $this->createAccount($usernameInput, $password, $ipAddress, $birthDate, null);
+    }
+
+    /**
+     * Creates an account that signs in with Google or Twitch and has no
+     * password until its owner sets one.
+     */
+    public function registerWithProvider(
+        string $usernameInput,
+        string $provider,
+        string $subject,
+        string $ipAddress,
+        ?string $birthDate = null,
+    ): AuthenticatedUser {
+        return $this->createAccount($usernameInput, null, $ipAddress, $birthDate, [
+            'provider' => $provider,
+            'subject' => $subject,
+        ]);
+    }
+
+    /** @param ?array{provider:string, subject:string} $identity */
+    private function createAccount(
+        string $usernameInput,
+        ?string $password,
+        string $ipAddress,
+        ?string $birthDate,
+        ?array $identity,
+    ): AuthenticatedUser {
         (new LockdownService($this->pdo))->assertOpen();
         $username = Username::display($usernameInput);
         $canonical = Username::canonical($usernameInput);
         $normalizedBirthDate = BirthDate::normalize($birthDate);
-        PasswordPolicy::validate($password, $username);
+        if ($password !== null) {
+            PasswordPolicy::validate($password, $username);
+        }
 
         $userId = null;
         $this->pdo->beginTransaction();
@@ -67,8 +97,8 @@ final class AuthService
             $isFirstUser = (int) $countResult->fetchColumn() === 0;
 
             $statement = $this->pdo->prepare(<<<'SQL'
-INSERT INTO users (username, username_canonical, password_hash, birth_date)
-VALUES (:username, :canonical, :password_hash, :birth_date)
+INSERT INTO users (username, username_canonical, password_hash, has_password, birth_date)
+VALUES (:username, :canonical, :password_hash, :has_password, :birth_date)
 RETURNING id
 SQL);
             if ($statement === false) {
@@ -78,7 +108,9 @@ SQL);
             $statement->execute([
                 'username' => $username,
                 'canonical' => $canonical,
-                'password_hash' => password_hash($password, PASSWORD_DEFAULT),
+                // Without a password the hash is random and can never match.
+                'password_hash' => password_hash($password ?? bin2hex(random_bytes(32)), PASSWORD_DEFAULT),
+                'has_password' => $password === null ? 'false' : 'true',
                 'birth_date' => $normalizedBirthDate,
             ]);
 
@@ -98,12 +130,24 @@ SQL);
                 $roleStatement->execute(['id' => $userId]);
             }
 
+            if ($identity !== null) {
+                $identityStatement = $this->pdo->prepare(
+                    'INSERT INTO user_identities (user_id, provider, subject, last_used_at) VALUES (:user_id, :provider, :subject, NOW())',
+                );
+                if ($identityStatement === false) {
+                    throw new RuntimeException('Unable to prepare sign-in provider connection.');
+                }
+                $identityStatement->execute(['user_id' => $userId] + $identity);
+            }
+
             $this->audit->log(
                 actorUserId: $userId,
                 action: $isFirstUser ? 'auth.register_first_super_admin' : 'auth.register',
                 subjectType: 'user',
                 subjectId: (string) $userId,
-                metadata: ['username' => $username],
+                metadata: $identity === null
+                    ? ['username' => $username]
+                    : ['username' => $username, 'provider' => $identity['provider']],
                 ipAddress: $ipAddress,
             );
 
@@ -114,6 +158,9 @@ SQL);
             }
 
             if ($exception->getCode() === '23505') {
+                if (str_contains($exception->getMessage(), 'user_identities')) {
+                    throw new ApiException(409, 'identity_taken', 'This sign-in account is already connected to another account here.');
+                }
                 throw new ApiException(409, 'username_taken', 'That username is already registered.');
             }
 
@@ -254,7 +301,10 @@ SQL);
             throw new ApiException(404, 'user_not_found', 'User not found.');
         }
 
-        if (!password_verify($currentPassword, $credentials['password_hash'])) {
+        // An account created through Google or Twitch sets its first password
+        // here; the endpoint requires privileged step-up for that instead.
+        $hadPassword = $this->users->hasPassword($actor->id);
+        if ($hadPassword && !password_verify($currentPassword, $credentials['password_hash'])) {
             throw new ApiException(403, 'invalid_current_password', 'The current password is incorrect.');
         }
 
@@ -265,7 +315,7 @@ SQL);
             $this->users->updatePassword($actor->id, password_hash($newPassword, PASSWORD_DEFAULT));
             $this->audit->log(
                 actorUserId: $actor->id,
-                action: 'auth.password_changed',
+                action: $hadPassword ? 'auth.password_changed' : 'auth.password_set',
                 subjectType: 'user',
                 subjectId: (string) $actor->id,
                 metadata: [],

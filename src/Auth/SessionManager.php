@@ -9,7 +9,7 @@ use DateTimeImmutable;
 
 final class SessionManager
 {
-    private const STEP_UP_METHODS = ['password', 'passkey', 'recovery_code'];
+    private const STEP_UP_METHODS = ['password', 'passkey', 'recovery_code', 'google', 'twitch'];
     private const MFA_FLOWS = ['login', 'restore'];
 
     public static function start(Config $config): void

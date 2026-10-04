@@ -16,11 +16,13 @@ $config = require dirname(__DIR__, 5) . '/bootstrap/http.php';
 Endpoint::run($config, static function () use ($config): ApiResult {
     Request::requireMethod('GET');
     $pdo = Database::connect($config);
-    $actor = SessionManager::requireUser(new UserRepository($pdo));
+    $users = new UserRepository($pdo);
+    $actor = SessionManager::requireUser($users);
     $service = new OidcService($pdo, $config);
 
     return ApiResult::ok([
         'providers' => $service->providers(),
         'identities' => $service->identities($actor->id),
+        'has_password' => $users->hasPassword($actor->id),
     ]);
 });

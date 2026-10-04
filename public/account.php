@@ -111,6 +111,28 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
       </form>
     </section>
 
+    <section id="password-card" class="account-card" aria-labelledby="password-heading">
+      <div>
+        <p class="account-eyebrow">Sign-in</p>
+        <h2 id="password-heading">Password</h2>
+      </div>
+      <p id="password-intro">Changing your password signs you out everywhere else.</p>
+      <form id="password-form" class="form-stack" autocomplete="on">
+        <label id="password-current-field">
+          Current password
+          <input id="password-current" type="password" autocomplete="current-password" maxlength="4096" required>
+        </label>
+        <label>
+          New password <span class="optional-label">at least 12 characters</span>
+          <input id="password-new" type="password" autocomplete="new-password" minlength="12" maxlength="4096" required>
+        </label>
+        <div class="action-row">
+          <button id="password-submit" class="secondary-button" type="submit">Change password</button>
+        </div>
+      </form>
+      <p id="password-status" class="account-muted" role="status" aria-live="polite"></p>
+    </section>
+
     <section id="sign-in-methods" class="account-card hidden" aria-labelledby="sign-in-methods-heading">
       <div>
         <p class="account-eyebrow">Sign-in</p>
@@ -212,5 +234,6 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <script type="module" src="/assets/js/date-time-settings.js"></script>
   <script type="module" src="/assets/js/avatar-settings.js"></script>
   <script type="module" src="/assets/js/sign-in-methods.js"></script>
+  <script type="module" src="/assets/js/password-settings.js"></script>
 </body>
 </html>

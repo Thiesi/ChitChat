@@ -168,6 +168,35 @@ SQL, 'account-restoration authentication');
         if (!is_array($user) || !$verified) {
             throw new ApiException(401, 'invalid_credentials', 'Invalid username or password.');
         }
+
+        return $this->restorable($user);
+    }
+
+    /**
+     * Restoration for someone who proved the account through a connected
+     * Google or Twitch account instead of the password.
+     */
+    public function authenticateRestoreForUser(int $userId, string $ipAddress): AuthenticatedUser
+    {
+        (new LockdownService($this->pdo))->assertOpen();
+        $this->rateLimiter->consume('account_restore_ip', 'ip:' . $ipAddress);
+        $lookup = $this->prepare(<<<'SQL'
+SELECT id, username, session_version, account_state, closure_finalizes_at
+FROM users
+WHERE id = :id
+SQL, 'account-restoration lookup');
+        $lookup->execute(['id' => $userId]);
+        $user = $lookup->fetch();
+        if (!is_array($user)) {
+            throw new ApiException(404, 'user_not_found', 'User not found.');
+        }
+
+        return $this->restorable($user);
+    }
+
+    /** @param array<string, mixed> $user */
+    private function restorable(array $user): AuthenticatedUser
+    {
         if ((string) $user['account_state'] === 'closed') {
             throw new ApiException(410, 'account_closed', 'This account has already been permanently closed.');
         }
