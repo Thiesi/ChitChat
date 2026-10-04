@@ -6,7 +6,12 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ## [Unreleased]
 
-No changes since `v2.4.0`. ChitChat is feature-complete; see [Project status](README.md#project-status-feature-complete) and the [roadmap](docs/roadmap.md) for the maintenance-only policy going forward. Entries only appear here for a discovered bug fix or an accepted new feature request.
+ChitChat is feature-complete; see [Project status](README.md#project-status-feature-complete) and the [roadmap](docs/roadmap.md) for the maintenance-only policy going forward. Entries only appear here for a discovered bug fix or an accepted new feature request.
+
+### Fixed
+
+- Fixed the Operational settings layout: panels now share the full width evenly instead of leaving gaps and stacking flush, and wide panels lay their fields out side by side. The administration and moderation pages use the full browser width.
+- Fixed slash commands such as `/me` breaking across lines in chat notifications.
 
 ## [2.4.0] - 2026-10-04
 

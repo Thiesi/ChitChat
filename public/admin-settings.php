@@ -38,7 +38,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
     </p>
     <p id="settings-error" class="error-text" role="alert"></p>
 
-    <form id="settings-form" class="room-admin-grid">
+    <form id="settings-form" class="settings-grid">
       <section class="admin-card form-stack">
         <h2>Access</h2>
         <label>
@@ -101,8 +101,8 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
       </section>
     </form>
 
-    <form id="application-name-form" class="room-admin-grid">
-      <section class="admin-card form-stack">
+    <form id="application-name-form" class="settings-grid">
+      <section class="admin-card form-stack settings-wide">
         <h2>Application name</h2>
         <p class="admin-muted">
           The name this installation shows people: page titles and headings, passkey prompts, push notifications,
@@ -115,8 +115,8 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
       </section>
     </form>
 
-    <form id="registration-protection-form" class="room-admin-grid">
-      <section class="admin-card form-stack">
+    <form id="registration-protection-form" class="settings-grid">
+      <section class="admin-card form-stack settings-wide">
         <h2>Registration protection</h2>
         <p class="admin-muted">
           Limits automated sign-ups without puzzles for people: a per-IP attempt limit, a minimum time to fill in the form,

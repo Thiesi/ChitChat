@@ -923,6 +923,10 @@ a.secondary-button { display: inline-block; text-decoration: none; text-align: c
   box-shadow: var(--shadow);
 }
 
+.toast code {
+  white-space: nowrap;
+}
+
 .toast.error {
   border-color: var(--danger);
 }
