@@ -50,6 +50,8 @@ async function fixture(page, signedIn = true) {
       'direct-messages/attachments/metadata.php': { attachments: [] },
       'direct-messages/message-mutations.php': { messages: [] },
     };
+    // Nobody in these fixtures has a profile picture, so initials are shown.
+    if (path === 'avatars/show.php') return route.fulfill({ status: 404, body: '' });
     if (!(path in responses)) throw new Error(`Missing presentation fixture: ${path}`);
     await route.fulfill({ json: responses[path] });
   });

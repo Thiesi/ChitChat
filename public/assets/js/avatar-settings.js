@@ -20,21 +20,10 @@ window.addEventListener('DOMContentLoaded', async () => {
   const cancel = document.getElementById('avatar-crop-cancel');
   if (!preview || !fileInput || !removeButton || !status || !dialog || !canvas || !zoom || !save || !cancel) return;
 
-  let session;
-  try {
-    session = await apiGet('/api/v1/session.php');
-  } catch {
-    return;
-  }
-  const user = session.user;
-  if (!user) return;
-
-  preview.textContent = initials(user.username);
-  preview.dataset.tone = String(avatarTone(user.id));
-  preview.dataset.avatarUser = String(user.id);
-  attachPhoto(preview, user.id);
-
+  // Wired before any network request, so a picture chosen right away is not missed.
+  let user = null;
   const showState = async () => {
+    if (!user) return;
     try {
       const response = await apiGet(`/api/v1/users/profile.php?user_id=${encodeURIComponent(user.id)}`);
       removeButton.classList.toggle('hidden', !response.profile?.has_avatar);
@@ -47,7 +36,6 @@ window.addEventListener('DOMContentLoaded', async () => {
       // The card still works; the remove button simply stays hidden.
     }
   };
-  await showState();
 
   // ---- Cropping ----
   const context = canvas.getContext('2d');
@@ -163,7 +151,7 @@ window.addEventListener('DOMContentLoaded', async () => {
         await apiUpload('/api/v1/account/avatar/upload.php', form);
         dialog.close();
         status.textContent = 'Picture saved.';
-        refreshPhoto(user.id);
+        if (user) refreshPhoto(user.id);
         await showState();
       } catch (error) {
         status.textContent = error instanceof ApiError || error instanceof Error ? error.message : 'Uploading failed.';
@@ -179,7 +167,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     try {
       await apiPost('/api/v1/account/avatar/remove.php', {});
       status.textContent = 'Picture removed; your initials are shown instead.';
-      refreshPhoto(user.id);
+      if (user) refreshPhoto(user.id);
       await showState();
     } catch (error) {
       status.textContent = error instanceof Error ? error.message : 'Removing failed.';
@@ -187,4 +175,16 @@ window.addEventListener('DOMContentLoaded', async () => {
       removeButton.disabled = false;
     }
   });
+
+  try {
+    user = (await apiGet('/api/v1/session.php')).user ?? null;
+  } catch {
+    user = null;
+  }
+  if (!user) return;
+  preview.textContent = initials(user.username);
+  preview.dataset.tone = String(avatarTone(user.id));
+  preview.dataset.avatarUser = String(user.id);
+  attachPhoto(preview, user.id);
+  await showState();
 });
