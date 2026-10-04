@@ -136,13 +136,13 @@ async function bootstrap() {
   setCsrfToken(session.csrf_token);
   renderLockdown(session.lockdown);
   renderSignInProviders(session.sign_in_providers);
-  showSignInErrorFromRedirect();
   elements['app-loading'].classList.add('hidden');
 
   if (session.user) {
     await enterApplication(session.user);
   } else {
     showAuthMode('login');
+    showSignInErrorFromRedirect();
     elements['auth-shell'].classList.remove('hidden');
   }
 }
