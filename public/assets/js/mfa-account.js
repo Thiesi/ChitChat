@@ -2,6 +2,7 @@ import { apiGet, apiPost, setCsrfToken } from './api.js';
 import { applicationName } from './application-name.js';
 import { withPrivilegedStepUp } from './step-up.js';
 import { createPasskey, webAuthnSupported } from './webauthn.js';
+import { formatDateTime } from './datetime.js';
 
 let card = null;
 let status = null;
@@ -280,8 +281,7 @@ function setBusy(busy) {
 }
 
 function formatDate(value) {
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+  return formatDateTime(value);
 }
 
 function message(error) {

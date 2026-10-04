@@ -4,6 +4,7 @@ import { renderMessageBody, buildReplyPreview, buildReactionBar } from './messag
 import { attachMentionAutocomplete } from './mention-autocomplete.js';
 import { attachNameCompletion } from './name-completion.js';
 import { alertUser } from './attention.js';
+import { formatDateTime } from './datetime.js';
 
 const state = {
   user: null,
@@ -548,12 +549,6 @@ function formatRole(role) {
   return role === 'super_admin' ? 'Super-Administrators' : 'Administrators';
 }
 
-function formatDateTime(value) {
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat(undefined, {
-    dateStyle: 'medium', timeStyle: 'short',
-  }).format(date);
-}
 
 function toast(message, kind = 'info') {
   const node = document.createElement('div');

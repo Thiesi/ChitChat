@@ -1,6 +1,7 @@
 import { ApiError, apiGet, apiPost, setCsrfToken } from './api.js';
 import { applicationName } from './application-name.js';
 import { nameButton } from './name-menu.js';
+import { formatDateTime } from './datetime.js';
 
 const state = {
   query: '',
@@ -207,10 +208,6 @@ function errorMessage(error) {
   return 'The message search failed.';
 }
 
-function formatDateTime(value) {
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? String(value ?? '') : date.toLocaleString();
-}
 
 function handleFatal(error) {
   elements['message-search-loading'].textContent = errorMessage(error);

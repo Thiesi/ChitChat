@@ -1,4 +1,5 @@
 import { ApiError, apiGet, apiPost, setCsrfToken } from './api.js';
+import { formatDateTime } from './datetime.js';
 
 const PAGE_SIZE = 25;
 const state = {
@@ -206,9 +207,5 @@ function updateUnreadState() {
 }
 
 function formatTimestamp(value) {
-  if (typeof value !== 'string' || value === '') {
-    return 'Unknown time';
-  }
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+  return formatDateTime(value);
 }

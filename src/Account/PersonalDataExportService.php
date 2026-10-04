@@ -157,7 +157,7 @@ final class PersonalDataExportService
     private function profile(int $userId): array
     {
         $statement = $this->prepare(<<<'SQL'
-SELECT id, username, birth_date, created_at, updated_at, last_login_at
+SELECT id, username, birth_date, created_at, updated_at, last_login_at, date_locale, hour_cycle
 FROM users
 WHERE id = :id
 SQL, 'personal-data account profile');
@@ -174,6 +174,10 @@ SQL, 'personal-data account profile');
             'created_at' => (string) $row['created_at'],
             'updated_at' => (string) $row['updated_at'],
             'last_login_at' => $this->nullableString($row['last_login_at']),
+            'display_preferences' => [
+                'date_locale' => $this->nullableString($row['date_locale']),
+                'hour_cycle' => $this->nullableString($row['hour_cycle']),
+            ],
         ];
     }
 

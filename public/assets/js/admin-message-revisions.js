@@ -1,4 +1,5 @@
 import { ApiError, apiGet, apiPost, setCsrfToken } from './api.js';
+import { formatDateTime } from './datetime.js';
 
 const state = {
   user: null,
@@ -118,9 +119,9 @@ function renderContext(review) {
   }
 
   entries.push(
-    ['Created', formatDateTime(message.created_at)],
-    ['Last edited', message.edited_at ? `${formatDateTime(message.edited_at)} by ${formatUser(message.last_editor)}` : 'Never'],
-    ['Deleted', message.deleted_at ? `${formatDateTime(message.deleted_at)} by ${formatUser(message.deleted_by)}` : 'No'],
+    ['Created', formatPageDateTime(message.created_at)],
+    ['Last edited', message.edited_at ? `${formatPageDateTime(message.edited_at)} by ${formatUser(message.last_editor)}` : 'Never'],
+    ['Deleted', message.deleted_at ? `${formatPageDateTime(message.deleted_at)} by ${formatUser(message.deleted_by)}` : 'No'],
   );
 
   const context = elements['revision-review-context'];
@@ -144,7 +145,7 @@ function buildRevisionCard(kind, revision, sequence) {
   title.textContent = `Revision ${sequence} · ${revision.action === 'delete' ? 'Deletion' : 'Edit'}`;
   const meta = document.createElement('span');
   const type = kind === 'room' && revision.message_type ? ` · ${revision.message_type}` : '';
-  meta.textContent = `Ledger ID ${revision.id} · ${formatDateTime(revision.created_at)} · ${formatUser(revision.actor)}${type}`;
+  meta.textContent = `Ledger ID ${revision.id} · ${formatPageDateTime(revision.created_at)} · ${formatUser(revision.actor)}${type}`;
   header.append(title, meta);
 
   const grid = document.createElement('div');
@@ -191,13 +192,6 @@ function formatUser(user) {
   return 'System or unavailable user';
 }
 
-function formatDateTime(value) {
-  if (!value) return 'Unavailable';
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? String(value) : new Intl.DateTimeFormat(undefined, {
-    dateStyle: 'medium', timeStyle: 'short',
-  }).format(date);
-}
 
 function setBusy(busy) {
   for (const control of elements['revision-review-form'].querySelectorAll('button, input, select, textarea')) {
@@ -226,4 +220,8 @@ function handleFatal(error) {
   elements['revision-review-loading'].textContent = error instanceof Error
     ? error.message
     : 'Unable to load revision-review controls.';
+}
+
+function formatPageDateTime(value) {
+  return value ? formatDateTime(value) : 'Unavailable';
 }

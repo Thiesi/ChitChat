@@ -8,6 +8,7 @@ import { avatarTone, initials } from './avatar.js';
 import { nameButton } from './name-menu.js';
 import { attachNameCompletion } from './name-completion.js';
 import { alertUser } from './attention.js';
+import { formatDateTime } from './datetime.js';
 
 const registrationChallenge = createRegistrationChallenge();
 
@@ -460,7 +461,7 @@ function buildPingElement(ping) {
   const time = document.createElement('time');
   time.className = 'message-time';
   time.dateTime = ping.created_at;
-  time.textContent = formatDateTime(ping.created_at);
+  time.textContent = formatPageDateTime(ping.created_at);
   const meta = document.createElement('div');
   meta.className = 'message-header';
   const label = document.createElement('span');
@@ -722,7 +723,7 @@ function buildMessageElement(message) {
   const time = document.createElement('time');
   time.className = 'message-time';
   time.dateTime = message.created_at;
-  time.textContent = formatDateTime(message.created_at);
+  time.textContent = formatPageDateTime(message.created_at);
 
   header.append(author, time);
 
@@ -1153,16 +1154,6 @@ function toast(message, type = 'info') {
   window.setTimeout(() => item.remove(), 6000);
 }
 
-function formatDateTime(value) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-  return new Intl.DateTimeFormat(undefined, {
-    dateStyle: 'short',
-    timeStyle: 'short',
-  }).format(date);
-}
 
 function formatDuration(seconds) {
   if (seconds < 3600) {
@@ -1208,4 +1199,8 @@ function handleFatalError(error) {
   elements['app-loading'].textContent = errorMessage(error);
   elements['app-loading'].classList.remove('hidden');
   console.error(error);
+}
+
+function formatPageDateTime(value) {
+  return formatDateTime(value, { dateStyle: 'short', timeStyle: 'short' });
 }

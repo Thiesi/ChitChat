@@ -1,3 +1,5 @@
+import { setDateFormatPreference } from './datetime.js';
+
 let csrfToken = '';
 let sessionRequest = null;
 
@@ -99,6 +101,11 @@ async function request(path, options) {
 
   if (payload && typeof payload.csrf_token === 'string') {
     setCsrfToken(payload.csrf_token);
+  }
+
+  // The session carries the account's date and time preference to every page.
+  if (path === SESSION_ENDPOINT && payload && 'preferences' in payload) {
+    setDateFormatPreference(payload.preferences);
   }
 
   if (Number.isInteger(payload?.user?.session_version)) {

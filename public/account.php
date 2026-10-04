@@ -38,9 +38,9 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
     <section class="account-card" aria-labelledby="appearance-heading">
       <div>
         <p class="account-eyebrow">Appearance</p>
-        <h2 id="appearance-heading">Theme</h2>
+        <h2 id="appearance-heading">Theme and colours</h2>
       </div>
-      <p>Follow your device's light or dark setting, or choose one. The choice is saved on this device.</p>
+      <p>Follow your device's light or dark setting, or choose one, and pick a colour scheme. Every scheme has a light and a dark variant. These choices are saved on this device.</p>
       <label class="theme-select">
         Theme
         <select data-theme-select>
@@ -49,6 +49,47 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
           <option value="dark">Dark</option>
         </select>
       </label>
+      <fieldset class="scheme-fieldset">
+        <legend>Colour scheme</legend>
+        <div class="scheme-picker" role="radiogroup" aria-label="Colour scheme">
+          <label class="scheme-option" title="Lounge"><input type="radio" name="account-scheme" value="lounge" data-scheme-radio><span class="scheme-swatch" data-swatch="lounge" aria-hidden="true"></span><span class="scheme-name">Lounge</span></label>
+          <label class="scheme-option" title="Dusk"><input type="radio" name="account-scheme" value="dusk" data-scheme-radio><span class="scheme-swatch" data-swatch="dusk" aria-hidden="true"></span><span class="scheme-name">Dusk</span></label>
+          <label class="scheme-option" title="Ember"><input type="radio" name="account-scheme" value="ember" data-scheme-radio><span class="scheme-swatch" data-swatch="ember" aria-hidden="true"></span><span class="scheme-name">Ember</span></label>
+          <label class="scheme-option" title="Rosé"><input type="radio" name="account-scheme" value="rose" data-scheme-radio><span class="scheme-swatch" data-swatch="rose" aria-hidden="true"></span><span class="scheme-name">Rosé</span></label>
+          <label class="scheme-option" title="Midnight"><input type="radio" name="account-scheme" value="midnight" data-scheme-radio><span class="scheme-swatch" data-swatch="midnight" aria-hidden="true"></span><span class="scheme-name">Midnight</span></label>
+          <label class="scheme-option" title="High contrast"><input type="radio" name="account-scheme" value="contrast" data-scheme-radio><span class="scheme-swatch" data-swatch="contrast" aria-hidden="true"></span><span class="scheme-name">High contrast</span></label>
+        </div>
+      </fieldset>
+    </section>
+
+    <section class="account-card" aria-labelledby="date-time-heading">
+      <div>
+        <p class="account-eyebrow">Date and time</p>
+        <h2 id="date-time-heading">How dates and times look</h2>
+      </div>
+      <p>Automatic follows your browser's language settings. Choosing a region applies its date format wherever you sign in. Times always use this device's time zone.</p>
+      <form id="date-time-form" class="form-stack">
+        <label>
+          Format region
+          <select id="date-locale" name="date_locale"><option value="">Automatic</option></select>
+        </label>
+        <label>
+          Clock
+          <select id="hour-cycle" name="hour_cycle">
+            <option value="">Automatic</option>
+            <option value="h23">24-hour</option>
+            <option value="h12">12-hour</option>
+          </select>
+        </label>
+        <dl class="date-preview" aria-live="polite">
+          <dt>In chat</dt><dd id="date-preview-short"></dd>
+          <dt>Elsewhere</dt><dd id="date-preview-medium"></dd>
+        </dl>
+        <div class="account-action-row">
+          <button class="secondary-button" type="submit">Save date and time format</button>
+          <p id="date-time-status" class="account-muted" role="status"></p>
+        </div>
+      </form>
     </section>
 
     <section class="account-card" aria-labelledby="personal-data-heading">
@@ -118,5 +159,6 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
 
   <script type="module" src="/assets/js/account.js"></script>
   <script type="module" src="/assets/js/mfa-account.js"></script>
+  <script type="module" src="/assets/js/date-time-settings.js"></script>
 </body>
 </html>

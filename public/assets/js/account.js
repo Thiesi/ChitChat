@@ -1,4 +1,5 @@
 import { ApiError, apiGet, apiPost, setCsrfToken } from './api.js';
+import { formatDateTime } from './datetime.js';
 
 const elements = {
   loading: document.querySelector('#account-loading'),
@@ -80,7 +81,7 @@ async function requestClosure() {
     const payload = await apiPost('/api/v1/account/close.php');
     const deadline = payload.closure?.finalizes_at;
     const formatted = typeof deadline === 'string'
-      ? new Date(deadline).toLocaleString()
+      ? formatDateTime(deadline)
       : 'the cooling-off deadline';
     elements.closureStatus.textContent = `Closure requested. Restore the account before ${formatted}. Redirecting to sign in…`;
     window.setTimeout(() => window.location.assign('/'), 1200);

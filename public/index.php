@@ -175,6 +175,14 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
                   <label><input type="radio" name="theme-mode" value="light" data-theme-radio><span>Light</span></label>
                   <label><input type="radio" name="theme-mode" value="dark" data-theme-radio><span>Dark</span></label>
                 </div>
+                <div class="scheme-picker" role="radiogroup" aria-label="Colour scheme">
+                  <label class="scheme-option" title="Lounge"><input type="radio" name="menu-scheme" value="lounge" data-scheme-radio><span class="scheme-swatch" data-swatch="lounge" aria-hidden="true"></span><span class="visually-hidden">Lounge</span></label>
+                  <label class="scheme-option" title="Dusk"><input type="radio" name="menu-scheme" value="dusk" data-scheme-radio><span class="scheme-swatch" data-swatch="dusk" aria-hidden="true"></span><span class="visually-hidden">Dusk</span></label>
+                  <label class="scheme-option" title="Ember"><input type="radio" name="menu-scheme" value="ember" data-scheme-radio><span class="scheme-swatch" data-swatch="ember" aria-hidden="true"></span><span class="visually-hidden">Ember</span></label>
+                  <label class="scheme-option" title="Rosé"><input type="radio" name="menu-scheme" value="rose" data-scheme-radio><span class="scheme-swatch" data-swatch="rose" aria-hidden="true"></span><span class="visually-hidden">Rosé</span></label>
+                  <label class="scheme-option" title="Midnight"><input type="radio" name="menu-scheme" value="midnight" data-scheme-radio><span class="scheme-swatch" data-swatch="midnight" aria-hidden="true"></span><span class="visually-hidden">Midnight</span></label>
+                  <label class="scheme-option" title="High contrast"><input type="radio" name="menu-scheme" value="contrast" data-scheme-radio><span class="scheme-swatch" data-swatch="contrast" aria-hidden="true"></span><span class="visually-hidden">High contrast</span></label>
+                </div>
               </fieldset>
               <fieldset class="menu-group">
                 <legend class="menu-group-label">Sounds on this device</legend>

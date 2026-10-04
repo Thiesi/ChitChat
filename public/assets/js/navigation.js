@@ -3,6 +3,7 @@
 import { ApiError, apiGet, apiPost } from './api.js';
 import { miniAvatar } from './avatar.js';
 import { setSoundEnabled, soundEnabled } from './attention.js';
+import { formatDateTime } from './datetime.js';
 
 const BADGE_REFRESH_MS = 60_000;
 const RECENT_CONVERSATIONS = 8;
@@ -337,8 +338,5 @@ function emptyItem(text) {
 }
 
 function formatTime(value) {
-  const date = new Date(value);
-  return Number.isNaN(date.getTime())
-    ? ''
-    : date.toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' });
+  return formatDateTime(value, { dateStyle: 'short', timeStyle: 'short' });
 }

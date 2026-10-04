@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use ChitChat\Account\DisplayPreferenceService;
 use ChitChat\Auth\SessionManager;
 use ChitChat\Auth\UserRepository;
 use ChitChat\Database;
@@ -34,6 +35,8 @@ SQL);
     return ApiResult::ok([
         'csrf_token' => SessionManager::csrfToken(),
         'user' => $user?->toSessionArray(),
+        // Date and time display; null while signed out (the client then follows the browser).
+        'preferences' => $user === null ? null : (new DisplayPreferenceService($pdo))->get($user->id),
         'registration_enabled' => (int) $policy['registration_enabled'] === 1,
         'web_push' => [
             'enabled' => $config->webPushEnabled(),

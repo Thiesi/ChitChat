@@ -2,6 +2,22 @@
 
 Authenticated account endpoints require a PHP session. State-changing requests require the current `X-CSRF-Token` header from `GET /api/v1/session.php`. The restoration endpoint is intentionally available without authentication but still requires the anonymous session's CSRF token, valid account credentials, a pending unexpired closure, and its own database-backed throttle.
 
+## Date and time display
+
+Each account can choose how dates and times are shown, independently of the browser's language: a **format region** (`date_locale`, one of `en-US`, `en-GB`, `en-AU`, `de-DE`, `de-AT`, `de-CH`, `fr-FR`, `es-ES`, `it-IT`, `nl-NL`, `pl-PL`, `pt-BR`, `sv-SE`, `ja-JP`) and a **clock** (`hour_cycle`: `h23` for 24-hour, `h12` for 12-hour). `null` means Automatic, which follows the browser. The time zone always follows the device. The session (`GET /api/v1/session.php`) returns the choice as `preferences: {"date_locale": …, "hour_cycle": …}` (`null` while signed out), and the client caches it per device so pages format correctly before the session loads.
+
+### `POST /api/v1/account/display-preferences.php`
+
+Authentication and the current CSRF token are required.
+
+```json
+{"date_locale": "de-DE", "hour_cycle": "h23"}
+```
+
+Both fields are optional and default to `null` (Automatic). Any other value returns `400 validation_error`. The response is `{"preferences": {…}}` with the stored values. The choice is part of the personal data export (`account.display_preferences`).
+
+Colour scheme and light/dark mode are per-device choices kept in the browser, not account data.
+
 ## Personal data export
 
 ### `POST /api/v1/account/export.php`
@@ -39,7 +55,7 @@ The bundled account page serializes `export` as formatted UTF-8 JSON and downloa
 
 The export includes:
 
-- account profile timestamps, optional birth date, role grants, and ban history;
+- account profile timestamps, optional birth date, date and time display preferences, role grants, and ban history;
 - rooms created by the account, current room memberships, and pending invitations;
 - retained room messages authored by the account, including their retained revision history;
 - retained direct messages the account can already read, including attachment metadata;

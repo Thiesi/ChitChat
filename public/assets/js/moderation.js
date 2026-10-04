@@ -1,5 +1,6 @@
 import { ApiError, apiGet, apiPost, setCsrfToken } from './api.js';
 import { nameButton } from './name-menu.js';
+import { formatDateTime } from './datetime.js';
 
 const state = {
   user: null,
@@ -350,13 +351,6 @@ function formatResolution(value) {
   return labels[value] ?? String(value ?? 'unknown outcome');
 }
 
-function formatDateTime(value) {
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? String(value ?? '') : new Intl.DateTimeFormat(undefined, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(date);
-}
 
 function formatBytes(value) {
   const bytes = Number(value);
