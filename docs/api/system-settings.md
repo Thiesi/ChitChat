@@ -24,12 +24,13 @@ Response:
     "orphan_attachment_grace_hours": 24,
     "realtime_event_retention_hours": 168,
     "login_attempt_retention_days": 30,
+    "deleted_room_grace_days": 30,
     "updated_at": "2026-07-17 00:00:00+00"
   }
 }
 ```
 
-A retention value of `0` means permanent retention. The grace and operational-ledger values must be positive.
+A retention value of `0` means permanent retention. The grace and operational-ledger values must be positive. `deleted_room_grace_days` is how long a deleted room stays restorable before maintenance removes it permanently; `0` keeps deleted rooms until they are restored.
 
 ## Update settings
 
@@ -41,7 +42,7 @@ X-CSRF-Token: <session token>
 
 Requires active privileged step-up. Without recent verification the endpoint returns HTTP 403 with `step_up_required`; no setting or audit record is changed. The bundled browser asks for the current password and retries the update once after successful verification.
 
-The request must include every field returned above except `updated_at`:
+The request must include every field returned above except `updated_at`; `deleted_room_grace_days` is optional and left unchanged when omitted:
 
 ```json
 {

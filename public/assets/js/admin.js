@@ -7,6 +7,7 @@ const state = {
   user: null,
   rooms: [],
   manageableRooms: [],
+  deletedRooms: [],
   users: [],
   userSearch: '',
   userCursor: 0,
@@ -54,6 +55,9 @@ function bindElements() {
     'invitation-search',
     'invitation-search-results',
     'room-invitation-list',
+    'room-delete',
+    'deleted-rooms',
+    'deleted-room-list',
     'audit-list',
     'audit-more',
     'user-dialog',
@@ -93,6 +97,7 @@ function bindEvents() {
   elements['room-picker'].addEventListener('change', () => loadRoomSnapshot(Number(elements['room-picker'].value)));
   elements['room-settings-form'].addEventListener('submit', saveRoomSettings);
   elements['invitation-search-form'].addEventListener('submit', searchInvitableUsers);
+  elements['room-delete'].addEventListener('click', () => withButton(elements['room-delete'], deleteSelectedRoom));
   elements['audit-more'].addEventListener('click', () => loadAudit(false));
   elements['user-dialog-close'].addEventListener('click', () => elements['user-dialog'].close());
   elements['save-global-roles'].addEventListener('click', saveGlobalRoles);
@@ -115,15 +120,17 @@ async function bootstrap() {
   const roomsResponse = await apiGet('/api/v1/rooms/list.php');
   state.rooms = Array.isArray(roomsResponse.rooms) ? roomsResponse.rooms : [];
   state.manageableRooms = state.rooms.filter(canManageRoom);
+  await loadDeletedRooms();
 
   const userAdmin = canManageUsers();
+  const roomAdmin = state.manageableRooms.length > 0 || state.deletedRooms.length > 0;
   elements['users-tab'].classList.toggle('hidden', !userAdmin);
   elements['audit-tab'].classList.toggle('hidden', !userAdmin);
-  elements['rooms-tab'].classList.toggle('hidden', state.manageableRooms.length === 0);
+  elements['rooms-tab'].classList.toggle('hidden', !roomAdmin);
 
   const firstPanel = userAdmin
     ? 'users-panel'
-    : state.manageableRooms.length > 0
+    : roomAdmin
       ? 'rooms-panel'
       : null;
 
@@ -144,7 +151,7 @@ async function activatePanel(panelId) {
     panel.classList.toggle('hidden', panel.id !== panelId);
   }
   for (const tab of elements['admin-tabs'].querySelectorAll('button[data-panel]')) {
-    tab.setAttribute('aria-selected', String(tab.dataset.panel === panelId));
+    tab.setAttribute('aria-pressed', String(tab.dataset.panel === panelId));
   }
 
   try {
@@ -318,6 +325,63 @@ function populateRoomPicker() {
   const empty = state.manageableRooms.length === 0;
   elements['room-admin-empty'].classList.toggle('hidden', !empty);
   elements['room-admin-content'].classList.toggle('hidden', empty);
+}
+
+async function loadDeletedRooms() {
+  const response = await apiGet('/api/v1/rooms/deleted.php');
+  state.deletedRooms = Array.isArray(response.rooms) ? response.rooms : [];
+  renderDeletedRooms();
+}
+
+function renderDeletedRooms() {
+  const list = elements['deleted-room-list'];
+  list.replaceChildren();
+  elements['deleted-rooms'].classList.toggle('hidden', state.deletedRooms.length === 0);
+  for (const room of state.deletedRooms) {
+    const item = document.createElement('article');
+    item.className = 'admin-list-item';
+    const header = document.createElement('div');
+    header.className = 'admin-card-header';
+    const name = document.createElement('h4');
+    name.textContent = `# ${room.name}`;
+    header.append(name, actionButton('Restore', () => restoreRoom(room)));
+    const meta = document.createElement('p');
+    meta.className = 'admin-card-meta';
+    meta.textContent = room.purge_after
+      ? `Deleted ${formatDateTime(room.deleted_at)} · removed permanently after ${formatDateTime(room.purge_after)}`
+      : `Deleted ${formatDateTime(room.deleted_at)} · kept until restored`;
+    item.append(header, meta);
+    list.append(item);
+  }
+}
+
+async function deleteSelectedRoom() {
+  const room = state.roomSnapshot?.room;
+  if (!room) return;
+  if (!window.confirm(`Delete # ${room.name}? Members lose access immediately. You can restore it under Deleted rooms until it is removed permanently.`)) {
+    return;
+  }
+  await apiPost('/api/v1/rooms/delete.php', { room_id: room.id });
+  toast(`# ${room.name} was deleted.`);
+  await reloadRooms();
+}
+
+async function restoreRoom(room) {
+  await apiPost('/api/v1/rooms/restore.php', { room_id: room.id });
+  toast(`# ${room.name} was restored.`);
+  await reloadRooms(room.id);
+}
+
+// After a delete or restore, the room picker and the deleted list both change.
+async function reloadRooms(preferredRoomId = null) {
+  const response = await apiGet('/api/v1/rooms/list.php');
+  state.rooms = Array.isArray(response.rooms) ? response.rooms : [];
+  state.manageableRooms = state.rooms.filter(canManageRoom);
+  state.roomSnapshot = null;
+  populateRoomPicker();
+  await loadDeletedRooms();
+  const next = state.manageableRooms.find((room) => room.id === preferredRoomId) ?? state.manageableRooms[0];
+  if (next) await loadRoomSnapshot(next.id);
 }
 
 async function loadRoomSnapshot(roomId) {

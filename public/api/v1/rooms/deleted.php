@@ -14,17 +14,9 @@ use ChitChat\Room\RoomService;
 $config = require dirname(__DIR__, 4) . '/bootstrap/http.php';
 
 Endpoint::run($config, static function () use ($config): ApiResult {
-    Request::requireMethod('POST');
-    SessionManager::requireCsrf(Request::csrfHeader());
-    $payload = Request::json();
+    Request::requireMethod('GET');
     $pdo = Database::connect($config);
     $actor = SessionManager::requireUser(new UserRepository($pdo));
-    SessionManager::requirePrivilegedStepUp($actor, $config);
-    (new RoomService($pdo))->delete(
-        $actor,
-        Request::integer($payload, 'room_id'),
-        Request::clientIp(),
-    );
 
-    return ApiResult::ok(['status' => 'deleted']);
+    return ApiResult::ok(['rooms' => (new RoomService($pdo))->listDeleted($actor)]);
 });

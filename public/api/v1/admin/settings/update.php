@@ -45,6 +45,7 @@ Endpoint::run($config, static function () use ($config): ApiResult {
         realtimeEventRetentionHours: Request::integer($payload, 'realtime_event_retention_hours'),
         loginAttemptRetentionDays: Request::integer($payload, 'login_attempt_retention_days'),
         ipAddress: Request::clientIp(),
+        deletedRoomGraceDays: Request::optionalInteger($payload, 'deleted_room_grace_days'),
     );
 
     return ApiResult::ok(['settings' => $settings]);

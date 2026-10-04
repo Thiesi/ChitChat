@@ -111,7 +111,18 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
           <h3>Pending invitations</h3>
           <div id="room-invitation-list" class="admin-card-list compact"></div>
         </section>
+
+        <section class="admin-card danger-card" aria-labelledby="room-delete-heading">
+          <h3 id="room-delete-heading">Delete this room</h3>
+          <p class="admin-card-meta">Members lose access immediately and are notified. The room stays restorable under Deleted rooms until maintenance removes it permanently after the grace period set in Operational settings. Reports to moderators keep their evidence.</p>
+          <button id="room-delete" class="danger-button" type="button">Delete room</button>
+        </section>
       </div>
+
+      <section id="deleted-rooms" class="admin-card deleted-rooms hidden" aria-labelledby="deleted-rooms-heading">
+        <h3 id="deleted-rooms-heading">Deleted rooms</h3>
+        <div id="deleted-room-list" class="admin-card-list compact"></div>
+      </section>
     </section>
 
     <section id="audit-panel" class="admin-panel hidden" aria-labelledby="audit-tab">

@@ -40,6 +40,8 @@ final class CleanupService
                 'login' => new DateTimeImmutable('-' . $settings['login_attempt_retention_days'] . ' days'),
                 'rate_limit' => new DateTimeImmutable('-2 days'),
                 'orphan' => new DateTimeImmutable('-' . $settings['orphan_attachment_grace_hours'] . ' hours'),
+                // Stage two of room deletion: past the grace period a deleted room goes for good.
+                'deleted_room' => $this->optionalDays($settings['deleted_room_grace_days']),
             ];
 
             $roomKeys = $cutoffs['room'] instanceof DateTimeImmutable
@@ -51,8 +53,14 @@ final class CleanupService
             $deletedKeys = $cutoffs['deleted_attachment'] instanceof DateTimeImmutable
                 ? $this->keysForDeletedAttachments($cutoffs['deleted_attachment'])
                 : [];
+            $purgedRoomKeys = $cutoffs['deleted_room'] instanceof DateTimeImmutable
+                ? $this->columnStrings(
+                    'SELECT a.storage_key FROM attachments a JOIN rooms r ON r.id = a.room_id WHERE r.deleted_at IS NOT NULL AND r.deleted_at < :cutoff',
+                    $cutoffs['deleted_room'],
+                )
+                : [];
             $orphanPaths = $this->orphanPaths($cutoffs['orphan']);
-            $trackedKeys = array_unique(array_merge($roomKeys, $directKeys, $deletedKeys));
+            $trackedKeys = array_unique(array_merge($roomKeys, $directKeys, $deletedKeys, $purgedRoomKeys));
 
             $result = [
                 'dry_run' => $dryRun,
@@ -70,6 +78,10 @@ final class CleanupService
                     $cutoffs['room'],
                 ),
                 'deleted_attachments' => count($deletedKeys),
+                'purged_rooms' => $this->optionalCount(
+                    'SELECT COUNT(*) FROM rooms WHERE deleted_at IS NOT NULL AND deleted_at < :cutoff',
+                    $cutoffs['deleted_room'],
+                ),
                 'audit_entries' => $this->optionalCount(
                     'SELECT COUNT(*) FROM audit_log WHERE created_at < :cutoff',
                     $cutoffs['audit'],
@@ -113,6 +125,7 @@ final class CleanupService
                     'DELETE FROM room_pings WHERE created_at < :cutoff',
                     $cutoffs['room'],
                 );
+                $result['purged_rooms'] = $this->purgeDeletedRooms($cutoffs['deleted_room']);
                 $result['deleted_attachments'] = $this->optionalDelete(
                     'DELETE FROM attachments WHERE deleted_at IS NOT NULL AND deleted_at < :cutoff',
                     $cutoffs['deleted_attachment'],
@@ -200,7 +213,8 @@ SELECT room_message_retention_days,
        deleted_attachment_retention_days,
        orphan_attachment_grace_hours,
        realtime_event_retention_hours,
-       login_attempt_retention_days
+       login_attempt_retention_days,
+       deleted_room_grace_days
 FROM system_settings
 WHERE id = 1
 SQL);
@@ -220,6 +234,40 @@ SQL);
         }
 
         return $settings;
+    }
+
+    /**
+     * Permanently removes rooms deleted before the cutoff. Their messages,
+     * attachments, memberships, invitations and pings cascade with them;
+     * moderation cases keep their evidence snapshots and lose only the room
+     * reference. Each removal is audited.
+     */
+    private function purgeDeletedRooms(?DateTimeImmutable $cutoff): int
+    {
+        if ($cutoff === null) {
+            return 0;
+        }
+
+        $rooms = $this->prepareWithCutoff(
+            'SELECT id, name, deleted_at FROM rooms WHERE deleted_at IS NOT NULL AND deleted_at < :cutoff ORDER BY id',
+            $cutoff,
+        )->fetchAll();
+        $audit = new AuditLogger($this->pdo);
+        foreach ($rooms as $room) {
+            if (!is_array($room)) {
+                continue;
+            }
+            $audit->log(
+                null,
+                'room.purged',
+                'room',
+                (string) $room['id'],
+                ['name' => (string) $room['name'], 'deleted_at' => (string) $room['deleted_at']],
+                '127.0.0.1',
+            );
+        }
+
+        return $this->delete('DELETE FROM rooms WHERE deleted_at IS NOT NULL AND deleted_at < :cutoff', $cutoff);
     }
 
     private function optionalDays(int $days): ?DateTimeImmutable

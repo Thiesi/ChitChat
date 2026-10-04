@@ -20,6 +20,7 @@ window.addEventListener('DOMContentLoaded', () => {
     'orphan-grace',
     'event-retention',
     'login-retention',
+    'deleted-room-grace',
     'settings-updated',
     'save-settings',
     'toast-region',
@@ -79,6 +80,7 @@ function renderSettings(settings) {
   elements['orphan-grace'].value = String(settings.orphan_attachment_grace_hours);
   elements['event-retention'].value = String(settings.realtime_event_retention_hours);
   elements['login-retention'].value = String(settings.login_attempt_retention_days);
+  elements['deleted-room-grace'].value = String(settings.deleted_room_grace_days ?? 30);
   elements['settings-updated'].textContent = `Last changed ${formatDateTime(settings.updated_at)}.`;
 }
 
@@ -95,6 +97,7 @@ async function saveSettings(event) {
     orphan_attachment_grace_hours: numberValue('orphan-grace'),
     realtime_event_retention_hours: numberValue('event-retention'),
     login_attempt_retention_days: numberValue('login-retention'),
+    deleted_room_grace_days: numberValue('deleted-room-grace'),
   };
 
   const destructive = [
