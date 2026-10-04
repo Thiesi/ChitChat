@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { SHRUG } from '../../public/assets/js/slash-commands.js';
 import { attemptName, attemptText } from './support/attempt.js';
 
 const baseURL = process.env.CHITCHAT_BASE_URL ?? 'http://127.0.0.1:8080';
@@ -47,7 +48,7 @@ test('slash commands are listed, explained, and do what they say', async ({ page
   const shrugText = attemptText('fair enough');
   await input.fill(`/shrug ${shrugText}`);
   await input.press('Enter');
-  await expect(page.locator('.message-body', { hasText: shrugText })).toHaveText(`${shrugText} ¯\_(ツ)_/¯`);
+  await expect(page.locator('.message-body', { hasText: shrugText })).toHaveText(`${shrugText} ${SHRUG}`);
 
   // /dm sends a direct message without leaving the room.
   await input.fill(`/dm MemberE2E ${attemptText('Hello from a slash command')}`);
