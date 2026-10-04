@@ -44,6 +44,7 @@ The `registration` policy's environment values are server defaults: a Super-Admi
 | `account_restore_ip` | 30 / 3600 s | Explicit cooling-off restoration, independently counted by source IP so probing many usernames from one IP is bounded |
 | `room_send` | 30 / 60 s | Ordinary room messages |
 | `room_ping` | 30 / 60 s | `/ping` commands, counted independently from ordinary messages |
+| `typing` | 40 / 60 s | "is typing" signals in rooms and direct conversations; the browser sends at most one every 4 s |
 | `room_message_mutation` | 30 / 60 s | Author room-message edits and deletions |
 | `direct_message_send` | 30 / 60 s | Direct-message sends |
 | `direct_message_mutation` | 30 / 60 s | Direct-message edits and delete-for-everyone |

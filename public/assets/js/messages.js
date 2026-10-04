@@ -5,6 +5,7 @@ import { attachMentionAutocomplete } from './mention-autocomplete.js';
 import { attachNameCompletion } from './name-completion.js';
 import { alertUser } from './attention.js';
 import { formatDateTime } from './datetime.js';
+import { createTypingIndicator, createTypingSignal } from './typing.js';
 
 const state = {
   user: null,
@@ -20,6 +21,8 @@ const state = {
 };
 const elements = {};
 let mentionAutocomplete = null;
+let peerTyping = null;
+let typingSignal = null;
 
 window.addEventListener('DOMContentLoaded', () => {
   bindElements();
@@ -34,7 +37,7 @@ function bindElements() {
     'dm-conversation-list', 'dm-peer-name', 'dm-peer-status', 'dm-block-toggle',
     'dm-empty-state', 'dm-message-list', 'dm-load-older', 'dm-composer', 'dm-emoji-button',
     'dm-message-input', 'dm-send', 'toast-region',
-    'dm-reply-banner', 'dm-reply-banner-text', 'dm-reply-banner-cancel',
+    'dm-reply-banner', 'dm-reply-banner-text', 'dm-reply-banner-cancel', 'dm-typing-indicator',
   ]) {
     const element = document.getElementById(id);
     if (!element) throw new Error(`Missing direct-message interface element: ${id}`);
@@ -54,6 +57,11 @@ function bindEvents() {
       event.preventDefault();
       elements['dm-composer'].requestSubmit();
     }
+  });
+  peerTyping = createTypingIndicator(elements['dm-typing-indicator']);
+  typingSignal = createTypingSignal(() => apiPost('/api/v1/typing.php', { recipient_user_id: state.selectedUser.id }));
+  elements['dm-message-input'].addEventListener('input', () => {
+    if (state.selectedUser && state.relationship?.messaging_available) typingSignal.input(elements['dm-message-input'].value);
   });
   mentionAutocomplete = attachMentionAutocomplete(elements['dm-message-input'], searchDirectMessageMentions);
   attachNameCompletion(elements['dm-message-input'], () => (state.selectedUser ? [state.selectedUser.username] : []));
@@ -209,6 +217,7 @@ function renderUserResults(users) {
 
 async function selectUser(user) {
   state.selectedUser = user;
+  peerTyping?.clear();
   delete elements['dm-message-list'].dataset.highlightMessageId;
   state.relationship = null;
   state.messages = [];
@@ -469,6 +478,7 @@ async function sendMessage(event) {
     const payload = { recipient_user_id: user.id, body };
     if (state.replyTo) payload.reply_to_message_id = state.replyTo.id;
     const response = await apiPost('/api/v1/direct-messages/send.php', payload);
+    typingSignal?.reset();
     elements['dm-message-input'].value = '';
     clearReplyTo();
     appendMessage(response.message, true);
@@ -517,6 +527,7 @@ function startEventStream() {
     const message = envelope?.payload?.message;
     if (!message || !state.user) return;
     const peer = message.sender.id === state.user.id ? message.recipient : message.sender;
+    if (!message.outgoing) peerTyping?.remove(peer.id);
     // No sound for the conversation you are looking at right now.
     const watching = state.selectedUser?.id === peer.id && document.visibilityState === 'visible';
     if (!message.outgoing && !watching) {
@@ -537,6 +548,11 @@ function startEventStream() {
     if (payload?.message_kind === 'direct') {
       updateMessageReactions(payload.message_id, payload.reactions);
     }
+  });
+  source.addEventListener('typing', (event) => {
+    const payload = parseEvent(event)?.payload;
+    // Direct conversations only; room typing belongs to the chat page.
+    if (payload?.room_id === null && payload.user?.id === state.selectedUser?.id) peerTyping?.add(payload.user);
   });
   source.addEventListener('forced_logout', () => window.location.assign('/'));
 }

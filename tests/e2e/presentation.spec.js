@@ -42,6 +42,7 @@ async function fixture(page, signedIn = true) {
       'rooms/presence.php': { users: [viewer, peer, { username: 'Alex' }].map((user) => ({ ...user, idle_seconds: 0 })) },
       'rooms/mentionable-users.php': { users: [peer] },
       'rooms/pings.php': { pings: [] },
+      'typing.php': { signalled: true },
       'rooms/read.php': { last_read_message_id: messages.at(-1)?.id ?? 0 },
       'users/profile.php': { avatars_available: true, profile: { id: viewer.id, username: viewer.username, member_since: '2026-07-01T10:00:00Z', badge: null, has_avatar: false, avatar_version: null, can_remove_avatar: false } },
       'account/notifications/list.php': { notifications: [], unread_count: 0 },

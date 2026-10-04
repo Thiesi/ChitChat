@@ -35,6 +35,7 @@ The stream releases the PHP session lock before polling, so the same browser ses
 - `rooms_changed`: for a public room (or one that was public before an update), visible to every authenticated user; for an unlisted or private room, visible to current room members and global room moderators; for a change to one account's membership, role, or invitation, visible only to that account.
 - `ping`: published as two separate targeted events, one to the sender and one to the target, so each sees it on every open device.
 - `forced_logout`: visible only to the targeted user.
+- `typing`: in a room, visible to current room members and global room moderators; in a direct conversation, visible only to the other participant.
 - `direct_message`: visible only to the sender and recipient, as separate perspective-correct events; see [`direct-messages.md`](direct-messages.md#realtime-delivery).
 
 Public room history remains readable through the paginated message endpoint, but realtime room delivery begins only after joining the room.
@@ -132,6 +133,16 @@ Created through `/ping username [message]` in the room send endpoint. The target
 ```
 
 The events expire from the event ledger after one day; the stored ping follows room-message retention.
+
+### `typing`
+
+"Alex is typing…". Created through `POST /api/v1/typing.php` (CSRF) with either `{"room_id": 42}` (members only) or `{"recipient_user_id": 7}` (only while the two may message each other, so blocking in either direction stops it). The payload carries no text, only who is typing:
+
+```json
+{ "room_id": 42, "user": { "id": 17, "username": "Alex" } }
+```
+
+`room_id` is `null` in a direct conversation. Each signal expires after 8 seconds and is then never delivered; maintenance removes it. A second signal from the same person to the same place within 3 seconds is dropped (the response says `"signalled": false`), and the `typing` rate-limit policy bounds the rest. The browser signals at most every 4 seconds while someone types, sends nothing for `/commands` or an empty composer, shows a name for about 6 seconds after its last signal, removes it as soon as that person's message arrives, and never shows people the viewer ignores.
 
 ### `room_broadcast` and `global_broadcast`
 

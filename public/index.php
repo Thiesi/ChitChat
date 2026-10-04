@@ -216,6 +216,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
 
       <div id="composer-wrap" class="composer-wrap hidden">
         <button id="jump-latest" class="jump-latest hidden" type="button">Jump to latest</button>
+        <p id="typing-indicator" class="typing-indicator"></p>
         <div id="reply-banner" class="reply-banner hidden">
           <span id="reply-banner-text"></span>
           <button id="reply-banner-cancel" class="reply-banner-cancel" type="button" aria-label="Cancel reply">Cancel</button>
