@@ -6,7 +6,11 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ## [Unreleased]
 
-ChitChat is feature-complete; see [Project status](README.md#project-status-feature-complete) and the [roadmap](docs/roadmap.md) for the maintenance-only policy going forward. Entries only appear here for a discovered bug fix or an accepted new feature request.
+No changes since `v3.1.0`. ChitChat is feature-complete; see [Project status](README.md#project-status-feature-complete) and the [roadmap](docs/roadmap.md) for the maintenance-only policy going forward. Entries only appear here for a discovered bug fix or an accepted new feature request.
+
+## [3.1.0] - 2026-10-05
+
+Moderating in place and muting, with one forward-only database migration (`0038_user_mutes.sql`); back up before upgrading. See the [`v3.1.0` release notes](docs/releases/v3.1.0.md).
 
 ### Added
 
