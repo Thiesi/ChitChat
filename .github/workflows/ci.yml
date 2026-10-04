@@ -38,6 +38,8 @@ jobs:
         run: |
           find public/assets/js tests/e2e -type f -name '*.js' -print0 | xargs -0 -n1 node --check
           node --check playwright.config.js
+      - name: Run JavaScript unit tests
+        run: node --test 'tests/js/*.test.js'
       - name: Check stabilization shell syntax
         run: find tests/stabilization -type f -name '*.sh' -print0 | xargs -0 -n1 bash -n
       - name: Run PHPStan

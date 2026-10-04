@@ -155,6 +155,8 @@ The endpoint accepts `member` and `moderator`. Ownership cannot be transferred t
 
 ### Message representation
 
+`body` is always the plain text as written. The browser client displays a small formatting subset from it (`*bold*` or `**bold**`, `_italic_`, `` `code` ``, fenced code blocks, `> ` quotes, and http/https links opening in a new tab with `rel="noopener noreferrer nofollow"`), building elements in the page rather than HTML, so a message can never inject markup. Markers count only when they hug a word, so `2 * 3 * 4` and `snake_case_names` stay as typed. The same applies to direct messages.
+
 Room history, `POST send.php`, and the `room_message` realtime event all return messages in this shape:
 
 ```json

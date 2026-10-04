@@ -1,3 +1,4 @@
+import { parseInline, parseMessage } from './message-format.js';
 import { nameButton } from './name-menu.js';
 
 const MENTION_TOKEN = /@([A-Za-z0-9][A-Za-z0-9_.-]{2,31})/gu;
@@ -5,35 +6,93 @@ const REACTION_EMOJI = ['👍', '❤️', '😂', '😮', '😢', '🎉'];
 let reactionBarInstanceCount = 0;
 
 /**
- * Renders message body text into `container`, wrapping only tokens the
- * server actually resolved and authorized (present in `mentions`) in a
- * `.mention` span. Any other `@word`-shaped text is left as plain text,
- * since ChitChat never highlights an unauthorized or unresolved token as
- * if it were a real mention.
+ * Renders message body text into `container`: the formatting subset of
+ * message-format.js (code, bold, italic, links, quotes, code blocks), built
+ * as DOM nodes so text never becomes markup. Only tokens the server actually
+ * resolved and authorized (present in `mentions`) are wrapped in a
+ * `.mention`; any other `@word`-shaped text is left as plain text, since
+ * ChitChat never highlights an unauthorized or unresolved token as if it
+ * were a real mention.
  *
  * @param {HTMLElement} container
  * @param {string} text
  * @param {Array<{ user_id: number, username: string, broadcast?: boolean }>} mentions
- * @param {{ nameButtons?: boolean }} [options] nameButtons renders personal
- *   mentions as buttons that open the name menu.
+ * @param {{ nameButtons?: boolean, inline?: boolean }} [options] nameButtons
+ *   renders personal mentions as buttons that open the name menu; inline
+ *   skips quotes and code blocks, for containers that cannot hold blocks.
  */
-export function renderMessageBody(container, text, mentions, { nameButtons = false } = {}) {
+export function renderMessageBody(container, text, mentions, { nameButtons = false, inline = false } = {}) {
   container.replaceChildren();
-  const mentionedIds = new Map(
-    (Array.isArray(mentions) ? mentions : [])
-      .filter((mention) => typeof mention?.username === 'string')
-      .map((mention) => [mention.username.toLowerCase(), mention.user_id]),
-  );
-  const usernames = new Set(mentionedIds.keys());
-  const hasBroadcast = (Array.isArray(mentions) ? mentions : []).some((mention) => mention?.broadcast === true);
+  const list = Array.isArray(mentions) ? mentions : [];
+  const context = {
+    nameButtons,
+    mentionedIds: new Map(
+      list
+        .filter((mention) => typeof mention?.username === 'string')
+        .map((mention) => [mention.username.toLowerCase(), mention.user_id]),
+    ),
+    hasBroadcast: list.some((mention) => mention?.broadcast === true),
+  };
+  if (inline) {
+    appendInline(container, parseInline(text), context);
+    return;
+  }
+  const blocks = parseMessage(text);
+  // The common case, one plain paragraph, stays a run of text in the body.
+  if (blocks.length === 1 && blocks[0].type === 'paragraph') {
+    appendInline(container, blocks[0].children, context);
+    return;
+  }
+  for (const block of blocks) {
+    if (block.type === 'codeblock') {
+      const pre = document.createElement('pre');
+      pre.className = 'message-codeblock';
+      const code = document.createElement('code');
+      code.textContent = block.text;
+      pre.append(code);
+      container.append(pre);
+    } else {
+      const node = document.createElement(block.type === 'quote' ? 'blockquote' : 'div');
+      node.className = block.type === 'quote' ? 'message-quote' : 'message-paragraph';
+      appendInline(node, block.children, context);
+      container.append(node);
+    }
+  }
+}
 
+function appendInline(container, nodes, context) {
+  for (const node of nodes) {
+    if (node.type === 'text') {
+      appendTextWithMentions(container, node.text, context);
+    } else if (node.type === 'code') {
+      const code = document.createElement('code');
+      code.className = 'message-code';
+      code.textContent = node.text;
+      container.append(code);
+    } else if (node.type === 'link') {
+      const link = document.createElement('a');
+      link.className = 'message-link';
+      link.href = node.href;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer nofollow';
+      link.textContent = node.text;
+      container.append(link);
+    } else {
+      const element = document.createElement(node.type === 'strong' ? 'strong' : 'em');
+      appendInline(element, node.children, context);
+      container.append(element);
+    }
+  }
+}
+
+function appendTextWithMentions(container, text, { nameButtons, mentionedIds, hasBroadcast }) {
   let cursor = 0;
   MENTION_TOKEN.lastIndex = 0;
   let match = MENTION_TOKEN.exec(text);
   while (match !== null) {
     const token = match[1].toLowerCase();
     const isBroadcastToken = hasBroadcast && (token === 'room' || token === 'here');
-    if (usernames.has(token) || isBroadcastToken) {
+    if (mentionedIds.has(token) || isBroadcastToken) {
       if (match.index > cursor) {
         container.append(document.createTextNode(text.slice(cursor, match.index)));
       }

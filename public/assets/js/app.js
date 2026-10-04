@@ -759,14 +759,14 @@ function buildMessageElement(message) {
     header.append(replyButton);
   }
 
-  const body = document.createElement('p');
+  const body = document.createElement('div');
   body.className = 'message-body';
   if (message.deleted) {
     body.textContent = 'Message deleted by a moderator.';
   } else if (message.type === 'emote') {
     body.append(document.createTextNode(`* ${message.username ?? 'Someone'} `));
     const action = document.createElement('span');
-    renderMessageBody(action, message.body ?? '', message.mentions, { nameButtons: true });
+    renderMessageBody(action, message.body ?? '', message.mentions, { nameButtons: true, inline: true });
     body.append(action);
   } else {
     renderMessageBody(body, message.body ?? '', message.mentions, { nameButtons: true });

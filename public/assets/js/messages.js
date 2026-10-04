@@ -364,7 +364,7 @@ function buildMessage(message) {
     article.append(preview);
   }
 
-  const body = document.createElement('p');
+  const body = document.createElement('div');
   body.className = 'dm-message-body';
   renderMessageBody(body, message.body ?? '', message.mentions);
 
