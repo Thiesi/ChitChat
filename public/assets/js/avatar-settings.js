@@ -3,6 +3,7 @@
 // the crop is a convenience, not a security boundary.
 import { ApiError, apiGet, apiPost, apiUpload } from './api.js';
 import { attachPhoto, avatarTone, initials, refreshPhoto } from './avatar.js';
+import { withProviderIcon } from './provider-icons.js';
 
 const ACCEPTED = ['image/jpeg', 'image/png', 'image/webp'];
 const MAX_BYTES = 5 * 1024 * 1024;
@@ -215,7 +216,7 @@ window.addEventListener('DOMContentLoaded', async () => {
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'secondary-button';
-      button.textContent = `Use my ${label} picture`;
+      withProviderIcon(button, identity.provider, `Use my ${label} picture`);
       button.addEventListener('click', async () => {
         button.disabled = true;
         status.textContent = '';

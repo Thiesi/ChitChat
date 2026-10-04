@@ -21,6 +21,10 @@ ChitChat is feature-complete; see [Project status](README.md#project-status-feat
 
 - Fixed the Report message dialog's buttons looking different from each other in rooms and direct messages (#126).
 
+### Changed
+
+- Google and Twitch buttons (sign-in, restore, Sign-in methods, confirming a sensitive action, and the picture button) now show the provider's logo, drawn in the page, so nothing is fetched from either company.
+
 ## [3.0.0] - 2026-10-04
 
 Usability release with thirteen forward-only database migrations (`0025` to `0037`); back up before upgrading. See the [`v3.0.0` release notes](docs/releases/v3.0.0.md).

@@ -130,6 +130,7 @@
   background: var(--surface-2);
 }
 .sign-in-method strong { display: block; }
+.sign-in-method strong.has-provider-icon { display: flex; justify-content: flex-start; }
 .sign-in-method span { color: var(--muted); font-size: 0.85rem; }
 
 .date-preview {

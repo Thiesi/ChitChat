@@ -1,5 +1,6 @@
 import { ApiError, apiGet, apiPost } from './api.js';
 import { getPasskey, webAuthnSupported } from './webauthn.js';
+import { withProviderIcon } from './provider-icons.js';
 
 let verificationPromise = null;
 let passwordDialog = null;
@@ -48,7 +49,8 @@ function showPasswordDialog(providers = [], hasPassword = true) {
     ? 'Re-enter your current password. Successful verification permits sensitive actions for a short time in this browser session.'
     : 'Sign in again with the account you use for ChitChat. Successful verification permits sensitive actions for a short time in this browser session.';
   elements.providers.replaceChildren(...providers.map((provider) => {
-    const node = button(`Confirm with ${provider.label}`, hasPassword ? 'secondary-button' : 'primary-button');
+    const node = button('', hasPassword ? 'secondary-button' : 'primary-button');
+    withProviderIcon(node, provider.id, `Confirm with ${provider.label}`);
     node.dataset.provider = provider.id;
     return node;
   }));

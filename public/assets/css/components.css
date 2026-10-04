@@ -337,3 +337,17 @@ form:has(.attachment-selection > button:not(.hidden)) .attachment-button {
   cursor: not-allowed;
   opacity: 0.55;
 }
+
+/* Google and Twitch buttons carry their logo before the text. The doubled
+   class outranks a.secondary-button and similar display rules. */
+.has-provider-icon.has-provider-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+}
+.provider-icon {
+  width: 1.1rem;
+  height: 1.1rem;
+  flex: none;
+}

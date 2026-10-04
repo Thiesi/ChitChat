@@ -8,6 +8,7 @@ import { attachPhoto, avatarTone, initials } from './avatar.js';
 import { nameButton } from './name-menu.js';
 import { attachNameCompletion } from './name-completion.js';
 import { createTypingIndicator, createTypingSignal } from './typing.js';
+import { withProviderIcon } from './provider-icons.js';
 import { COMMANDS, SHRUG, attachCommandSuggestions, parseSlashCommand, showCommandHelp, splitTarget } from './slash-commands.js';
 import { alertUser } from './attention.js';
 import { formatDateTime } from './datetime.js';
@@ -1548,7 +1549,7 @@ function renderSignInProviders(providers) {
     const link = document.createElement('a');
     link.className = 'secondary-button provider-button';
     link.href = `/api/v1/oidc/start.php?provider=${encodeURIComponent(provider.id)}`;
-    link.textContent = `Continue with ${provider.label}`;
+    withProviderIcon(link, provider.id, `Continue with ${provider.label}`);
     container.append(link);
   }
   container.classList.remove('hidden');
