@@ -19,6 +19,18 @@ final class DirectMessageBlockService
         $this->users = new UserRepository($pdo);
     }
 
+    /**
+     * The other participant's public identity, so a client can open a new
+     * conversation from a user ID alone (as the chat's name menu does).
+     *
+     * @return array{id:int, username:string}
+     */
+    public function peer(AuthenticatedUser $actor, int $otherUserId): array
+    {
+        $user = $this->requireOtherUser($actor, $otherUserId);
+        return ['id' => $user->id, 'username' => $user->username];
+    }
+
     /** @return array{blocked_by_me:bool, messaging_available:bool} */
     public function relationship(AuthenticatedUser $actor, int $otherUserId): array
     {
@@ -147,7 +159,7 @@ SQL);
         $statement->execute(['pair' => $pair]);
     }
 
-    private function requireOtherUser(AuthenticatedUser $actor, int $otherUserId): void
+    private function requireOtherUser(AuthenticatedUser $actor, int $otherUserId): AuthenticatedUser
     {
         if ($otherUserId < 1) {
             throw new ApiException(400, 'validation_error', 'user_id must be positive.');
@@ -155,9 +167,11 @@ SQL);
         if ($otherUserId === $actor->id) {
             throw new ApiException(400, 'direct_message_self_forbidden', 'You cannot manage direct-message blocking for yourself.');
         }
-        if ($this->users->findAuthenticatedById($otherUserId) === null) {
+        $user = $this->users->findAuthenticatedById($otherUserId);
+        if ($user === null) {
             throw new ApiException(404, 'user_not_found', 'User not found.');
         }
+        return $user;
     }
 
     private function databaseBoolean(mixed $value): bool

@@ -8,6 +8,11 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ChitChat is feature-complete; see [Project status](README.md#project-status-feature-complete) and the [roadmap](docs/roadmap.md) for the maintenance-only policy going forward. Entries only appear here for a discovered bug fix or an accepted new feature request.
 
+### Added
+
+- Added a name menu: clicking a person's name (message authors, @mentions, the members panel, search results, moderation cases, and room administration) offers **Send direct message**, which also starts a brand-new conversation. When messaging is blocked, it says so instead of leading to a dead end, and your own name links to your account.
+- Added Tab completion for names in the chat and direct-message composers: type the start of a name and press Tab, again to cycle through matches (recent speakers first). A name that opens a message is completed IRC-style as "Name: ". Tab still moves focus when nothing matches, and Shift+Tab always leaves the composer.
+
 ### Changed
 
 - Reworked the chat page's navigation. The sidebar now holds only rooms (one line each, with an invited, age, or privacy marker only where it matters) and your recent direct messages with unread counts. The room header became a top bar with members, search, notifications, and an account menu. The members list moved into a panel that opens on demand and is remembered per device. The bell previews your newest notifications. The account menu holds Account, Administration, the light/dark mode, and Sign out. On phones, rooms and conversations open in a slide-in drawer, and members and the account menu open as sheets from the bottom.
@@ -17,6 +22,8 @@ ChitChat is feature-complete; see [Project status](README.md#project-status-feat
 
 - Fixed the Operational settings layout: panels now share the full width evenly instead of leaving gaps and stacking flush, and wide panels lay their fields out side by side. The administration and moderation pages use the full browser width.
 - Fixed slash commands such as `/me` breaking across lines in chat notifications.
+- Fixed Shift+Tab in the composer selecting an @mention suggestion instead of moving focus back.
+- Fixed message avatars picking their colour from the username instead of the account, so the same person now looks the same in messages, members, and conversations.
 - Fixed the room list going stale: rooms that are created, renamed, or deleted, and rooms an account joins, leaves, is invited to, or is removed from, now update in open chat tabs without a reload. A new contentless `rooms_changed` realtime event prompts clients to re-fetch the authorized room list, so private and unlisted rooms are never announced to people who cannot see them. Migration `0025_rooms_changed_event.sql` allows the new event type.
 
 ## [2.4.0] - 2026-10-04

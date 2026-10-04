@@ -1,5 +1,6 @@
 import { ApiError, apiGet, apiPost } from './api.js';
 import { miniAvatar } from './avatar.js';
+import { nameButton } from './name-menu.js';
 
 export function createPresenceClient({
   getCurrentRoom,
@@ -22,6 +23,7 @@ export function createPresenceClient({
   let inFlight = false;
   let pendingInteraction = false;
   let warningRoomId = null;
+  let currentUsers = [];
 
   function start() {
     stopTimer();
@@ -119,6 +121,7 @@ export function createPresenceClient({
   }
 
   function render(users) {
+    currentUsers = users;
     list.replaceChildren();
     renderCount(users.length);
 
@@ -135,9 +138,7 @@ export function createPresenceClient({
       item.className = 'member-row';
 
       const idleText = formatIdle(user.idle_seconds);
-      const name = document.createElement('span');
-      name.className = 'member-name';
-      name.textContent = user.username;
+      const name = nameButton(user, 'member-name');
 
       const note = document.createElement('span');
       note.className = 'member-note';
@@ -155,6 +156,7 @@ export function createPresenceClient({
   }
 
   function clear() {
+    currentUsers = [];
     list.replaceChildren();
     renderCount(0);
   }
@@ -191,6 +193,7 @@ export function createPresenceClient({
     interact,
     refresh,
     handleChanged,
+    users: () => currentUsers,
     clear,
   };
 }

@@ -1,4 +1,5 @@
 import { ApiError, apiGet, apiPost, setCsrfToken } from './api.js';
+import { nameButton } from './name-menu.js';
 
 const state = {
   user: null,
@@ -175,7 +176,7 @@ function renderDetail() {
   elements['moderation-case-context'].textContent = item.message_kind === 'room'
     ? `Room message · # ${item.room?.name ?? 'Deleted room'}`
     : 'Participant-submitted direct message';
-  elements['moderation-detail-title'].textContent = `Case #${item.id}: ${item.subject.username}`;
+  elements['moderation-detail-title'].replaceChildren(`Case #${item.id}: `, nameButton(item.subject));
   elements['moderation-case-meta'].textContent = `${formatStatus(item.status)} · message #${item.message_id} · first reported ${formatDateTime(item.first_reported_at)}`;
 
   const closed = ['resolved', 'dismissed'].includes(item.status);
@@ -205,7 +206,7 @@ function renderReports(reports) {
 
     const header = document.createElement('header');
     const title = document.createElement('strong');
-    title.textContent = `${formatCategory(report.category)} · reported by ${report.reporter.username}`;
+    title.append(`${formatCategory(report.category)} · reported by `, nameButton(report.reporter));
     const time = document.createElement('time');
     time.dateTime = report.created_at;
     time.textContent = formatDateTime(report.created_at);

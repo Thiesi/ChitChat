@@ -2,6 +2,7 @@ import { ApiError, apiGet, apiPost, setCsrfToken } from './api.js';
 import { attachEmojiPicker } from './emoji-picker.js';
 import { renderMessageBody, buildReplyPreview, buildReactionBar } from './message-content.js';
 import { attachMentionAutocomplete } from './mention-autocomplete.js';
+import { attachNameCompletion } from './name-completion.js';
 
 const state = {
   user: null,
@@ -53,6 +54,7 @@ function bindEvents() {
     }
   });
   mentionAutocomplete = attachMentionAutocomplete(elements['dm-message-input'], searchDirectMessageMentions);
+  attachNameCompletion(elements['dm-message-input'], () => (state.selectedUser ? [state.selectedUser.username] : []));
   attachEmojiPicker(elements['dm-emoji-button'], elements['dm-message-input']);
 }
 
@@ -71,10 +73,15 @@ async function bootstrap() {
   elements['messages-loading'].classList.add('hidden');
   elements['messages-shell'].classList.remove('hidden');
   startEventStream();
-  await loadConversations(requestedConversation());
+  const requested = requestedConversation();
+  await loadConversations(requested);
+  if (requested !== null && requested !== state.user.id && state.selectedUser?.id !== requested) {
+    await openNewConversation(requested);
+  }
 }
 
-// The chat sidebar links to /messages.php?with=<user id> to open a conversation.
+// The chat links to /messages.php?with=<user id> to open a conversation,
+// including one with someone you have not messaged yet.
 function requestedConversation() {
   const value = new URLSearchParams(window.location.search).get('with');
   const id = Number(value);
@@ -91,6 +98,15 @@ function renderPrivacyNotice() {
     ? `Administrative inspection is enabled for ${formatRole(policy.admin_inspection_role)} and every inspection is audited.`
     : 'Administrative inspection is disabled.';
   elements['dm-privacy-text'].textContent = `Direct messages are not end-to-end encrypted and are retained ${policy.retention}. ${inspection}`;
+}
+
+async function openNewConversation(userId) {
+  try {
+    const response = await apiGet(`/api/v1/direct-messages/block-status.php?user_id=${encodeURIComponent(userId)}`);
+    if (response.user) await selectUser(response.user);
+  } catch (error) {
+    handleApiFailure(error);
+  }
 }
 
 async function loadConversations(preferredUserId = null) {

@@ -1,4 +1,5 @@
 import { ApiError, apiGet, apiPost, setCsrfToken } from './api.js';
+import { nameButton } from './name-menu.js';
 
 const GLOBAL_ROLES = ['super_admin', 'admin', 'chat_admin', 'global_moderator'];
 const state = {
@@ -348,7 +349,7 @@ function renderRoomMembers(members) {
     const header = document.createElement('div');
     header.className = 'admin-card-header';
     const name = document.createElement('h3');
-    name.textContent = member.username;
+    name.append(nameButton(member));
     header.append(name, badge(member.active_connections > 0 ? `${member.active_connections} online` : 'offline'));
     const meta = document.createElement('p');
     meta.className = 'admin-card-meta';

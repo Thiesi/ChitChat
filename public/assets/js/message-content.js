@@ -1,3 +1,5 @@
+import { nameButton } from './name-menu.js';
+
 const MENTION_TOKEN = /@([A-Za-z0-9][A-Za-z0-9_.-]{2,31})/gu;
 const REACTION_EMOJI = ['👍', '❤️', '😂', '😮', '😢', '🎉'];
 let reactionBarInstanceCount = 0;
@@ -12,14 +14,17 @@ let reactionBarInstanceCount = 0;
  * @param {HTMLElement} container
  * @param {string} text
  * @param {Array<{ user_id: number, username: string, broadcast?: boolean }>} mentions
+ * @param {{ nameButtons?: boolean }} [options] nameButtons renders personal
+ *   mentions as buttons that open the name menu.
  */
-export function renderMessageBody(container, text, mentions) {
+export function renderMessageBody(container, text, mentions, { nameButtons = false } = {}) {
   container.replaceChildren();
-  const usernames = new Set(
+  const mentionedIds = new Map(
     (Array.isArray(mentions) ? mentions : [])
-      .map((mention) => (typeof mention?.username === 'string' ? mention.username.toLowerCase() : null))
-      .filter((username) => username !== null),
+      .filter((mention) => typeof mention?.username === 'string')
+      .map((mention) => [mention.username.toLowerCase(), mention.user_id]),
   );
+  const usernames = new Set(mentionedIds.keys());
   const hasBroadcast = (Array.isArray(mentions) ? mentions : []).some((mention) => mention?.broadcast === true);
 
   let cursor = 0;
@@ -32,10 +37,17 @@ export function renderMessageBody(container, text, mentions) {
       if (match.index > cursor) {
         container.append(document.createTextNode(text.slice(cursor, match.index)));
       }
-      const span = document.createElement('span');
-      span.className = isBroadcastToken ? 'mention mention-broadcast' : 'mention';
-      span.textContent = match[0];
-      container.append(span);
+      const userId = mentionedIds.get(token);
+      if (nameButtons && !isBroadcastToken && Number.isInteger(userId)) {
+        const button = nameButton({ id: userId, username: match[1] }, 'mention');
+        button.textContent = match[0];
+        container.append(button);
+      } else {
+        const span = document.createElement('span');
+        span.className = isBroadcastToken ? 'mention mention-broadcast' : 'mention';
+        span.textContent = match[0];
+        container.append(span);
+      }
       cursor = match.index + match[0].length;
     }
     match = MENTION_TOKEN.exec(text);

@@ -828,6 +828,37 @@ a.notification-item:hover { background: var(--surface-2); }
 .notification-item span { color: var(--muted); }
 .notification-item time { color: var(--muted); font-size: 0.75rem; }
 
+/* A username that opens the name menu; it reads as text until hovered. */
+.user-name {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font-weight: inherit;
+  text-align: inherit;
+}
+
+.user-name:hover { text-decoration: underline; text-underline-offset: 0.15em; }
+button.user-name.mention { padding: 0 0.2rem; border-radius: 0.25rem; background: var(--mention-bg); color: var(--mention-text); font-weight: 600; }
+
+.popover.name-menu {
+  position: fixed;
+  z-index: 50;
+  right: auto;
+  width: 17rem;
+}
+
+.name-menu-actions { display: grid; }
+.name-menu-status { margin: 0.2rem 0.7rem 0.5rem; color: var(--muted); font-size: 0.82rem; }
+.name-menu .popover-identity span { color: var(--muted); font-size: 0.8rem; }
+
+.name-menu-backdrop {
+  position: fixed;
+  z-index: 45;
+  inset: 0;
+  background: rgb(0 0 0 / 0.45);
+}
+
 .popover-footer {
   padding: 0.55rem 0.7rem;
   color: var(--accent-strong);
@@ -1396,6 +1427,7 @@ a.notification-item:hover { background: var(--surface-2); }
   }
 
   .menu-item { padding: 0.75rem 0.8rem; }
+  .popover.name-menu { inset: auto 0 0 0; width: auto; }
 
   .message-list { padding: 1.25rem 0.85rem; }
   .message { padding-left: 2.65rem; }

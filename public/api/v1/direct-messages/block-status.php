@@ -18,10 +18,11 @@ Endpoint::run($config, static function () use ($config): ApiResult {
     $pdo = Database::connect($config);
     $actor = SessionManager::requireUser(new UserRepository($pdo));
 
+    $blocks = new DirectMessageBlockService($pdo);
+    $userId = Request::queryInteger('user_id');
+
     return ApiResult::ok([
-        'relationship' => (new DirectMessageBlockService($pdo))->relationship(
-            $actor,
-            Request::queryInteger('user_id'),
-        ),
+        'user' => $blocks->peer($actor, $userId),
+        'relationship' => $blocks->relationship($actor, $userId),
     ]);
 });
