@@ -60,7 +60,7 @@ With the application server running, use:
 npm run test:e2e -- tests/e2e/presentation.spec.js --project=chromium
 ```
 
-The lounge visual refresh intentionally changes the authentication and Account layouts. The existing Linux screenshot baselines must be reviewed and regenerated on the pinned Linux browser before release; Windows presentation screenshots are not replacements for those baselines.
+The lounge visual refresh includes reviewed authentication and Account baselines captured by the pinned Linux Chromium CI job. Windows presentation screenshots are not replacements for these Linux baselines.
 
 ### Linux screenshot baselines
 
