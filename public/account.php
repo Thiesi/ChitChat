@@ -48,6 +48,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
             <label class="secondary-button file-button" for="avatar-file">Upload a picture</label>
             <input id="avatar-file" class="visually-hidden" type="file" accept="image/jpeg,image/png,image/webp">
             <button id="avatar-remove" class="secondary-button hidden" type="button">Remove picture</button>
+            <span id="avatar-providers" class="avatar-providers"></span>
           </div>
           <p id="avatar-status" class="account-muted" role="status" aria-live="polite"></p>
         </div>

@@ -12,6 +12,14 @@ Uploads are never stored as sent. The server checks the type (JPEG, PNG, or WebP
 
 Multipart form with the image in the `avatar` field, at most 5 MB; authentication and the CSRF token are required. The browser lets the user crop first, but the server crops again regardless. Returns `{"avatar": {"has_avatar": true, "avatar_version": …}}`; audited as `account.avatar_updated`. The previous picture's file is deleted.
 
+### Using the Google or Twitch picture
+
+`POST /api/v1/oidc/begin.php` with `{"provider":"google","purpose":"picture"}` (CSRF, signed in) starts one provider round trip that, unlike sign-in, asks for the picture: Google's `profile` scope, or Twitch's `picture` claim. Only a provider account connected to the signed-in account counts; every other claim the token carries (such as a name) is ignored. The server downloads the picture once, only from the provider's own image host over HTTPS (`*.googleusercontent.com`, `static-cdn.jtvnw.net`; no redirects, at most 5 MB, JPEG/PNG/WebP judged by content), keeps it for up to 15 minutes, and returns the browser to `/account.php?picture=ready` (or `?picture=failed&sign_in_error=…`). Audited as `account.avatar_imported`.
+
+### `GET /api/v1/account/avatar/imported.php`
+
+Hands the fetched picture to the crop step once and forgets it; `404 picture_not_found` afterwards. The cropped result is uploaded through `upload.php` like any other picture, so it is re-encoded the same way. A picture is never fetched automatically, at sign-in or sign-up.
+
 ### `POST /api/v1/account/avatar/remove.php`
 
 `{}` removes your own picture (audited as `account.avatar_removed`). `{"user_id": 7}` removes someone else's, which only Super-Administrators, Administrators, Chat Admins, and Global Moderators may do: it is audited as `moderation.avatar_removed`, and the account gets an `avatar_removed` notification. `404 avatar_not_found` if there is no picture.

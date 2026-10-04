@@ -12,7 +12,8 @@ window.addEventListener('DOMContentLoaded', async () => {
   // Coming back from the provider: say how it went, then tidy the address.
   const parameters = new URLSearchParams(window.location.search);
   const connected = parameters.get('connected');
-  const failure = parameters.get('sign_in_error');
+  // A failed picture fetch is reported by the Profile picture card instead.
+  const failure = parameters.has('picture') ? null : parameters.get('sign_in_error');
   if (connected || failure) {
     parameters.delete('connected');
     parameters.delete('sign_in_error');

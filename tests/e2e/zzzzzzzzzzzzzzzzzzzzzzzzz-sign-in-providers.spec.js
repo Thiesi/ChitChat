@@ -47,6 +47,16 @@ test('a member connects Google and then signs in with it instead of a password',
   await expect(page).toHaveURL(/\/account\.php$/);
   await expect(google).toContainText('Connected');
 
+  // The Google picture is fetched only on request, and still goes through the crop step.
+  await page.getByRole('button', { name: 'Use my Google picture' }).click();
+  const crop = page.locator('#avatar-crop-dialog');
+  await expect(crop).toBeVisible();
+  await crop.getByRole('button', { name: /Save/ }).click();
+  await expect(page.locator('#avatar-status')).toHaveText('Picture saved.');
+  await expect(page.locator('#avatar-remove')).toBeVisible();
+  await page.locator('#avatar-remove').click();
+  await expect(page.locator('#avatar-remove')).toBeHidden();
+
   try {
     // A fresh browser signs in through the provider, no password involved.
     const visitorContext = await browser.newContext({ baseURL });

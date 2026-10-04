@@ -56,6 +56,63 @@ final class AvatarService
             && (gd_info()['WebP Support'] ?? false) === true;
     }
 
+    /** How long an imported picture waits for the crop step. */
+    private const IMPORT_TTL_SECONDS = 900;
+    public const IMPORT_MAX_BYTES = 5 * 1024 * 1024;
+
+    /**
+     * Keeps a picture fetched from Google or Twitch until the Account page
+     * takes it into the crop step; the saved picture is then re-encoded like
+     * any upload. Only JPEG, PNG and WebP pass, judged by content.
+     */
+    public function stashImport(int $userId, string $image): void
+    {
+        $info = strlen($image) <= self::IMPORT_MAX_BYTES ? @getimagesizefromstring($image) : false;
+        $type = is_array($info) ? $info['mime'] : null;
+        if ($type === null || !in_array($type, self::ACCEPTED_TYPES, true)) {
+            throw new ApiException(422, 'invalid_avatar', 'That picture is not a JPEG, PNG, or WebP image.');
+        }
+        $statement = $this->pdo->prepare(<<<'SQL'
+INSERT INTO avatar_imports (user_id, image, media_type, created_at)
+VALUES (:user_id, :image, :media_type, NOW())
+ON CONFLICT (user_id) DO UPDATE
+SET image = EXCLUDED.image, media_type = EXCLUDED.media_type, created_at = EXCLUDED.created_at
+SQL);
+        if ($statement === false) {
+            throw new RuntimeException('Unable to prepare picture import.');
+        }
+        $statement->bindValue(':user_id', $userId, PDO::PARAM_INT);
+        $statement->bindValue(':image', $image, PDO::PARAM_LOB);
+        $statement->bindValue(':media_type', $type);
+        $statement->execute();
+    }
+
+    /**
+     * Hands over a waiting imported picture once, or null when there is none
+     * (or it waited too long).
+     *
+     * @return ?array{image:string, media_type:string}
+     */
+    public function takeImport(int $userId): ?array
+    {
+        $statement = $this->pdo->prepare(<<<'SQL'
+DELETE FROM avatar_imports
+WHERE user_id = :user_id
+RETURNING image, media_type, (created_at > NOW() - make_interval(secs => :ttl))::int AS fresh
+SQL);
+        if ($statement === false) {
+            throw new RuntimeException('Unable to prepare picture import lookup.');
+        }
+        $statement->execute(['user_id' => $userId, 'ttl' => self::IMPORT_TTL_SECONDS]);
+        $row = $statement->fetch();
+        if (!is_array($row) || (int) $row['fresh'] !== 1) {
+            return null;
+        }
+        $image = is_resource($row['image']) ? stream_get_contents($row['image']) : $row['image'];
+
+        return is_string($image) ? ['image' => $image, 'media_type' => (string) $row['media_type']] : null;
+    }
+
     /** @return array{has_avatar:bool, avatar_version:?int} */
     public function upload(AuthenticatedUser $actor, IncomingFile $file, string $ipAddress): array
     {

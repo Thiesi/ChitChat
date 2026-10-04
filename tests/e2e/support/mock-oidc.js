@@ -12,6 +12,8 @@ export const MOCK_OIDC_PORT = 9177;
 const issuer = `http://127.0.0.1:${MOCK_OIDC_PORT}`;
 const clientId = 'chitchat-e2e';
 const clientSecret = 'e2e-secret';
+// A 1 x 1 PNG, handed out as the profile picture when one is asked for.
+const picture = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==', 'base64');
 
 export async function startMockOidc() {
   const { privateKey, publicKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
@@ -32,6 +34,11 @@ export async function startMockOidc() {
 
   const server = createServer((request, response) => {
     const url = new URL(request.url, issuer);
+    if (url.pathname === '/picture.png') {
+      response.writeHead(200, { 'Content-Type': 'image/png' });
+      response.end(picture);
+      return;
+    }
     if (url.pathname === '/keys') {
       response.writeHead(200, { 'Content-Type': 'application/json' });
       response.end(JSON.stringify({ keys: [jwk] }));
@@ -39,7 +46,8 @@ export async function startMockOidc() {
     }
     if (url.pathname === '/authorize') {
       const query = url.searchParams;
-      if (query.get('client_id') !== clientId || query.get('scope') !== 'openid' || query.get('code_challenge_method') !== 'S256') {
+      const scopes = (query.get('scope') ?? '').split(' ');
+      if (query.get('client_id') !== clientId || !scopes.includes('openid') || query.get('code_challenge_method') !== 'S256') {
         response.writeHead(400).end('bad authorization request');
         return;
       }
@@ -49,6 +57,8 @@ export async function startMockOidc() {
         challenge: query.get('code_challenge'),
         redirectUri: query.get('redirect_uri'),
         subject,
+        // Like Google: the picture comes only with the "profile" scope.
+        wantsPicture: scopes.includes('profile'),
       });
       const back = new URL(query.get('redirect_uri'));
       back.searchParams.set('code', code);
@@ -74,7 +84,15 @@ export async function startMockOidc() {
         response.end(JSON.stringify({
           access_token: 'unused',
           token_type: 'Bearer',
-          id_token: idToken({ iss: issuer, aud: clientId, sub: grant.subject, nonce: grant.nonce, iat: now, exp: now + 300 }),
+          id_token: idToken({
+            iss: issuer,
+            aud: clientId,
+            sub: grant.subject,
+            nonce: grant.nonce,
+            iat: now,
+            exp: now + 300,
+            ...(grant.wantsPicture ? { picture: `${issuer}/picture.png`, name: 'Mock Person' } : {}),
+          }),
         }));
       });
       return;
