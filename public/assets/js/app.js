@@ -394,20 +394,19 @@ async function selectRoom(room) {
     return;
   }
 
-  await loadMessages({ replace: true });
+  await loadMessages({ replace: true, pings: fetchPings(room) });
   void loadRoomMembers(room);
-  void loadPings(room);
 }
 
-// Pings this account sent or received here are shown as private notices in the timeline.
-async function loadPings(room) {
+// Pings this account sent or received here are shown as private notices in
+// the timeline. They load alongside the messages so the room renders once.
+async function fetchPings(room) {
   try {
     const response = await apiGet(`/api/v1/rooms/pings.php?room_id=${encodeURIComponent(room.id)}`);
-    if (state.currentRoom?.id !== room.id) return;
-    state.pings = Array.isArray(response.pings) ? response.pings : [];
-    renderMessages({ scrollToEnd: isScrolledToEnd() });
+    return Array.isArray(response.pings) ? response.pings : [];
   } catch {
     // The conversation stays usable without its ping notices.
+    return [];
   }
 }
 
@@ -415,11 +414,6 @@ function addPing(ping) {
   if (!ping || ping.room_id !== state.currentRoom?.id || state.pings.some((known) => known.id === ping.id)) return;
   state.pings.push(ping);
   renderMessages({ scrollToEnd: true });
-}
-
-function isScrolledToEnd() {
-  const list = elements['message-list'];
-  return list.scrollHeight - list.scrollTop - list.clientHeight < 80;
 }
 
 /** Messages and visible pings in time order. Pings older than the loaded history stay hidden until it loads. */
@@ -572,7 +566,7 @@ async function joinCurrentRoom() {
   }
 }
 
-async function loadMessages({ replace = false, beforeId = null } = {}) {
+async function loadMessages({ replace = false, beforeId = null, pings = null } = {}) {
   const room = state.currentRoom;
   if (!room) {
     return;
@@ -594,6 +588,11 @@ async function loadMessages({ replace = false, beforeId = null } = {}) {
     }
 
     const incoming = Array.isArray(response.messages) ? response.messages : [];
+    if (pings) {
+      const loaded = await pings;
+      if (state.currentRoom?.id !== room.id) return;
+      state.pings = loaded;
+    }
     if (replace) {
       state.messages = [];
       state.messageIds = new Set();
@@ -636,6 +635,7 @@ function renderMessages({ scrollToEnd = false, prepended = false } = {}) {
   // when older history is prepended above them.
   const previousTop = list.scrollTop;
   const previousHeight = list.scrollHeight;
+  const focus = focusedListItem(list);
   list.replaceChildren();
 
   const entries = timeline();
@@ -652,6 +652,7 @@ function renderMessages({ scrollToEnd = false, prepended = false } = {}) {
   for (const entry of entries) {
     list.append(entry.kind === 'ping' ? buildPingElement(entry.item) : buildMessageElement(entry.item));
   }
+  restoreFocus(list, focus);
 
   if (scrollToEnd) {
     list.scrollTop = list.scrollHeight;
@@ -660,6 +661,28 @@ function renderMessages({ scrollToEnd = false, prepended = false } = {}) {
   } else {
     list.scrollTop = previousTop;
   }
+}
+
+// Rebuilding the list would drop keyboard focus (for example on a name or a
+// Reply button) whenever a message arrives; remember it and put it back.
+function focusedListItem(list) {
+  const active = document.activeElement;
+  if (!(active instanceof HTMLElement) || !list.contains(active)) return null;
+  const article = active.closest('article');
+  if (!article) return null;
+  const key = article.dataset.messageId ? `[data-message-id="${article.dataset.messageId}"]`
+    : article.dataset.pingId ? `[data-ping-id="${article.dataset.pingId}"]` : null;
+  if (!key) return null;
+  const focusable = [...article.querySelectorAll('button, a[href], [tabindex]')];
+  return { key, index: focusable.indexOf(active), self: active === article };
+}
+
+function restoreFocus(list, focus) {
+  if (!focus) return;
+  const article = list.querySelector(`article${focus.key}`);
+  if (!article) return;
+  const target = focus.self ? article : [...article.querySelectorAll('button, a[href], [tabindex]')][focus.index];
+  target?.focus({ preventScroll: true });
 }
 
 function buildMessageElement(message) {
