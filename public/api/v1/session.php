@@ -12,6 +12,7 @@ use ChitChat\Database;
 use ChitChat\Http\ApiResult;
 use ChitChat\Http\Endpoint;
 use ChitChat\Http\Request;
+use ChitChat\Realtime\TypingService;
 
 /** @var ChitChat\Config $config */
 $config = require dirname(__DIR__, 3) . '/bootstrap/http.php';
@@ -42,6 +43,8 @@ SQL);
         'preferences' => $user === null ? null : (new DisplayPreferenceService($pdo))->get($user->id),
         // People this account ignores in rooms; their messages are collapsed.
         'ignored_user_ids' => $user === null ? [] : (new IgnoreService($pdo))->ignoredBy($user->id),
+        // Whether this account shows and sees "… is typing".
+        'share_typing' => $user === null ? false : (new TypingService($pdo))->isShared($user->id),
         // Lockdown also closes registration, so the sign-in page hides the Register tab.
         // Sign-in providers this installation offers (Google, Twitch), for the sign-in page.
         'sign_in_providers' => (new OidcService($pdo, $config))->providers(),

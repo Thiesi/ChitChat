@@ -16,6 +16,8 @@ use RuntimeException;
  * "Alex is typing…": a signal that expires within seconds and carries no
  * message text. In a room it reaches the room's members; in a direct
  * conversation only the other person, and only while the two may message.
+ * It works both ways: someone who turns it off neither signals their own
+ * typing nor receives anyone else's (EventRepository leaves those out).
  */
 final class TypingService
 {
@@ -31,14 +33,38 @@ final class TypingService
         $this->events = new EventRepository($pdo);
     }
 
-    /** @return bool whether a signal was published (false when one is still fresh) */
+    public function isShared(int $userId): bool
+    {
+        $statement = $this->pdo->prepare('SELECT share_typing::int FROM users WHERE id = :id');
+        if ($statement === false) {
+            throw new RuntimeException('Unable to prepare typing preference lookup.');
+        }
+        $statement->execute(['id' => $userId]);
+
+        return (int) $statement->fetchColumn() === 1;
+    }
+
+    public function setShared(int $userId, bool $shared): bool
+    {
+        $statement = $this->pdo->prepare('UPDATE users SET share_typing = :shared, updated_at = NOW() WHERE id = :id');
+        if ($statement === false) {
+            throw new RuntimeException('Unable to prepare typing preference update.');
+        }
+        $statement->bindValue(':shared', $shared, PDO::PARAM_BOOL);
+        $statement->bindValue(':id', $userId, PDO::PARAM_INT);
+        $statement->execute();
+
+        return $this->isShared($userId);
+    }
+
+    /** @return bool whether a signal was published (false when one is still fresh, or typing is off) */
     public function inRoom(AuthenticatedUser $actor, int $roomId): bool
     {
         $room = (new RoomRepository($this->pdo))->findForUser($roomId, $actor->id);
         if ($room === null || !$room->isMember()) {
             throw new ApiException(403, 'membership_required', 'Join the room before typing in it.');
         }
-        if ($this->recentlySignalled($actor->id, $roomId, null)) {
+        if (!$this->isShared($actor->id) || $this->recentlySignalled($actor->id, $roomId, null)) {
             return false;
         }
         $this->events->publish(
@@ -52,14 +78,14 @@ final class TypingService
         return true;
     }
 
-    /** @return bool whether a signal was published (false when one is still fresh) */
+    /** @return bool whether a signal was published (false when one is still fresh, or typing is off) */
     public function inConversation(AuthenticatedUser $actor, int $recipientId): bool
     {
         if ($recipientId === $actor->id) {
             throw new ApiException(400, 'validation_error', 'You cannot message yourself.');
         }
         (new DirectMessageBlockService($this->pdo))->requireMessagingAvailable($actor, $recipientId);
-        if ($this->recentlySignalled($actor->id, null, $recipientId)) {
+        if (!$this->isShared($actor->id) || $this->recentlySignalled($actor->id, null, $recipientId)) {
             return false;
         }
         $this->events->publish(

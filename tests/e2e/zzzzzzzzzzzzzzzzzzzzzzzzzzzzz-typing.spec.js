@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { attemptName, attemptText } from './support/attempt.js';
+import { openRoom } from './support/rooms.js';
 
 const baseURL = process.env.CHITCHAT_BASE_URL ?? 'http://127.0.0.1:8080';
 const root = {
@@ -45,7 +46,7 @@ test('the other side sees who is typing until their message arrives', async ({ b
 
     const memberPage = await memberContext.newPage();
     await login(memberPage, member);
-    await memberPage.locator('.room-button', { hasText: roomName }).click();
+    await openRoom(memberPage, roomName);
     await memberPage.locator('#join-button').click();
     await expect(memberPage.locator('#composer-input')).toBeVisible();
 

@@ -146,6 +146,11 @@ FROM realtime_events e
 WHERE e.id > :after_id
   AND (e.expires_at IS NULL OR e.expires_at > NOW())
   AND {$visibility}
+  -- Typing works both ways, so whoever turned it off sees nobody typing.
+  AND (
+      e.event_type <> 'typing'
+      OR EXISTS (SELECT 1 FROM users viewer WHERE viewer.id = :viewer_id AND viewer.share_typing)
+  )
 ORDER BY e.id ASC
 LIMIT :limit
 SQL);
@@ -154,6 +159,7 @@ SQL);
         }
         $statement->bindValue(':after_id', $afterId, PDO::PARAM_INT);
         $statement->bindValue(':target_user_id', $actor->id, PDO::PARAM_INT);
+        $statement->bindValue(':viewer_id', $actor->id, PDO::PARAM_INT);
         if (!$isGlobalModerator) {
             $statement->bindValue(':member_user_id', $actor->id, PDO::PARAM_INT);
         }

@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { attemptName } from './support/attempt.js';
+import { openRoom } from './support/rooms.js';
 
 const baseURL = process.env.CHITCHAT_BASE_URL ?? 'http://127.0.0.1:8080';
 const root = {
@@ -46,12 +47,13 @@ test('unread messages show in the room list and behind a divider until read', as
     const memberPage = await memberContext.newPage();
     await login(memberPage, member);
     const room = memberPage.locator('.room-button', { hasText: roomName });
-    await room.click();
+    await openRoom(memberPage, roomName);
     const firstRead = memberPage.waitForResponse((response) => response.url().includes('/api/v1/rooms/read.php'));
     await memberPage.locator('#join-button').click();
     await expect(memberPage.locator('#composer-input')).toBeVisible();
     await firstRead;
-    await memberPage.locator('.room-button').filter({ hasNotText: roomName }).first().click();
+    const elsewhere = await memberPage.locator('.room-button').filter({ hasNotText: roomName }).first().locator('.room-name').textContent();
+    await openRoom(memberPage, elsewhere.replace(/^#\s*/u, '').trim());
     await expect(room).not.toHaveClass(/active/);
 
     await send(rootPage, 'First thing you missed');
@@ -61,7 +63,7 @@ test('unread messages show in the room list and behind a divider until read', as
 
     // Opening the room shows where the new messages begin, then marks them read.
     const marked = memberPage.waitForResponse((response) => response.url().includes('/api/v1/rooms/read.php'));
-    await room.click();
+    await openRoom(memberPage, roomName);
     const divider = memberPage.locator('.new-messages-divider');
     await expect(divider).toBeVisible();
     await expect(memberPage.locator('.new-messages-divider + .message')).toContainText('First thing you missed');

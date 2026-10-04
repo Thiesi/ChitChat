@@ -62,6 +62,34 @@ final class TypingServiceTest extends DatabaseTestCase
         $typing->inConversation($alex, $sam->id);
     }
 
+    public function testTurningTypingOffWorksBothWays(): void
+    {
+        $auth = new AuthService($this->pdo, $this->config);
+        $quiet = $auth->register('Quiet', 'a very secure password', '127.0.0.1');
+        $chatty = $auth->register('Chatty', 'another secure password', '127.0.0.2');
+        $rooms = new RoomService($this->pdo);
+        $room = $rooms->create($quiet, 'both-ways', 'Both ways', '', 'public', 0, 0, '127.0.0.1');
+        $rooms->join($chatty, $room->id, '127.0.0.2');
+        $typing = new TypingService($this->pdo);
+
+        self::assertTrue($typing->isShared($quiet->id), 'On by default.');
+        self::assertFalse($typing->setShared($quiet->id, false));
+
+        // Off: nothing goes out for them...
+        self::assertFalse($typing->inRoom($quiet, $room->id));
+        self::assertFalse($typing->inConversation($quiet, $chatty->id));
+        self::assertSame([], $this->typingEvents($chatty));
+
+        // ...and nothing comes in, in rooms or direct conversations.
+        self::assertTrue($typing->inRoom($chatty, $room->id));
+        self::assertTrue($typing->inConversation($chatty, $quiet->id));
+        self::assertSame([], $this->typingEvents($quiet));
+
+        // Turned back on, they see the signals that have not expired yet.
+        self::assertTrue($typing->setShared($quiet->id, true));
+        self::assertCount(2, $this->typingEvents($quiet));
+    }
+
     /** @return list<\ChitChat\Realtime\RealtimeEvent> */
     private function typingEvents(AuthenticatedUser $viewer): array
     {

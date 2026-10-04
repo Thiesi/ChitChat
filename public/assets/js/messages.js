@@ -61,7 +61,7 @@ function bindEvents() {
   peerTyping = createTypingIndicator(elements['dm-typing-indicator']);
   typingSignal = createTypingSignal(() => apiPost('/api/v1/typing.php', { recipient_user_id: state.selectedUser.id }));
   elements['dm-message-input'].addEventListener('input', () => {
-    if (state.selectedUser && state.relationship?.messaging_available) typingSignal.input(elements['dm-message-input'].value);
+    if (state.shareTyping && state.selectedUser && state.relationship?.messaging_available) typingSignal.input(elements['dm-message-input'].value);
   });
   mentionAutocomplete = attachMentionAutocomplete(elements['dm-message-input'], searchDirectMessageMentions);
   attachNameCompletion(elements['dm-message-input'], () => (state.selectedUser ? [state.selectedUser.username] : []));
@@ -77,6 +77,7 @@ async function bootstrap() {
   }
 
   state.user = session.user;
+  state.shareTyping = session.share_typing !== false;
   state.privacy = session.privacy?.direct_messages ?? null;
   elements['messages-identity'].textContent = `Signed in as ${state.user.username}`;
   renderPrivacyNotice();
