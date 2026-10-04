@@ -78,6 +78,7 @@ async function bootstrap() {
 
   state.user = session.user;
   state.shareTyping = session.share_typing !== false;
+  state.mutedEverywhere = session.muted_everywhere ?? null;
   state.privacy = session.privacy?.direct_messages ?? null;
   elements['messages-identity'].textContent = `Signed in as ${state.user.username}`;
   renderPrivacyNotice();
@@ -268,7 +269,12 @@ function renderRelationship() {
   button.textContent = blockedByMe ? 'Unblock user' : 'Block user';
   button.setAttribute('aria-label', `${blockedByMe ? 'Unblock' : 'Block'} ${user.username}`);
 
-  if (available) {
+  if (available && state.mutedEverywhere) {
+    // Muted everywhere: history stays readable, sending waits for the mute to end.
+    const mute = state.mutedEverywhere;
+    elements['dm-peer-status'].textContent = `You are muted ${mute.expires_at ? `until ${formatDateTime(mute.expires_at)}` : 'until a moderator lifts it'}, so you cannot send direct messages.${mute.reason ? ` Reason: “${mute.reason}”.` : ''}`;
+    elements['dm-composer'].classList.add('hidden');
+  } else if (available) {
     elements['dm-peer-status'].textContent = 'Direct conversation';
     elements['dm-composer'].classList.remove('hidden');
     elements['dm-message-input'].disabled = false;

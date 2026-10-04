@@ -7,6 +7,7 @@ namespace ChitChat\Realtime;
 use ChitChat\Auth\AuthenticatedUser;
 use ChitChat\DirectMessage\DirectMessageBlockService;
 use ChitChat\Http\ApiException;
+use ChitChat\Moderation\MuteService;
 use ChitChat\Room\RoomRepository;
 use DateTimeImmutable;
 use PDO;
@@ -64,7 +65,11 @@ final class TypingService
         if ($room === null || !$room->isMember()) {
             throw new ApiException(403, 'membership_required', 'Join the room before typing in it.');
         }
-        if (!$this->isShared($actor->id) || $this->recentlySignalled($actor->id, $roomId, null)) {
+        if (
+            !$this->isShared($actor->id)
+            || (new MuteService($this->pdo))->isMutedInRoom($actor->id, $roomId)
+            || $this->recentlySignalled($actor->id, $roomId, null)
+        ) {
             return false;
         }
         $this->events->publish(
@@ -85,7 +90,11 @@ final class TypingService
             throw new ApiException(400, 'validation_error', 'You cannot message yourself.');
         }
         (new DirectMessageBlockService($this->pdo))->requireMessagingAvailable($actor, $recipientId);
-        if (!$this->isShared($actor->id) || $this->recentlySignalled($actor->id, null, $recipientId)) {
+        if (
+            !$this->isShared($actor->id)
+            || (new MuteService($this->pdo))->current($actor->id, null) !== null
+            || $this->recentlySignalled($actor->id, null, $recipientId)
+        ) {
             return false;
         }
         $this->events->publish(

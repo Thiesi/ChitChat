@@ -240,6 +240,20 @@ SQL);
         } elseif ($kind === 'mentioned') {
             [$title, $message] = $this->mentionText($context);
             $link = $this->mentionLink($context);
+        } elseif ($kind === 'muted') {
+            $roomName = $this->nonEmptyString($context['room_name'] ?? null);
+            $title = $roomName === null ? 'You were muted' : sprintf('You were muted in “%s”', $roomName);
+            $until = $this->nonEmptyString($context['expires_at'] ?? null);
+            $where = $roomName === null
+                ? 'You cannot post in rooms or send direct messages'
+                : sprintf('You cannot post in “%s”', $roomName);
+            // The exact end shows in the reader's own time zone in the chat itself.
+            $message = $where . ($until === null ? ' until a moderator lifts the mute.' : ' until the mute ends; the message box shows when.')
+                . ' You can still read along.';
+            $reason = $this->nonEmptyString($context['reason'] ?? null);
+            if ($reason !== null) {
+                $message .= sprintf(' Reason: “%s”.', $reason);
+            }
         } elseif ($kind === 'avatar_removed') {
             $title = 'Profile picture removed by a moderator';
             $message = 'A moderator removed your profile picture. Your initials are shown instead; you can upload a different picture on your Account page.';

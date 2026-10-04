@@ -12,6 +12,7 @@ use ChitChat\Database;
 use ChitChat\Http\ApiResult;
 use ChitChat\Http\Endpoint;
 use ChitChat\Http\Request;
+use ChitChat\Moderation\MuteService;
 use ChitChat\Realtime\TypingService;
 
 /** @var ChitChat\Config $config */
@@ -45,6 +46,8 @@ SQL);
         'ignored_user_ids' => $user === null ? [] : (new IgnoreService($pdo))->ignoredBy($user->id),
         // Whether this account shows and sees "… is typing".
         'share_typing' => $user === null ? false : (new TypingService($pdo))->isShared($user->id),
+        // A mute everywhere, which also stops sending direct messages.
+        'muted_everywhere' => $user === null ? null : (new MuteService($pdo))->current($user->id, null),
         // Lockdown also closes registration, so the sign-in page hides the Register tab.
         // Sign-in providers this installation offers (Google, Twitch), for the sign-in page.
         'sign_in_providers' => (new OidcService($pdo, $config))->providers(),

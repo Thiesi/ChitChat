@@ -6,8 +6,11 @@ namespace ChitChat\Admin;
 
 use ChitChat\Audit\AuditLogger;
 use ChitChat\Auth\AuthenticatedUser;
+use ChitChat\Auth\UserRepository;
 use ChitChat\Http\ApiException;
 use ChitChat\Realtime\EventRepository;
+use ChitChat\Room\MessageService;
+use ChitChat\Room\ModerationRank;
 use ChitChat\Room\Room;
 use ChitChat\Room\RoomAuthorization;
 use ChitChat\Room\RoomListSignal;
@@ -171,8 +174,9 @@ SQL);
         int $roomId,
         int $targetUserId,
         string $ipAddress,
+        bool $announce = false,
     ): void {
-        $this->requireManagedRoom($actor, $roomId);
+        $room = $this->requireManagedRoom($actor, $roomId);
         $role = $this->rooms->membershipRole($roomId, $targetUserId);
         if ($role === null) {
             throw new ApiException(404, 'membership_not_found', 'Target user is not a room member.');
@@ -180,6 +184,10 @@ SQL);
         if ($role === 'owner') {
             throw new ApiException(409, 'owner_membership_immutable', 'The room owner cannot be removed.');
         }
+        if (!(new ModerationRank($this->pdo))->inRoom($actor, $room, $targetUserId)) {
+            throw new ApiException(403, 'forbidden', 'You cannot remove someone with the same or a higher moderation rank.');
+        }
+        $targetName = (new UserRepository($this->pdo))->findAuthenticatedById($targetUserId)?->username;
 
         $this->pdo->beginTransaction();
         try {
@@ -218,6 +226,9 @@ SQL);
             );
             (new RoomListSignal($this->events))->user($targetUserId, $actor->id);
             $this->pdo->commit();
+            if ($announce && $targetName !== null) {
+                (new MessageService($this->pdo))->postNotice($roomId, sprintf('%s was removed from this room.', $targetName));
+            }
         } catch (Throwable $exception) {
             if ($this->pdo->inTransaction()) {
                 $this->pdo->rollBack();

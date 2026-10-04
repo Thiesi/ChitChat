@@ -8,6 +8,7 @@ use ChitChat\Auth\UserRepository;
 use ChitChat\Http\ApiException;
 use ChitChat\Mentions\DirectMessageMentionResolver;
 use ChitChat\Mentions\MentionNotifier;
+use ChitChat\Moderation\MuteService;
 use ChitChat\Reactions\ReactionHydrator;
 use ChitChat\Realtime\EventRepository;
 use PDO;
@@ -296,6 +297,7 @@ SQL;
         try {
             $this->blocks->lockPair($actor->id, $recipientUserId);
             $this->blocks->requireMessagingAvailable($actor, $recipientUserId);
+            (new MuteService($this->pdo))->assertMaySendDirect($actor->id);
 
             $statement = $this->pdo->prepare(<<<'SQL'
 INSERT INTO direct_messages (sender_user_id, recipient_user_id, body, reply_to_message_kind, reply_to_message_id)

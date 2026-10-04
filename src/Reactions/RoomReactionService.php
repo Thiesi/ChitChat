@@ -6,6 +6,7 @@ namespace ChitChat\Reactions;
 
 use ChitChat\Auth\AuthenticatedUser;
 use ChitChat\Http\ApiException;
+use ChitChat\Moderation\MuteService;
 use ChitChat\Realtime\EventRepository;
 use ChitChat\Room\RoomAuthorization;
 use ChitChat\Room\RoomEligibility;
@@ -32,6 +33,7 @@ final class RoomReactionService
         if ($deletedAt !== null) {
             throw new ApiException(409, 'message_already_deleted', 'Message is already deleted.');
         }
+        (new MuteService($this->pdo))->assertMayPostInRoom($actor->id, $roomId);
 
         $statement = $this->pdo->prepare(<<<'SQL'
 INSERT INTO room_message_reactions (message_id, user_id, emoji)

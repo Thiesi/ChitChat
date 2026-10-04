@@ -8,6 +8,7 @@ use ChitChat\Account\IgnoreService;
 use ChitChat\Auth\AuthenticatedUser;
 use ChitChat\Auth\Username;
 use ChitChat\Http\ApiException;
+use ChitChat\Moderation\MuteService;
 use ChitChat\Room\RoomAuthorization;
 use ChitChat\Room\RoomRepository;
 use DateTimeImmutable;
@@ -52,6 +53,7 @@ final class PingService
         if (!$room->isMember()) {
             throw new ApiException(403, 'membership_required', 'Join the room before sending pings.');
         }
+        (new MuteService($this->pdo))->assertMayPostInRoom($actor->id, $roomId);
 
         $canonical = Username::canonical($targetUsername);
         $statement = $this->pdo->prepare(<<<'SQL'

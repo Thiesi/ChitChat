@@ -143,6 +143,18 @@ async function bootstrap() {
 
   populateRoomPicker();
   await activatePanel(firstPanel);
+  await openRequestedUser();
+}
+
+// "Open in Administration" on a profile card links here with ?user=<name>.
+async function openRequestedUser() {
+  const requested = new URLSearchParams(window.location.search).get('user');
+  if (!requested || !canManageUsers()) return;
+  elements['user-search'].value = requested;
+  state.userSearch = requested;
+  await loadUsers(true);
+  const user = state.users.find((candidate) => candidate.username.toLowerCase() === requested.toLowerCase());
+  if (user) openUserDialog(user);
 }
 
 async function activatePanel(panelId) {

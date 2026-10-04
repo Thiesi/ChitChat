@@ -10,6 +10,10 @@ use ChitChat\Http\ApiResult;
 use ChitChat\Http\Endpoint;
 use ChitChat\Http\Request;
 use ChitChat\Moderation\ModerationService;
+use ChitChat\Moderation\MuteService;
+use ChitChat\Room\MessageService;
+use ChitChat\Room\RoomAuthorization;
+use ChitChat\Room\RoomRepository;
 
 /** @var ChitChat\Config $config */
 $config = require dirname(__DIR__, 4) . '/bootstrap/http.php';
@@ -42,6 +46,20 @@ Endpoint::run($config, static function () use ($config): ApiResult {
         $expiresAt,
         Request::clientIp(),
     );
+
+    // "Let the room know": a neutral line in the room the moderator is in.
+    $roomId = Request::optionalInteger($payload, 'room_id');
+    if (($payload['announce'] ?? false) === true && $roomId !== null) {
+        $room = (new RoomRepository($pdo))->findForUser($roomId, $actor->id);
+        $name = (new UserRepository($pdo))->findAuthenticatedById($target)?->username;
+        if ($room !== null && RoomAuthorization::canModerate($actor, $room) && is_string($name)) {
+            (new MessageService($pdo))->postNotice($roomId, sprintf(
+                '%s was banned %s.',
+                $name,
+                MuteService::spanText($expiresAt === null ? null : new DateTimeImmutable($expiresAt)),
+            ));
+        }
+    }
 
     return ApiResult::ok(['status' => 'banned']);
 });

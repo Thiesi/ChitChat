@@ -7,6 +7,7 @@ namespace ChitChat\Room;
 use ChitChat\Audit\AuditLogger;
 use ChitChat\Auth\AuthenticatedUser;
 use ChitChat\Http\ApiException;
+use ChitChat\Moderation\MuteService;
 use ChitChat\Realtime\EventRepository;
 use DateTimeImmutable;
 use PDO;
@@ -32,11 +33,14 @@ final class RoomService
     {
         $includeAll = RoomAuthorization::canModerateAnyRoom($actor);
         $reads = (new RoomReadService($this->pdo))->forUser($actor->id);
+        $mutes = (new MuteService($this->pdo))->allFor($actor->id);
         // Unread counts only for joined rooms; others have nothing to count.
         return array_map(
             static fn (Room $room): array => $room->toArray() + [
                 'unread_count' => $room->isMember() ? ($reads[$room->id]['unread_count'] ?? 0) : 0,
                 'last_read_message_id' => $room->isMember() ? ($reads[$room->id]['last_read_message_id'] ?? null) : null,
+                // Muted everywhere counts in every room.
+                'muted' => $mutes['everywhere'] ?? $mutes['rooms'][$room->id] ?? null,
             ],
             $this->rooms->listForUser($actor->id, $includeAll),
         );

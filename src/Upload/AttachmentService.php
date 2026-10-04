@@ -9,6 +9,7 @@ use ChitChat\Config;
 use ChitChat\Http\ApiException;
 use ChitChat\Mentions\MentionNotifier;
 use ChitChat\Mentions\RoomMentionResolver;
+use ChitChat\Moderation\MuteService;
 use ChitChat\Realtime\EventRepository;
 use ChitChat\Room\MessageService;
 use ChitChat\Room\RoomAuthorization;
@@ -73,6 +74,7 @@ final class AttachmentService
         if (!$room->isMember()) {
             throw new ApiException(403, 'membership_required', 'Join the room before uploading attachments.');
         }
+        (new MuteService($this->pdo))->assertMayPostInRoom($actor->id, $roomId);
         (new RoomEligibility($this->rooms))->requireMinimumAge($actor, $room);
         if ($replyToMessageId !== null) {
             $this->requireReplyTargetInRoom($replyToMessageId, $roomId);

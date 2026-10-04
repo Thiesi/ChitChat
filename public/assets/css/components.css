@@ -351,3 +351,34 @@ form:has(.attachment-selection > button:not(.hidden)) .attachment-button {
   height: 1.1rem;
   flex: none;
 }
+
+/* Ban and mute dialogs: the length as chips, a custom length, and checkboxes. */
+.duration-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.duration-choices legend { margin-bottom: 0.4rem; padding: 0; font-weight: 700; }
+.duration-choices .duration-chip {
+  display: inline-flex;
+  white-space: nowrap;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+.duration-chip:has(input:checked) { border-color: var(--accent); background: var(--surface-2); font-weight: 700; }
+.duration-chip input { margin: 0; accent-color: var(--accent); }
+.duration-custom { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+.duration-custom.hidden { display: none; }
+.duration-custom input,
+.duration-custom select { width: auto; flex: none; }
+.duration-custom input { width: 6rem; }
+.moderation-dialog .check-row { display: flex; align-items: flex-start; gap: 0.55rem; font-weight: 400; }
+.check-row input { margin-top: 0.25rem; accent-color: var(--accent); }
