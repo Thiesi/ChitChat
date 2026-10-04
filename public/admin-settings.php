@@ -72,6 +72,9 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
         <label>Audit entries in days <span class="optional-label">0 keeps permanently</span>
           <input id="audit-retention" type="number" min="0" max="3650" required>
         </label>
+        <label>Deleted rooms restorable for days <span class="optional-label">then removed permanently; 0 keeps them until restored</span>
+          <input id="deleted-room-grace" type="number" min="0" max="3650" required>
+        </label>
       </section>
 
       <section class="admin-card form-stack">

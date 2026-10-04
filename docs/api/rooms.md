@@ -83,7 +83,26 @@ The inactivity field is optional for backward-compatible API clients. When omitt
 }
 ```
 
-Rooms are soft-deleted and stop appearing in normal queries.
+Deletion has two stages, so a mistake can be undone and moderation evidence is kept:
+
+1. **Delete** (this endpoint): the room disappears for everyone at once, including live room lists ([`rooms_changed`](realtime.md#rooms_changed)), and every other member gets a `room_deleted` notification. Nothing else is removed yet.
+2. **Purge**: maintenance permanently removes the room, with its messages, attachment files, memberships, invitations, and pings, once `deleted_room_grace_days` (an Operational setting, default 30; `0` keeps deleted rooms indefinitely) has passed since deletion. Each purge is audited as `room.purged`. Moderation cases about the room's messages keep their report evidence and only lose the room reference.
+
+Super-Administrators, Administrators, Chat Admins, and the room's owner may delete; room moderators may not. Deleting requires active privileged step-up and is audited as `room.delete`.
+
+### `POST /api/v1/rooms/restore.php`
+
+```json
+{
+  "room_id": 42
+}
+```
+
+Restores a deleted room that has not been purged yet. The same people who may delete may restore. It requires active privileged step-up, is audited as `room.restore`, notifies the other members (`room_restored`), and returns `{"room": {…}}`. A purged or unknown room returns `404 room_not_found`.
+
+### `GET /api/v1/rooms/deleted.php`
+
+Lists deleted rooms the account could restore, newest deletion first: every deleted room for Super-Administrators, Administrators, and Chat Admins, and their own rooms for owners. Each entry has `id`, `key`, `name`, `visibility`, `deleted_at`, and `purge_after` (when maintenance may remove it, or `null` while the grace period is `0`).
 
 ## Membership
 

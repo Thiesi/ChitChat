@@ -113,6 +113,7 @@ Do not run cleanup from multiple hosts. A database advisory lock prevents concur
 - `orphan_attachment_grace_hours`: protects files created shortly before a failed database transaction from immediate deletion.
 - `realtime_event_retention_hours`: bounds the delivery ledger. Persistent message history is stored separately.
 - `login_attempt_retention_days`: bounds authentication-throttle evidence.
+- `deleted_room_grace_days`: how long a deleted room stays restorable. After it, cleanup permanently removes the room with its messages, attachment files, memberships, invitations, and pings (reported as `purged_rooms`, each audited as `room.purged`); moderation cases keep their evidence. `0` keeps deleted rooms until they are restored.
 
 Lowering a retention period can make a large amount of data, including closed moderation evidence, eligible on the next run. Take and verify a backup first.
 

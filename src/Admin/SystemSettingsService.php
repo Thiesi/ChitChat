@@ -39,6 +39,7 @@ final class SystemSettingsService
         int $realtimeEventRetentionHours,
         int $loginAttemptRetentionDays,
         string $ipAddress,
+        ?int $deletedRoomGraceDays = null,
     ): array {
         $this->requireSuperAdministrator($actor);
         $this->validateDays('room_message_retention_days', $roomMessageRetentionDays, true);
@@ -48,6 +49,9 @@ final class SystemSettingsService
         $this->validateRange('orphan_attachment_grace_hours', $orphanAttachmentGraceHours, 1, 720);
         $this->validateRange('realtime_event_retention_hours', $realtimeEventRetentionHours, 1, 8760);
         $this->validateRange('login_attempt_retention_days', $loginAttemptRetentionDays, 1, 3650);
+        if ($deletedRoomGraceDays !== null) {
+            $this->validateDays('deleted_room_grace_days', $deletedRoomGraceDays, true);
+        }
 
         $this->pdo->beginTransaction();
         try {
@@ -70,6 +74,7 @@ SET registration_enabled = :registration_enabled,
     orphan_attachment_grace_hours = :orphan_attachment_grace_hours,
     realtime_event_retention_hours = :realtime_event_retention_hours,
     login_attempt_retention_days = :login_attempt_retention_days,
+    deleted_room_grace_days = COALESCE(CAST(:deleted_room_grace_days AS integer), deleted_room_grace_days),
     updated_at = NOW()
 WHERE id = 1
 SQL);
@@ -85,6 +90,11 @@ SQL);
             $statement->bindValue(':orphan_attachment_grace_hours', $orphanAttachmentGraceHours, PDO::PARAM_INT);
             $statement->bindValue(':realtime_event_retention_hours', $realtimeEventRetentionHours, PDO::PARAM_INT);
             $statement->bindValue(':login_attempt_retention_days', $loginAttemptRetentionDays, PDO::PARAM_INT);
+            $statement->bindValue(
+                ':deleted_room_grace_days',
+                $deletedRoomGraceDays,
+                $deletedRoomGraceDays === null ? PDO::PARAM_NULL : PDO::PARAM_INT,
+            );
             $statement->execute();
             $new = $this->load();
             $this->audit->log(
@@ -118,6 +128,7 @@ SELECT registration_enabled::int,
        orphan_attachment_grace_hours,
        realtime_event_retention_hours,
        login_attempt_retention_days,
+       deleted_room_grace_days,
        updated_at
 FROM system_settings
 WHERE id = 1
@@ -139,6 +150,7 @@ SQL);
             'orphan_attachment_grace_hours' => (int) $row['orphan_attachment_grace_hours'],
             'realtime_event_retention_hours' => (int) $row['realtime_event_retention_hours'],
             'login_attempt_retention_days' => (int) $row['login_attempt_retention_days'],
+            'deleted_room_grace_days' => (int) $row['deleted_room_grace_days'],
             'updated_at' => (string) $row['updated_at'],
         ];
     }

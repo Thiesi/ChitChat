@@ -356,20 +356,147 @@ SQL);
         $this->roomList->user($targetUserId, $actor->id);
     }
 
+    /**
+     * Stage one of two-stage deletion: the room disappears for everyone at
+     * once, but stays restorable until maintenance removes it after the
+     * configured grace period (see CleanupService). Members are notified.
+     */
     public function delete(AuthenticatedUser $actor, int $roomId, string $ipAddress): void
     {
         $room = $this->requireRoom($actor, $roomId);
         RoomAuthorization::requireManage($actor, $room);
 
-        $statement = $this->pdo->prepare(
-            'UPDATE rooms SET deleted_at = NOW(), updated_at = NOW() WHERE id = :room_id AND deleted_at IS NULL',
-        );
-        if ($statement === false) {
-            throw new RuntimeException('Unable to prepare room deletion.');
+        $this->pdo->beginTransaction();
+        try {
+            $statement = $this->pdo->prepare(
+                'UPDATE rooms SET deleted_at = NOW(), updated_at = NOW() WHERE id = :room_id AND deleted_at IS NULL',
+            );
+            if ($statement === false) {
+                throw new RuntimeException('Unable to prepare room deletion.');
+            }
+            $statement->execute(['room_id' => $roomId]);
+            $this->notifyMembers($room, 'room_deleted', $actor->id);
+            $this->audit->log($actor->id, 'room.delete', 'room', (string) $roomId, ['name' => $room->name], $ipAddress);
+            $this->roomList->room($roomId, $room->visibility === 'public', $actor->id);
+            $this->pdo->commit();
+        } catch (Throwable $exception) {
+            $this->rollBack();
+            throw $exception;
         }
-        $statement->execute(['room_id' => $roomId]);
-        $this->audit->log($actor->id, 'room.delete', 'room', (string) $roomId, [], $ipAddress);
-        $this->roomList->room($roomId, $room->visibility === 'public', $actor->id);
+    }
+
+    /** Undoes a deletion that maintenance has not yet made permanent. */
+    public function restore(AuthenticatedUser $actor, int $roomId, string $ipAddress): Room
+    {
+        $room = $this->requireDeletedRoom($actor, $roomId);
+        RoomAuthorization::requireManage($actor, $room);
+
+        $this->pdo->beginTransaction();
+        try {
+            $statement = $this->pdo->prepare(
+                'UPDATE rooms SET deleted_at = NULL, updated_at = NOW() WHERE id = :room_id AND deleted_at IS NOT NULL',
+            );
+            if ($statement === false) {
+                throw new RuntimeException('Unable to prepare room restoration.');
+            }
+            $statement->execute(['room_id' => $roomId]);
+            $this->notifyMembers($room, 'room_restored', $actor->id);
+            $this->audit->log($actor->id, 'room.restore', 'room', (string) $roomId, ['name' => $room->name], $ipAddress);
+            $this->roomList->room($roomId, $room->visibility === 'public', $actor->id);
+            $this->pdo->commit();
+        } catch (Throwable $exception) {
+            $this->rollBack();
+            throw $exception;
+        }
+
+        return $this->get($actor, $roomId);
+    }
+
+    /**
+     * Deleted rooms the actor could restore: every one for global room
+     * managers, their own rooms for owners. Newest deletion first.
+     *
+     * @return list<array{id:int, key:string, name:string, visibility:string, deleted_at:string, purge_after:?string}>
+     */
+    public function listDeleted(AuthenticatedUser $actor): array
+    {
+        $everyRoom = $actor->hasRole('super_admin') || $actor->hasRole('admin') || $actor->hasRole('chat_admin');
+        $statement = $this->pdo->prepare(<<<'SQL'
+SELECT r.id, r.room_key, r.name, r.visibility, r.deleted_at,
+       CASE WHEN s.deleted_room_grace_days = 0 THEN NULL
+            ELSE r.deleted_at + make_interval(days => s.deleted_room_grace_days)
+       END AS purge_after
+FROM rooms r
+CROSS JOIN system_settings s
+WHERE s.id = 1
+  AND r.deleted_at IS NOT NULL
+  AND (
+      CAST(:every_room AS integer) = 1
+      OR EXISTS (
+          SELECT 1 FROM room_members rm
+          WHERE rm.room_id = r.id AND rm.user_id = :user_id AND rm.role = 'owner'
+      )
+  )
+ORDER BY r.deleted_at DESC, r.id DESC
+SQL);
+        if ($statement === false) {
+            throw new RuntimeException('Unable to prepare deleted-room list.');
+        }
+        $statement->execute(['every_room' => $everyRoom ? 1 : 0, 'user_id' => $actor->id]);
+
+        $rooms = [];
+        foreach ($statement->fetchAll() as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $rooms[] = [
+                'id' => (int) $row['id'],
+                'key' => (string) $row['room_key'],
+                'name' => (string) $row['name'],
+                'visibility' => (string) $row['visibility'],
+                'deleted_at' => (string) $row['deleted_at'],
+                'purge_after' => $row['purge_after'] === null ? null : (string) $row['purge_after'],
+            ];
+        }
+
+        return $rooms;
+    }
+
+    /** Tells every active member except the actor that the room was deleted or restored. */
+    private function notifyMembers(Room $room, string $kind, int $actorUserId): void
+    {
+        $statement = $this->pdo->prepare(<<<'SQL'
+INSERT INTO account_notifications (user_id, kind, context_json)
+SELECT rm.user_id, :kind, CAST(:context AS jsonb)
+FROM room_members rm
+JOIN users u ON u.id = rm.user_id
+WHERE rm.room_id = :room_id
+  AND rm.user_id <> :actor_user_id
+  AND u.account_state = 'active'
+SQL);
+        if ($statement === false) {
+            throw new RuntimeException('Unable to prepare room member notification.');
+        }
+        $statement->execute([
+            'kind' => $kind,
+            'context' => json_encode(['room_id' => $room->id, 'room_name' => $room->name], JSON_THROW_ON_ERROR),
+            'room_id' => $room->id,
+            'actor_user_id' => $actorUserId,
+        ]);
+    }
+
+    private function requireDeletedRoom(AuthenticatedUser $actor, int $roomId): Room
+    {
+        if ($roomId < 1) {
+            throw new ApiException(400, 'validation_error', 'room_id must be positive.');
+        }
+
+        $room = $this->rooms->findDeletedForUser($roomId, $actor->id);
+        if ($room === null) {
+            throw new ApiException(404, 'room_not_found', 'No deleted room with that ID is waiting to be removed.');
+        }
+
+        return $room;
     }
 
     private function requireRoom(AuthenticatedUser $actor, int $roomId): Room

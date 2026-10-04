@@ -20,11 +20,11 @@ Endpoint::run($config, static function () use ($config): ApiResult {
     $pdo = Database::connect($config);
     $actor = SessionManager::requireUser(new UserRepository($pdo));
     SessionManager::requirePrivilegedStepUp($actor, $config);
-    (new RoomService($pdo))->delete(
+    $room = (new RoomService($pdo))->restore(
         $actor,
         Request::integer($payload, 'room_id'),
         Request::clientIp(),
     );
 
-    return ApiResult::ok(['status' => 'deleted']);
+    return ApiResult::ok(['room' => $room->toArray()]);
 });

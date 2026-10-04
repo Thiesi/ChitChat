@@ -20,6 +20,7 @@ final class PrivacyNotificationService
         'direct_message_retention_days' => 'Direct-message retention (days)',
         'audit_retention_days' => 'Audit retention (days)',
         'deleted_attachment_retention_days' => 'Deleted-attachment retention (days)',
+        'deleted_room_grace_days' => 'Deleted-room grace period (days)',
         'orphan_attachment_grace_hours' => 'Orphan-attachment grace period (hours)',
         'realtime_event_retention_hours' => 'Realtime-event retention (hours)',
         'login_attempt_retention_days' => 'Login-attempt retention (days)',
@@ -239,6 +240,15 @@ SQL);
         } elseif ($kind === 'mentioned') {
             [$title, $message] = $this->mentionText($context);
             $link = $this->mentionLink($context);
+        } elseif ($kind === 'room_deleted' || $kind === 'room_restored') {
+            $roomName = $this->nonEmptyString($context['room_name'] ?? null) ?? 'a room';
+            $deleted = $kind === 'room_deleted';
+            $title = $deleted ? 'A room you belong to was deleted' : 'A room you belong to was restored';
+            $message = $deleted
+                ? sprintf('“%s” was deleted. Its managers can still restore it for a while; after that it is removed permanently.', $roomName)
+                : sprintf('“%s” was restored and is available again.', $roomName);
+            $roomId = $context['room_id'] ?? null;
+            $link = !$deleted && is_int($roomId) ? sprintf('/?room_id=%d', $roomId) : null;
         } elseif ($kind === 'pinged') {
             $sender = $this->nonEmptyString($context['sender_username'] ?? null) ?? 'Someone';
             $roomName = $this->nonEmptyString($context['room_name'] ?? null);

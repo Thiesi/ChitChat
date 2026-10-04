@@ -47,6 +47,38 @@ SQL);
         return $this->hydrate($row);
     }
 
+    /** A room that is deleted but not yet permanently removed, with the user's membership. */
+    public function findDeletedForUser(int $roomId, int $userId): ?Room
+    {
+        $statement = $this->pdo->prepare(<<<'SQL'
+SELECT r.id,
+       r.room_key,
+       r.name,
+       r.info_line,
+       r.visibility,
+       r.minimum_age,
+       r.inactivity_timeout_seconds,
+       r.created_by,
+       rm.role AS member_role,
+       (ri.user_id IS NOT NULL)::int AS invited
+FROM rooms r
+LEFT JOIN room_members rm
+       ON rm.room_id = r.id AND rm.user_id = :user_id
+LEFT JOIN room_invitations ri
+       ON ri.room_id = r.id AND ri.user_id = :user_id
+WHERE r.id = :room_id
+  AND r.deleted_at IS NOT NULL
+SQL);
+        if ($statement === false) {
+            throw new RuntimeException('Unable to prepare deleted-room lookup.');
+        }
+
+        $statement->execute(['room_id' => $roomId, 'user_id' => $userId]);
+        $row = $statement->fetch();
+
+        return is_array($row) ? $this->hydrate($row) : null;
+    }
+
     /** @return list<Room> */
     public function listForUser(int $userId, bool $includeAll): array
     {
