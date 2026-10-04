@@ -111,6 +111,16 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
       </form>
     </section>
 
+    <section id="sign-in-methods" class="account-card hidden" aria-labelledby="sign-in-methods-heading">
+      <div>
+        <p class="account-eyebrow">Sign-in</p>
+        <h2 id="sign-in-methods-heading">Sign-in methods</h2>
+      </div>
+      <p>Connect Google or Twitch to sign in with it instead of your password. ChitChat only learns an anonymous account number from the provider: no email address, name, or picture.</p>
+      <ul id="sign-in-method-list" class="sign-in-method-list"></ul>
+      <p id="sign-in-methods-status" class="account-muted" role="status" aria-live="polite"></p>
+    </section>
+
     <section class="account-card" aria-labelledby="personal-data-heading">
       <div>
         <p class="account-eyebrow">Privacy and portability</p>
@@ -201,5 +211,6 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <script type="module" src="/assets/js/mfa-account.js"></script>
   <script type="module" src="/assets/js/date-time-settings.js"></script>
   <script type="module" src="/assets/js/avatar-settings.js"></script>
+  <script type="module" src="/assets/js/sign-in-methods.js"></script>
 </body>
 </html>

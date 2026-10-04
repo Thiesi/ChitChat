@@ -159,6 +159,7 @@ final readonly class RateLimitPolicySet
             'login_ip' => self::definition(30, 900, 1, 1_000, 60, 86_400),
             'registration' => self::definition(5, 3_600, 1, 100, 60, 86_400),
             'privileged_step_up' => self::definition(10, 900, 1, 100, 60, 86_400),
+            'oidc_sign_in' => self::definition(30, 900, 1, 1_000, 60, 86_400),
             'mfa_assertion' => self::definition(20, 900, 1, 100, 60, 86_400),
             'mfa_recovery' => self::definition(10, 3_600, 1, 100, 60, 86_400),
             'mfa_management' => self::definition(20, 3_600, 1, 100, 60, 86_400),

@@ -135,12 +135,14 @@ async function bootstrap() {
   const session = await apiGet('/api/v1/session.php');
   setCsrfToken(session.csrf_token);
   renderLockdown(session.lockdown);
+  renderSignInProviders(session.sign_in_providers);
   elements['app-loading'].classList.add('hidden');
 
   if (session.user) {
     await enterApplication(session.user);
   } else {
     showAuthMode('login');
+    showSignInErrorFromRedirect();
     elements['auth-shell'].classList.remove('hidden');
   }
 }
@@ -1207,6 +1209,32 @@ function forceSignedOut(message) {
       renderLockdown(session.lockdown);
     })
     .catch(() => setCsrfToken(''));
+}
+
+// "Continue with Google/Twitch": plain links into the provider's sign-in.
+function renderSignInProviders(providers) {
+  const container = document.getElementById('sign-in-providers');
+  if (!container || !Array.isArray(providers) || providers.length === 0) return;
+  container.querySelectorAll('a.provider-button').forEach((link) => link.remove());
+  for (const provider of providers) {
+    const link = document.createElement('a');
+    link.className = 'secondary-button provider-button';
+    link.href = `/api/v1/oidc/start.php?provider=${encodeURIComponent(provider.id)}`;
+    link.textContent = `Continue with ${provider.label}`;
+    container.append(link);
+  }
+  container.classList.remove('hidden');
+}
+
+// A provider sign-in that could not finish comes back with the reason in the address.
+function showSignInErrorFromRedirect() {
+  const parameters = new URLSearchParams(window.location.search);
+  const message = parameters.get('sign_in_error');
+  if (!message) return;
+  elements['auth-error'].textContent = message;
+  parameters.delete('sign_in_error');
+  const query = parameters.toString();
+  window.history.replaceState(null, '', `${window.location.pathname}${query ? `?${query}` : ''}`);
 }
 
 // During a maintenance lockdown both the sign-in card and the chat say so.

@@ -60,7 +60,7 @@ final class PersonalDataExportService
                 'scope' => [
                     'description' => 'Retained personal data currently associated with the authenticated account.',
                     'includes' => [
-                        'account profile, profile picture, roles and ban history',
+                        'account profile, profile picture, connected sign-in providers (provider and its account identifier only), roles and ban history',
                         'rooms created by the account, memberships and pending invitations',
                         'retained room messages authored by the account and their retained revisions',
                         'retained direct messages visible to the account and attachment metadata',
@@ -87,6 +87,7 @@ final class PersonalDataExportService
                     'roles' => $roles,
                     'ban_history' => $bans,
                     'avatar' => (new AvatarService($this->pdo, $this->config))->exportFor($actor->id),
+                    'sign_in_providers' => $this->signInProviders($actor->id),
                 ]),
                 'rooms' => [
                     'created' => $createdRooms,
@@ -330,6 +331,22 @@ SQL, ['user_id' => $userId], 'personal-data authored room messages', fn (array $
                 'created_at' => (string) $row['attachment_created_at'],
                 'deleted_at' => $this->nullableString($row['attachment_deleted_at']),
             ],
+        ]);
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function signInProviders(int $userId): array
+    {
+        return $this->mappedRows(<<<'SQL'
+SELECT provider, subject, created_at, last_used_at
+FROM user_identities
+WHERE user_id = :user_id
+ORDER BY provider
+SQL, ['user_id' => $userId], 'personal-data sign-in providers', fn (array $row): array => [
+            'provider' => (string) $row['provider'],
+            'subject' => (string) $row['subject'],
+            'connected_at' => (string) $row['created_at'],
+            'last_used_at' => $this->nullableString($row['last_used_at']),
         ]);
     }
 

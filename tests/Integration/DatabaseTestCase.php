@@ -19,7 +19,7 @@ abstract class DatabaseTestCase extends TestCase
         $this->config = Config::fromEnvironment();
         $this->pdo = Database::connect($this->config);
         $this->pdo->exec(
-            'TRUNCATE TABLE account_notifications, maintenance_runs, sse_connections, rate_limit_counters, request_rate_limits, direct_message_attachments, direct_messages, attachments, room_presence, realtime_events, room_messages, room_invitations, room_members, rooms, audit_log, user_bans, login_attempts, account_closures, mfa_recovery_codes, webauthn_credentials, user_roles, users RESTART IDENTITY CASCADE',
+            'TRUNCATE TABLE oidc_signing_keys, user_identities, account_notifications, maintenance_runs, sse_connections, rate_limit_counters, request_rate_limits, direct_message_attachments, direct_messages, attachments, room_presence, realtime_events, room_messages, room_invitations, room_members, rooms, audit_log, user_bans, login_attempts, account_closures, mfa_recovery_codes, webauthn_credentials, user_roles, users RESTART IDENTITY CASCADE',
         );
         $this->pdo->exec(<<<'SQL'
 UPDATE system_settings
@@ -59,6 +59,23 @@ SQL);
             $events,
             static fn ($event): bool => $event->type !== 'rooms_changed',
         ));
+    }
+
+    /**
+     * A copy of the test configuration with some settings replaced.
+     *
+     * @param array<string, mixed> $overrides constructor argument names to values
+     */
+    protected function configWith(array $overrides): Config
+    {
+        $arguments = [];
+        $constructor = (new \ReflectionClass(Config::class))->getConstructor();
+        foreach ($constructor === null ? [] : $constructor->getParameters() as $parameter) {
+            $name = $parameter->getName();
+            $arguments[$name] = array_key_exists($name, $overrides) ? $overrides[$name] : $this->config->{$name};
+        }
+
+        return new Config(...$arguments);
     }
 
     protected function configWithThrottle(int $attempts, int $minutes = 15): Config
