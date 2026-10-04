@@ -273,6 +273,10 @@
   display: none;
 }
 
+/* In the bordered direct-message composer, the typing line only appears while needed. */
+.dm-composer .typing-indicator { grid-column: 1 / -1; min-height: 0; margin: 0; }
+.dm-composer .typing-indicator:not(.active) { display: none; }
+
 .dm-composer {
   grid-area: 3 / 1;
   display: grid;

@@ -7,6 +7,7 @@ import { createRegistrationChallenge } from './registration-challenge.js';
 import { attachPhoto, avatarTone, initials } from './avatar.js';
 import { nameButton } from './name-menu.js';
 import { attachNameCompletion } from './name-completion.js';
+import { createTypingIndicator, createTypingSignal } from './typing.js';
 import { COMMANDS, SHRUG, attachCommandSuggestions, parseSlashCommand, showCommandHelp, splitTarget } from './slash-commands.js';
 import { alertUser } from './attention.js';
 import { formatDateTime } from './datetime.js';
@@ -35,6 +36,8 @@ const elements = {};
 let presence = null;
 let mentionAutocomplete = null;
 let commandSuggestions = null;
+let roomTyping = null;
+let typingSignal = null;
 
 window.addEventListener('DOMContentLoaded', () => {
   bindElements();
@@ -85,6 +88,7 @@ function bindElements() {
     'message-list',
     'load-older-button',
     'jump-latest',
+    'typing-indicator',
     'composer-wrap',
     'composer-form',
     'composer-input',
@@ -133,6 +137,11 @@ function bindEvents() {
       event.preventDefault();
       elements['composer-form'].requestSubmit();
     }
+  });
+  roomTyping = createTypingIndicator(elements['typing-indicator']);
+  typingSignal = createTypingSignal(() => apiPost('/api/v1/typing.php', { room_id: state.currentRoom.id }));
+  elements['composer-input'].addEventListener('input', () => {
+    if (state.currentRoom?.member_role) typingSignal.input(elements['composer-input'].value);
   });
   // Before name completion, so Tab picks a command rather than a name.
   commandSuggestions = attachCommandSuggestions(elements['composer-input'], availableCommands);
@@ -434,6 +443,7 @@ function renderRoomList() {
 
 async function selectRoom(room) {
   state.currentRoom = room;
+  roomTyping?.clear();
   // Where this visit's "New messages" divider goes; it stays put while here.
   state.readMarker = Number.isInteger(room.last_read_message_id) && (room.unread_count ?? 0) > 0
     ? room.last_read_message_id
@@ -990,6 +1000,7 @@ async function submitMessage(event) {
     const payload = { room_id: room.id, body };
     if (state.replyTo) payload.reply_to_message_id = state.replyTo.id;
     const response = await apiPost('/api/v1/rooms/send.php', payload);
+    typingSignal?.reset();
     elements['composer-input'].value = '';
     clearReplyTo();
     await presence.interact();
@@ -1206,6 +1217,7 @@ function startEventStream() {
     const envelope = parseEvent(event);
     const message = envelope?.payload?.message;
     countUnread(message);
+    if (message) roomTyping?.remove(message.sender_id);
     if (message && message.room_id === state.currentRoom?.id) {
       appendMessage(message, true);
     }
@@ -1213,6 +1225,13 @@ function startEventStream() {
     if (message && message.sender_id !== own && !isIgnored(message.sender_id) && message.mentions?.some((mention) => mention.user_id === own)) {
       alertUser('mention', `${message.username ?? 'Someone'} mentioned you`);
     }
+  });
+
+  source.addEventListener('typing', (event) => {
+    const payload = parseEvent(event)?.payload;
+    const user = payload?.user;
+    if (!payload || payload.room_id !== state.currentRoom?.id || !user || user.id === state.user?.id || isIgnored(user.id)) return;
+    roomTyping?.add(user);
   });
 
   source.addEventListener('message_deleted', (event) => {

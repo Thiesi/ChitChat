@@ -1418,6 +1418,15 @@ button.user-name.mention { padding: 0 0.2rem; border-radius: 0.25rem; background
 }
 .jump-latest:hover { border-color: var(--accent); }
 
+/* "Alex is typing…": one quiet line above the composer, its space always kept. */
+.typing-indicator {
+  min-height: 1.3rem;
+  margin: 0 0 0.35rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-style: italic;
+}
+
 /* A message from someone this account ignores, collapsed to one line. */
 .message.ignored-message {
   display: flex;

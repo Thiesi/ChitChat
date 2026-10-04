@@ -77,6 +77,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
         </section>
 
         <form id="dm-composer" class="dm-composer hidden">
+          <p id="dm-typing-indicator" class="typing-indicator"></p>
           <div id="dm-reply-banner" class="reply-banner hidden">
             <span id="dm-reply-banner-text"></span>
             <button id="dm-reply-banner-cancel" class="reply-banner-cancel" type="button" aria-label="Cancel reply">Cancel</button>
