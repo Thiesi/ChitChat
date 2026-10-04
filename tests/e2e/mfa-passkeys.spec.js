@@ -30,15 +30,30 @@ async function signOut(page) {
   await page.locator('#logout-button').click();
   const logoutResponse = await logoutPromise;
   expect(logoutResponse.ok()).toBeTruthy();
+  await expect(page.locator('#auth-shell')).toBeVisible();
 
   const sessionBootstrap = page.waitForResponse((response) => (
     response.url().endsWith('/api/v1/session.php')
     && response.request().method() === 'GET'
     && response.ok()
   ));
-  await page.goto('/');
+  await gotoHome(page);
   await sessionBootstrap;
   await expect(page.locator('#auth-shell')).toBeVisible();
+}
+
+// Chromium occasionally aborts this navigation when it races a navigation the
+// page started itself (seen in CI only, net::ERR_ABORTED); try it again.
+async function gotoHome(page) {
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      await page.goto('/');
+      return;
+    } catch (error) {
+      if (attempt >= 3 || !String(error).includes('ERR_ABORTED')) throw error;
+      await page.waitForLoadState('load');
+    }
+  }
 }
 
 async function submitPassword(page, account) {
