@@ -2,6 +2,30 @@
 
 Authenticated account endpoints require a PHP session. State-changing requests require the current `X-CSRF-Token` header from `GET /api/v1/session.php`. The restoration endpoint is intentionally available without authentication but still requires the anonymous session's CSRF token, valid account credentials, a pending unexpired closure, and its own database-backed throttle.
 
+## Profile picture and profile card
+
+A profile picture replaces an account's initials next to its messages, in member and conversation lists, in the account menu, and on its profile card. Without one, initials in a stable colour tone are shown.
+
+Uploads are never stored as sent. The server checks the type (JPEG, PNG, or WebP only; SVG and everything else is refused) and the declared dimensions (at most 6000 × 6000 pixels, checked before decoding), then decodes the image with GD and stores a newly encoded, centre-cropped 256 × 256 WebP. That drops all metadata, such as camera details or GPS positions. Pictures live in attachment storage under a random key, so backups include them and the maintenance orphan sweep leaves them alone. Profile pictures need the PHP GD extension with WebP support; without it uploads return `503 avatars_unavailable` and initials are shown.
+
+### `POST /api/v1/account/avatar/upload.php`
+
+Multipart form with the image in the `avatar` field, at most 5 MB; authentication and the CSRF token are required. The browser lets the user crop first, but the server crops again regardless. Returns `{"avatar": {"has_avatar": true, "avatar_version": …}}`; audited as `account.avatar_updated`. The previous picture's file is deleted.
+
+### `POST /api/v1/account/avatar/remove.php`
+
+`{}` removes your own picture (audited as `account.avatar_removed`). `{"user_id": 7}` removes someone else's, which only Super-Administrators, Administrators, Chat Admins, and Global Moderators may do: it is audited as `moderation.avatar_removed`, and the account gets an `avatar_removed` notification. `404 avatar_not_found` if there is no picture.
+
+### `GET /api/v1/avatars/show.php?user_id=7`
+
+The picture as `image/webp`, for signed-in users only, or `404` while the account shows initials (or is not active). Responses revalidate on every use via an `ETag` (the storage key, new with each upload), so a changed picture appears at once.
+
+### `GET /api/v1/users/profile.php?user_id=7`
+
+The small profile card behind every name: `id`, `username`, `member_since`, `badge` (the most senior staff role, such as `Administrator`, or `null`), `has_avatar`, `avatar_version`, and `can_remove_avatar` for the viewer, plus `avatars_available` for the installation. Closed and closing accounts return `404`.
+
+When an account is permanently closed, its picture is deleted along with the tombstone. The personal data export contains the stored picture itself (`account.avatar`, base64-encoded WebP).
+
 ## Date and time display
 
 Each account can choose how dates and times are shown, independently of the browser's language: a **format region** (`date_locale`, one of `en-US`, `en-GB`, `en-AU`, `de-DE`, `de-AT`, `de-CH`, `fr-FR`, `es-ES`, `it-IT`, `nl-NL`, `pl-PL`, `pt-BR`, `sv-SE`, `ja-JP`) and a **clock** (`hour_cycle`: `h23` for 24-hour, `h12` for 12-hour). `null` means Automatic, which follows the browser. The time zone always follows the device. The session (`GET /api/v1/session.php`) returns the choice as `preferences: {"date_locale": …, "hour_cycle": …}` (`null` while signed out), and the client caches it per device so pages format correctly before the session loads.

@@ -8,6 +8,7 @@ This document applies to stable `v2.0.0`, the final release of the clean reconst
 - Composer 2
 - PostgreSQL 15 or newer
 - PHP extensions: `pdo`, `pdo_pgsql`, `json`, `mbstring`, `fileinfo`, `openssl`, and `curl` (needed only if Web Push is enabled)
+- Recommended: `gd` with WebP support, for profile pictures (Debian/Ubuntu: `php8.x-gd`). Without it ChitChat works normally, shows initials instead of pictures, and the Account page explains that uploads are unavailable. ChitChat re-encodes every uploaded picture with GD, so it never serves an uploaded file as-is.
 - Node.js 24 or newer only for CI-equivalent JavaScript and browser tests
 
 The deployed browser client has no Node.js runtime dependency and uses no npm packages. `minishlink/web-push` (a Composer dependency, pulled in for Web Push's VAPID signing and payload encryption) is the only production dependency beyond PHP itself; see [ADR 0006](docs/architecture/0006-web-push.md).

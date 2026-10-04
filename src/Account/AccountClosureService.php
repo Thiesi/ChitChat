@@ -28,6 +28,7 @@ final class AccountClosureService
     private readonly AuditLogger $audit;
     private readonly EventRepository $events;
     private readonly RateLimiter $rateLimiter;
+    private readonly AvatarService $avatars;
 
     public function __construct(
         private readonly PDO $pdo,
@@ -37,6 +38,7 @@ final class AccountClosureService
         $this->audit = new AuditLogger($pdo);
         $this->events = new EventRepository($pdo);
         $this->rateLimiter = new RateLimiter($pdo, $config->rateLimits);
+        $this->avatars = new AvatarService($pdo, $config);
     }
 
     /** @return array{state:string, requested_at:string, finalizes_at:string, cooling_off_days:int, session_version:int} */
@@ -315,6 +317,7 @@ SQL);
             }
 
             $count = 0;
+            $avatarFiles = [];
             foreach ($due->fetchAll() as $row) {
                 if (!is_array($row)) {
                     continue;
@@ -324,9 +327,14 @@ SQL);
                     (int) $row['user_id'],
                     (string) $row['username_canonical'],
                 );
+                $avatarFiles[] = $this->avatars->clearForClosure((int) $row['user_id']);
                 $count++;
             }
             $this->pdo->commit();
+            // A permanently closed account keeps no picture; files go once the database agrees.
+            foreach (array_filter($avatarFiles) as $key) {
+                $this->avatars->removeFile($key);
+            }
 
             return $count;
         } catch (Throwable $exception) {

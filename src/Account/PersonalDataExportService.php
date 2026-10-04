@@ -60,7 +60,7 @@ final class PersonalDataExportService
                 'scope' => [
                     'description' => 'Retained personal data currently associated with the authenticated account.',
                     'includes' => [
-                        'account profile, roles and ban history',
+                        'account profile, profile picture, roles and ban history',
                         'rooms created by the account, memberships and pending invitations',
                         'retained room messages authored by the account and their retained revisions',
                         'retained direct messages visible to the account and attachment metadata',
@@ -86,6 +86,7 @@ final class PersonalDataExportService
                 'account' => array_merge($profile, [
                     'roles' => $roles,
                     'ban_history' => $bans,
+                    'avatar' => (new AvatarService($this->pdo, $this->config))->exportFor($actor->id),
                 ]),
                 'rooms' => [
                     'created' => $createdRooms,

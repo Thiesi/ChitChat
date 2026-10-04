@@ -4,7 +4,7 @@ import { renderMessageBody, buildReplyPreview, buildReactionBar } from './messag
 import { attachMentionAutocomplete } from './mention-autocomplete.js';
 import { attachEmojiPicker } from './emoji-picker.js';
 import { createRegistrationChallenge } from './registration-challenge.js';
-import { avatarTone, initials } from './avatar.js';
+import { attachPhoto, avatarTone, initials } from './avatar.js';
 import { nameButton } from './name-menu.js';
 import { attachNameCompletion } from './name-completion.js';
 import { alertUser } from './attention.js';
@@ -64,6 +64,7 @@ function bindElements() {
     'current-user',
     'user-initials',
     'user-menu-avatar',
+    'user-menu-button',
     'logout-button',
     'new-room-button',
     'room-title',
@@ -152,6 +153,10 @@ async function enterApplication(user) {
     avatar.textContent = initials(user.username);
   }
   elements['user-menu-avatar'].dataset.tone = String(avatarTone(user.id));
+  for (const avatar of [elements['user-menu-button'], elements['user-menu-avatar']]) {
+    avatar.dataset.avatarUser = String(user.id);
+    attachPhoto(avatar, user.id);
+  }
   elements['new-room-button'].classList.toggle('hidden', !canCreateRooms(user));
   clearAuthError();
   presence.start();
@@ -718,6 +723,10 @@ function buildMessageElement(message) {
   avatar.setAttribute('aria-hidden', 'true');
   avatar.textContent = initials(message.username ?? 'System');
   avatar.dataset.tone = String(avatarTone(message.sender_id ?? message.username));
+  if (Number.isInteger(message.sender_id)) {
+    avatar.dataset.avatarUser = String(message.sender_id);
+    attachPhoto(avatar, message.sender_id);
+  }
   article.append(avatar);
 
   const time = document.createElement('time');

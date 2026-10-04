@@ -78,6 +78,41 @@
   line-height: 1.55;
 }
 
+.avatar-settings { display: flex; align-items: flex-start; gap: 1.25rem; }
+.avatar-settings-text { display: grid; gap: 0.6rem; min-width: 0; }
+.avatar-settings-text p { margin: 0; }
+.mini-avatar.avatar-preview { width: 5rem; height: 5rem; font-size: 1.4rem; }
+.file-button { cursor: pointer; }
+.file-button:has(+ input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+.file-button.is-disabled { opacity: 0.55; pointer-events: none; }
+
+.avatar-crop-dialog form { padding: 1.25rem; }
+.avatar-crop-stage {
+  position: relative;
+  width: min(18rem, 70vw);
+  aspect-ratio: 1;
+  margin: 0 auto;
+  border-radius: 1rem;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.avatar-crop-stage canvas { display: block; width: 100%; height: 100%; cursor: grab; touch-action: none; }
+.avatar-crop-stage canvas:active { cursor: grabbing; }
+.avatar-crop-stage canvas:focus-visible { outline: 3px solid var(--accent); outline-offset: -3px; }
+/* Dims everything outside the circle that others will see. */
+.avatar-crop-stage::after {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  box-shadow: 0 0 0 100vmax rgb(0 0 0 / 0.5);
+  pointer-events: none;
+  content: "";
+}
+
+@media (max-width: 34rem) {
+  .avatar-settings { flex-direction: column; }
+}
+
 .scheme-fieldset { display: grid; gap: 0.6rem; margin: 0; padding: 0; border: 0; }
 .scheme-fieldset legend { margin-bottom: 0.6rem; padding: 0; font-weight: 600; }
 .scheme-fieldset .scheme-picker { gap: 0.6rem 1.25rem; }
