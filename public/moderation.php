@@ -82,6 +82,12 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
             <div id="moderation-report-list" class="moderation-report-list"></div>
           </section>
 
+          <section id="moderation-case-actions" class="moderation-case-actions hidden" aria-labelledby="moderation-actions-title">
+            <h3 id="moderation-actions-title">Act on this report</h3>
+            <p class="optional-label">Each action also closes the case with the matching outcome and the note below.</p>
+            <div id="moderation-case-action-row" class="action-row"></div>
+          </section>
+
           <form id="moderation-resolution-form" class="moderation-resolution form-stack">
             <h3>Close case</h3>
             <label>Outcome
