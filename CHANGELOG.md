@@ -6,11 +6,15 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ## [Unreleased]
 
-ChitChat is feature-complete; see [Project status](README.md#project-status-feature-complete) and the [roadmap](docs/roadmap.md) for the maintenance-only policy going forward. Entries only appear here for a discovered bug fix or an accepted new feature request.
+No changes since `v2.3.0`. ChitChat is feature-complete; see [Project status](README.md#project-status-feature-complete) and the [roadmap](docs/roadmap.md) for the maintenance-only policy going forward. Entries only appear here for a discovered bug fix or an accepted new feature request.
+
+## [2.3.0] - 2026-10-04
+
+Maintenance release with no database migration. See the [`v2.3.0` release notes](docs/releases/v2.3.0.md).
 
 ### Added
 
-- Added a light theme and a **Theme** setting (System, Light, Dark) in the chat sidebar and on the account page. The default follows the device's light or dark setting; an explicit choice is saved on the device and applied before the page paints. Every color is now a theme token, and the light palette meets WCAG AA contrast.
+- Added a light theme and a **Theme** setting (System, Light, Dark) in the chat sidebar and on the account page. The default follows the device's light or dark setting; an explicit choice is saved on the device and applied before the page paints. Every color is now a theme token, and the light palette meets WCAG AA contrast (#99).
 
 ## [2.2.0] - 2026-10-04
 
