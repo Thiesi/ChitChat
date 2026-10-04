@@ -35,6 +35,8 @@ test('the theme follows the system by default and remembers an explicit choice o
   await expect(html(page)).toHaveAttribute('data-theme', 'light');
   await expect(page.locator('#account-shell').getByRole('combobox', { name: 'Theme' })).toHaveValue('light');
 
+  // Firefox does not keep media emulation across navigations, so set it again here.
+  await page.emulateMedia({ colorScheme: 'dark' });
   await page.locator('#account-shell').getByRole('combobox', { name: 'Theme' }).selectOption('system');
   await expect(html(page)).toHaveAttribute('data-theme', 'dark');
   await page.emulateMedia({ colorScheme: 'light' });
