@@ -30,7 +30,10 @@ final class TypingServiceTest extends DatabaseTestCase
 
         $seen = $this->typingEvents($member);
         self::assertCount(1, $seen);
-        self::assertSame(['room_id' => $room->id, 'user' => ['id' => $owner->id, 'username' => 'Owner']], $seen[0]->payload);
+        // JSONB reorders keys, so compare the fields rather than the arrays.
+        self::assertSame($room->id, $seen[0]->payload['room_id'] ?? null);
+        self::assertSame(['id' => $owner->id, 'username' => 'Owner'], $seen[0]->payload['user'] ?? null);
+        self::assertCount(2, $seen[0]->payload, 'Nothing but the room and who is typing.');
         self::assertSame([], $this->typingEvents($outsider), 'Only members see typing in a room.');
 
         // Expired signals are never delivered.
