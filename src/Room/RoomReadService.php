@@ -13,6 +13,7 @@ use RuntimeException;
  * How far each member has read in each room: unread counts for the room
  * list and the position of the "New messages" divider. Only rooms a person
  * is a member of are tracked, the rooms whose messages reach them live.
+ * Messages from people they ignore never count.
  */
 final class RoomReadService
 {
@@ -38,6 +39,10 @@ SELECT rr.room_id,
                  AND m.id > rr.last_read_message_id
                  AND m.deleted_at IS NULL
                  AND m.sender_id IS DISTINCT FROM rr.user_id
+                 AND NOT EXISTS (
+                     SELECT 1 FROM user_ignores ignoring
+                     WHERE ignoring.user_id = rr.user_id AND ignoring.ignored_user_id = m.sender_id
+                 )
                LIMIT :cap
            ) unread
        ) AS unread_count

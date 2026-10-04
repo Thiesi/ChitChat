@@ -18,6 +18,9 @@ const state = {
   currentRoom: null,
   readMarker: null,
   newWhileAway: 0,
+  // People this account ignores in rooms, and their messages shown anyway.
+  ignored: new Set(),
+  revealed: new Set(),
   messages: [],
   messageIds: new Set(),
   oldestMessageId: null,
@@ -138,6 +141,13 @@ function bindEvents() {
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible' && isNearBottom()) scheduleMarkRead();
   });
+  window.addEventListener('chitchat:ignore-changed', (event) => {
+    const { userId, ignored } = event.detail ?? {};
+    if (!Number.isInteger(userId)) return;
+    if (ignored) state.ignored.add(userId);
+    else state.ignored.delete(userId);
+    renderMessages();
+  });
   elements['reply-banner-cancel'].addEventListener('click', clearReplyTo);
   elements['new-room-button'].addEventListener('click', openRoomDialog);
   elements['room-dialog-cancel'].addEventListener('click', () => elements['room-dialog'].close());
@@ -147,6 +157,7 @@ function bindEvents() {
 async function bootstrap() {
   const session = await apiGet('/api/v1/session.php');
   setCsrfToken(session.csrf_token);
+  state.ignored = new Set(Array.isArray(session.ignored_user_ids) ? session.ignored_user_ids : []);
   renderLockdown(session.lockdown);
   renderSignInProviders(session.sign_in_providers);
   elements['app-loading'].classList.add('hidden');
@@ -474,7 +485,8 @@ function addPing(ping) {
 function timeline() {
   const oldest = state.messages[0] ? Date.parse(state.messages[0].created_at) : null;
   const complete = elements['load-older-button'].classList.contains('hidden');
-  const pings = state.pings.filter((ping) => complete || oldest === null || Date.parse(ping.created_at) >= oldest);
+  const pings = state.pings.filter((ping) => (complete || oldest === null || Date.parse(ping.created_at) >= oldest)
+    && !isIgnored(ping.sender?.id));
   return [
     ...state.messages.map((message) => ({ kind: 'message', at: Date.parse(message.created_at), item: message })),
     ...pings.map((ping) => ({ kind: 'ping', at: Date.parse(ping.created_at), item: ping })),
@@ -711,6 +723,7 @@ function renderMessages({ scrollToEnd = false, prepended = false } = {}) {
       && entry.kind !== 'ping'
       && entry.item.id > state.readMarker
       && entry.item.sender_id !== state.user?.id
+      && !isIgnored(entry.item.sender_id)
     ) {
       list.append(newMessagesDivider());
       dividerPlaced = true;
@@ -750,7 +763,36 @@ function restoreFocus(list, focus) {
   target?.focus({ preventScroll: true });
 }
 
+function isIgnored(userId) {
+  return Number.isInteger(userId) && userId !== state.user?.id && state.ignored.has(userId);
+}
+
+// A message from someone this account ignores: one quiet line, which can be
+// opened for the moment (to follow a conversation that quotes it, say).
+function buildIgnoredElement(message) {
+  const article = document.createElement('article');
+  article.className = 'message ignored-message';
+  article.dataset.messageId = String(message.id);
+  const text = document.createElement('span');
+  text.textContent = `Message from ${message.username ?? 'someone'}, whom you ignore.`;
+  const show = document.createElement('button');
+  show.type = 'button';
+  show.className = 'link-button';
+  show.textContent = 'Show';
+  show.setAttribute('aria-label', `Show the message from ${message.username ?? 'someone'}`);
+  show.addEventListener('click', () => {
+    state.revealed.add(message.id);
+    renderMessages();
+    elements['message-list'].querySelector(`[data-message-id="${message.id}"]`)?.focus();
+  });
+  article.append(text, show);
+  return article;
+}
+
 function buildMessageElement(message) {
+  if (isIgnored(message.sender_id) && !state.revealed.has(message.id)) {
+    return buildIgnoredElement(message);
+  }
   const article = document.createElement('article');
   article.className = 'message';
   article.classList.toggle('emote', message.type === 'emote');
@@ -1035,7 +1077,7 @@ async function markCurrentRoomRead() {
 
 // A message in a joined room that is not on screen counts towards its badge.
 function countUnread(message) {
-  if (!message || message.sender_id === state.user?.id) return;
+  if (!message || message.sender_id === state.user?.id || isIgnored(message.sender_id)) return;
   const room = state.rooms.find((candidate) => candidate.id === message.room_id);
   if (!room || !room.member_role) return;
   if (room.id === state.currentRoom?.id) {
@@ -1076,7 +1118,7 @@ function startEventStream() {
       appendMessage(message, true);
     }
     const own = state.user?.id;
-    if (message && message.sender_id !== own && message.mentions?.some((mention) => mention.user_id === own)) {
+    if (message && message.sender_id !== own && !isIgnored(message.sender_id) && message.mentions?.some((mention) => mention.user_id === own)) {
       alertUser('mention', `${message.username ?? 'Someone'} mentioned you`);
     }
   });
@@ -1098,7 +1140,8 @@ function startEventStream() {
 
   source.addEventListener('ping', (event) => {
     const ping = parseEvent(event)?.payload?.ping;
-    if (!ping) {
+    // Pings from someone this account ignores stay silent and out of view.
+    if (!ping || (ping.target?.id === state.user?.id && isIgnored(ping.sender?.id))) {
       return;
     }
     addPing(ping);

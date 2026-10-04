@@ -42,6 +42,24 @@ Both fields are optional and default to `null` (Automatic). Any other value retu
 
 Colour scheme and light/dark mode are per-device choices kept in the browser, not account data.
 
+## Ignoring people in rooms
+
+### `POST /api/v1/users/ignore.php`
+
+Requires authentication and CSRF.
+
+```json
+{ "user_id": 7, "ignored": true }
+```
+
+Ignores someone in rooms (`true`) or stops ignoring them (`false`); returns the account's `ignored_user_ids`, which `session.php` also reports and `users/profile.php` reflects as `profile.ignored`. It is a private choice: the ignored person is never told, and nothing changes for anyone else. For the person ignoring:
+
+- the browser collapses the ignored person's room messages to one line that can be opened, and hides their pings;
+- their room mentions and pings create no notification (and so no push); the ping itself is still recorded, so the sender sees nothing different;
+- their messages do not count towards room unread counts.
+
+Direct messages are unaffected; blocking covers those. The ignore list is part of the personal-data export and is deleted when an account closure is finalized.
+
 ## Sign-in methods
 
 ### `GET /api/v1/account/identities/list.php`

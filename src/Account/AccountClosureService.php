@@ -407,6 +407,7 @@ SQL, [
         // A closed account can no longer be reached through Google or Twitch.
         $this->deleteForUser('user_identities', 'user_id', $userId);
         $this->deleteForUser('room_reads', 'user_id', $userId);
+        $this->deleteForUser('user_ignores', 'user_id', $userId);
         $this->execute(
             'DELETE FROM direct_message_blocks WHERE blocker_user_id = :id OR blocked_user_id = :id',
             ['id' => $userId],
@@ -493,6 +494,7 @@ SQL);
             'sse_connections.user_id',
             'user_identities.user_id',
             'room_reads.user_id',
+            'user_ignores.user_id',
         ], true)) {
             throw new RuntimeException('Unsupported account-lifecycle cleanup target.');
         }

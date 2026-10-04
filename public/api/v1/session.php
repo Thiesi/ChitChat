@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use ChitChat\Account\DisplayPreferenceService;
+use ChitChat\Account\IgnoreService;
 use ChitChat\Admin\LockdownService;
 use ChitChat\Auth\Oidc\OidcService;
 use ChitChat\Auth\SessionManager;
@@ -39,6 +40,8 @@ SQL);
         'user' => $user?->toSessionArray(),
         // Date and time display; null while signed out (the client then follows the browser).
         'preferences' => $user === null ? null : (new DisplayPreferenceService($pdo))->get($user->id),
+        // People this account ignores in rooms; their messages are collapsed.
+        'ignored_user_ids' => $user === null ? [] : (new IgnoreService($pdo))->ignoredBy($user->id),
         // Lockdown also closes registration, so the sign-in page hides the Register tab.
         // Sign-in providers this installation offers (Google, Twitch), for the sign-in page.
         'sign_in_providers' => (new OidcService($pdo, $config))->providers(),

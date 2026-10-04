@@ -1418,6 +1418,27 @@ button.user-name.mention { padding: 0 0.2rem; border-radius: 0.25rem; background
 }
 .jump-latest:hover { border-color: var(--accent); }
 
+/* A message from someone this account ignores, collapsed to one line. */
+.message.ignored-message {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-style: italic;
+}
+.ignored-message .link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent-strong);
+  font: inherit;
+  font-style: normal;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 /* A ping: a private notice between its sender and target. */
 .message.ping-notice {
   padding-top: 0.55rem;

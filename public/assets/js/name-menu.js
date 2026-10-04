@@ -10,6 +10,13 @@ import { formatDateTime } from './datetime.js';
 const phone = window.matchMedia('(max-width: 34rem)');
 const ICON_MESSAGE = ['M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'];
 const ICON_PERSON = ['M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2', 'M12 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8z'];
+const ICON_EYE = ['M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z', 'M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z'];
+const ICON_EYE_OFF = [
+  'M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94',
+  'M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19',
+  'M14.12 14.12a3 3 0 1 1-4.24-4.24',
+  'M1 1l22 22',
+];
 let menu = null;
 let backdrop = null;
 let opener = null;
@@ -145,6 +152,8 @@ function showProfile(label, actions, profile, self) {
   since.textContent = `Member since ${formatDateTime(profile.member_since, { dateStyle: 'long', timeStyle: null })}`;
   label.append(since);
 
+  if (!self) actions.append(ignoreToggle(profile));
+
   if (profile.can_remove_avatar && !self) {
     const remove = document.createElement('button');
     remove.type = 'button';
@@ -164,6 +173,39 @@ function showProfile(label, actions, profile, self) {
     });
     actions.append(document.createElement('hr'), remove);
   }
+}
+
+// Ignoring hides someone's room messages and silences their mentions and
+// pings, for this account only. They are not told. Direct messages are
+// separate: blocking covers those.
+function ignoreToggle(profile) {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'menu-item';
+  let ignored = Boolean(profile.ignored);
+  const render = () => {
+    const label = document.createElement('span');
+    label.textContent = ignored ? 'Stop ignoring' : 'Ignore in rooms';
+    button.replaceChildren(menuIcon(ignored ? ICON_EYE : ICON_EYE_OFF), label);
+    button.title = ignored
+      ? `Show ${profile.username}'s room messages again`
+      : `Collapse ${profile.username}'s room messages and silence their mentions and pings. They are not told.`;
+  };
+  render();
+  button.addEventListener('click', async () => {
+    button.disabled = true;
+    try {
+      await apiPost('/api/v1/users/ignore.php', { user_id: profile.id, ignored: !ignored });
+      ignored = !ignored;
+      render();
+      window.dispatchEvent(new CustomEvent('chitchat:ignore-changed', { detail: { userId: profile.id, ignored } }));
+    } catch (error) {
+      button.after(statusText(error instanceof Error ? error.message : 'That did not work.'));
+    } finally {
+      button.disabled = false;
+    }
+  });
+  return button;
 }
 
 function close() {
@@ -208,6 +250,14 @@ function menuLink(href, text, paths) {
   const link = document.createElement('a');
   link.className = 'menu-item';
   link.href = href;
+  link.append(menuIcon(paths));
+  const label = document.createElement('span');
+  label.textContent = text;
+  link.append(label);
+  return link;
+}
+
+function menuIcon(paths) {
   const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   icon.setAttribute('viewBox', '0 0 24 24');
   icon.setAttribute('aria-hidden', 'true');
@@ -220,11 +270,7 @@ function menuLink(href, text, paths) {
     path.setAttribute('d', d);
     icon.append(path);
   }
-  link.append(icon);
-  const label = document.createElement('span');
-  label.textContent = text;
-  link.append(label);
-  return link;
+  return icon;
 }
 
 function statusText(text) {

@@ -60,7 +60,7 @@ final class PersonalDataExportService
                 'scope' => [
                     'description' => 'Retained personal data currently associated with the authenticated account.',
                     'includes' => [
-                        'account profile, profile picture, connected sign-in providers (provider and its account identifier only), roles and ban history',
+                        'account profile, profile picture, connected sign-in providers (provider and its account identifier only), people ignored in rooms, roles and ban history',
                         'rooms created by the account, memberships and pending invitations',
                         'retained room messages authored by the account and their retained revisions',
                         'retained direct messages visible to the account and attachment metadata',
@@ -88,6 +88,7 @@ final class PersonalDataExportService
                     'ban_history' => $bans,
                     'avatar' => (new AvatarService($this->pdo, $this->config))->exportFor($actor->id),
                     'sign_in_providers' => $this->signInProviders($actor->id),
+                    'ignored_people' => $this->ignoredPeople($actor->id),
                 ]),
                 'rooms' => [
                     'created' => $createdRooms,
@@ -333,6 +334,21 @@ SQL, ['user_id' => $userId], 'personal-data authored room messages', fn (array $
                 'created_at' => (string) $row['attachment_created_at'],
                 'deleted_at' => $this->nullableString($row['attachment_deleted_at']),
             ],
+        ]);
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function ignoredPeople(int $userId): array
+    {
+        return $this->mappedRows(<<<'SQL'
+SELECT ignored.id, ignored.username, entry.created_at
+FROM user_ignores entry
+JOIN users ignored ON ignored.id = entry.ignored_user_id
+WHERE entry.user_id = :user_id
+ORDER BY entry.created_at, ignored.id
+SQL, ['user_id' => $userId], 'personal-data ignored people', fn (array $row): array => [
+            'user' => ['id' => (int) $row['id'], 'username' => (string) $row['username']],
+            'ignored_since' => (string) $row['created_at'],
         ]);
     }
 

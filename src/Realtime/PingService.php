@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace ChitChat\Realtime;
 
+use ChitChat\Account\IgnoreService;
 use ChitChat\Auth\AuthenticatedUser;
 use ChitChat\Auth\Username;
 use ChitChat\Http\ApiException;
@@ -110,23 +111,26 @@ SQL);
             ];
 
             // The notification references the ping; it never copies the ping text.
-            $notify = $this->pdo->prepare(<<<'SQL'
+            // Someone ignoring the sender is not notified, and the sender cannot tell.
+            if (!(new IgnoreService($this->pdo))->isIgnoring($targetUserId, $actor->id)) {
+                $notify = $this->pdo->prepare(<<<'SQL'
 INSERT INTO account_notifications (user_id, kind, context_json)
 VALUES (:user_id, 'pinged', CAST(:context AS jsonb))
 SQL);
-            if ($notify === false) {
-                throw new RuntimeException('Unable to prepare ping notification insert.');
+                if ($notify === false) {
+                    throw new RuntimeException('Unable to prepare ping notification insert.');
+                }
+                $notify->execute([
+                    'user_id' => $targetUserId,
+                    'context' => json_encode([
+                        'ping_id' => $ping['id'],
+                        'room_id' => $roomId,
+                        'room_name' => $room->name,
+                        'sender_user_id' => $actor->id,
+                        'sender_username' => $actor->username,
+                    ], JSON_THROW_ON_ERROR),
+                ]);
             }
-            $notify->execute([
-                'user_id' => $targetUserId,
-                'context' => json_encode([
-                    'ping_id' => $ping['id'],
-                    'room_id' => $roomId,
-                    'room_name' => $room->name,
-                    'sender_user_id' => $actor->id,
-                    'sender_username' => $actor->username,
-                ], JSON_THROW_ON_ERROR),
-            ]);
 
             // One targeted event per participant, so the sender's other tabs show it too.
             foreach ([$targetUserId, $actor->id] as $recipient) {

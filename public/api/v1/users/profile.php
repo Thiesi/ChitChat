@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use ChitChat\Account\AvatarService;
+use ChitChat\Account\IgnoreService;
 use ChitChat\Auth\SessionManager;
 use ChitChat\Auth\UserRepository;
 use ChitChat\Database;
@@ -17,9 +18,12 @@ Endpoint::run($config, static function () use ($config): ApiResult {
     Request::requireMethod('GET');
     $pdo = Database::connect($config);
     $actor = SessionManager::requireUser(new UserRepository($pdo));
+    $userId = Request::queryInteger('user_id');
 
     return ApiResult::ok([
-        'profile' => (new AvatarService($pdo, $config))->profile($actor, Request::queryInteger('user_id')),
+        'profile' => (new AvatarService($pdo, $config))->profile($actor, $userId) + [
+            'ignored' => (new IgnoreService($pdo))->isIgnoring($actor->id, $userId),
+        ],
         'avatars_available' => AvatarService::available(),
     ]);
 });
