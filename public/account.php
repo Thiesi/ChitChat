@@ -138,7 +138,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
         <p class="account-eyebrow">Sign-in</p>
         <h2 id="sign-in-methods-heading">Sign-in methods</h2>
       </div>
-      <p>Connect Google or Twitch to sign in with it instead of your password. ChitChat only learns an anonymous account number from the provider: no email address, name, or picture.</p>
+      <p>Connect Google or Twitch to sign in with it instead of your password. ChitChat only receives an account number from the provider: no email address, name, or picture.</p>
       <ul id="sign-in-method-list" class="sign-in-method-list"></ul>
       <p id="sign-in-methods-status" class="account-muted" role="status" aria-live="polite"></p>
     </section>
