@@ -43,7 +43,8 @@ test('Super-Administrator renames the installation and every page presents the n
     await page.goto('/admin-settings.php');
     await page.locator('#app-name').fill('');
     await page.getByRole('button', { name: 'Save application name' }).click();
-    await expect(page.locator('#app-name')).toHaveValue('');
+    // Wait for the save itself; the field is empty the moment the test empties it.
+    await expect(page.locator('#toast-region')).toContainText('Application name saved.');
     await page.goto('/');
     await expect(page.locator('meta[name="application-name"]')).toHaveAttribute('content', defaultName);
   } finally {
