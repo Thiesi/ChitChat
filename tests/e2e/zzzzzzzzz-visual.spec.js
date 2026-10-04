@@ -45,14 +45,18 @@ test('critical authentication and account layouts remain visually stable', async
   await expect.soft(page).toHaveScreenshot('auth-desktop.png', screenshotOptions);
 
   await loginOrRegister(page);
+  // The Account page previews the date format with the current time, so pin the clock.
+  await page.clock.setFixedTime(new Date('2026-10-04T12:00:00Z'));
   await page.goto('/account.php');
   await expect(page.locator('#account-shell')).toBeVisible();
   await expect(page.locator('#account-loading')).toBeHidden();
+  await expect(page.locator('#date-preview-medium')).not.toBeEmpty();
   await expect.soft(page).toHaveScreenshot('account-desktop.png', screenshotOptions);
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/account.php');
   await expect(page.locator('#account-shell')).toBeVisible();
   await expect(page.locator('#account-loading')).toBeHidden();
+  await expect(page.locator('#date-preview-medium')).not.toBeEmpty();
   await expect.soft(page).toHaveScreenshot('account-narrow.png', screenshotOptions);
 });
