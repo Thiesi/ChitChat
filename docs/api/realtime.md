@@ -33,7 +33,7 @@ The stream releases the PHP session lock before polling, so the same browser ses
 - `room_message`, `message_deleted`, `room_broadcast`, and `presence_changed`: visible to current room members and global room moderators.
 - `message_reaction_changed`: for a room message, visible to current room members and global room moderators, as one shared event; for a direct message, published as two separate targeted events, one to each participant.
 - `rooms_changed`: for a public room (or one that was public before an update), visible to every authenticated user; for an unlisted or private room, visible to current room members and global room moderators; for a change to one account's membership, role, or invitation, visible only to that account.
-- `ping`: visible only to the targeted user.
+- `ping`: published as two separate targeted events, one to the sender and one to the target, so each sees it on every open device.
 - `forced_logout`: visible only to the targeted user.
 - `direct_message`: visible only to the sender and recipient, as separate perspective-correct events; see [`direct-messages.md`](direct-messages.md#realtime-delivery).
 
@@ -116,7 +116,22 @@ Because room membership is evaluated when events are read, a member who joins an
 
 ### `ping`
 
-Created through `/ping username [message]` in the room send endpoint. The target must be a member of the same room. Pings expire from the event ledger after one day.
+Created through `/ping username [message]` in the room send endpoint. The target must be a member of the same room. Each ping is stored in `room_pings` and also creates a `pinged` notification for the target, so it reaches someone who is offline. The event payload carries the stored ping:
+
+```json
+{
+  "ping": {
+    "id": 31,
+    "room_id": 42,
+    "sender": {"id": 4, "username": "Alice"},
+    "target": {"id": 7, "username": "Bob"},
+    "message": "Standup in five",
+    "created_at": "2026-10-04T09:02:30+00:00"
+  }
+}
+```
+
+The events expire from the event ledger after one day; the stored ping follows room-message retention.
 
 ### `room_broadcast` and `global_broadcast`
 

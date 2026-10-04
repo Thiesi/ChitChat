@@ -11,6 +11,7 @@ ChitChat is feature-complete; see [Project status](README.md#project-status-feat
 ### Added
 
 - Added a name menu: clicking a person's name (message authors, @mentions, the members panel, search results, moderation cases, and room administration) offers **Send direct message**, which also starts a brand-new conversation. When messaging is blocked, it says so instead of leading to a dead end, and your own name links to your account.
+- Pings are no longer a short pop-up that is easy to miss. Each `/ping` is stored and shown in the room as a private notice that only its sender and target see ("You pinged Alex: …" / "Root pinged you: …"), on every device and after a reload. A ping also reaches someone who is offline: it appears in their notifications (linking straight to the ping) and is pushed like a mention, with its own switch under push settings. Pings follow room-message retention and are included in the personal data export. Migration `0026_room_pings.sql` adds the `room_pings` table and the `pinged` notification kind.
 - Added Tab completion for names in the chat and direct-message composers: type the start of a name and press Tab, again to cycle through matches (recent speakers first). A name that opens a message is completed IRC-style as "Name: ". Tab still moves focus when nothing matches, and Shift+Tab always leaves the composer.
 
 ### Changed

@@ -27,6 +27,10 @@ Endpoint::run($config, static function () use ($config): ApiResult {
 
     $preferences = new NotificationPreferenceService($pdo);
     $preferences->setMentionedPushEnabled($actor->id, Request::boolean($payload, 'mentioned_push_enabled'));
+    // Optional, so a client that predates the ping switch keeps working.
+    if (array_key_exists('pinged_push_enabled', $payload)) {
+        $preferences->setPingedPushEnabled($actor->id, Request::boolean($payload, 'pinged_push_enabled'));
+    }
     $preferences->setQuietHours(
         $actor->id,
         Request::optionalInteger($payload, 'quiet_hours_start'),

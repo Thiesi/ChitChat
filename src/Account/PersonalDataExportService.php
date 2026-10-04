@@ -43,6 +43,7 @@ final class PersonalDataExportService
             $submittedReports = $this->submittedReports($actor->id);
             $mentionsSent = $this->mentionsSent($actor->id);
             $mentionsReceived = $this->mentionsReceived($actor->id);
+            $pings = $this->pings($actor->id);
             $loginAttempts = $this->loginAttempts($actor->id);
             $activity = $this->activity($actor->id);
 
@@ -68,6 +69,7 @@ final class PersonalDataExportService
                         'moderation reports submitted by the account, including its own details and retained exact-message evidence snapshots',
                         '@username and @room/@here mentions the account sent in its own authored messages',
                         'mentions of the account by other participants, identified by message reference only',
+                        'retained pings the account sent or received, including their text',
                         'login-attempt history associated with the account username',
                         'audit entries where the account is the recorded actor',
                     ],
@@ -104,6 +106,7 @@ final class PersonalDataExportService
                     'sent' => $mentionsSent,
                     'received' => $mentionsReceived,
                 ],
+                'pings' => $pings,
                 'security_history' => [
                     'login_attempts' => $loginAttempts,
                 ],
@@ -132,6 +135,7 @@ final class PersonalDataExportService
                         'moderation_reports_submitted' => count($submittedReports),
                         'mentions_sent' => count($mentionsSent),
                         'mentions_received' => count($mentionsReceived),
+                        'pings' => count($pings),
                         'login_attempts' => count($loginAttempts),
                         'activity_entries' => count($activity),
                     ],
@@ -321,6 +325,41 @@ SQL, ['user_id' => $userId], 'personal-data authored room messages', fn (array $
                 'created_at' => (string) $row['attachment_created_at'],
                 'deleted_at' => $this->nullableString($row['attachment_deleted_at']),
             ],
+        ]);
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function pings(int $userId): array
+    {
+        return $this->mappedRows(<<<'SQL'
+SELECT ping.id,
+       ping.body,
+       ping.created_at,
+       room.id AS room_id,
+       room.room_key,
+       room.name AS room_name,
+       sender.id AS sender_id,
+       sender.username AS sender_username,
+       target.id AS target_id,
+       target.username AS target_username
+FROM room_pings ping
+JOIN rooms room ON room.id = ping.room_id
+JOIN users sender ON sender.id = ping.sender_id
+JOIN users target ON target.id = ping.target_id
+WHERE ping.sender_id = :sender_user_id OR ping.target_id = :target_user_id
+ORDER BY ping.id
+SQL, ['sender_user_id' => $userId, 'target_user_id' => $userId], 'personal-data pings', fn (array $row): array => [
+            'id' => (int) $row['id'],
+            'direction' => (int) $row['sender_id'] === $userId ? 'sent' : 'received',
+            'room' => [
+                'id' => (int) $row['room_id'],
+                'key' => (string) $row['room_key'],
+                'name' => (string) $row['room_name'],
+            ],
+            'sender' => $this->userReference($row['sender_id'], $row['sender_username']),
+            'target' => $this->userReference($row['target_id'], $row['target_username']),
+            'body' => (string) $row['body'],
+            'created_at' => (string) $row['created_at'],
         ]);
     }
 

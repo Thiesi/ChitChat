@@ -999,6 +999,30 @@ button.user-name.mention { padding: 0 0.2rem; border-radius: 0.25rem; background
   white-space: pre-wrap;
 }
 
+/* A ping: a private notice between its sender and target. */
+.message.ping-notice {
+  padding-top: 0.55rem;
+  padding-bottom: 0.65rem;
+  padding-right: 0.9rem;
+  border: 1px solid color-mix(in srgb, var(--warm) 45%, var(--border));
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--warm) 9%, var(--canvas));
+}
+
+.message.ping-notice .ping-icon {
+  top: 0.45rem;
+  left: 0.45rem;
+  width: 2rem;
+  height: 2rem;
+  border-color: color-mix(in srgb, var(--warm) 45%, var(--border));
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--warm) 16%, var(--surface));
+  font-size: 0.95rem;
+}
+
+.ping-label { color: var(--warm); font-size: 0.75rem; font-weight: 700; }
+.ping-text { font-style: italic; }
+
 .message.emote .message-body {
   color: var(--accent-strong);
   font-style: italic;

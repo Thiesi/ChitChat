@@ -174,7 +174,8 @@ test.describe.serial('ChitChat browser release checks', () => {
 
       await adminPage.locator('#composer-input').fill(`/ping ${member.username} Browser ping`);
       await adminPage.locator('#composer-input').press('Enter');
-      await expect(memberPage.locator('#toast-region')).toContainText('Browser ping');
+      // In the open room a ping is a private notice in the timeline.
+      await expect(memberPage.locator('.ping-notice', { hasText: 'Browser ping' })).toContainText(`${admin.username} pinged you`);
 
       await memberPage.locator('#attachment-input').setInputFiles({
         name: attachmentName,

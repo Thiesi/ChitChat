@@ -239,6 +239,18 @@ SQL);
         } elseif ($kind === 'mentioned') {
             [$title, $message] = $this->mentionText($context);
             $link = $this->mentionLink($context);
+        } elseif ($kind === 'pinged') {
+            $sender = $this->nonEmptyString($context['sender_username'] ?? null) ?? 'Someone';
+            $roomName = $this->nonEmptyString($context['room_name'] ?? null);
+            $title = sprintf('%s pinged you', $sender);
+            $message = $roomName === null
+                ? sprintf('%s pinged you in a room.', $sender)
+                : sprintf('%s pinged you in “%s”.', $sender, $roomName);
+            $roomId = $context['room_id'] ?? null;
+            $pingId = $context['ping_id'] ?? null;
+            $link = is_int($roomId) && is_int($pingId)
+                ? sprintf('/?room_id=%d&ping_id=%d', $roomId, $pingId)
+                : null;
         }
 
         return ['title' => $title, 'message' => $message, 'details' => $details, 'link' => $link];

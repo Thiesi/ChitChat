@@ -94,6 +94,13 @@ final class WebPushTest extends DatabaseTestCase
 
         $preferences->setMentionedPushEnabled($member->id, true);
         self::assertTrue($preferences->get($member->id)['mentioned_push_enabled']);
+
+        // Pings have their own switch, independent of mentions.
+        self::assertTrue($defaults['pinged_push_enabled']);
+        $preferences->setPingedPushEnabled($member->id, false);
+        $muted = $preferences->get($member->id);
+        self::assertFalse($muted['pinged_push_enabled']);
+        self::assertTrue($muted['mentioned_push_enabled']);
     }
 
     public function testQuietHoursMustBeSetOrClearedTogetherAndValidated(): void

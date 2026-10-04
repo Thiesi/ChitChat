@@ -179,7 +179,7 @@ Requires room membership.
 }
 ```
 
-Messages may contain up to 4000 characters. `/me waves` creates an `emote` message with body `waves`. `/ping username [message]` sends a targeted realtime notification to another current room member. Other slash commands are rejected. `reply_to_message_id` is an optional positive integer identifying another message in the same room; omit it or send `null` for an ordinary message. `@username` mentions, plus room-scoped `@room`/`@here` broadcasts, are parsed from `body` automatically — there is no separate mentions field on the request.
+Messages may contain up to 4000 characters. `/me waves` creates an `emote` message with body `waves`. `/ping username [message]` pings another current room member: the response is `201` with `{"ping": {…}}` (the same object as the [`ping` event](realtime.md#ping)) instead of a message, the ping is stored and shown only to its sender and target, and the target also gets a `pinged` notification. Other slash commands are rejected. `reply_to_message_id` is an optional positive integer identifying another message in the same room; omit it or send `null` for an ordinary message. `@username` mentions, plus room-scoped `@room`/`@here` broadcasts, are parsed from `body` automatically — there is no separate mentions field on the request.
 
 ### `POST /api/v1/rooms/delete-message.php`
 
