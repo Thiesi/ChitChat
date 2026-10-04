@@ -50,6 +50,20 @@ Emulation cannot prove behavior with real browser zoom, Windows contrast themes,
 
 ## Targeted visual regression
 
+### Presentation checks with fixed data
+
+`presentation.spec.js` exercises the actual PHP templates and JavaScript with intercepted API responses. It checks both themes with axe-core, desktop and narrow layouts down to 320 CSS pixels, keyboard authentication tabs, replies, emoji, the mobile menu, empty conversations, long installation names, reduced motion, and forced-color focus. It writes review screenshots into the Playwright output directory and makes no database writes. These checks complement the real-backend journeys; they do not verify authentication, persistence, or realtime delivery.
+
+With the application server running, use:
+
+```sh
+npm run test:e2e -- tests/e2e/presentation.spec.js --project=chromium
+```
+
+The lounge visual refresh includes reviewed authentication and Account baselines captured by the pinned Linux Chromium CI job. Windows presentation screenshots are not replacements for these Linux baselines.
+
+### Linux screenshot baselines
+
 Pinned Chromium on Linux compares three deliberately narrow screenshot baselines:
 
 - signed-out authentication at 1280×900;

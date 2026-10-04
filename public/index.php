@@ -25,52 +25,68 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <div id="app-loading" class="app-loading" role="status">Loading <?= $appName ?>…</div>
 
   <main id="auth-shell" class="auth-shell hidden">
-    <section class="auth-card" aria-labelledby="auth-title">
-      <h1 id="auth-title" class="brand"><?= $appName ?></h1>
-      <p class="tagline">A small, self-hosted place to talk.</p>
-
-      <div class="auth-tabs" role="tablist" aria-label="Account access">
-        <button id="login-tab" type="button" role="tab" aria-selected="true" aria-controls="login-form" tabindex="0">Sign in</button>
-        <button id="register-tab" type="button" role="tab" aria-selected="false" aria-controls="register-form" tabindex="-1">Register</button>
+    <div class="auth-layout">
+      <div class="auth-intro">
+        <p class="welcome-eyebrow">Make yourself at home</p>
+        <p class="welcome-title">Good company.<br>Great conversations.</p>
+        <p class="welcome-copy">A little hello can go a long way. Settle in, find your people, and let the conversation flow.</p>
+        <svg class="welcome-art" viewBox="0 0 400 220" fill="none" aria-hidden="true" focusable="false">
+          <circle cx="196" cy="108" r="96" class="art-orbit"/>
+          <circle cx="196" cy="108" r="70" class="art-orbit"/>
+          <path d="M46 56a24 24 0 0 1 24-24h156a24 24 0 0 1 24 24v66a24 24 0 0 1-24 24H99l-36 25v-27a24 24 0 0 1-17-23Z" class="art-bubble-back"/>
+          <path d="M166 107a24 24 0 0 1 24-24h130a24 24 0 0 1 24 24v57a24 24 0 0 1-24 24h-9v24l-34-24h-87a24 24 0 0 1-24-24Z" class="art-bubble-front"/>
+          <path d="M81 72h117M81 92h76" class="art-lines"/>
+          <g class="art-dots"><circle cx="222" cy="136" r="6"/><circle cx="254" cy="136" r="6"/><circle cx="286" cy="136" r="6"/></g>
+          <path d="M336 34v20m-10-10h20M75 190v14m-7-7h14" class="art-spark"/>
+        </svg>
       </div>
+      <section class="auth-card" aria-labelledby="auth-title">
+        <h1 id="auth-title" class="brand"><?= $appName ?></h1>
+        <p class="tagline">Your people. Your place to talk.</p>
 
-      <form id="login-form" class="form-stack" role="tabpanel" aria-labelledby="login-tab" autocomplete="on">
-        <label>
-          Username
-          <input id="login-username" name="username" type="text" autocomplete="username" minlength="3" maxlength="32" required>
-        </label>
-        <label>
-          Password
-          <input id="login-password" name="password" type="password" autocomplete="current-password" minlength="12" maxlength="4096" required>
-        </label>
-        <button class="primary-button" type="submit">Sign in</button>
-        <a class="secondary-button" href="/restore-account.php">Restore a closing account</a>
-      </form>
-
-      <form id="register-form" class="form-stack hidden" role="tabpanel" aria-labelledby="register-tab" autocomplete="on" hidden>
-        <label>
-          Username
-          <input id="register-username" name="username" type="text" autocomplete="username" minlength="3" maxlength="32" pattern="[A-Za-z0-9][A-Za-z0-9._\-]{2,31}" required>
-        </label>
-        <label>
-          Password
-          <input id="register-password" name="password" type="password" autocomplete="new-password" minlength="12" maxlength="4096" required>
-        </label>
-        <label>
-          Birth date <span class="optional-label">optional; required for age-restricted rooms</span>
-          <input id="register-birth-date" name="birth_date" type="date" autocomplete="bday">
-        </label>
-        <div class="registration-trap" aria-hidden="true">
-          <label>
-            Website
-            <input id="register-website" name="website" type="text" tabindex="-1" autocomplete="off">
-          </label>
+        <div class="auth-tabs" role="tablist" aria-label="Account access">
+          <button id="login-tab" type="button" role="tab" aria-selected="true" aria-controls="login-form" tabindex="0">Sign in</button>
+          <button id="register-tab" type="button" role="tab" aria-selected="false" aria-controls="register-form" tabindex="-1">Register</button>
         </div>
-        <button class="primary-button" type="submit">Create account</button>
-      </form>
 
-      <p id="auth-error" class="error-text" role="alert"></p>
-    </section>
+        <form id="login-form" class="form-stack" role="tabpanel" aria-labelledby="login-tab" autocomplete="on">
+          <label>
+            Username
+            <input id="login-username" name="username" type="text" autocomplete="username" minlength="3" maxlength="32" required>
+          </label>
+          <label>
+            Password
+            <input id="login-password" name="password" type="password" autocomplete="current-password" minlength="12" maxlength="4096" required>
+          </label>
+          <button class="primary-button" type="submit">Sign in</button>
+          <a class="secondary-button" href="/restore-account.php">Restore a closing account</a>
+        </form>
+
+        <form id="register-form" class="form-stack hidden" role="tabpanel" aria-labelledby="register-tab" autocomplete="on" hidden>
+          <label>
+            Username
+            <input id="register-username" name="username" type="text" autocomplete="username" minlength="3" maxlength="32" pattern="[A-Za-z0-9][A-Za-z0-9._\-]{2,31}" required>
+          </label>
+          <label>
+            Password
+            <input id="register-password" name="password" type="password" autocomplete="new-password" minlength="12" maxlength="4096" required>
+          </label>
+          <label>
+            Birth date <span class="optional-label">optional; required for age-restricted rooms</span>
+            <input id="register-birth-date" name="birth_date" type="date" autocomplete="bday">
+          </label>
+          <div class="registration-trap" aria-hidden="true">
+            <label>
+              Website
+              <input id="register-website" name="website" type="text" tabindex="-1" autocomplete="off">
+            </label>
+          </div>
+          <button class="primary-button" type="submit">Create account</button>
+        </form>
+
+        <p id="auth-error" class="error-text" role="alert"></p>
+      </section>
+    </div>
     <?= \ChitChat\View\PoweredBy::html() ?>
   </main>
 

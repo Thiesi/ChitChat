@@ -497,6 +497,17 @@ function buildMessageElement(message) {
   author.className = 'message-author';
   author.textContent = message.username ?? 'System';
 
+  // Decorative initials make speakers easier to scan without duplicating
+  // their accessible names or introducing a separate avatar/profile feature.
+  const avatar = document.createElement('span');
+  avatar.className = 'message-avatar';
+  avatar.setAttribute('aria-hidden', 'true');
+  avatar.textContent = Array.from(message.username ?? 'System').slice(0, 2).join('').toUpperCase();
+  const identity = String(message.user_id ?? message.username ?? 'System');
+  const tone = Array.from(identity).reduce((value, character) => value + character.codePointAt(0), 0) % 4;
+  avatar.dataset.tone = String(tone);
+  article.append(avatar);
+
   const time = document.createElement('time');
   time.className = 'message-time';
   time.dateTime = message.created_at;
