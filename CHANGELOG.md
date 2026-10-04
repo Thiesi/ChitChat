@@ -6,7 +6,11 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ## [Unreleased]
 
-No changes since `v2.1.0`. ChitChat is feature-complete; see [Project status](README.md#project-status-feature-complete) and the [roadmap](docs/roadmap.md) for the maintenance-only policy going forward. Entries only appear here for a discovered bug fix or an accepted new feature request.
+ChitChat is feature-complete; see [Project status](README.md#project-status-feature-complete) and the [roadmap](docs/roadmap.md) for the maintenance-only policy going forward. Entries only appear here for a discovered bug fix or an accepted new feature request.
+
+### Added
+
+- Added an **Application name** setting to Operational settings: a Super-Administrator can rename the installation, with `APP_NAME` as the server default. The name is used consistently in page titles and headings, passkey prompts, push notifications, exports, and status output, and several texts that hardcoded "ChitChat" now use it. Migration `0024_application_name.sql` adds the setting.
 
 ## [2.1.0] - 2026-10-03
 

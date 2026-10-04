@@ -1,7 +1,8 @@
-// ChitChat Web Push service worker. Registered at the site root so its
-// scope covers every page. Push payloads carry only { title, body, link }
-// — the same privacy-safe text already shown in the in-app notification
-// timeline, never a raw message body. See docs/architecture/0006-web-push.md.
+// Web Push service worker. Registered at the site root so its scope covers
+// every page. Push payloads carry only { title, body, link, app_name }: the
+// same privacy-safe text already shown in the in-app notification timeline,
+// never a raw message body, plus the installation's configured name. See
+// docs/architecture/0006-web-push.md.
 
 self.addEventListener('push', (event) => {
   let data = {};
@@ -11,7 +12,8 @@ self.addEventListener('push', (event) => {
     data = {};
   }
 
-  const title = typeof data.title === 'string' && data.title !== '' ? data.title : 'ChitChat';
+  const appName = typeof data.app_name === 'string' && data.app_name !== '' ? data.app_name : 'Notification';
+  const title = typeof data.title === 'string' && data.title !== '' ? data.title : appName;
   const body = typeof data.body === 'string' ? data.body : '';
   const link = typeof data.link === 'string' && data.link !== '' ? data.link : '/';
 

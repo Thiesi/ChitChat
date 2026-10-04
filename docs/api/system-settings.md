@@ -63,6 +63,23 @@ Setting `mfa_required_for_admin_roles` from `false` to `true` additionally requi
 
 Changing settings does not immediately delete data. The operator must run `php bin/maintenance-cleanup`; see `docs/operations/maintenance.md`.
 
+## Application name
+
+```text
+GET  /api/v1/admin/settings/application-name/get.php
+POST /api/v1/admin/settings/application-name/update.php
+```
+
+Both require a Super-Administrator; the update also requires active privileged step-up. The name is an optional override of the `APP_NAME` server default:
+
+```json
+{ "application_name": "Harbor Chat" }
+```
+
+`null` removes the override. Names are trimmed and must contain 1–64 characters with no control characters. Both endpoints return `{"application_name": {"override": …, "default": …, "effective": …}}`. Changes are audited as `system.application_name_updated` without notifying every account.
+
+The effective name appears in page titles and headings (and the `<meta name="application-name">` tag that scripts read), passkey prompts, push notifications, personal-data exports, backup manifests, and the system-status page. `/health.php` and the metrics authentication realm report `APP_NAME`, because they must not depend on the database. Machine identifiers such as the `chitchat-backup` and `chitchat-personal-data-export` format names never change.
+
 ## Registration protection
 
 ```text

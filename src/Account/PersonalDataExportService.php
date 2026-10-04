@@ -3,6 +3,7 @@
 declare(strict_types=1);
 namespace ChitChat\Account;
 
+use ChitChat\Admin\ApplicationNameService;
 use ChitChat\Audit\AuditLogger;
 use ChitChat\Auth\AuthenticatedUser;
 use ChitChat\Config;
@@ -52,7 +53,7 @@ final class PersonalDataExportService
                 ],
                 'generated_at' => gmdate(DATE_ATOM),
                 'application' => [
-                    'name' => $this->config->applicationName,
+                    'name' => (new ApplicationNameService($this->pdo, $this->config))->effective(),
                     'version' => $this->config->applicationVersion,
                 ],
                 'scope' => [

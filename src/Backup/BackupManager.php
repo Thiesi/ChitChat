@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace ChitChat\Backup;
 
+use ChitChat\Admin\ApplicationNameService;
 use ChitChat\Config;
 use DateTimeImmutable;
 use DateTimeZone;
@@ -114,7 +115,7 @@ final class BackupManager
                 'created_at' => $createdAt->format(DATE_ATOM),
                 'completed_at' => $completedAt->format(DATE_ATOM),
                 'application' => [
-                    'name' => $this->config->applicationName,
+                    'name' => (new ApplicationNameService($this->pdo, $this->config))->effective(),
                     'version' => $this->config->applicationVersion,
                 ],
                 'consistency' => [

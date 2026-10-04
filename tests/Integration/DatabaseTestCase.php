@@ -36,6 +36,7 @@ SET registration_enabled = TRUE,
     registration_rate_limit_window_seconds = NULL,
     registration_min_fill_seconds = NULL,
     registration_proof_of_work_bits = NULL,
+    application_name = NULL,
     updated_at = NOW()
 WHERE id = 1
 SQL);

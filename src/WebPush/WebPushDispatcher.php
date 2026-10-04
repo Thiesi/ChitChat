@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace ChitChat\WebPush;
 
 use ChitChat\Account\PrivacyNotificationService;
+use ChitChat\Admin\ApplicationNameService;
 use ChitChat\Config;
 use DateTimeImmutable;
 use DateTimeZone;
@@ -137,7 +138,12 @@ SQL);
 
         $rendered = $this->notifications->renderText($notification['kind'], $notification['context']);
         $payload = json_encode(
-            ['title' => $rendered['title'], 'body' => $rendered['message'], 'link' => $rendered['link']],
+            [
+                'title' => $rendered['title'],
+                'body' => $rendered['message'],
+                'link' => $rendered['link'],
+                'app_name' => (new ApplicationNameService($this->pdo, $this->config))->effective(),
+            ],
             JSON_THROW_ON_ERROR,
         );
 

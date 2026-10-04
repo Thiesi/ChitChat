@@ -3,6 +3,7 @@
 declare(strict_types=1);
 namespace ChitChat\Observability;
 
+use ChitChat\Admin\ApplicationNameService;
 use ChitChat\Admin\RegistrationProtectionService;
 use ChitChat\Auth\AuthenticatedUser;
 use ChitChat\Config;
@@ -104,7 +105,7 @@ SQL),
 
         return [
             'application' => [
-                'name' => $this->config->applicationName,
+                'name' => (new ApplicationNameService($this->pdo, $this->config))->effective(),
                 'version' => $this->config->applicationVersion,
                 'environment' => $this->config->environment,
             ],
