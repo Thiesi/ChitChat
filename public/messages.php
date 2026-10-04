@@ -103,6 +103,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
         </form>
       </section>
     </section>
+    <?= \ChitChat\View\PoweredBy::html() ?>
   </main>
 
   <dialog id="message-report-dialog" class="room-dialog message-report-dialog" aria-labelledby="message-report-title">

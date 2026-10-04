@@ -66,6 +66,22 @@ button:disabled {
   overflow: hidden;
 }
 
+/* Attribution line at the end of each page. */
+.powered-by {
+  margin: 1.5rem 0 0;
+  color: var(--muted);
+  font-size: 0.75rem;
+  text-align: center;
+}
+
+.powered-by a {
+  color: inherit;
+}
+
+.sidebar-footer .powered-by {
+  margin-top: 0.25rem;
+}
+
 .auth-shell {
   display: grid;
   min-height: 100vh;

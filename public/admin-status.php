@@ -120,6 +120,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
         </div>
       </section>
     </div>
+    <?= \ChitChat\View\PoweredBy::html() ?>
   </main>
 
   <script type="module" src="/assets/js/admin-status.js"></script>

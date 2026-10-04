@@ -40,6 +40,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
       <p id="restore-account-error" class="error-text" role="alert"></p>
       <a class="secondary-button" href="/">Back to sign in</a>
     </section>
+    <?= \ChitChat\View\PoweredBy::html() ?>
   </main>
   <script type="module" src="/assets/js/restore-account.js"></script>
 </body>

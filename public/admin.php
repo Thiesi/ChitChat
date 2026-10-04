@@ -123,6 +123,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
       <div id="audit-list" class="audit-list"></div>
       <button id="audit-more" class="secondary-button hidden" type="button">Load older entries</button>
     </section>
+    <?= \ChitChat\View\PoweredBy::html() ?>
   </main>
 
   <dialog id="user-dialog" class="room-dialog admin-user-dialog">
