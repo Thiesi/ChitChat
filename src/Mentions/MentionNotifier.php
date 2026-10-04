@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace ChitChat\Mentions;
 
+use ChitChat\Account\IgnoreService;
 use PDO;
 use RuntimeException;
 
@@ -41,6 +42,10 @@ SQL);
             $mentionStatement->bindValue(':broadcast', $mention['broadcast'], PDO::PARAM_BOOL);
             $mentionStatement->execute();
 
+            // Someone who ignores the sender is not notified about it.
+            if ((new IgnoreService($this->pdo))->isIgnoring($mention['user_id'], $senderUserId)) {
+                continue;
+            }
             $this->notify($mention['user_id'], [
                 'message_kind' => 'room',
                 'message_id' => $messageId,
