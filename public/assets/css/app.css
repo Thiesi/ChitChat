@@ -1384,6 +1384,40 @@ button.user-name.mention { padding: 0 0.2rem; border-radius: 0.25rem; background
   color: var(--muted);
 }
 
+/* Unread rooms in the sidebar, the divider above the first unread message,
+   and the way back down after scrolling up. */
+.room-button.unread { color: var(--text); font-weight: 700; }
+.new-messages-divider {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--accent-strong);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.new-messages-divider::before,
+.new-messages-divider::after { flex: 1; height: 1px; background: var(--accent); content: ""; }
+.jump-latest {
+  position: absolute;
+  top: -3.25rem;
+  left: 50%;
+  z-index: 2;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow);
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+.jump-latest:hover { border-color: var(--accent); }
+
 /* A ping: a private notice between its sender and target. */
 .message.ping-notice {
   padding-top: 0.55rem;
@@ -1642,6 +1676,7 @@ button.user-name.mention { padding: 0 0.2rem; border-radius: 0.25rem; background
 }
 
 .composer-wrap {
+  position: relative;
   min-width: 0;
   padding: 0.75rem clamp(1rem, 3vw, 3rem) 1.25rem;
   border-radius: 0 0 1.5rem 1.5rem;

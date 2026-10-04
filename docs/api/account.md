@@ -100,7 +100,7 @@ The bundled account page serializes `export` as formatted UTF-8 JSON and downloa
 The export includes:
 
 - account profile timestamps, optional birth date, date and time display preferences, role grants, and ban history;
-- rooms created by the account, current room memberships, and pending invitations;
+- rooms created by the account, current room memberships (with how far the account has read in each), and pending invitations;
 - retained room messages authored by the account, including their retained revision history;
 - retained direct messages the account can already read, including attachment metadata;
 - retained revision history only for direct messages authored by the exporting account;

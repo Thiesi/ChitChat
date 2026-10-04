@@ -16,6 +16,18 @@ Super-Administrators, Administrators, Chat Admins, and Global Moderators may vie
 
 Returns rooms visible in the user's room list. Global room moderators receive all active rooms.
 
+For rooms the account has joined, each entry also carries `unread_count` (messages from others, not deleted, after the read position; counting stops at 100, shown as "99+") and `last_read_message_id` (`null` until the account first reads there). Other rooms report `0` and `null`.
+
+### `POST /api/v1/rooms/read.php`
+
+Requires authentication, CSRF and membership of the room.
+
+```json
+{ "room_id": 42, "message_id": 1235 }
+```
+
+Moves the account's read position in the room forward to `message_id`. It never moves back and never past the room's newest message; the response returns the resulting `last_read_message_id`. The browser calls it once the newest message has been on screen in a visible tab. Read positions are part of the personal-data export and are deleted when an account closure is finalized.
+
 ### `GET /api/v1/rooms/detail.php?room_id=42`
 
 Returns one room if the caller may see its metadata.

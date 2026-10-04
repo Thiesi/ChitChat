@@ -254,15 +254,17 @@ SQL, ['user_id' => $userId], 'personal-data created rooms', fn (array $row): arr
     {
         return $this->mappedRows(<<<'SQL'
 SELECT room.id, room.room_key, room.name, room.visibility, room.minimum_age,
-       room.deleted_at, member.role, member.joined_at
+       room.deleted_at, member.role, member.joined_at, reading.last_read_message_id
 FROM room_members member
 JOIN rooms room ON room.id = member.room_id
+LEFT JOIN room_reads reading ON reading.room_id = member.room_id AND reading.user_id = member.user_id
 WHERE member.user_id = :user_id
 ORDER BY member.joined_at, room.id
 SQL, ['user_id' => $userId], 'personal-data room memberships', fn (array $row): array => [
             'room' => $this->roomReference($row),
             'role' => (string) $row['role'],
             'joined_at' => (string) $row['joined_at'],
+            'last_read_message_id' => $row['last_read_message_id'] === null ? null : (int) $row['last_read_message_id'],
         ]);
     }
 
