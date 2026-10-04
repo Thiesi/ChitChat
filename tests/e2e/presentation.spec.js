@@ -38,6 +38,7 @@ async function fixture(page, signedIn = true) {
       'attachments/metadata.php': { attachments: [] },
       'presence/heartbeat.php': { presence: { room_id: 1, expired: false } },
       'rooms/presence.php': { users: [viewer, peer, { username: 'Alex' }].map((user) => ({ ...user, idle_seconds: 0 })) },
+      'rooms/mentionable-users.php': { users: [peer] },
       'account/notifications/list.php': { notifications: [], unread_count: 0 },
       'account/mfa/status.php': { mfa: { enabled: false, available: false, credentials: [] } },
       'direct-messages/conversations.php': { conversations: [{ user: peer, unread_count: 0, last_message: { body: 'See you in the living room!', outgoing: false } }] },

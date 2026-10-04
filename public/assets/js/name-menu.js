@@ -10,6 +10,7 @@ const ICON_PERSON = ['M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2', 'M12 3a4 4 0 1
 let menu = null;
 let backdrop = null;
 let opener = null;
+let openerMessageId = null;
 let currentUserId = null;
 let sequence = 0;
 
@@ -29,7 +30,7 @@ document.addEventListener('click', (event) => {
   const target = event.target instanceof Element ? event.target.closest('.user-name[data-user-id]') : null;
   if (target instanceof HTMLElement) {
     event.preventDefault();
-    if (opener === target) {
+    if (opener && currentOpener() === target) {
       close();
     } else {
       void open(target);
@@ -41,11 +42,21 @@ document.addEventListener('click', (event) => {
 
 document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape' && opener) {
-    const button = opener;
+    const button = currentOpener();
     close();
-    button.focus();
+    button?.focus();
   }
 });
+
+// Message lists re-render while a menu is open, replacing the name that
+// opened it; find its replacement so focus still returns to the same name.
+function currentOpener() {
+  if (!opener || opener.isConnected) return opener;
+  const { userId } = opener.dataset;
+  const messageId = openerMessageId;
+  const scope = messageId ? document.querySelector(`[data-message-id="${CSS.escape(messageId)}"]`) : document;
+  return scope?.querySelector(`.user-name[data-user-id="${CSS.escape(userId ?? '')}"]`) ?? null;
+}
 
 async function open(button) {
   const userId = Number(button.dataset.userId);
@@ -56,6 +67,7 @@ async function open(button) {
   close();
   const request = ++sequence;
   opener = button;
+  openerMessageId = button.closest('[data-message-id]')?.dataset.messageId ?? null;
   button.setAttribute('aria-expanded', 'true');
 
   const identity = document.createElement('div');
@@ -114,8 +126,9 @@ function close() {
   if (!menu) return;
   menu.classList.add('hidden');
   backdrop.classList.add('hidden');
-  opener?.setAttribute('aria-expanded', 'false');
+  currentOpener()?.setAttribute('aria-expanded', 'false');
   opener = null;
+  openerMessageId = null;
 }
 
 function ensureMenu() {
