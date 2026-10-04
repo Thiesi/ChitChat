@@ -23,9 +23,10 @@ test('the theme follows the system by default and remembers an explicit choice o
   await page.emulateMedia({ colorScheme: 'dark' });
   await expect(html(page)).toHaveAttribute('data-theme', 'dark');
 
-  const sidebarTheme = page.locator('.sidebar-footer').getByRole('combobox', { name: 'Theme' });
-  await expect(sidebarTheme).toHaveValue('system');
-  await sidebarTheme.selectOption('light');
+  await page.getByRole('button', { name: 'Account menu' }).click();
+  const appearance = page.getByRole('group', { name: 'Appearance' });
+  await expect(appearance.getByRole('radio', { name: 'System' })).toBeChecked();
+  await appearance.getByRole('radio', { name: 'Light' }).check();
   await expect(html(page)).toHaveAttribute('data-theme', 'light');
 
   // The choice applies before paint on every page and survives reloads.

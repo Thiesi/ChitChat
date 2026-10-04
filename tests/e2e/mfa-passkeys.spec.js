@@ -26,6 +26,7 @@ async function signOut(page) {
     response.url().endsWith('/api/v1/logout.php')
     && response.request().method() === 'POST'
   ));
+  await page.getByRole('button', { name: 'Account menu' }).click();
   await page.locator('#logout-button').click();
   const logoutResponse = await logoutPromise;
   expect(logoutResponse.ok()).toBeTruthy();

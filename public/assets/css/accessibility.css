@@ -60,7 +60,7 @@ textarea:focus-visible,
   }
 
   .connection-status::before,
-  .presence-user::before {
+  .mini-avatar.online::after {
     forced-color-adjust: none;
     background: CanvasText;
   }

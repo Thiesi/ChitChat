@@ -100,11 +100,11 @@ async function clearUnreadNotifications(page) {
   await openNotifications(page);
   const status = page.locator('#privacy-notifications-status');
   const markAll = page.locator('#privacy-notifications-mark-all');
-  await expect(status).toHaveText(/unread privacy notification/);
+  await expect(status).toHaveText(/unread notification/);
   if (await markAll.isEnabled()) {
     await markAll.click();
   }
-  await expect(status).toHaveText('You have no unread privacy notifications.');
+  await expect(status).toHaveText('You have no unread notifications.');
 }
 
 test('Super-Administrator reviews exact room and DM revision chains with participant disclosure', async ({ browser }) => {
@@ -161,7 +161,7 @@ test('Super-Administrator reviews exact room and DM revision chains with partici
     await expect(roomNotification).toContainText('General E2E');
     await expect(roomNotification).not.toContainText('Reviewing the reported room-message edit history');
     await roomNotification.getByRole('button', { name: 'Mark as read' }).click();
-    await expect(memberPage.locator('#privacy-notifications-status')).toHaveText('You have no unread privacy notifications.');
+    await expect(memberPage.locator('#privacy-notifications-status')).toHaveText('You have no unread notifications.');
 
     await memberPage.goto('/messages.php');
     await expect(memberPage.locator('#messages-shell')).toBeVisible();

@@ -71,7 +71,14 @@ async function bootstrap() {
   elements['messages-loading'].classList.add('hidden');
   elements['messages-shell'].classList.remove('hidden');
   startEventStream();
-  await loadConversations();
+  await loadConversations(requestedConversation());
+}
+
+// The chat sidebar links to /messages.php?with=<user id> to open a conversation.
+function requestedConversation() {
+  const value = new URLSearchParams(window.location.search).get('with');
+  const id = Number(value);
+  return Number.isInteger(id) && id > 0 ? id : null;
 }
 
 function renderPrivacyNotice() {

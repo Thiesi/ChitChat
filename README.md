@@ -80,7 +80,7 @@ The application currently provides:
 - dry-run-capable cleanup for retained content, closed moderation evidence, deleted and orphaned room/DM attachments, events, presence, SSE leases, login attempts, throttle rows, and due account closures;
 - durable success/failure records for maintenance invocations and ready-to-adapt `systemd` service/timer units;
 - manifest-bound backup, verification, and safe restore commands covering PostgreSQL and attachment storage together, plus ready-to-adapt scheduled-backup units;
-- a responsive browser client for registration, password-first MFA login, rooms, history, message search, reporting, live messages, commands, presence, attachments, direct messages, privacy notifications, account security/export/closure/restoration, and logout;
+- a responsive browser client for registration, password-first MFA login, rooms, history, message search, reporting, live messages, commands, presence, attachments, direct messages, notifications, account security/export/closure/restoration, and logout;
 - a permission-aware browser administration and moderation surface for users, roles, bans, room settings, membership, invitations, report cases, audit visibility, eligible DM inspection, exact-ID revision review, operational settings, and system status;
 - backup, restore, maintenance, observability, deployment, release, account-lifecycle, passkey/MFA, privacy-notification, search, moderation-reporting, accessibility-review, and browser-testing documentation;
 - audit records for sensitive account, authentication, MFA, room, message, attachment, inspection, revision-review, report, moderation-case, settings, export, closure, and maintenance actions;
