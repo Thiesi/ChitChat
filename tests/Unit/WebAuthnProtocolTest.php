@@ -229,6 +229,10 @@ final class WebAuthnProtocolTest extends TestCase
         $y = $ec['y'] ?? null;
         self::assertIsString($x);
         self::assertIsString($y);
+        // OpenSSL returns the coordinates as minimal big-endian integers, so one
+        // starting with a zero byte comes back shorter; COSE keys carry 32 bytes.
+        $x = str_pad($x, 32, "\0", STR_PAD_LEFT);
+        $y = str_pad($y, 32, "\0", STR_PAD_LEFT);
         self::assertSame(32, strlen($x));
         self::assertSame(32, strlen($y));
 
