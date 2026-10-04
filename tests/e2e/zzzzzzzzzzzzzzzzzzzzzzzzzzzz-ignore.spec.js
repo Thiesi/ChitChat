@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { attemptName, attemptText } from './support/attempt.js';
+import { openRoom } from './support/rooms.js';
 
 const baseURL = process.env.CHITCHAT_BASE_URL ?? 'http://127.0.0.1:8080';
 const root = {
@@ -46,7 +47,7 @@ test('ignoring someone collapses their room messages for you only', async ({ bro
     await send(rootPage, before);
 
     await login(memberPage, member);
-    await memberPage.locator('.room-button', { hasText: roomName }).click();
+    await openRoom(memberPage, roomName);
     await memberPage.locator('#join-button').click();
     await expect(memberPage.locator('.message-body', { hasText: before })).toBeVisible();
 
