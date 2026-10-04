@@ -17,13 +17,10 @@ ChitChat is feature-complete; see [Project status](README.md#project-status-feat
 - Moderation now follows ranks: member, room moderator, room owner, Chat Admin and Global Moderator, Administrator, Super-Administrator. Moderators act only on lower ranks, so a room moderator can no longer delete the room owner's or global staff's messages, and an owner no longer global staff's. Only Super-Administrators act on their equals, which also means only a Super-Administrator may sign out, ban, reset the password of, or change the roles of an Administrator.
 - Signing someone out, banning, and lifting a ban no longer ask for the moderator's password (privileged step-up). They are reversible and audited; changing roles and resetting passwords still ask.
 
+- Google and Twitch buttons (sign-in, restore, Sign-in methods, confirming a sensitive action, and the picture button) now show the provider's logo, drawn in the page, so nothing is fetched from either company.
 ### Fixed
 
 - Fixed the Report message dialog's buttons looking different from each other in rooms and direct messages (#126).
-
-### Changed
-
-- Google and Twitch buttons (sign-in, restore, Sign-in methods, confirming a sensitive action, and the picture button) now show the provider's logo, drawn in the page, so nothing is fetched from either company.
 
 ## [3.0.0] - 2026-10-04
 
