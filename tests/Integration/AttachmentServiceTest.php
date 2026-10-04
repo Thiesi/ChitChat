@@ -59,7 +59,7 @@ final class AttachmentServiceTest extends DatabaseTestCase
         $history = (new MessageService($this->pdo))->history($member, $room->id);
         self::assertSame($message['attachment'], $history[0]['attachment']);
 
-        $events = (new EventRepository($this->pdo))->visibleAfter($member, 0);
+        $events = self::withoutRoomListSignals((new EventRepository($this->pdo))->visibleAfter($member, 0));
         self::assertSame(['room_message'], array_map(
             static fn ($event): string => $event->type,
             $events,

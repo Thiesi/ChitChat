@@ -10,6 +10,7 @@ use ChitChat\Http\ApiException;
 use ChitChat\Realtime\EventRepository;
 use ChitChat\Room\Room;
 use ChitChat\Room\RoomAuthorization;
+use ChitChat\Room\RoomListSignal;
 use ChitChat\Room\RoomRepository;
 use PDO;
 use RuntimeException;
@@ -215,6 +216,7 @@ SQL);
                 roomId: $roomId,
                 actorUserId: $actor->id,
             );
+            (new RoomListSignal($this->events))->user($targetUserId, $actor->id);
             $this->pdo->commit();
         } catch (Throwable $exception) {
             if ($this->pdo->inTransaction()) {
@@ -251,6 +253,7 @@ SQL);
                 metadata: ['target_user_id' => $targetUserId],
                 ipAddress: $ipAddress,
             );
+            (new RoomListSignal($this->events))->user($targetUserId, $actor->id);
             $this->pdo->commit();
         } catch (Throwable $exception) {
             if ($this->pdo->inTransaction()) {

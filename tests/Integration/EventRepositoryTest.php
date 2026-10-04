@@ -42,21 +42,21 @@ final class EventRepositoryTest extends DatabaseTestCase
 
         self::assertSame(
             [$roomEvent->id, $globalEvent->id, $targetEvent->id],
-            array_map(static fn ($event): int => $event->id, $events->visibleAfter($member, 0)),
+            array_map(static fn ($event): int => $event->id, self::withoutRoomListSignals($events->visibleAfter($member, 0))),
         );
         self::assertSame(
             [$globalEvent->id],
-            array_map(static fn ($event): int => $event->id, $events->visibleAfter($outsider, 0)),
+            array_map(static fn ($event): int => $event->id, self::withoutRoomListSignals($events->visibleAfter($outsider, 0))),
         );
         self::assertSame(
             [$roomEvent->id, $globalEvent->id],
-            array_map(static fn ($event): int => $event->id, $events->visibleAfter($admin, 0)),
+            array_map(static fn ($event): int => $event->id, self::withoutRoomListSignals($events->visibleAfter($admin, 0))),
         );
         self::assertSame(
             [$targetEvent->id],
             array_map(
                 static fn ($event): int => $event->id,
-                $events->visibleAfter($member, $globalEvent->id),
+                self::withoutRoomListSignals($events->visibleAfter($member, $globalEvent->id)),
             ),
         );
     }

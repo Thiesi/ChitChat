@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace ChitChat\Tests\Integration;
 
 use ChitChat\Auth\AuthService;
+use ChitChat\Auth\AuthenticatedUser;
 use ChitChat\Http\ApiException;
+use ChitChat\Realtime\EventRepository;
 use ChitChat\Room\MessageService;
 use ChitChat\Room\RoomService;
 use DateTimeImmutable;
@@ -124,5 +126,46 @@ final class RoomServiceTest extends DatabaseTestCase
         } catch (ApiException $exception) {
             self::assertSame('invalid_inactivity_timeout', $exception->errorCode);
         }
+    }
+
+    public function testRoomListSignalsReachOnlyViewersWhoCanSeeTheRoom(): void
+    {
+        $auth = new AuthService($this->pdo, $this->config);
+        $admin = $auth->register('Admin', 'a very secure password', '127.0.0.1');
+        $member = $auth->register('Member', 'another secure password', '127.0.0.2');
+        $outsider = $auth->register('Outsider', 'different secure password', '127.0.0.3');
+        $rooms = new RoomService($this->pdo);
+        $events = new EventRepository($this->pdo);
+
+        $rooms->create($admin, 'general', 'General', '', 'public', 0, 0, '127.0.0.1');
+        self::assertSame(1, $this->roomListSignalCount($events, $outsider), 'A new public room reaches everyone.');
+
+        $private = $rooms->create($admin, 'staff', 'Staff', '', 'private', 0, 0, '127.0.0.1');
+        self::assertSame(1, $this->roomListSignalCount($events, $outsider), 'A new private room stays hidden.');
+        self::assertSame(2, $this->roomListSignalCount($events, $admin), 'Global moderators see every room.');
+
+        $rooms->invite($admin, $private->id, $member->id, '127.0.0.1');
+        self::assertSame(2, $this->roomListSignalCount($events, $member), 'The invitee is told.');
+        self::assertSame(1, $this->roomListSignalCount($events, $outsider));
+
+        $rooms->join($member, $private->id, '127.0.0.2');
+        $rooms->update($admin, $private->id, 'Staff room', '', 'private', 0, 0, '127.0.0.1');
+        // Membership is checked when events are read, so the room's creation now counts too.
+        self::assertSame(5, $this->roomListSignalCount($events, $member), 'Joining and renaming reach the member.');
+        self::assertSame(1, $this->roomListSignalCount($events, $outsider), 'A private rename stays hidden.');
+
+        $rooms->update($admin, $private->id, 'Staff room', '', 'public', 0, 0, '127.0.0.1');
+        self::assertSame(2, $this->roomListSignalCount($events, $outsider), 'Turning public reaches everyone.');
+
+        $rooms->delete($admin, $private->id, '127.0.0.1');
+        self::assertSame(3, $this->roomListSignalCount($events, $outsider), 'Deleting a public room reaches everyone.');
+    }
+
+    private function roomListSignalCount(EventRepository $events, AuthenticatedUser $viewer): int
+    {
+        return count(array_filter(
+            $events->visibleAfter($viewer, 0),
+            static fn ($event): bool => $event->type === 'rooms_changed',
+        ));
     }
 }

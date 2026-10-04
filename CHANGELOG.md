@@ -12,6 +12,7 @@ ChitChat is feature-complete; see [Project status](README.md#project-status-feat
 
 - Fixed the Operational settings layout: panels now share the full width evenly instead of leaving gaps and stacking flush, and wide panels lay their fields out side by side. The administration and moderation pages use the full browser width.
 - Fixed slash commands such as `/me` breaking across lines in chat notifications.
+- Fixed the room list going stale: rooms that are created, renamed, or deleted, and rooms an account joins, leaves, is invited to, or is removed from, now update in open chat tabs without a reload. A new contentless `rooms_changed` realtime event prompts clients to re-fetch the authorized room list, so private and unlisted rooms are never announced to people who cannot see them. Migration `0025_rooms_changed_event.sql` allows the new event type.
 
 ## [2.4.0] - 2026-10-04
 

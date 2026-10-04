@@ -32,6 +32,7 @@ The stream releases the PHP session lock before polling, so the same browser ses
 - `global_broadcast`: visible to every authenticated user.
 - `room_message`, `message_deleted`, `room_broadcast`, and `presence_changed`: visible to current room members and global room moderators.
 - `message_reaction_changed`: for a room message, visible to current room members and global room moderators, as one shared event; for a direct message, published as two separate targeted events, one to each participant.
+- `rooms_changed`: for a public room (or one that was public before an update), visible to every authenticated user; for an unlisted or private room, visible to current room members and global room moderators; for a change to one account's membership, role, or invitation, visible only to that account.
 - `ping`: visible only to the targeted user.
 - `forced_logout`: visible only to the targeted user.
 - `direct_message`: visible only to the sender and recipient, as separate perspective-correct events; see [`direct-messages.md`](direct-messages.md#realtime-delivery).
@@ -106,6 +107,12 @@ Emitted whenever a reaction is added or removed, carrying the message's complete
 ```
 
 `message_kind` is `room` or `direct`; a direct-message payload omits `room_id`. For a room message this is one shared broadcast to every current member, so `reacted_by_me` reflects only the acting account's perspective — a recipient other than the actor must not treat it as their own reaction state. For a direct message, ChitChat publishes two separately computed targeted events (one per participant), each with `reacted_by_me` correct for that recipient, matching how other direct-message events are already perspective-correct.
+
+### `rooms_changed`
+
+A signal that the viewer's room list may have changed. It carries an empty payload; clients respond by re-fetching `GET /api/v1/rooms/list.php`, which applies the usual room authorization, so the event itself reveals nothing about a room. It is emitted when a room is created, updated, or deleted; when an account joins or leaves a room; and when an account is invited, has its invitation revoked, has its room role changed, or is removed from a room. The ChitChat client collapses bursts into one re-fetch. Room-list signals expire from the event ledger after one hour.
+
+Because room membership is evaluated when events are read, a member who joins an unlisted or private room can also receive that room's earlier `rooms_changed` events; the empty payload makes this harmless.
 
 ### `ping`
 

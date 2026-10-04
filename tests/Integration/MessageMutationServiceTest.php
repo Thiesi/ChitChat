@@ -176,8 +176,8 @@ SQL)->fetchAll();
         self::assertNull($revisions[1]['body_after']);
 
         self::assertSame(4, (int) $this->pdo->query('SELECT COUNT(*) FROM realtime_events')->fetchColumn());
-        self::assertCount(2, (new EventRepository($this->pdo))->visibleAfter($alice, 0));
-        self::assertCount(2, (new EventRepository($this->pdo))->visibleAfter($bob, 0));
+        self::assertCount(2, self::withoutRoomListSignals((new EventRepository($this->pdo))->visibleAfter($alice, 0)));
+        self::assertCount(2, self::withoutRoomListSignals((new EventRepository($this->pdo))->visibleAfter($bob, 0)));
     }
 
     public function testDeletedDirectAttachmentIsRevokedThenRemoved(): void

@@ -66,6 +66,9 @@ final class RoomAdminServiceTest extends DatabaseTestCase
         self::assertSame(1, (int) $this->pdo->query(
             "SELECT COUNT(*) FROM audit_log WHERE action = 'room.member_removed'",
         )?->fetchColumn());
+        self::assertSame(2, (int) $this->pdo->query(
+            "SELECT COUNT(*) FROM realtime_events WHERE event_type = 'rooms_changed' AND target_user_id = {$member->id}",
+        )?->fetchColumn(), 'The member is told on joining and on removal.');
 
         try {
             $admin->removeMember($owner, $room->id, $owner->id, '127.0.0.1');
@@ -83,6 +86,9 @@ final class RoomAdminServiceTest extends DatabaseTestCase
         $admin->revokeInvitation($owner, $room->id, $candidate->id, '127.0.0.1');
 
         self::assertSame([], $admin->snapshot($owner, $room->id)['invitations']);
+        self::assertSame(2, (int) $this->pdo->query(
+            "SELECT COUNT(*) FROM realtime_events WHERE event_type = 'rooms_changed' AND target_user_id = {$candidate->id}",
+        )?->fetchColumn(), 'The candidate is told about the invitation and its revocation.');
 
         try {
             $admin->snapshot($outsider, $room->id);

@@ -28,8 +28,8 @@ final class RealtimeServiceTest extends DatabaseTestCase
         $events = new EventRepository($this->pdo);
 
         self::assertSame('ping', $event->type);
-        self::assertSame([$event->id], array_column($this->eventArrays($events->visibleAfter($member, 0)), 'id'));
-        self::assertSame([], $events->visibleAfter($outsider, 0));
+        self::assertSame([$event->id], array_column($this->eventArrays(self::withoutRoomListSignals($events->visibleAfter($member, 0))), 'id'));
+        self::assertSame([], self::withoutRoomListSignals($events->visibleAfter($outsider, 0)));
 
         try {
             (new PingService($this->pdo))->send($admin, $room->id, 'outsider', 'Nope');
@@ -56,11 +56,11 @@ final class RealtimeServiceTest extends DatabaseTestCase
 
         self::assertSame(
             [$roomEvent->id, $globalEvent->id],
-            array_column($this->eventArrays($events->visibleAfter($member, 0)), 'id'),
+            array_column($this->eventArrays(self::withoutRoomListSignals($events->visibleAfter($member, 0))), 'id'),
         );
         self::assertSame(
             [$globalEvent->id],
-            array_column($this->eventArrays($events->visibleAfter($outsider, 0)), 'id'),
+            array_column($this->eventArrays(self::withoutRoomListSignals($events->visibleAfter($outsider, 0))), 'id'),
         );
         self::assertSame(
             2,
@@ -87,7 +87,7 @@ final class RealtimeServiceTest extends DatabaseTestCase
 
         $message = $messages->send($member, $room->id, 'Hello');
         $messages->delete($admin, $message['id'], '127.0.0.1');
-        $events = (new EventRepository($this->pdo))->visibleAfter($member, 0);
+        $events = self::withoutRoomListSignals((new EventRepository($this->pdo))->visibleAfter($member, 0));
 
         self::assertSame(['room_message', 'message_deleted'], array_map(
             static fn ($event): string => $event->type,
