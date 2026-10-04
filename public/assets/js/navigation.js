@@ -2,6 +2,7 @@
 // notifications and account popovers, and the sidebar's direct messages.
 import { ApiError, apiGet, apiPost } from './api.js';
 import { miniAvatar } from './avatar.js';
+import { setSoundEnabled, soundEnabled } from './attention.js';
 
 const BADGE_REFRESH_MS = 60_000;
 const RECENT_CONVERSATIONS = 8;
@@ -28,6 +29,10 @@ window.addEventListener('DOMContentLoaded', () => {
 
   bindDrawer();
   bindMembersPanel();
+  for (const toggle of document.querySelectorAll('input[data-sound]')) {
+    toggle.checked = soundEnabled(toggle.dataset.sound);
+    toggle.addEventListener('change', () => setSoundEnabled(toggle.dataset.sound, toggle.checked));
+  }
   bindPopover(elements['notifications-button'], elements['notifications-popover'], refreshNotifications);
   bindPopover(elements['user-menu-button'], elements['user-menu']);
   elements['notifications-mark-all'].addEventListener('click', markAllRead);

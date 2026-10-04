@@ -3,6 +3,7 @@ import { attachEmojiPicker } from './emoji-picker.js';
 import { renderMessageBody, buildReplyPreview, buildReactionBar } from './message-content.js';
 import { attachMentionAutocomplete } from './mention-autocomplete.js';
 import { attachNameCompletion } from './name-completion.js';
+import { alertUser } from './attention.js';
 
 const state = {
   user: null,
@@ -515,6 +516,11 @@ function startEventStream() {
     const message = envelope?.payload?.message;
     if (!message || !state.user) return;
     const peer = message.sender.id === state.user.id ? message.recipient : message.sender;
+    // No sound for the conversation you are looking at right now.
+    const watching = state.selectedUser?.id === peer.id && document.visibilityState === 'visible';
+    if (!message.outgoing && !watching) {
+      alertUser('dm', `Message from ${peer.username}`);
+    }
     if (state.selectedUser?.id === peer.id) {
       appendMessage(message, true);
       if (!message.outgoing) markRead().catch(console.error);
