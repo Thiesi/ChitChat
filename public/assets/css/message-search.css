@@ -1,5 +1,6 @@
 .message-search-shell {
   width: calc(100% - 2rem);
+  max-width: 80rem;
   margin: 0 auto;
   padding: 2rem 0 4rem;
 }
@@ -24,6 +25,13 @@
 .message-search-result h3,
 .message-search-result p {
   margin: 0;
+}
+
+.message-search-header h1 {
+  font-family: var(--display-font);
+  font-size: clamp(2rem, 4vw, 2.75rem);
+  font-weight: 400;
+  letter-spacing: -0.045em;
 }
 
 .message-search-eyebrow {

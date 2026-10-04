@@ -1,5 +1,6 @@
 .admin-shell {
   width: calc(100% - 2rem);
+  max-width: 90rem;
   margin: 0 auto;
   padding: 1.25rem 0 3rem;
 }
@@ -49,6 +50,9 @@
 .admin-header h1 {
   margin: 0;
   font-size: clamp(2rem, 5vw, 3rem);
+  font-family: var(--display-font);
+  font-weight: 400;
+  letter-spacing: -0.045em;
 }
 
 .admin-link-button {

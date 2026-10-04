@@ -2,50 +2,55 @@
 :root {
   color-scheme: dark;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --bg: #10131a;
-  --surface: #181d27;
-  --surface-2: #222938;
-  --border: #30394b;
-  --text: #f3f5f8;
-  --muted: #aeb7c7;
-  --accent: #7da7ff;
-  --accent-strong: #a8c3ff;
+  --bg: #111e22;
+  --surface: #192b2f;
+  --surface-2: #23383c;
+  --border: #385054;
+  --text: #f2f3e9;
+  --muted: #afc1bd;
+  --accent: #a8dbc5;
+  --accent-strong: #c5efdc;
   --danger: #ff8f8f;
   --success: #8fe0ae;
   --warning: #f2c14e;
-  --shadow: 0 18px 50px rgb(0 0 0 / 0.25);
-  --on-accent: #0b1323;
-  --mention-bg: #364056;
-  --mention-text: #dbe6ff;
-  --reaction-active-bg: #2a3550;
-  --reaction-active-text: #dbe6ff;
+  --shadow: 0 12px 36px rgb(0 0 0 / 0.14);
+  --on-accent: #142f28;
+  --mention-bg: #2e5047;
+  --mention-text: #d3f4e4;
+  --reaction-active-bg: #2e5047;
+  --reaction-active-text: #d3f4e4;
   --broadcast-bg: #433e3b;
   --broadcast-text: #ffe0b2;
-  --option-active-bg: #3f4b64;
+  --option-active-bg: #36564e;
+  --canvas: #152428;
+  --warm: #e4c59b;
+  --display-font: Georgia, "Times New Roman", serif;
 }
 
 :root[data-theme="light"] {
   color-scheme: light;
-  --bg: #f4f6fa;
-  --surface: #ffffff;
-  --surface-2: #eef1f6;
-  --border: #d3d9e3;
-  --text: #151a23;
-  --muted: #566070;
-  --accent: #2f5fd0;
-  --accent-strong: #1f4bb3;
+  --bg: #f1eee5;
+  --surface: #fffdf7;
+  --surface-2: #e9eee5;
+  --border: #ccd5c9;
+  --text: #213d38;
+  --muted: #4f6259;
+  --accent: #286454;
+  --accent-strong: #1b5344;
   --danger: #c0392b;
   --success: #1c7c47;
   --warning: #8a5d00;
-  --shadow: 0 18px 50px rgb(20 30 50 / 0.12);
+  --shadow: 0 12px 36px rgb(46 65 46 / 0.07);
   --on-accent: #ffffff;
-  --mention-bg: #dde6ff;
-  --mention-text: #1a3a8f;
-  --reaction-active-bg: #dde6ff;
-  --reaction-active-text: #1a3a8f;
+  --mention-bg: #dbeade;
+  --mention-text: #204f40;
+  --reaction-active-bg: #dbeade;
+  --reaction-active-text: #204f40;
   --broadcast-bg: #fff0d4;
   --broadcast-text: #7a4a00;
-  --option-active-bg: #dde6ff;
+  --option-active-bg: #dbeade;
+  --canvas: #f8f7f0;
+  --warm: #795531;
 }
 
 * {
@@ -62,10 +67,32 @@ body {
 
 body {
   min-height: 100vh;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
 }
+
+::selection {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+a { color: var(--accent-strong); }
+
+button, a, input, textarea, select {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button, .secondary-button, input, textarea, select {
+  transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+button:not(:disabled):active { transform: translateY(1px); }
+
+input::placeholder, textarea::placeholder { color: var(--muted); opacity: 1; }
 
 button,
 input,
+select,
 textarea {
   font: inherit;
 }
@@ -130,23 +157,69 @@ button:disabled {
 .auth-shell {
   display: grid;
   min-height: 100vh;
-  padding: 2rem;
+  grid-template-rows: 1fr auto;
+  gap: 2rem;
+  padding: clamp(1.25rem, 5vw, 4rem);
   place-items: center;
+  background: radial-gradient(ellipse at 10% 30%, color-mix(in srgb, var(--accent) 8%, transparent), transparent 65%);
 }
+
+.auth-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 27rem);
+  align-items: center;
+  gap: clamp(2rem, 7vw, 7rem);
+  width: min(100%, 72rem);
+}
+
+.welcome-eyebrow {
+  margin: 0 0 1.5rem;
+  color: var(--accent-strong);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.welcome-title {
+  margin: 0;
+  font-family: var(--display-font);
+  font-size: clamp(2.7rem, 5vw, 4.5rem);
+  font-weight: 400;
+  line-height: 1.08;
+  letter-spacing: -0.055em;
+}
+
+.welcome-copy {
+  max-width: 31rem;
+  margin: 1.5rem 0 0;
+  color: var(--muted);
+  font-size: 1.05rem;
+  line-height: 1.8;
+}
+
+.welcome-art { display: block; width: min(100%, 24rem); margin-top: 2rem; }
+.art-orbit { stroke: var(--border); stroke-dasharray: 3 8; }
+.art-bubble-back { fill: var(--surface-2); stroke: var(--border); }
+.art-bubble-front { fill: var(--accent); }
+.art-lines { stroke: var(--muted); stroke-width: 5; stroke-linecap: round; }
+.art-dots { fill: var(--on-accent); }
+.art-spark { stroke: var(--warm); stroke-width: 2; stroke-linecap: round; }
 
 .auth-card {
   width: min(100%, 30rem);
-  padding: 2rem;
+  padding: clamp(1.5rem, 3vw, 2.5rem);
   border: 1px solid var(--border);
-  border-radius: 1.25rem;
+  border-radius: 1.75rem;
   background: var(--surface);
   box-shadow: var(--shadow);
 }
 
 .brand {
   margin: 0;
-  font-size: clamp(2rem, 8vw, 3.25rem);
-  letter-spacing: -0.05em;
+  font-size: clamp(1.65rem, 4vw, 2.4rem);
+  letter-spacing: -0.045em;
+  overflow-wrap: anywhere;
 }
 
 .tagline {
@@ -157,8 +230,11 @@ button:disabled {
 .auth-tabs {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0.5rem;
-  margin-bottom: 1.25rem;
+  gap: 0.25rem;
+  padding: 0.3rem;
+  border-radius: 0.9rem;
+  background: var(--bg);
+  margin-bottom: 1.5rem;
 }
 
 .auth-tabs button,
@@ -173,10 +249,14 @@ button:disabled {
 
 .auth-tabs button {
   padding: 0.7rem;
+  border-color: transparent;
+  background: transparent;
 }
 
 .auth-tabs button[aria-selected="true"] {
-  border-color: var(--accent);
+  border-color: var(--border);
+  background: var(--surface);
+  box-shadow: 0 2px 5px rgb(0 0 0 / 0.06);
   color: var(--accent-strong);
 }
 
@@ -230,7 +310,17 @@ button:focus-visible {
   color: var(--on-accent);
   font-weight: 700;
   padding: 0.85rem 1rem;
+  box-shadow: 0 3px 0 color-mix(in srgb, var(--accent) 60%, var(--bg));
 }
+
+.primary-button:hover:not(:disabled) { background: var(--accent-strong); }
+
+.secondary-button:hover:not(:disabled), .join-button:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 9%, var(--surface));
+}
+
+a.secondary-button { display: inline-block; text-decoration: none; text-align: center; }
 
 .secondary-button,
 .join-button {
@@ -247,9 +337,11 @@ button:focus-visible {
    it and the composer stays in view however long the conversation grows. */
 .chat-shell {
   display: grid;
-  grid-template-columns: 18rem minmax(0, 1fr);
+  grid-template-columns: 17rem minmax(0, 1fr);
   height: 100vh;
   height: 100dvh;
+  padding: 1rem;
+  gap: 1rem;
 }
 
 .sidebar {
@@ -257,8 +349,7 @@ button:focus-visible {
   min-height: 0;
   flex-direction: column;
   overflow-y: auto;
-  border-right: 1px solid var(--border);
-  background: var(--surface);
+  background: transparent;
 }
 
 /* Keep each section at its natural size; the sidebar scrolls as a whole instead. */
@@ -276,7 +367,8 @@ button:focus-visible {
   align-items: flex-start;
   justify-content: space-between;
   gap: 0.75rem;
-  border-bottom: 1px solid var(--border);
+  padding-top: 0.65rem;
+  padding-bottom: 1.5rem;
 }
 
 .menu-toggle {
@@ -300,7 +392,11 @@ button:focus-visible {
 .sidebar-header h1 {
   margin: 0;
   font-size: 1.35rem;
+  letter-spacing: -0.045em;
+  overflow-wrap: anywhere;
 }
+
+.sidebar-header > div { min-width: 0; }
 
 .connection-status {
   display: inline-flex;
@@ -345,14 +441,23 @@ button:focus-visible {
 .room-button {
   display: grid;
   gap: 0.15rem;
-  padding: 0.75rem;
+  padding: 0.8rem 1rem;
+  border-color: transparent;
+  background: transparent;
   text-align: left;
+  overflow-wrap: anywhere;
 }
 
+.room-button:hover { background: var(--surface); }
+
 .room-button.active {
-  border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 14%, var(--surface-2));
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--border));
+  background: color-mix(in srgb, var(--accent) 13%, var(--bg));
+  box-shadow: inset 3px 0 var(--accent);
 }
+
+.room-button.active .room-name { color: var(--accent-strong); }
+.room-button.active .room-meta { color: var(--text); }
 
 .room-name {
   font-weight: 650;
@@ -365,22 +470,47 @@ button:focus-visible {
 
 .sidebar-footer {
   display: grid;
-  gap: 0.75rem;
+  gap: 0.3rem;
   margin-top: auto;
   border-top: 1px solid var(--border);
 }
+
+.sidebar-footer .secondary-button {
+  padding: 0.5rem 0.65rem;
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.85rem;
+  text-align: left;
+}
+
+.sidebar-footer .secondary-button:hover { background: var(--surface-2); color: var(--text); }
+.sidebar-footer .theme-select { padding: 0.4rem 0.65rem; font-size: 0.8rem; }
+.sidebar-footer .theme-select select { padding: 0.45rem; max-width: 65%; }
+.sidebar-footer .powered-by { margin-top: 0.8rem; text-align: left; padding-left: 0.65rem; }
 
 .current-user {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  margin-bottom: 0.6rem;
+  padding: 0.65rem;
+  border-radius: 0.65rem;
+  background: var(--surface);
+  font-size: 0.85rem;
 }
 
 .chat-main {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto minmax(0, 1fr) auto;
   min-width: 0;
   min-height: 0;
+  border: 1px solid var(--border);
+  border-radius: 1.5rem;
+  background: var(--canvas);
+  box-shadow: var(--shadow);
+  overflow: hidden;
 }
 
 .room-header {
@@ -388,7 +518,7 @@ button:focus-visible {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding: 1rem 1.25rem;
+  padding: 1.25rem 2rem;
   border-bottom: 1px solid var(--border);
   background: var(--surface);
 }
@@ -397,6 +527,14 @@ button:focus-visible {
 .room-header p {
   margin: 0;
 }
+
+.room-header h2 {
+  font-family: var(--display-font);
+  font-size: 1.65rem;
+  font-weight: 400;
+  letter-spacing: -0.035em;
+}
+.room-header > div { min-width: 0; overflow-wrap: anywhere; }
 
 .room-header p {
   margin-top: 0.25rem;
@@ -410,31 +548,76 @@ button:focus-visible {
   place-items: center;
   color: var(--muted);
   text-align: center;
+  align-content: center;
+  gap: 1.5rem;
+  font-family: var(--display-font);
+  font-size: 1.65rem;
+}
+
+.empty-state::before {
+  content: "";
+  width: 4rem;
+  height: 3rem;
+  margin: auto;
+  border: 2px solid var(--accent);
+  border-radius: 1.25rem 1.25rem 1.25rem 0.25rem;
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  box-shadow: 0.75rem -0.75rem 0 var(--surface-2);
 }
 
 .message-list {
   display: flex;
   min-height: 0;
   flex-direction: column;
-  gap: 0.8rem;
-  padding: 1.25rem;
+  gap: 1.5rem;
+  padding: 2rem clamp(1rem, 3vw, 3rem);
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
 }
 
 .message {
+  position: relative;
   display: grid;
-  gap: 0.2rem;
-  max-width: 52rem;
+  gap: 0.35rem;
+  width: 100%;
+  max-width: 56rem;
+  padding-left: 3.25rem;
+  margin-inline: auto;
+  min-height: 2.5rem;
+  flex-shrink: 0;
 }
+
+.message-avatar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: grid;
+  width: 2.4rem;
+  height: 2.4rem;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 0.9rem 0.9rem 0.35rem 0.9rem;
+  background: var(--surface-2);
+  color: var(--accent-strong);
+  font-size: 0.72rem;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+}
+.message-avatar[data-tone="1"] { color: var(--warm); background: color-mix(in srgb, var(--warm) 10%, var(--surface)); }
+.message-avatar[data-tone="2"] { color: var(--text); background: color-mix(in srgb, var(--accent) 15%, var(--surface)); }
+.message-avatar[data-tone="3"] { color: var(--muted); border-radius: 50%; }
 
 .message-header {
   display: flex;
   align-items: baseline;
   gap: 0.6rem;
+  flex-wrap: wrap;
 }
 
 .message-author {
   font-weight: 700;
+  overflow-wrap: anywhere;
 }
 
 .message-time {
@@ -444,7 +627,7 @@ button:focus-visible {
 
 .message-body {
   margin: 0;
-  line-height: 1.5;
+  line-height: 1.7;
   overflow-wrap: anywhere;
   white-space: pre-wrap;
 }
@@ -466,14 +649,16 @@ button:focus-visible {
   cursor: pointer;
   font: inherit;
   font-size: 0.78rem;
-  padding: 0.15rem 0.3rem;
-  text-decoration: underline;
+  padding: 0.25rem 0.4rem;
+  border-radius: 0.4rem;
+  text-decoration: none;
   text-underline-offset: 0.15rem;
 }
 
 .message-reply-button:hover,
 .message-reply-button:focus-visible {
   color: inherit;
+  background: var(--surface-2);
 }
 
 .reply-preview {
@@ -540,7 +725,8 @@ button:focus-visible {
   gap: 0.25rem;
   border: 1px solid var(--border);
   border-radius: 1rem;
-  padding: 0.1rem 0.5rem;
+  min-height: 1.8rem;
+  padding: 0.15rem 0.6rem;
   background: var(--surface-2);
   color: var(--text);
   font: inherit;
@@ -629,6 +815,7 @@ button:focus-visible {
   border-radius: 0.4rem;
   background: color-mix(in srgb, var(--accent-strong) 12%, var(--surface));
   font-size: 0.85rem;
+  min-width: 0;
 }
 
 .reply-banner span {
@@ -679,28 +866,44 @@ button:focus-visible {
 }
 
 .composer-wrap {
-  padding: 1rem 1.25rem;
-  border-top: 1px solid var(--border);
-  background: var(--surface);
+  min-width: 0;
+  padding: 0.75rem clamp(1rem, 3vw, 3rem) 1.25rem;
+  background: var(--canvas);
 }
 
 .composer {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 0.75rem;
+  align-items: center;
+  max-width: 56rem;
+  margin-inline: auto;
+  padding: 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: 1.25rem;
+  background: var(--surface);
+  box-shadow: 0 5px 20px rgb(0 0 0 / 0.05);
 }
+
+.composer:focus-within { border-color: var(--accent); }
+.composer .primary-button { min-height: 3rem; margin-right: 0.2rem; }
 
 .composer textarea {
   min-height: 3rem;
   max-height: 10rem;
   resize: vertical;
+  border-color: transparent;
+  background: transparent;
 }
 
 .composer-help {
-  margin: 0.45rem 0 0;
+  max-width: 56rem;
+  margin: 0.65rem auto 0;
   color: var(--muted);
-  font-size: 0.78rem;
+  font-size: 0.72rem;
 }
+
+.composer-wrap > .reply-banner { max-width: 56rem; margin-inline: auto; }
 
 .toast-region {
   position: fixed;
@@ -725,9 +928,22 @@ button:focus-visible {
 }
 
 @media (max-width: 48rem) {
+  .auth-layout { grid-template-columns: minmax(0, 28rem); justify-content: center; gap: 2rem; }
+  .auth-intro { text-align: center; }
+  .welcome-eyebrow { margin-bottom: 0.75rem; }
+  .welcome-title { font-size: 2.7rem; }
+  .welcome-copy, .welcome-art { display: none; }
+
   .chat-shell {
-    grid-template-columns: 8.5rem minmax(0, 1fr);
+    grid-template-columns: 11rem minmax(0, 1fr);
+    padding: 0.5rem;
+    gap: 0.5rem;
   }
+
+  .sidebar-header, .sidebar-footer { padding-inline: 0.5rem; }
+  .room-header { padding: 1rem; }
+  .sidebar-footer .theme-select { flex-wrap: wrap; }
+  .sidebar-footer .theme-select select { max-width: 100%; }
 
   .room-meta,
   .current-user-label {
@@ -740,9 +956,14 @@ button:focus-visible {
 }
 
 @media (max-width: 34rem) {
+  .auth-shell { padding: 1.25rem; gap: 1rem; }
+  .welcome-title { font-size: 2.2rem; }
+  .auth-card { padding: 1.35rem; border-radius: 1.25rem; }
   .chat-shell {
     grid-template-columns: 1fr;
     grid-template-rows: auto minmax(0, 1fr);
+    gap: 0;
+    padding: 0;
   }
 
   .sidebar {
@@ -750,6 +971,25 @@ button:focus-visible {
     border-right: 0;
     border-bottom: 1px solid var(--border);
   }
+
+  .sidebar-header { padding: 0.65rem 1rem 0.25rem; align-items: center; }
+  .sidebar-header h1 { font-size: 1.15rem; }
+  .connection-status { margin-top: 0.1rem; font-size: 0.72rem; }
+  .rooms-heading-row .rooms-heading { margin-block: 0.35rem; font-size: 0.68rem; }
+  .room-list { padding: 0.35rem 0.65rem 0.65rem; }
+  .room-button { padding: 0.55rem 0.85rem; font-size: 0.85rem; }
+  .room-button.active { box-shadow: inset 0 -2px var(--accent); }
+  .sidebar-footer { padding: 0.75rem 1rem; }
+  .sidebar-footer .secondary-button { min-height: 2.75rem; }
+  .message-list { padding: 1.25rem 0.85rem; }
+  .message { padding-left: 2.65rem; }
+  .message-avatar { width: 2rem; height: 2rem; border-radius: 0.7rem; font-size: 0.65rem; }
+  .message-header { gap: 0.3rem 0.5rem; }
+  .message-time { font-size: 0.68rem; }
+  .composer-wrap { padding: 0.5rem 0.65rem max(0.75rem, env(safe-area-inset-bottom)); }
+  .composer { padding: 0.4rem; gap: 0.35rem; }
+  .composer .primary-button { padding-inline: 0.8rem; }
+  .composer-help { font-size: 0.65rem; }
 
   .room-list {
     display: flex;
@@ -775,10 +1015,13 @@ button:focus-visible {
 
   /* While the menu is open the sidebar may take the height its links need. */
   .sidebar.menu-open {
-    max-height: none;
+    max-height: 65dvh;
   }
 
   .chat-main {
     min-height: 0;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
   }
 }
