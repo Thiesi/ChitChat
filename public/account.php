@@ -54,26 +54,6 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
       </div>
     </section>
 
-    <dialog id="avatar-crop-dialog" class="room-dialog avatar-crop-dialog" aria-labelledby="avatar-crop-title">
-      <form method="dialog" class="form-stack">
-        <header class="dialog-header">
-          <h2 id="avatar-crop-title">Crop your picture</h2>
-        </header>
-        <div class="avatar-crop-stage">
-          <canvas id="avatar-crop-canvas" width="512" height="512" tabindex="0" aria-label="Picture crop area. Drag, or use the arrow keys, to move the picture; plus and minus zoom."></canvas>
-        </div>
-        <label>
-          Zoom
-          <input id="avatar-crop-zoom" type="range" min="1" max="4" step="0.01" value="1">
-        </label>
-        <p class="account-muted">Drag the picture or use the arrow keys to position it. The circle shows what others see.</p>
-        <div class="account-action-row">
-          <button id="avatar-crop-save" class="primary-button" type="button">Save picture</button>
-          <button id="avatar-crop-cancel" class="secondary-button" type="button">Cancel</button>
-        </div>
-      </form>
-    </dialog>
-
     <section class="account-card" aria-labelledby="appearance-heading">
       <div>
         <p class="account-eyebrow">Appearance</p>
@@ -195,6 +175,27 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
     <p id="account-error" class="error-text" role="alert"></p>
     <?= \ChitChat\View\PoweredBy::html() ?>
   </main>
+
+  <dialog id="avatar-crop-dialog" class="room-dialog avatar-crop-dialog" aria-labelledby="avatar-crop-title">
+    <form method="dialog" class="form-stack">
+      <header class="dialog-header">
+        <h2 id="avatar-crop-title">Crop your picture</h2>
+      </header>
+      <div class="avatar-crop-stage">
+        <canvas id="avatar-crop-canvas" width="512" height="512" tabindex="0" aria-label="Picture crop area. Drag, or use the arrow keys, to move the picture; plus and minus zoom."></canvas>
+      </div>
+      <label>
+        Zoom
+        <input id="avatar-crop-zoom" type="range" min="1" max="4" step="0.01" value="1">
+      </label>
+      <p class="account-muted">Drag the picture or use the arrow keys to position it. The circle shows what others see.</p>
+      <div class="account-action-row">
+        <button id="avatar-crop-save" class="primary-button" type="button">Save picture</button>
+        <button id="avatar-crop-cancel" class="secondary-button" type="button">Cancel</button>
+      </div>
+    </form>
+  </dialog>
+
 
   <script type="module" src="/assets/js/account.js"></script>
   <script type="module" src="/assets/js/mfa-account.js"></script>
