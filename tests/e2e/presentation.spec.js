@@ -103,9 +103,13 @@ for (const theme of ['dark', 'light']) {
       await expect(page.locator('#composer-input')).toBeInViewport();
     }
     await accessible(page);
-    await page.locator('#menu-toggle').click();
+    await page.locator('#drawer-toggle').click();
+    await expect(page.getByRole('navigation', { name: 'Rooms' })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await page.locator('#user-menu-button').click();
     await expect(page.getByRole('link', { name: 'Account', exact: true })).toBeVisible();
-    await page.locator('#menu-toggle').click();
+    await noOverflow(page);
+    await page.keyboard.press('Escape');
     await page.locator('#composer-input').fill('A little hello.');
     await page.locator('#emoji-button').click();
     await expect(page.locator('.emoji-picker')).toBeVisible();

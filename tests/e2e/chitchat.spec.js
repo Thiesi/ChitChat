@@ -126,7 +126,9 @@ test.describe.serial('ChitChat browser release checks', () => {
     try {
       const adminPage = await adminContext.newPage();
       await registerOrSignIn(adminPage, admin, register);
+      await adminPage.getByRole('button', { name: 'Account menu' }).click();
       await expect(adminPage.locator('#admin-link')).toBeVisible();
+      await adminPage.keyboard.press('Escape');
 
       // Every later spec uses this room, so a retry reuses it rather than recreating it.
       const { rooms } = await (await adminContext.request.get('/api/v1/rooms/list.php')).json();

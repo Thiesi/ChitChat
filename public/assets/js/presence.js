@@ -1,16 +1,20 @@
 import { ApiError, apiGet, apiPost } from './api.js';
+import { miniAvatar } from './avatar.js';
 
 export function createPresenceClient({
   getCurrentRoom,
+  getCurrentUserId,
   canOccupy,
   onExpired,
   onUnauthorized,
   toast,
 }) {
   const connectionId = crypto.randomUUID();
-  const panel = document.getElementById('presence-panel');
   const list = document.getElementById('presence-list');
-  if (!panel || !list) {
+  const heading = document.getElementById('presence-heading');
+  const toggle = document.getElementById('members-toggle');
+  const count = document.getElementById('members-count');
+  if (!list || !heading || !toggle || !count) {
     throw new Error('Presence interface is incomplete.');
   }
 
@@ -116,7 +120,7 @@ export function createPresenceClient({
 
   function render(users) {
     list.replaceChildren();
-    panel.classList.remove('hidden');
+    renderCount(users.length);
 
     if (users.length === 0) {
       const empty = document.createElement('li');
@@ -128,24 +132,31 @@ export function createPresenceClient({
 
     for (const user of users) {
       const item = document.createElement('li');
-      item.className = 'presence-user';
+      item.className = 'member-row';
 
+      const idleText = formatIdle(user.idle_seconds);
       const name = document.createElement('span');
-      name.className = 'presence-name';
+      name.className = 'member-name';
       name.textContent = user.username;
 
-      const idle = document.createElement('span');
-      idle.className = 'presence-idle';
-      idle.textContent = formatIdle(user.idle_seconds);
+      const note = document.createElement('span');
+      note.className = 'member-note';
+      note.textContent = user.id === getCurrentUserId() ? 'you' : idleText;
 
-      item.append(name, idle);
+      item.append(miniAvatar(user.username, user.id, idleText === 'active' ? 'online' : 'idle'), name, note);
       list.append(item);
     }
   }
 
+  function renderCount(total) {
+    heading.textContent = total > 0 ? `Online here — ${total}` : 'Online here';
+    count.textContent = total > 0 ? String(total) : '';
+    toggle.setAttribute('aria-label', total === 1 ? 'Members, 1 online' : `Members, ${total > 0 ? total : 'none'} online`);
+  }
+
   function clear() {
     list.replaceChildren();
-    panel.classList.add('hidden');
+    renderCount(0);
   }
 
   function handleVisibilityChange() {

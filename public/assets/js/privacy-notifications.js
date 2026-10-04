@@ -39,7 +39,7 @@ async function initialize() {
   } catch (error) {
     elements.loading.textContent = error instanceof Error
       ? error.message
-      : 'Unable to load privacy notifications.';
+      : 'Unable to load notifications.';
   }
 }
 
@@ -83,7 +83,7 @@ async function loadNotifications(reset) {
     }
     elements.error.textContent = error instanceof Error
       ? error.message
-      : 'Unable to load privacy notifications.';
+      : 'Unable to load notifications.';
   } finally {
     state.loading = false;
     elements.more.disabled = false;
@@ -104,7 +104,7 @@ function renderNotification(notification) {
   const title = document.createElement('h3');
   title.textContent = typeof notification.title === 'string'
     ? notification.title
-    : 'Privacy notification';
+    : 'Notification';
 
   const time = document.createElement('time');
   time.dateTime = typeof notification.created_at === 'string' ? notification.created_at : '';
@@ -201,8 +201,8 @@ async function markAllRead() {
 function updateUnreadState() {
   elements.markAll.disabled = state.unreadCount === 0;
   elements.status.textContent = state.unreadCount === 0
-    ? 'You have no unread privacy notifications.'
-    : `${state.unreadCount} unread privacy notification${state.unreadCount === 1 ? '' : 's'}.`;
+    ? 'You have no unread notifications.'
+    : `${state.unreadCount} unread notification${state.unreadCount === 1 ? '' : 's'}.`;
 }
 
 function formatTimestamp(value) {

@@ -76,4 +76,4 @@ At most 100 explicit positive IDs are accepted. IDs belonging to another account
 
 ## Browser behavior
 
-`/notifications.php` provides the signed-in notification center with pagination, individual read controls, and a mark-all-read action. The chat sidebar displays a capped unread badge and refreshes it once per minute while the signed-in shell is active. The notification center is usable without realtime delivery; durable database state is always authoritative.
+`/notifications.php` (titled **Notifications**, since it also lists @mentions) provides the signed-in notification center with pagination, individual read controls, and a mark-all-read action. In the chat top bar, the bell shows a capped unread badge, refreshed once per minute while the signed-in shell is active, and opens a preview of the five newest notifications with a mark-all-read action; opening an unread linked notification marks it read. The notification center is usable without realtime delivery; durable database state is always authoritative.

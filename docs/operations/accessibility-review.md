@@ -26,7 +26,7 @@ Run the journey with current NVDA and both Firefox and Chromium-based Edge or Ch
 1. Open the signed-out page in browse mode. Confirm that the document title, one level-one heading, tab list, selected tab, username, password, and submit control are announced meaningfully.
 2. Operate the Sign in and Register tabs with Left Arrow and Right Arrow. Confirm selection and the newly displayed panel are announced and focus remains on the active tab.
 3. Submit an invalid login. Confirm the error is announced once without moving focus unpredictably.
-4. Sign in and navigate by landmarks and headings. Confirm the sidebar/navigation region, room list, current room heading, message region, composer, and account controls have understandable names.
+4. Sign in and navigate by landmarks and headings. Confirm the rooms-and-conversations region, room list, current room heading, message region, composer, top-bar buttons (members, search, notifications, account menu), and the account menu's controls have understandable names. At phone width, confirm the drawer, members sheet, and account menu open, close with Escape, and return focus to their button.
 5. Enter a room. Confirm connection status and newly received messages are announced without repeatedly reading the entire message history.
 6. Navigate several messages in browse mode. Confirm author, time, edited/deleted state, message text, attachment name, metadata, reaction bar, and download control are understandable without relying on visual position.
 7. Send a multiline message and operate the attachment picker entirely from the keyboard.
@@ -34,7 +34,7 @@ Run the journey with current NVDA and both Firefox and Chromium-based Edge or Ch
 9. Open Direct messages. Confirm the privacy disclosure is encountered before or alongside the messaging interface, conversation controls are named, unread state is understandable, and incoming messages do not cause a focus jump.
 10. Open message search from a room and from Direct messages. Confirm the search field, scope control, and result list are labeled, and that activating a result deep-links to and highlights the exact message.
 11. Report a message and, as a moderator, open the moderation queue. Confirm the report form, case list, case detail, and resolution controls are named and that queue-state changes are announced.
-12. Open Account and Privacy notifications, including the Web Push subscribe/preferences controls. Confirm headings, details/summary controls, checkboxes, status messages, notification read state, and destructive-action wording are announced correctly.
+12. Open Account and Notifications, including the Web Push subscribe/preferences controls. Confirm headings, details/summary controls, checkboxes, status messages, notification read state, and destructive-action wording are announced correctly.
 13. As the Super-Administrator, open Administration, privileged step-up, room creation, direct-message inspection, and revision review. Confirm dialogs announce their title, initial focus is sensible, focus remains contained while open, Escape or Cancel closes them, and focus returns to the invoking control.
 
 Repeat important form and dialog steps with NVDA focus mode where applicable.
@@ -47,7 +47,7 @@ Run the equivalent journey with current VoiceOver and Safari.
 2. Confirm the authentication tabs expose tab, selected, and panel relationships and can be operated with VoiceOver keyboard commands.
 3. Sign in and navigate the chat shell by landmarks and headings before interacting with room and composer controls.
 4. Confirm realtime status and new-message announcements are useful but do not continuously interrupt navigation.
-5. Exercise room messages, attachments, direct messages, Account, Privacy notifications, and the administrative dialogs described in the NVDA journey.
+5. Exercise room messages, attachments, direct messages, Account, Notifications, and the administrative dialogs described in the NVDA journey.
 6. Verify that rotor lists contain meaningful headings, links, form controls, and landmarks without duplicate or empty names.
 7. Confirm focus returns to the invoking element after every modal dialog closes.
 
@@ -69,8 +69,8 @@ Run without a screen reader and without using a pointer.
 
 Use browser zoom rather than operating-system display scaling for these checks.
 
-1. At 200% zoom on a 1280 CSS-pixel-wide desktop viewport, exercise authentication, chat, message search, the moderation queue, direct messages, Account, Privacy notifications, and Administration.
-2. At 400% zoom or an effective width near 320 CSS pixels, exercise authentication, Account, Privacy notifications, and at least one message composer.
+1. At 200% zoom on a 1280 CSS-pixel-wide desktop viewport, exercise authentication, chat, message search, the moderation queue, direct messages, Account, Notifications, and Administration.
+2. At 400% zoom or an effective width near 320 CSS pixels, exercise authentication, Account, Notifications, and at least one message composer.
 3. Confirm text is not clipped, controls remain reachable, status and error messages wrap, dialogs fit within the viewport, and document-level two-dimensional scrolling is not required.
 4. Purpose-built horizontally scrollable controls, such as the compact mobile room list, may scroll in one direction when their purpose remains clear and all items are keyboard reachable.
 

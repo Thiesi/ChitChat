@@ -8,6 +8,11 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ChitChat is feature-complete; see [Project status](README.md#project-status-feature-complete) and the [roadmap](docs/roadmap.md) for the maintenance-only policy going forward. Entries only appear here for a discovered bug fix or an accepted new feature request.
 
+### Changed
+
+- Reworked the chat page's navigation. The sidebar now holds only rooms (one line each, with an invited, age, or privacy marker only where it matters) and your recent direct messages with unread counts. The room header became a top bar with members, search, notifications, and an account menu. The members list moved into a panel that opens on demand and is remembered per device. The bell previews your newest notifications. The account menu holds Account, Administration, the light/dark mode, and Sign out. On phones, rooms and conversations open in a slide-in drawer, and members and the account menu open as sheets from the bottom.
+- Renamed "Privacy notifications" to "Notifications", since the page also lists @mentions.
+
 ### Fixed
 
 - Fixed the Operational settings layout: panels now share the full width evenly instead of leaving gaps and stacking flush, and wide panels lay their fields out side by side. The administration and moderation pages use the full browser width.

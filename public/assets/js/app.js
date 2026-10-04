@@ -4,6 +4,7 @@ import { renderMessageBody, buildReplyPreview, buildReactionBar } from './messag
 import { attachMentionAutocomplete } from './mention-autocomplete.js';
 import { attachEmojiPicker } from './emoji-picker.js';
 import { createRegistrationChallenge } from './registration-challenge.js';
+import { avatarTone, initials } from './avatar.js';
 
 const registrationChallenge = createRegistrationChallenge();
 
@@ -27,6 +28,7 @@ window.addEventListener('DOMContentLoaded', () => {
   bindEvents();
   presence = createPresenceClient({
     getCurrentRoom: () => state.currentRoom,
+    getCurrentUserId: () => state.user?.id ?? null,
     canOccupy: canUsePresence,
     onExpired: handlePresenceExpired,
     onUnauthorized: () => forceSignedOut('Your session has ended. Please sign in again.'),
@@ -54,6 +56,8 @@ function bindElements() {
     'connection-status',
     'room-list',
     'current-user',
+    'user-initials',
+    'user-menu-avatar',
     'logout-button',
     'new-room-button',
     'room-title',
@@ -81,23 +85,12 @@ function bindElements() {
     'reply-banner',
     'reply-banner-text',
     'reply-banner-cancel',
-    'menu-toggle',
-    'sidebar-footer',
   ]) {
     const element = document.getElementById(id);
     if (!element) {
       throw new Error(`Missing required interface element: ${id}`);
     }
     elements[id] = element;
-  }
-}
-
-// On narrow screens the sidebar's navigation links are behind the Menu button.
-function setMenuOpen(open) {
-  elements['menu-toggle'].setAttribute('aria-expanded', String(open));
-  elements['menu-toggle'].closest('.sidebar').classList.toggle('menu-open', open);
-  if (open) {
-    elements['sidebar-footer'].querySelector('a:not(.hidden), button:not(.hidden)')?.focus();
   }
 }
 
@@ -112,15 +105,6 @@ function bindEvents() {
     registrationChallenge.prepare().catch(() => {});
   });
   elements['logout-button'].addEventListener('click', submitLogout);
-  elements['menu-toggle'].addEventListener('click', () => {
-    setMenuOpen(elements['menu-toggle'].getAttribute('aria-expanded') !== 'true');
-  });
-  document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && elements['menu-toggle'].getAttribute('aria-expanded') === 'true') {
-      setMenuOpen(false);
-      elements['menu-toggle'].focus();
-    }
-  });
   elements['join-button'].addEventListener('click', joinCurrentRoom);
   elements['composer-form'].addEventListener('submit', submitMessage);
   elements['composer-input'].addEventListener('keydown', (event) => {
@@ -157,6 +141,10 @@ async function enterApplication(user) {
   elements['auth-shell'].classList.add('hidden');
   elements['chat-shell'].classList.remove('hidden');
   elements['current-user'].textContent = user.username;
+  for (const avatar of [elements['user-initials'], elements['user-menu-avatar']]) {
+    avatar.textContent = initials(user.username);
+  }
+  elements['user-menu-avatar'].dataset.tone = String(avatarTone(user.id));
   elements['new-room-button'].classList.toggle('hidden', !canCreateRooms(user));
   clearAuthError();
   presence.start();
@@ -298,6 +286,35 @@ async function refreshRoomList() {
   renderRoomHeader();
 }
 
+function roomFlag(text, variant = '') {
+  const flag = document.createElement('span');
+  flag.className = variant ? `room-flag ${variant}` : 'room-flag';
+  flag.textContent = text;
+  return flag;
+}
+
+function roomLock(visibility) {
+  const lock = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  lock.setAttribute('class', 'room-lock');
+  lock.setAttribute('viewBox', '0 0 24 24');
+  lock.setAttribute('role', 'img');
+  lock.setAttribute('aria-label', visibility === 'private' ? 'Private' : 'Unlisted');
+  lock.setAttribute('fill', 'none');
+  lock.setAttribute('stroke', 'currentColor');
+  lock.setAttribute('stroke-width', '2.2');
+  lock.setAttribute('stroke-linecap', 'round');
+  lock.setAttribute('stroke-linejoin', 'round');
+  const shapes = visibility === 'private'
+    ? [['rect', { x: '4', y: '11', width: '16', height: '10', rx: '2' }], ['path', { d: 'M8 11V7a4 4 0 0 1 8 0v4' }]]
+    : [['path', { d: 'M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z' }], ['line', { x1: '3', y1: '3', x2: '21', y2: '21' }]];
+  for (const [tag, attributes] of shapes) {
+    const shape = document.createElementNS('http://www.w3.org/2000/svg', tag);
+    for (const [key, value] of Object.entries(attributes)) shape.setAttribute(key, value);
+    lock.append(shape);
+  }
+  return lock;
+}
+
 function chooseInitialRoom() {
   return state.rooms.find((room) => room.member_role !== null) ?? state.rooms[0] ?? null;
 }
@@ -322,25 +339,33 @@ function renderRoomList() {
     button.classList.toggle('active', state.currentRoom?.id === room.id);
     button.dataset.roomId = String(room.id);
 
+    if (state.currentRoom?.id === room.id) {
+      button.setAttribute('aria-current', 'true');
+    }
+
     const name = document.createElement('span');
     name.className = 'room-name';
-    name.textContent = `# ${room.name}`;
+    const hash = document.createElement('span');
+    hash.className = 'room-hash';
+    hash.textContent = '#';
+    name.append(hash, ` ${room.name}`);
+    button.append(name);
 
-    const details = document.createElement('span');
-    details.className = 'room-meta';
-    const markers = [room.visibility];
+    // Only what changes how the room can be used: invitations, age limits, privacy.
+    if (room.invited && !room.member_role) {
+      button.append(roomFlag('invited', 'invited'));
+    }
     if (room.minimum_age > 0) {
-      markers.push(`${room.minimum_age}+`);
+      button.append(roomFlag(`${room.minimum_age}+`));
     }
-    if (room.member_role) {
-      markers.push(room.member_role);
-    } else if (room.invited) {
-      markers.push('invited');
+    if (room.visibility !== 'public') {
+      button.append(roomLock(room.visibility));
     }
-    details.textContent = markers.join(' · ');
 
-    button.append(name, details);
-    button.addEventListener('click', () => selectRoom(room));
+    button.addEventListener('click', () => {
+      window.dispatchEvent(new CustomEvent('chitchat:room-chosen'));
+      selectRoom(room);
+    });
     elements['room-list'].append(button);
   }
 }
@@ -542,10 +567,8 @@ function buildMessageElement(message) {
   const avatar = document.createElement('span');
   avatar.className = 'message-avatar';
   avatar.setAttribute('aria-hidden', 'true');
-  avatar.textContent = Array.from(message.username ?? 'System').slice(0, 2).join('').toUpperCase();
-  const identity = String(message.user_id ?? message.username ?? 'System');
-  const tone = Array.from(identity).reduce((value, character) => value + character.codePointAt(0), 0) % 4;
-  avatar.dataset.tone = String(tone);
+  avatar.textContent = initials(message.username ?? 'System');
+  avatar.dataset.tone = String(avatarTone(message.user_id ?? message.username));
   article.append(avatar);
 
   const time = document.createElement('time');
@@ -791,6 +814,10 @@ function startEventStream() {
   });
 
   source.addEventListener('rooms_changed', scheduleRoomListRefresh);
+
+  // Subscribing makes realtime-bridge.js re-dispatch direct messages as
+  // chitchat:realtime, which refreshes the sidebar's conversations.
+  source.addEventListener('direct_message', () => {});
 
   source.addEventListener('presence_changed', (event) => {
     const envelope = parseEvent(event);

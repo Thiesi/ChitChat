@@ -33,7 +33,7 @@ Chromium, Firefox, and WebKit validate document language and title, one visible 
 
 ### axe-core semantic checks
 
-Pinned Chromium runs `@axe-core/playwright` against signed-out authentication, account restoration, signed-in chat, direct messages, Account, and Privacy notifications. The gate enables automated WCAG 2.0, 2.1, and 2.2 Level A/AA rule tags. A failure reports rule IDs, impact, help text, targets, and failure summaries.
+Pinned Chromium runs `@axe-core/playwright` against signed-out authentication, account restoration, signed-in chat, direct messages, Account, and Notifications. The gate enables automated WCAG 2.0, 2.1, and 2.2 Level A/AA rule tags. A failure reports rule IDs, impact, help text, targets, and failure summaries.
 
 This is intentionally one deterministic semantic gate rather than three engine-identical scans. The structural and functional journeys still run across all three engines.
 

@@ -91,56 +91,99 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   </main>
 
   <main id="chat-shell" class="chat-shell hidden">
-    <aside class="sidebar">
+    <aside id="sidebar" class="sidebar" aria-label="Rooms and conversations">
       <header class="sidebar-header">
-        <div>
+        <div class="brand-row">
           <h1><?= $appName ?></h1>
           <span id="connection-status" class="connection-status" data-state="disconnected" role="status" aria-live="polite" aria-atomic="true">Offline</span>
         </div>
-        <button id="menu-toggle" class="secondary-button menu-toggle" type="button" aria-expanded="false" aria-controls="sidebar-footer">Menu</button>
+        <button id="drawer-close" class="icon-button close-button drawer-close" type="button" aria-label="Close rooms and conversations">×</button>
       </header>
 
-      <div class="rooms-heading-row">
-        <h2 class="rooms-heading">Rooms</h2>
-        <button id="new-room-button" class="icon-button hidden" type="button" aria-label="Create room" title="Create room">+</button>
-      </div>
-      <nav id="room-list" class="room-list" aria-label="Chat rooms"></nav>
+      <a class="drawer-search" href="/search.php"><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>Search messages</a>
 
-      <section id="presence-panel" class="presence-panel hidden" aria-labelledby="presence-heading">
-        <h2 id="presence-heading" class="rooms-heading">Online here</h2>
-        <ul id="presence-list" class="presence-list"></ul>
+      <section class="nav-section" aria-labelledby="rooms-heading">
+        <div class="rooms-heading-row">
+          <h2 id="rooms-heading" class="rooms-heading">Rooms</h2>
+          <button id="new-room-button" class="icon-button section-add hidden" type="button" aria-label="Create room" title="Create room">+</button>
+        </div>
+        <nav id="room-list" class="room-list" aria-labelledby="rooms-heading"></nav>
       </section>
 
-      <footer id="sidebar-footer" class="sidebar-footer">
-        <div class="current-user"><span class="current-user-label">Signed in as </span><strong id="current-user"></strong></div>
-        <a class="secondary-button" href="/search.php">Search messages</a>
-        <a class="secondary-button" href="/messages.php">Direct messages</a>
-        <a id="privacy-notifications-link" class="secondary-button" href="/notifications.php" aria-label="Privacy notifications, none unread">
-          Privacy notifications
-          <span id="privacy-notification-badge" class="privacy-notification-badge hidden" aria-hidden="true">0</span>
-        </a>
-        <a class="secondary-button" href="/account.php">Account</a>
-        <a id="admin-link" class="secondary-button hidden" href="/admin.php">Administration</a>
-        <label class="theme-select">
-          Theme
-          <select data-theme-select>
-            <option value="system">System</option>
-            <option value="light">Light</option>
-            <option value="dark">Dark</option>
-          </select>
-        </label>
-        <button id="logout-button" class="secondary-button" type="button">Sign out</button>
-        <?= \ChitChat\View\PoweredBy::html() ?>
-      </footer>
+      <section class="nav-section" aria-labelledby="dm-heading">
+        <div class="rooms-heading-row">
+          <h2 id="dm-heading" class="rooms-heading">Direct messages</h2>
+          <a class="icon-button section-add" href="/messages.php" aria-label="New conversation" title="New conversation">+</a>
+        </div>
+        <ul id="dm-list" class="dm-list"></ul>
+        <a class="all-conversations" href="/messages.php">All conversations →</a>
+      </section>
     </aside>
+    <div id="drawer-backdrop" class="drawer-backdrop" aria-hidden="true"></div>
 
     <section class="chat-main" aria-labelledby="room-title">
       <header class="room-header">
-        <div>
+        <button id="drawer-toggle" class="header-button drawer-toggle" type="button" aria-label="Rooms and conversations" aria-expanded="false" aria-controls="sidebar">
+          <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <div class="room-heading">
           <h2 id="room-title">Choose a room</h2>
           <p id="room-info">Select a room from the sidebar.</p>
         </div>
         <button id="join-button" class="join-button hidden" type="button">Join room</button>
+        <div class="header-actions">
+          <button id="members-toggle" class="header-button" type="button" aria-pressed="false" aria-controls="presence-panel" aria-label="Members">
+            <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            <span id="members-count" aria-hidden="true"></span>
+          </button>
+          <span class="header-divider" aria-hidden="true"></span>
+          <a class="header-button header-search" href="/search.php" aria-label="Search messages" title="Search messages"><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></a>
+          <div class="popover-anchor">
+            <button id="notifications-button" class="header-button" type="button" aria-expanded="false" aria-controls="notifications-popover" aria-label="Notifications, none unread">
+              <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+              <span id="notification-badge" class="header-badge hidden" aria-hidden="true">0</span>
+            </button>
+            <section id="notifications-popover" class="popover hidden" aria-labelledby="notifications-popover-title">
+              <div class="popover-title">
+                <h2 id="notifications-popover-title">Notifications</h2>
+                <button id="notifications-mark-all" class="text-button hidden" type="button">Mark all read</button>
+              </div>
+              <ul id="notifications-preview" class="notification-preview"></ul>
+              <hr>
+              <a class="popover-footer" href="/notifications.php">All notifications and push settings →</a>
+            </section>
+          </div>
+          <div class="popover-anchor">
+            <button id="user-menu-button" class="user-button" type="button" aria-expanded="false" aria-controls="user-menu" aria-label="Account menu"><span id="user-initials" aria-hidden="true"></span></button>
+            <section id="user-menu" class="popover hidden" aria-label="Account menu">
+              <div class="popover-identity">
+                <span id="user-menu-avatar" class="mini-avatar" aria-hidden="true"></span>
+                <div><span class="visually-hidden">Signed in as </span><strong id="current-user"></strong><span aria-hidden="true">Signed in</span></div>
+              </div>
+              <hr>
+              <a class="menu-item" href="/account.php">
+                <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Account
+              </a>
+              <a id="admin-link" class="menu-item hidden" href="/admin.php">
+                <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Administration
+              </a>
+              <hr>
+              <fieldset class="menu-group">
+                <legend class="menu-group-label">Appearance</legend>
+                <div class="segmented">
+                  <label><input type="radio" name="theme-mode" value="system" data-theme-radio><span>System</span></label>
+                  <label><input type="radio" name="theme-mode" value="light" data-theme-radio><span>Light</span></label>
+                  <label><input type="radio" name="theme-mode" value="dark" data-theme-radio><span>Dark</span></label>
+                </div>
+              </fieldset>
+              <hr>
+              <button id="logout-button" class="menu-item danger-item" type="button">
+                <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>Sign out
+              </button>
+              <?= \ChitChat\View\PoweredBy::html() ?>
+            </section>
+          </div>
+        </div>
       </header>
 
       <div id="empty-state" class="empty-state">Choose a room to begin.</div>
@@ -181,6 +224,15 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
         <p class="composer-help">Enter sends · Shift+Enter adds a line · Attachments may include an optional caption · Commands: <code>/me</code>, <code>/ping username</code></p>
       </div>
     </section>
+
+    <aside id="presence-panel" class="members-panel hidden" aria-labelledby="members-heading">
+      <header>
+        <h2 id="members-heading">Members</h2>
+        <button id="members-close" class="icon-button close-button" type="button" aria-label="Close members">×</button>
+      </header>
+      <h3 id="presence-heading">Online here</h3>
+      <ul id="presence-list" class="member-list" aria-labelledby="presence-heading"></ul>
+    </aside>
   </main>
 
   <dialog id="room-dialog" class="room-dialog" aria-labelledby="room-dialog-title">
@@ -260,7 +312,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <script type="module" src="/assets/js/search-result-navigation.js"></script>
   <script type="module" src="/assets/js/auth-tabs.js"></script>
   <script type="module" src="/assets/js/admin-link.js"></script>
-  <script type="module" src="/assets/js/privacy-notification-badge.js"></script>
+  <script type="module" src="/assets/js/navigation.js"></script>
   <script type="module" src="/assets/js/room-message-mutations.js"></script>
 </body>
 </html>

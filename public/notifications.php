@@ -13,8 +13,8 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
   <script src="/assets/js/theme.js"></script>
-  <meta name="description" content="<?= $appName ?> privacy and security notifications">
-  <title>Privacy notifications · <?= $appName ?></title>
+  <meta name="description" content="<?= $appName ?> notifications">
+  <title>Notifications · <?= $appName ?></title>
   <link rel="stylesheet" href="/assets/css/app.css">
   <link rel="stylesheet" href="/assets/css/components.css">
   <link rel="stylesheet" href="/assets/css/accessibility.css">
@@ -22,13 +22,13 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <link rel="stylesheet" href="/assets/css/privacy-notifications.css">
 </head>
 <body>
-  <div id="privacy-notifications-loading" class="app-loading" role="status">Loading privacy notifications…</div>
+  <div id="privacy-notifications-loading" class="app-loading" role="status">Loading notifications…</div>
 
   <main id="privacy-notifications-shell" class="account-shell hidden">
     <header class="account-header">
       <div>
         <p class="account-eyebrow"><?= $appName ?></p>
-        <h1>Privacy notifications</h1>
+        <h1>Notifications</h1>
         <p id="privacy-notifications-identity" class="account-muted"></p>
       </div>
       <a class="secondary-button" href="/">Back to chat</a>
@@ -114,8 +114,8 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
       </p>
 
       <p id="privacy-notifications-status" class="account-muted" role="status" aria-live="polite"></p>
-      <ol id="privacy-notifications-list" class="privacy-notification-list" aria-label="Privacy notifications"></ol>
-      <p id="privacy-notifications-empty" class="account-muted hidden">No privacy notifications have been recorded for this account.</p>
+      <ol id="privacy-notifications-list" class="privacy-notification-list" aria-label="Notifications"></ol>
+      <p id="privacy-notifications-empty" class="account-muted hidden">No notifications have been recorded for this account.</p>
 
       <div class="account-action-row">
         <button id="privacy-notifications-more" class="secondary-button hidden" type="button">Load older notifications</button>
