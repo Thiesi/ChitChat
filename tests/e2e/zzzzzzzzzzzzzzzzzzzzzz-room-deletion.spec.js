@@ -55,7 +55,8 @@ test('a deleted room disappears for members at once and can be restored', async 
 
     await rootPage.goto('/admin.php');
     await rootPage.locator('#rooms-tab').click();
-    await rootPage.getByLabel('Room', { exact: true }).selectOption({ label: `# ${roomName}` });
+    // The picker's label wraps the select, so its text includes every room name; address it directly.
+    await rootPage.locator('#room-picker').selectOption({ label: `# ${roomName}` });
     await expect(rootPage.locator('#admin-room-name')).toHaveValue(roomName);
     rootPage.once('dialog', (dialog) => dialog.accept());
     await rootPage.getByRole('button', { name: 'Delete room' }).click();
