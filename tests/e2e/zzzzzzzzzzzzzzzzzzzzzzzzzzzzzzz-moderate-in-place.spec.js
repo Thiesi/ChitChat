@@ -118,3 +118,54 @@ test('a room owner mutes someone from the profile card and the room is told', as
     await memberContext.close();
   }
 });
+
+test('acting on a report in the moderation queue closes the case', async ({ browser }) => {
+  const rootContext = await browser.newContext({ baseURL });
+  const memberContext = await browser.newContext({ baseURL });
+  const roomName = `Reported ${attemptName('Hall')}`;
+
+  try {
+    const rootPage = await rootContext.newPage();
+    await login(rootPage, root);
+    await rootPage.locator('#new-room-button').click();
+    const roomDialog = rootPage.locator('#room-dialog');
+    await roomDialog.locator('#room-key').fill(attemptName('reported-hall-e2e').toLowerCase());
+    await roomDialog.locator('#room-name').fill(roomName);
+    await roomDialog.getByRole('button', { name: 'Create room' }).click();
+    await expect(rootPage.locator('#room-title')).toHaveText(`# ${roomName}`);
+
+    const memberPage = await memberContext.newPage();
+    await login(memberPage, member);
+    await openRoom(memberPage, roomName);
+    await memberPage.locator('#join-button').click();
+    const text = attemptText('Something worth a report');
+    await memberPage.locator('#composer-input').fill(text);
+    await memberPage.locator('#composer-input').press('Enter');
+
+    // Someone reports it...
+    const reported = rootPage.locator('.message', { hasText: text });
+    await reported.getByRole('button', { name: 'Report', exact: true }).click();
+    const reportDialog = rootPage.getByRole('dialog', { name: /Report/ });
+    await reportDialog.locator('#message-report-category').selectOption('spam');
+    await reportDialog.getByRole('button', { name: 'Submit report' }).click();
+    await expect(rootPage.locator('#toast-region')).toContainText('Report submitted');
+
+    // ...and the case itself offers Delete message, which also closes it.
+    await rootPage.goto('/moderation.php');
+    await rootPage.locator('#moderation-filter').selectOption('open');
+    await rootPage.locator('.moderation-case-button', { hasText: `# ${roomName} · ${member.username}` }).click();
+    const actions = rootPage.locator('#moderation-case-actions');
+    await expect(actions.getByRole('button', { name: 'Ban author…' })).toBeVisible();
+    await actions.getByRole('button', { name: 'Delete message' }).click();
+    const confirm = rootPage.getByRole('dialog', { name: 'Delete the reported message?' });
+    await confirm.getByRole('button', { name: 'Delete message' }).click();
+    await expect(rootPage.locator('#moderation-closed')).toBeVisible();
+    await expect(rootPage.locator('#moderation-closed-summary')).toContainText('content removed');
+    await expect(actions).toBeHidden();
+
+    await expect(memberPage.locator('.message-body', { hasText: text })).toHaveCount(0);
+  } finally {
+    await rootContext.close();
+    await memberContext.close();
+  }
+});

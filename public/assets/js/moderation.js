@@ -1,6 +1,7 @@
 import { ApiError, apiGet, apiPost, setCsrfToken } from './api.js';
 import { nameButton } from './name-menu.js';
 import { formatDateTime } from './datetime.js';
+import { chooseRestriction, confirmAction } from './moderation-tools.js';
 
 const state = {
   user: null,
@@ -39,6 +40,8 @@ function bindElements() {
     'moderation-resolution-form',
     'moderation-resolution-code',
     'moderation-resolution-note',
+    'moderation-case-actions',
+    'moderation-case-action-row',
     'moderation-dismiss',
     'moderation-resolve',
     'moderation-closed',
@@ -196,6 +199,118 @@ function renderDetail() {
   }
 
   renderReports(item.reports ?? []);
+  void renderCaseActions(item, closed);
+}
+
+// Delete message, Mute author and Ban author, offered only where this
+// moderator may act (the profile's moderation options), each closing the case.
+async function renderCaseActions(item, closed) {
+  const section = elements['moderation-case-actions'];
+  const row = elements['moderation-case-action-row'];
+  section.classList.add('hidden');
+  row.replaceChildren();
+  if (closed || !item.subject) return;
+  const query = new URLSearchParams({ user_id: String(item.subject.id) });
+  if (item.message_kind === 'room' && item.room?.id) query.set('room_id', String(item.room.id));
+  let options = null;
+  try {
+    options = (await apiGet(`/api/v1/users/profile.php?${query.toString()}`)).profile?.moderation ?? null;
+  } catch {
+    return;
+  }
+  if (state.selectedCase?.id !== item.id) return;
+  const name = item.subject.username;
+  const room = options?.room ?? null;
+  const everywhere = options?.everywhere ?? null;
+  const buttons = [];
+
+  if (item.message_kind === 'room' && room?.can_mute) {
+    buttons.push(caseActionButton('Delete message', async () => {
+      const choice = await confirmAction({
+        title: 'Delete the reported message?',
+        text: `Everyone sees “Message deleted by a moderator.”, ${name} is told, and the case closes as content removed.`,
+        confirmLabel: 'Delete message',
+        announce: null,
+      });
+      if (!choice) return;
+      await apiPost('/api/v1/rooms/delete-message.php', { message_id: item.message_id, reason: `Report case #${item.id}` });
+      await closeCaseAs(item, 'content_removed', 'Message deleted.');
+    }));
+  }
+  const muteRoom = item.message_kind === 'room' && room?.can_mute && !room.mute ? room : null;
+  if (muteRoom || (everywhere?.can_mute && !everywhere.mute)) {
+    buttons.push(caseActionButton('Mute author…', async () => {
+      const choice = await chooseRestriction({
+        kind: 'mute',
+        title: muteRoom ? `Mute ${name} in #${muteRoom.name}?` : `Mute ${name} everywhere?`,
+        confirmLabel: `Mute ${name}`,
+        reasonHint: `optional, shown to ${name} and kept in the audit log`,
+        effect: (span) => muteRoom
+          ? `${name} can still read #${muteRoom.name} but cannot post there ${span}. ${name} is told.`
+          : `${name} cannot post in any room or send direct messages ${span}. ${name} is told.`,
+        announce: muteRoom ? (span) => `${name} was muted in this room ${span}.` : null,
+        formatUntil: (date) => formatDateTime(date),
+      });
+      if (!choice) return false;
+      await apiPost('/api/v1/moderation/mute.php', {
+        user_id: item.subject.id,
+        room_id: muteRoom ? muteRoom.id : null,
+        expires_at: choice.expiresAt,
+        reason: choice.reason || `Report case #${item.id}`,
+        announce: choice.announce,
+      });
+      await closeCaseAs(item, 'account_restricted', `${name} muted.`);
+      return true;
+    }));
+  }
+  if (everywhere?.can_ban && !everywhere.ban) {
+    buttons.push(caseActionButton('Ban author…', async () => {
+      const choice = await chooseRestriction({
+        kind: 'ban',
+        title: `Ban ${name}?`,
+        confirmLabel: `Ban ${name}`,
+        reasonHint: 'optional, kept with the ban and in the audit log',
+        effect: (span) => `${name} is signed out at once and cannot sign in ${span}.`,
+        announce: item.message_kind === 'room' && room ? (span) => `${name} was banned ${span}.` : null,
+        formatUntil: (date) => formatDateTime(date),
+      });
+      if (!choice) return false;
+      await apiPost('/api/v1/admin/ban.php', {
+        target_user_id: item.subject.id,
+        reason: choice.reason || `Report case #${item.id}`,
+        expires_at: choice.expiresAt,
+        room_id: item.message_kind === 'room' ? item.room?.id ?? null : null,
+        announce: choice.announce,
+      });
+      await closeCaseAs(item, 'account_restricted', `${name} banned.`);
+      return true;
+    }));
+  }
+  row.replaceChildren(...buttons);
+  section.classList.toggle('hidden', buttons.length === 0);
+}
+
+function caseActionButton(label, action) {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'danger-button';
+  button.textContent = label;
+  button.addEventListener('click', () => withButton(button, action));
+  return button;
+}
+
+async function closeCaseAs(item, code, done) {
+  const note = elements['moderation-resolution-note'].value.trim();
+  const response = await apiPost('/api/v1/moderation/resolve.php', {
+    case_id: item.id,
+    status: 'resolved',
+    resolution_code: code,
+    resolution_note: note || null,
+  });
+  state.selectedCase = response.case;
+  replaceSummary(response.case);
+  renderDetail();
+  toast(`${done} Case resolved.`);
 }
 
 function renderReports(reports) {
