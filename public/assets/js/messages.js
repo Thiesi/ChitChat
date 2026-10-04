@@ -1,4 +1,5 @@
 import { ApiError, apiGet, apiPost, setCsrfToken } from './api.js';
+import { attachEmojiPicker } from './emoji-picker.js';
 import { renderMessageBody, buildReplyPreview, buildReactionBar } from './message-content.js';
 import { attachMentionAutocomplete } from './mention-autocomplete.js';
 
@@ -28,7 +29,7 @@ function bindElements() {
     'messages-loading', 'messages-shell', 'messages-identity', 'dm-privacy-text',
     'messages-error', 'dm-user-search-form', 'dm-user-search', 'dm-user-results',
     'dm-conversation-list', 'dm-peer-name', 'dm-peer-status', 'dm-block-toggle',
-    'dm-empty-state', 'dm-message-list', 'dm-load-older', 'dm-composer',
+    'dm-empty-state', 'dm-message-list', 'dm-load-older', 'dm-composer', 'dm-emoji-button',
     'dm-message-input', 'dm-send', 'toast-region',
     'dm-reply-banner', 'dm-reply-banner-text', 'dm-reply-banner-cancel',
   ]) {
@@ -52,6 +53,7 @@ function bindEvents() {
     }
   });
   mentionAutocomplete = attachMentionAutocomplete(elements['dm-message-input'], searchDirectMessageMentions);
+  attachEmojiPicker(elements['dm-emoji-button'], elements['dm-message-input']);
 }
 
 async function bootstrap() {
