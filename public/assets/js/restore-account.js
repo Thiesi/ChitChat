@@ -1,5 +1,6 @@
 import { apiGet, apiPost, setCsrfToken } from './api.js';
 import { getPasskey, webAuthnSupported } from './webauthn.js';
+import { withProviderIcon } from './provider-icons.js';
 
 const form = document.querySelector('#restore-account-form');
 const username = document.querySelector('#restore-username');
@@ -64,7 +65,7 @@ function renderProviders(providers) {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'secondary-button';
-    button.textContent = `Restore with ${provider.label}`;
+    withProviderIcon(button, provider.id, `Restore with ${provider.label}`);
     button.addEventListener('click', async () => {
       button.disabled = true;
       error.textContent = '';

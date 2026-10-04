@@ -2,6 +2,7 @@
 // Twitch. Connecting leaves for the provider and comes back here.
 import { apiGet, apiPost } from './api.js';
 import { formatDateTime } from './datetime.js';
+import { withProviderIcon } from './provider-icons.js';
 
 window.addEventListener('DOMContentLoaded', async () => {
   const card = document.getElementById('sign-in-methods');
@@ -38,7 +39,7 @@ window.addEventListener('DOMContentLoaded', async () => {
       item.className = 'sign-in-method';
       const text = document.createElement('div');
       const name = document.createElement('strong');
-      name.textContent = provider.label;
+      withProviderIcon(name, provider.id, provider.label);
       const detail = document.createElement('span');
       detail.textContent = identity
         ? `Connected ${formatDateTime(identity.linked_at, { dateStyle: 'medium', timeStyle: null })}${identity.last_used_at ? ` · last used ${formatDateTime(identity.last_used_at)}` : ''}`
