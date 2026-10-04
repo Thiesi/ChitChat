@@ -7,6 +7,7 @@ import { createRegistrationChallenge } from './registration-challenge.js';
 import { avatarTone, initials } from './avatar.js';
 import { nameButton } from './name-menu.js';
 import { attachNameCompletion } from './name-completion.js';
+import { alertUser } from './attention.js';
 
 const registrationChallenge = createRegistrationChallenge();
 
@@ -916,6 +917,10 @@ function startEventStream() {
     if (message && message.room_id === state.currentRoom?.id) {
       appendMessage(message, true);
     }
+    const own = state.user?.id;
+    if (message && message.sender_id !== own && message.mentions?.some((mention) => mention.user_id === own)) {
+      alertUser('mention', `${message.username ?? 'Someone'} mentioned you`);
+    }
   });
 
   source.addEventListener('message_deleted', (event) => {
@@ -940,6 +945,7 @@ function startEventStream() {
     }
     addPing(ping);
     if (ping.target?.id === state.user?.id) {
+      alertUser('ping', `Ping from ${ping.sender.username}`);
       window.dispatchEvent(new CustomEvent('chitchat:notifications-changed'));
       // In the open room the notice is in the timeline; elsewhere, say where it came from.
       if (ping.room_id !== state.currentRoom?.id) {
@@ -968,9 +974,14 @@ function startEventStream() {
 
   source.addEventListener('rooms_changed', scheduleRoomListRefresh);
 
-  // Subscribing makes realtime-bridge.js re-dispatch direct messages as
+  // Subscribing also makes realtime-bridge.js re-dispatch direct messages as
   // chitchat:realtime, which refreshes the sidebar's conversations.
-  source.addEventListener('direct_message', () => {});
+  source.addEventListener('direct_message', (event) => {
+    const message = parseEvent(event)?.payload?.message;
+    if (message && !message.outgoing) {
+      alertUser('dm', `Message from ${message.sender?.username ?? 'someone'}`);
+    }
+  });
 
   source.addEventListener('presence_changed', (event) => {
     const envelope = parseEvent(event);
