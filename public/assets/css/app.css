@@ -1,3 +1,4 @@
+/* Dark is the base theme; theme.js sets data-theme on <html> before paint. */
 :root {
   color-scheme: dark;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -13,6 +14,38 @@
   --success: #8fe0ae;
   --warning: #f2c14e;
   --shadow: 0 18px 50px rgb(0 0 0 / 0.25);
+  --on-accent: #0b1323;
+  --mention-bg: #364056;
+  --mention-text: #dbe6ff;
+  --reaction-active-bg: #2a3550;
+  --reaction-active-text: #dbe6ff;
+  --broadcast-bg: #433e3b;
+  --broadcast-text: #ffe0b2;
+  --option-active-bg: #3f4b64;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f4f6fa;
+  --surface: #ffffff;
+  --surface-2: #eef1f6;
+  --border: #d3d9e3;
+  --text: #151a23;
+  --muted: #566070;
+  --accent: #2f5fd0;
+  --accent-strong: #1f4bb3;
+  --danger: #c0392b;
+  --success: #1c7c47;
+  --warning: #8a5d00;
+  --shadow: 0 18px 50px rgb(20 30 50 / 0.12);
+  --on-accent: #ffffff;
+  --mention-bg: #dde6ff;
+  --mention-text: #1a3a8f;
+  --reaction-active-bg: #dde6ff;
+  --reaction-active-text: #1a3a8f;
+  --broadcast-bg: #fff0d4;
+  --broadcast-text: #7a4a00;
+  --option-active-bg: #dde6ff;
 }
 
 * {
@@ -80,6 +113,18 @@ button:disabled {
 
 .sidebar-footer .powered-by {
   margin-top: 0.25rem;
+}
+
+/* A labelled theme selector, compact enough for the sidebar footer. */
+.theme-select {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.theme-select select {
+  width: auto;
 }
 
 .auth-shell {
@@ -182,7 +227,7 @@ button:focus-visible {
   border: 0;
   border-radius: 0.75rem;
   background: var(--accent);
-  color: #0b1323;
+  color: var(--on-accent);
   font-weight: 700;
   padding: 0.85rem 1rem;
 }
@@ -476,8 +521,8 @@ button:focus-visible {
 .mention {
   border-radius: 0.25rem;
   padding: 0 0.2rem;
-  background: #364056;
-  color: #dbe6ff;
+  background: var(--mention-bg);
+  color: var(--mention-text);
   font-weight: 600;
 }
 
@@ -510,8 +555,8 @@ button:focus-visible {
 
 .reaction-button-active {
   border-color: var(--accent);
-  background: #2a3550;
-  color: #dbe6ff;
+  background: var(--reaction-active-bg);
+  color: var(--reaction-active-text);
 }
 
 .reaction-button-count {
@@ -570,8 +615,8 @@ button:focus-visible {
 }
 
 .mention-broadcast {
-  background: #433e3b;
-  color: #ffe0b2;
+  background: var(--broadcast-bg);
+  color: var(--broadcast-text);
 }
 
 .reply-banner {
@@ -630,7 +675,7 @@ button:focus-visible {
 }
 
 .mention-autocomplete-option.active {
-  background: #3f4b64;
+  background: var(--option-active-bg);
 }
 
 .composer-wrap {

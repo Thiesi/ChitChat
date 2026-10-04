@@ -10,7 +10,9 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <meta charset="utf-8">
   <meta name="application-name" content="<?= $appName ?>">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="dark">
+  <meta name="color-scheme" content="light dark">
+  <script src="/assets/js/theme.js"></script>
+  <script type="module" src="/assets/js/theme-toggle.js"></script>
   <meta name="description" content="<?= $appName ?> self-hosted browser chat">
   <title><?= $appName ?></title>
   <link rel="stylesheet" href="/assets/css/app.css">
@@ -103,6 +105,14 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
         </a>
         <a class="secondary-button" href="/account.php">Account</a>
         <a id="admin-link" class="secondary-button hidden" href="/admin.php">Administration</a>
+        <label class="theme-select">
+          Theme
+          <select data-theme-select>
+            <option value="system">System</option>
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+          </select>
+        </label>
         <button id="logout-button" class="secondary-button" type="button">Sign out</button>
         <?= \ChitChat\View\PoweredBy::html() ?>
       </footer>

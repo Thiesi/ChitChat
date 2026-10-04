@@ -11,7 +11,9 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <meta charset="utf-8">
   <meta name="application-name" content="<?= $appName ?>">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="dark">
+  <meta name="color-scheme" content="light dark">
+  <script src="/assets/js/theme.js"></script>
+  <script type="module" src="/assets/js/theme-toggle.js"></script>
   <meta name="description" content="<?= $appName ?> account and personal data">
   <title>Account · <?= $appName ?></title>
   <link rel="stylesheet" href="/assets/css/app.css">
@@ -32,6 +34,22 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
       </div>
       <a class="secondary-button" href="/">Back to chat</a>
     </header>
+
+    <section class="account-card" aria-labelledby="appearance-heading">
+      <div>
+        <p class="account-eyebrow">Appearance</p>
+        <h2 id="appearance-heading">Theme</h2>
+      </div>
+      <p>Follow your device's light or dark setting, or choose one. The choice is saved on this device.</p>
+      <label class="theme-select">
+        Theme
+        <select data-theme-select>
+          <option value="system">System</option>
+          <option value="light">Light</option>
+          <option value="dark">Dark</option>
+        </select>
+      </label>
+    </section>
 
     <section class="account-card" aria-labelledby="personal-data-heading">
       <div>
