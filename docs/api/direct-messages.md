@@ -85,7 +85,14 @@ It never returns a separate `blocked_by_other` field. A user who has not set the
 
 Required query parameter: `user_id`.
 
-Returns the relationship object for the authenticated user and the other participant.
+Returns the relationship object for the authenticated user and the other participant, plus that participant's public identity, so a client can open a conversation that has no messages yet:
+
+```json
+{
+  "user": {"id": 7, "username": "Bob"},
+  "relationship": {"blocked_by_me": false, "messaging_available": true}
+}
+```
 
 ### `POST /api/v1/direct-messages/block.php`
 

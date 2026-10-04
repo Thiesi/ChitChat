@@ -1,5 +1,6 @@
 import { ApiError, apiGet, apiPost, setCsrfToken } from './api.js';
 import { applicationName } from './application-name.js';
+import { nameButton } from './name-menu.js';
 
 const state = {
   query: '',
@@ -166,11 +167,15 @@ function buildResult(result) {
 
   const meta = document.createElement('p');
   meta.className = 'message-search-meta';
-  const sender = result.kind === 'direct' && result.outgoing
-    ? 'You'
-    : result.sender?.username ?? 'System';
   const edited = result.edited_at ? ' · edited' : '';
-  meta.textContent = `${sender} · ${formatDateTime(result.created_at)}${edited}`;
+  if (result.kind === 'direct' && result.outgoing) {
+    meta.append('You');
+  } else if (result.sender) {
+    meta.append(nameButton(result.sender));
+  } else {
+    meta.append('System');
+  }
+  meta.append(` · ${formatDateTime(result.created_at)}${edited}`);
 
   article.append(header, excerpt, meta);
   item.append(article);

@@ -136,7 +136,8 @@ export function attachMentionAutocomplete(textarea, fetchSuggestions) {
       event.preventDefault();
       activeIndex = (activeIndex - 1 + suggestions.length) % suggestions.length;
       updateActiveDescendant();
-    } else if (event.key === 'Enter' || event.key === 'Tab') {
+    } else if (event.key === 'Enter' || (event.key === 'Tab' && !event.shiftKey)) {
+      // Shift+Tab always leaves the composer, so keyboard users are never trapped.
       event.preventDefault();
       select(activeIndex);
     } else if (event.key === 'Escape') {

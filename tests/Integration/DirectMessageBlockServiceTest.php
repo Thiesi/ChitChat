@@ -10,6 +10,25 @@ use ChitChat\Http\ApiException;
 
 final class DirectMessageBlockServiceTest extends DatabaseTestCase
 {
+    public function testPeerIdentityLetsAClientOpenANewConversation(): void
+    {
+        $auth = new AuthService($this->pdo, $this->config);
+        $alice = $auth->register('Alice', 'a very secure password', '127.0.0.1');
+        $bob = $auth->register('Bob', 'another secure password', '127.0.0.2');
+        $blocks = new DirectMessageBlockService($this->pdo);
+
+        self::assertSame(['id' => $bob->id, 'username' => 'Bob'], $blocks->peer($alice, $bob->id));
+
+        foreach ([[$alice->id, 'direct_message_self_forbidden'], [999_999, 'user_not_found']] as [$userId, $code]) {
+            try {
+                $blocks->peer($alice, $userId);
+                self::fail("Expected {$code}.");
+            } catch (ApiException $exception) {
+                self::assertSame($code, $exception->errorCode);
+            }
+        }
+    }
+
     public function testUnilateralBlockStopsBothDirectionsAndPreservesHistory(): void
     {
         $auth = new AuthService($this->pdo, $this->config);

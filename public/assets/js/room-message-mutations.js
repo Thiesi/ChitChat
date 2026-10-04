@@ -135,10 +135,10 @@ function applyState(article, state) {
       body.replaceChildren();
       body.append(document.createTextNode(`* ${author} `));
       const action = document.createElement('span');
-      renderMessageBody(action, state.body ?? '', state.mentions);
+      renderMessageBody(action, state.body ?? '', state.mentions, { nameButtons: true });
       body.append(action);
     } else {
-      renderMessageBody(body, state.body ?? '', state.mentions);
+      renderMessageBody(body, state.body ?? '', state.mentions, { nameButtons: true });
     }
   }
 

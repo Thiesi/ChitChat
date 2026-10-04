@@ -5,6 +5,8 @@ import { attachMentionAutocomplete } from './mention-autocomplete.js';
 import { attachEmojiPicker } from './emoji-picker.js';
 import { createRegistrationChallenge } from './registration-challenge.js';
 import { avatarTone, initials } from './avatar.js';
+import { nameButton } from './name-menu.js';
+import { attachNameCompletion } from './name-completion.js';
 
 const registrationChallenge = createRegistrationChallenge();
 
@@ -17,6 +19,7 @@ const state = {
   oldestMessageId: null,
   eventSource: null,
   replyTo: null,
+  roomMembers: [],
 };
 
 const elements = {};
@@ -115,6 +118,7 @@ function bindEvents() {
     }
   });
   mentionAutocomplete = attachMentionAutocomplete(elements['composer-input'], searchRoomMentions);
+  attachNameCompletion(elements['composer-input'], completionCandidates);
   attachEmojiPicker(elements['emoji-button'], elements['composer-input']);
   elements['load-older-button'].addEventListener('click', loadOlderMessages);
   elements['reply-banner-cancel'].addEventListener('click', clearReplyTo);
@@ -372,6 +376,7 @@ function renderRoomList() {
 
 async function selectRoom(room) {
   state.currentRoom = room;
+  state.roomMembers = [];
   delete elements['message-list'].dataset.highlightMessageId;
   state.messages = [];
   state.messageIds = new Set();
@@ -388,6 +393,38 @@ async function selectRoom(room) {
   }
 
   await loadMessages({ replace: true });
+  void loadRoomMembers(room);
+}
+
+// Tab completion needs names synchronously, so the room's members are
+// fetched once per room and kept alongside recent speakers and who is online.
+async function loadRoomMembers(room) {
+  try {
+    const parameters = new URLSearchParams({ room_id: String(room.id), search: '', limit: '25' });
+    const response = await apiGet(`/api/v1/rooms/mentionable-users.php?${parameters.toString()}`);
+    if (state.currentRoom?.id === room.id) {
+      state.roomMembers = Array.isArray(response.users) ? response.users : [];
+    }
+  } catch {
+    // Completion still works from recent speakers and who is online.
+  }
+}
+
+/** Names to complete, best first: recent speakers, then who is online, then other members. */
+function completionCandidates() {
+  const own = state.user?.id;
+  const names = [];
+  for (let index = state.messages.length - 1; index >= 0; index -= 1) {
+    const message = state.messages[index];
+    if (message.sender_id !== own && typeof message.username === 'string') names.push(message.username);
+  }
+  for (const user of presence?.users() ?? []) {
+    if (user.id !== own) names.push(user.username);
+  }
+  for (const user of state.roomMembers) {
+    if (user.id !== own) names.push(user.username);
+  }
+  return names;
 }
 
 function renderRoomHeader() {
@@ -558,9 +595,14 @@ function buildMessageElement(message) {
   const header = document.createElement('div');
   header.className = 'message-header';
 
-  const author = document.createElement('span');
-  author.className = 'message-author';
-  author.textContent = message.username ?? 'System';
+  let author;
+  if (Number.isInteger(message.sender_id) && typeof message.username === 'string') {
+    author = nameButton({ id: message.sender_id, username: message.username }, 'message-author');
+  } else {
+    author = document.createElement('span');
+    author.className = 'message-author';
+    author.textContent = message.username ?? 'System';
+  }
 
   // Decorative initials make speakers easier to scan without duplicating
   // their accessible names or introducing a separate avatar/profile feature.
@@ -568,7 +610,7 @@ function buildMessageElement(message) {
   avatar.className = 'message-avatar';
   avatar.setAttribute('aria-hidden', 'true');
   avatar.textContent = initials(message.username ?? 'System');
-  avatar.dataset.tone = String(avatarTone(message.user_id ?? message.username));
+  avatar.dataset.tone = String(avatarTone(message.sender_id ?? message.username));
   article.append(avatar);
 
   const time = document.createElement('time');
@@ -594,10 +636,10 @@ function buildMessageElement(message) {
   } else if (message.type === 'emote') {
     body.append(document.createTextNode(`* ${message.username ?? 'Someone'} `));
     const action = document.createElement('span');
-    renderMessageBody(action, message.body ?? '', message.mentions);
+    renderMessageBody(action, message.body ?? '', message.mentions, { nameButtons: true });
     body.append(action);
   } else {
-    renderMessageBody(body, message.body ?? '', message.mentions);
+    renderMessageBody(body, message.body ?? '', message.mentions, { nameButtons: true });
   }
 
   article.append(header);
