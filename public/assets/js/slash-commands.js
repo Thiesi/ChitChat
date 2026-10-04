@@ -140,6 +140,9 @@ export function attachCommandSuggestions(textarea, available) {
       const step = event.key === 'ArrowDown' ? 1 : -1;
       activeIndex = (activeIndex + step + matches.length) % matches.length;
       markActive();
+    } else if (event.key === 'Enter' && typedInFull()) {
+      // "/help" typed out in full: Enter runs it, as the composer handles it.
+      close();
     } else if (event.key === 'Enter' || (event.key === 'Tab' && !event.shiftKey)) {
       // Shift+Tab always leaves the composer, so keyboard users are never trapped.
       event.preventDefault();
@@ -151,7 +154,13 @@ export function attachCommandSuggestions(textarea, available) {
     }
   }
 
-  return { isOpen: () => !list.classList.contains('hidden') };
+  function typedInFull() {
+    const command = matches[activeIndex];
+    return Boolean(command) && textarea.value.toLowerCase() === `/${command.name}`;
+  }
+
+  // The composer leaves Enter to the list only while Enter would pick from it.
+  return { isOpen: () => !list.classList.contains('hidden') && !typedInFull() };
 }
 
 /** The /help dialog: the commands this person can use here, and formatting. */
