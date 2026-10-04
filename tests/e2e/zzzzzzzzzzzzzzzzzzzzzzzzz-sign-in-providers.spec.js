@@ -57,13 +57,17 @@ test('a member connects Google and then signs in with it instead of a password',
     await expect(visitor.locator('#current-user')).toHaveText(member.username);
     await visitorContext.close();
 
-    // A provider account nobody connected leads back with an explanation.
+    // A provider account nobody connected is offered a new account, which
+    // can be declined in favour of an ordinary password sign-up.
     provider.useSubject('stranger-e2e-google');
     const strangerContext = await browser.newContext({ baseURL });
     const stranger = await strangerContext.newPage();
     await stranger.goto('/');
     await stranger.getByRole('link', { name: 'Continue with Google' }).click();
-    await expect(stranger.locator('#auth-error')).toContainText('No account here is connected to this Google account');
+    await expect(stranger.locator('#register-provider-note')).toContainText('Signing up with Google');
+    await stranger.getByRole('button', { name: 'Use a password instead' }).click();
+    await expect(stranger.locator('#register-provider-note')).toBeHidden();
+    await expect(stranger.locator('#register-password')).toBeVisible();
     await expect(stranger.locator('#chat-shell')).toBeHidden();
     await strangerContext.close();
   } finally {
