@@ -6,7 +6,11 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ## [Unreleased]
 
-No changes since `v2.3.0`. ChitChat is feature-complete; see [Project status](README.md#project-status-feature-complete) and the [roadmap](docs/roadmap.md) for the maintenance-only policy going forward. Entries only appear here for a discovered bug fix or an accepted new feature request.
+ChitChat is feature-complete; see [Project status](README.md#project-status-feature-complete) and the [roadmap](docs/roadmap.md) for the maintenance-only policy going forward. Entries only appear here for a discovered bug fix or an accepted new feature request.
+
+### Added
+
+- Added an emoji picker to the room and direct-message composers: a smiley button inside the message field opens a searchable picker of 240 common emoji in six categories, with a recently used row saved on the device. It inserts at the caret, is fully keyboard operable, and needs no third-party code. Message reactions keep their fixed set of six.
 
 ## [2.3.0] - 2026-10-04
 

@@ -2,6 +2,7 @@ import { ApiError, apiGet, apiPost, setCsrfToken } from './api.js';
 import { createPresenceClient } from './presence.js';
 import { renderMessageBody, buildReplyPreview, buildReactionBar } from './message-content.js';
 import { attachMentionAutocomplete } from './mention-autocomplete.js';
+import { attachEmojiPicker } from './emoji-picker.js';
 import { createRegistrationChallenge } from './registration-challenge.js';
 
 const registrationChallenge = createRegistrationChallenge();
@@ -64,6 +65,7 @@ function bindElements() {
     'composer-wrap',
     'composer-form',
     'composer-input',
+    'emoji-button',
     'send-button',
     'toast-region',
     'room-dialog',
@@ -129,6 +131,7 @@ function bindEvents() {
     }
   });
   mentionAutocomplete = attachMentionAutocomplete(elements['composer-input'], searchRoomMentions);
+  attachEmojiPicker(elements['emoji-button'], elements['composer-input']);
   elements['load-older-button'].addEventListener('click', loadOlderMessages);
   elements['reply-banner-cancel'].addEventListener('click', clearReplyTo);
   elements['new-room-button'].addEventListener('click', openRoomDialog);

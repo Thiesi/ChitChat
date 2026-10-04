@@ -84,6 +84,9 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
           <div class="composer-field">
             <label class="visually-hidden" for="dm-message-input">Direct message or attachment caption</label>
             <textarea id="dm-message-input" maxlength="4000" rows="3" placeholder="Write a direct message…"></textarea>
+            <button id="dm-emoji-button" class="emoji-button" type="button" aria-label="Insert emoji" title="Insert emoji">
+              <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+            </button>
             <label class="attachment-button" for="dm-attachment-input" title="Attach file">
               <svg class="attachment-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
               <span class="visually-hidden">Attach file</span>

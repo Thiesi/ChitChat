@@ -120,6 +120,11 @@ test.describe.serial('ChitChat deeper accessibility validation', () => {
     await loginOrRegister(page);
     await expectNoAxeViolations(page, 'Signed-in chat');
 
+    await page.locator('#composer-wrap').getByRole('button', { name: 'Insert emoji' }).click();
+    await expect(page.getByRole('dialog', { name: 'Emoji' })).toBeVisible();
+    await expectNoAxeViolations(page, 'Composer emoji picker');
+    await page.keyboard.press('Escape');
+
     const pages = [
       ['/messages.php', '#messages-shell', 'Direct messages'],
       ['/search.php', '#message-search-shell', 'Message search'],
