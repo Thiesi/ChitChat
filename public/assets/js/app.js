@@ -16,6 +16,8 @@ const state = {
   user: null,
   rooms: [],
   currentRoom: null,
+  readMarker: null,
+  newWhileAway: 0,
   messages: [],
   messageIds: new Set(),
   oldestMessageId: null,
@@ -77,6 +79,7 @@ function bindElements() {
     'empty-state',
     'message-list',
     'load-older-button',
+    'jump-latest',
     'composer-wrap',
     'composer-form',
     'composer-input',
@@ -130,6 +133,11 @@ function bindEvents() {
   attachNameCompletion(elements['composer-input'], completionCandidates);
   attachEmojiPicker(elements['emoji-button'], elements['composer-input']);
   elements['load-older-button'].addEventListener('click', loadOlderMessages);
+  elements['jump-latest'].addEventListener('click', jumpToLatest);
+  elements['message-list'].addEventListener('scroll', onMessageListScroll, { passive: true });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && isNearBottom()) scheduleMarkRead();
+  });
   elements['reply-banner-cancel'].addEventListener('click', clearReplyTo);
   elements['new-room-button'].addEventListener('click', openRoomDialog);
   elements['room-dialog-cancel'].addEventListener('click', () => elements['room-dialog'].close());
@@ -377,6 +385,19 @@ function renderRoomList() {
     name.append(hash, ` ${room.name}`);
     button.append(name);
 
+    const unread = state.currentRoom?.id === room.id ? 0 : (room.unread_count ?? 0);
+    button.classList.toggle('unread', unread > 0);
+    if (unread > 0) {
+      const count = document.createElement('span');
+      count.className = 'unread-count';
+      count.textContent = unread >= 100 ? '99+' : String(unread);
+      const label = document.createElement('span');
+      label.className = 'visually-hidden';
+      label.textContent = ' unread';
+      count.append(label);
+      button.append(count);
+    }
+
     // Only what changes how the room can be used: invitations, age limits, privacy.
     if (room.invited && !room.member_role) {
       button.append(roomFlag('invited', 'invited'));
@@ -398,6 +419,12 @@ function renderRoomList() {
 
 async function selectRoom(room) {
   state.currentRoom = room;
+  // Where this visit's "New messages" divider goes; it stays put while here.
+  state.readMarker = Number.isInteger(room.last_read_message_id) && (room.unread_count ?? 0) > 0
+    ? room.last_read_message_id
+    : null;
+  state.newWhileAway = 0;
+  elements['jump-latest'].classList.add('hidden');
   state.roomMembers = [];
   state.pings = [];
   delete elements['message-list'].dataset.highlightMessageId;
@@ -416,6 +443,12 @@ async function selectRoom(room) {
   }
 
   await loadMessages({ replace: true, pings: fetchPings(room) });
+  if (state.currentRoom?.id !== room.id) return;
+  // Open at the first unread message when there is one, else at the end.
+  const divider = elements['message-list'].querySelector('.new-messages-divider');
+  if (divider) elements['message-list'].scrollTop = Math.max(0, divider.offsetTop - 16);
+  updateJumpButton();
+  scheduleMarkRead();
   void loadRoomMembers(room);
 }
 
@@ -670,7 +703,18 @@ function renderMessages({ scrollToEnd = false, prepended = false } = {}) {
     list.append(elements['load-older-button']);
   }
 
+  let dividerPlaced = false;
   for (const entry of entries) {
+    if (
+      !dividerPlaced
+      && state.readMarker !== null
+      && entry.kind !== 'ping'
+      && entry.item.id > state.readMarker
+      && entry.item.sender_id !== state.user?.id
+    ) {
+      list.append(newMessagesDivider());
+      dividerPlaced = true;
+    }
     list.append(entry.kind === 'ping' ? buildPingElement(entry.item) : buildMessageElement(entry.item));
   }
   restoreFocus(list, focus);
@@ -905,11 +949,100 @@ function appendMessage(message, scrollToEnd = false) {
   if (!message || state.messageIds.has(message.id)) {
     return;
   }
+  // Someone reading further up keeps their place; a button offers the way back.
+  const own = message.sender_id === state.user?.id;
+  const follow = scrollToEnd && (own || isNearBottom());
   state.messageIds.add(message.id);
   state.messages.push(message);
   state.messages.sort((left, right) => left.id - right.id);
   state.oldestMessageId = state.messages[0]?.id ?? null;
-  renderMessages({ scrollToEnd });
+  renderMessages({ scrollToEnd: follow });
+  if (scrollToEnd && !follow) state.newWhileAway += 1;
+  updateJumpButton();
+  if (follow) scheduleMarkRead();
+}
+
+function newMessagesDivider() {
+  const divider = document.createElement('div');
+  divider.className = 'new-messages-divider';
+  divider.setAttribute('role', 'separator');
+  divider.setAttribute('aria-label', 'New messages');
+  const label = document.createElement('span');
+  label.setAttribute('aria-hidden', 'true');
+  label.textContent = 'New messages';
+  divider.append(label);
+  return divider;
+}
+
+function isNearBottom() {
+  const list = elements['message-list'];
+  return list.scrollHeight - list.scrollTop - list.clientHeight < 80;
+}
+
+function onMessageListScroll() {
+  if (isNearBottom()) {
+    state.newWhileAway = 0;
+    scheduleMarkRead();
+  }
+  updateJumpButton();
+}
+
+function updateJumpButton() {
+  const list = elements['message-list'];
+  const away = list.scrollHeight - list.scrollTop - list.clientHeight > 240;
+  const button = elements['jump-latest'];
+  button.classList.toggle('hidden', !state.currentRoom || !(away || state.newWhileAway > 0) || isNearBottom());
+  button.textContent = state.newWhileAway > 0
+    ? `${state.newWhileAway} new ${state.newWhileAway === 1 ? 'message' : 'messages'} · Jump to latest`
+    : 'Jump to latest';
+}
+
+function jumpToLatest() {
+  const list = elements['message-list'];
+  list.scrollTop = list.scrollHeight;
+  state.newWhileAway = 0;
+  updateJumpButton();
+  scheduleMarkRead();
+  elements['composer-input'].focus();
+}
+
+// Reading is recorded once the newest message has been on screen, a moment
+// after scrolling settles, and only while this tab is actually visible.
+let markReadTimer = null;
+function scheduleMarkRead() {
+  window.clearTimeout(markReadTimer);
+  markReadTimer = window.setTimeout(markCurrentRoomRead, 600);
+}
+
+async function markCurrentRoomRead() {
+  const room = state.currentRoom;
+  const latest = state.messages.at(-1)?.id;
+  if (!room || !room.member_role || !Number.isInteger(latest)) return;
+  if (document.visibilityState !== 'visible' || !isNearBottom()) return;
+  if ((room.last_read_message_id ?? 0) >= latest && (room.unread_count ?? 0) === 0) return;
+  try {
+    const response = await apiPost('/api/v1/rooms/read.php', { room_id: room.id, message_id: latest });
+    // The open room can be a separate copy of its room-list entry (after joining, say).
+    for (const entry of new Set([room, state.rooms.find((candidate) => candidate.id === room.id)])) {
+      if (!entry) continue;
+      entry.last_read_message_id = response.last_read_message_id;
+      entry.unread_count = 0;
+    }
+  } catch {
+    // Unread counts are a convenience; the next attempt catches up.
+  }
+}
+
+// A message in a joined room that is not on screen counts towards its badge.
+function countUnread(message) {
+  if (!message || message.sender_id === state.user?.id) return;
+  const room = state.rooms.find((candidate) => candidate.id === message.room_id);
+  if (!room || !room.member_role) return;
+  if (room.id === state.currentRoom?.id) {
+    if (document.visibilityState === 'visible' && isNearBottom()) return;
+  }
+  room.unread_count = Math.min(100, (room.unread_count ?? 0) + 1);
+  if (room.id !== state.currentRoom?.id) renderRoomList();
 }
 
 function markMessageDeleted(messageId) {
@@ -938,6 +1071,7 @@ function startEventStream() {
   source.addEventListener('room_message', (event) => {
     const envelope = parseEvent(event);
     const message = envelope?.payload?.message;
+    countUnread(message);
     if (message && message.room_id === state.currentRoom?.id) {
       appendMessage(message, true);
     }
