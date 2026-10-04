@@ -1,4 +1,5 @@
 import { apiGet, setCsrfToken } from './api.js';
+import { formatDateTime } from './datetime.js';
 
 const elements = {};
 
@@ -81,7 +82,7 @@ function render(status) {
   const maintenance = object(status.maintenance);
   const metrics = object(status.metrics);
 
-  elements['status-generated'].textContent = `Measured ${formatDateTime(status.generated_at)}.`;
+  elements['status-generated'].textContent = `Measured ${formatPageDateTime(status.generated_at)}.`;
   elements['application-name'].textContent = text(application.name);
   elements['application-version'].textContent = text(application.version);
   elements['application-environment'].textContent = text(application.environment);
@@ -119,7 +120,7 @@ function render(status) {
   elements['maintenance-card'].classList.toggle('status-warning-card', overdue);
   elements['maintenance-latest'].textContent = latest ? describeRun(latest) : 'Never';
   elements['maintenance-success'].textContent = latestSuccess
-    ? `${formatDateTime(latestSuccess.finished_at)} (${formatAge(maintenance.latest_success_age_seconds)} ago)`
+    ? `${formatPageDateTime(latestSuccess.finished_at)} (${formatAge(maintenance.latest_success_age_seconds)} ago)`
     : 'Never';
   elements['maintenance-max-age'].textContent = `${integer(maintenance.maximum_age_hours)} hours`;
   elements['maintenance-result'].textContent = latest?.result ? summarizeResult(latest.result) : text(latest?.error_message ?? '—');
@@ -158,7 +159,7 @@ function renderRateLimits(policiesValue, decisionsValue) {
 
     const lastRejectedCell = document.createElement('td');
     lastRejectedCell.textContent = typeof decision.last_rejected_at === 'string'
-      ? formatDateTime(decision.last_rejected_at)
+      ? formatPageDateTime(decision.last_rejected_at)
       : 'Never';
 
     row.append(nameCell, limitCell, allowedCell, rejectedCell, lastRejectedCell);
@@ -168,7 +169,7 @@ function renderRateLimits(policiesValue, decisionsValue) {
 
 function describeRun(run) {
   const mode = run.dry_run ? 'dry run' : 'cleanup';
-  const completed = run.finished_at ? formatDateTime(run.finished_at) : 'still running';
+  const completed = run.finished_at ? formatPageDateTime(run.finished_at) : 'still running';
   const duration = run.duration_ms === null ? '' : ` · ${number(run.duration_ms).toFixed(0)} ms`;
   return `${text(run.status)} ${mode} · ${completed}${duration}`;
 }
@@ -207,11 +208,6 @@ function formatAge(value) {
   return `${Math.floor(seconds / 86400)}d`;
 }
 
-function formatDateTime(value) {
-  if (typeof value !== 'string' || value === '') return 'Unknown';
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
-}
 
 function object(value) {
   return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
@@ -244,4 +240,8 @@ function handleError(error) {
 function handleFatal(error) {
   handleError(error);
   elements['status-loading'].textContent = error instanceof Error ? error.message : 'System status could not be loaded.';
+}
+
+function formatPageDateTime(value) {
+  return formatDateTime(value, { dateStyle: 'medium', timeStyle: 'medium' });
 }

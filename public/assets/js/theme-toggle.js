@@ -6,6 +6,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
   const selects = [...document.querySelectorAll('select[data-theme-select]')];
   const radios = [...document.querySelectorAll('input[type="radio"][data-theme-radio]')];
+  const schemeRadios = [...document.querySelectorAll('input[type="radio"][data-scheme-radio]')];
 
   const show = (value) => {
     for (const select of selects) select.value = value;
@@ -25,5 +26,22 @@ window.addEventListener('DOMContentLoaded', () => {
       show(radio.value);
     });
   }
+  const showScheme = (value) => {
+    for (const radio of schemeRadios) radio.checked = radio.value === value;
+  };
+  for (const radio of schemeRadios) {
+    radio.addEventListener('change', () => {
+      if (!radio.checked) return;
+      theme.setScheme(radio.value);
+      showScheme(radio.value);
+    });
+  }
+
   show(theme.preference());
+  showScheme(theme.scheme());
+  // A choice made in another tab.
+  window.addEventListener('chitchat:appearance-changed', () => {
+    show(theme.preference());
+    showScheme(theme.scheme());
+  });
 });

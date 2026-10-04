@@ -1,4 +1,5 @@
 import { apiGet, apiPost, setCsrfToken } from './api.js';
+import { formatDateTime } from './datetime.js';
 
 const elements = {};
 let currentSettings = null;
@@ -212,10 +213,6 @@ function setFormBusy(form, busy) {
   }
 }
 
-function formatDateTime(value) {
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
-}
 
 function toast(message) {
   const item = document.createElement('div');

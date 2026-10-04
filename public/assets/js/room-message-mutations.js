@@ -2,6 +2,7 @@ import { ApiError, apiGet, apiPost } from './api.js';
 import { openMessageReportDialog } from './message-report-dialog.js';
 import { renderMessageBody } from './message-content.js';
 import './realtime-bridge.js';
+import { formatDateTime } from './datetime.js';
 
 let enhancementQueued = false;
 let generation = 0;
@@ -210,12 +211,6 @@ function parseEvent(event) {
   try { return JSON.parse(event.data); } catch { return null; }
 }
 
-function formatDateTime(value) {
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat(undefined, {
-    dateStyle: 'medium', timeStyle: 'short',
-  }).format(date);
-}
 
 function toast(message, kind = 'info') {
   if (!elements) return;

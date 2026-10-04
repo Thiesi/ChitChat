@@ -1,4 +1,5 @@
 import { ApiError, apiGet, apiPost, setCsrfToken } from './api.js';
+import { formatDateTime } from './datetime.js';
 
 const elements = {
   unsupported: document.querySelector('#push-unsupported'),
@@ -214,9 +215,5 @@ function urlBase64ToUint8Array(base64String) {
 }
 
 function formatTimestamp(value) {
-  if (typeof value !== 'string' || value === '') {
-    return 'an unknown time';
-  }
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+  return formatDateTime(value);
 }

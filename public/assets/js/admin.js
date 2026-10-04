@@ -1,5 +1,6 @@
 import { ApiError, apiGet, apiPost, setCsrfToken } from './api.js';
 import { nameButton } from './name-menu.js';
+import { formatDateTime } from './datetime.js';
 
 const GLOBAL_ROLES = ['super_admin', 'admin', 'chat_admin', 'global_moderator'];
 const state = {
@@ -571,11 +572,6 @@ async function withButton(button, task) {
   }
 }
 
-function formatDateTime(value) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(date);
-}
 
 function toast(message, type = 'info') {
   const item = document.createElement('div');
