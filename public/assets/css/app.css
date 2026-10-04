@@ -1351,6 +1351,39 @@ button.user-name.mention { padding: 0 0.2rem; border-radius: 0.25rem; background
   white-space: pre-wrap;
 }
 
+/* Message formatting: links, `code`, code blocks and > quotes. */
+.message-link { overflow-wrap: anywhere; }
+.message-code,
+.message-codeblock {
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 0.9em;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+}
+.message-code { padding: 0.05rem 0.35rem; border-radius: 0.35rem; }
+.message-codeblock {
+  margin: 0.35rem 0;
+  padding: 0.6rem 0.8rem;
+  border-radius: 0.6rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+/* The general code pill style must not apply inside a block. */
+.message-codeblock code {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  font: inherit;
+}
+.message-quote {
+  margin: 0.35rem 0;
+  padding: 0.1rem 0 0.1rem 0.8rem;
+  border-left: 3px solid var(--accent);
+  color: var(--muted);
+}
+
 /* A ping: a private notice between its sender and target. */
 .message.ping-notice {
   padding-top: 0.55rem;

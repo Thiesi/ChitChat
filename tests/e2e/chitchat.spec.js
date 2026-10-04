@@ -168,6 +168,20 @@ test.describe.serial('ChitChat browser release checks', () => {
       await memberPage.locator('#composer-input').press('Enter');
       await expect(adminPage.locator('.message-body', { hasText: helloText })).toBeVisible();
 
+      // Formatting is built as elements, and links open safely in a new tab.
+      const formattedText = attemptText('Formatting check');
+      await memberPage.locator('#composer-input').fill(`${formattedText} *bold* \`code\` https://example.org/formatting <b>raw</b>`);
+      await memberPage.locator('#composer-input').press('Enter');
+      const formatted = adminPage.locator('.message-body', { hasText: formattedText });
+      await expect(formatted.locator('strong')).toHaveText('bold');
+      await expect(formatted.locator('code.message-code')).toHaveText('code');
+      const link = formatted.getByRole('link', { name: 'https://example.org/formatting' });
+      await expect(link).toHaveAttribute('href', 'https://example.org/formatting');
+      await expect(link).toHaveAttribute('target', '_blank');
+      await expect(link).toHaveAttribute('rel', 'noopener noreferrer nofollow');
+      await expect(formatted.locator('b')).toHaveCount(0);
+      await expect(formatted).toContainText('<b>raw</b>');
+
       await adminPage.locator('#composer-input').fill(`/me ${emoteText}`);
       await adminPage.locator('#composer-input').press('Enter');
       await expect(memberPage.locator('.message.emote .message-body', { hasText: emoteText })).toBeVisible();
