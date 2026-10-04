@@ -7,6 +7,7 @@ namespace ChitChat\Room;
 use ChitChat\Audit\AuditLogger;
 use ChitChat\Auth\AuthenticatedUser;
 use ChitChat\Http\ApiException;
+use ChitChat\Realtime\EventRepository;
 use DateTimeImmutable;
 use PDO;
 use PDOException;
@@ -17,11 +18,13 @@ final class RoomService
 {
     private readonly RoomRepository $rooms;
     private readonly AuditLogger $audit;
+    private readonly RoomListSignal $roomList;
 
     public function __construct(private readonly PDO $pdo)
     {
         $this->rooms = new RoomRepository($pdo);
         $this->audit = new AuditLogger($pdo);
+        $this->roomList = new RoomListSignal(new EventRepository($pdo));
     }
 
     /** @return list<array{id:int, key:string, name:string, info_line:string, visibility:string, minimum_age:int, inactivity_timeout_seconds:int, created_by:int, member_role:?string, invited:bool}> */
@@ -121,6 +124,7 @@ SQL);
                 ],
                 $ipAddress,
             );
+            $this->roomList->room($roomId, $visibility === 'public', $actor->id);
             $this->pdo->commit();
         } catch (PDOException $exception) {
             $this->rollBack();
@@ -181,6 +185,7 @@ SQL);
                 [],
                 $ipAddress,
             );
+            $this->roomList->user($actor->id, $actor->id);
             $this->pdo->commit();
         } catch (Throwable $exception) {
             $this->rollBack();
@@ -208,6 +213,7 @@ SQL);
         }
         $statement->execute(['room_id' => $roomId, 'user_id' => $actor->id]);
         $this->audit->log($actor->id, 'room.leave', 'room', (string) $roomId, [], $ipAddress);
+        $this->roomList->user($actor->id, $actor->id);
     }
 
     public function update(
@@ -262,6 +268,7 @@ SQL);
             ],
             $ipAddress,
         );
+        $this->roomList->room($roomId, $room->visibility === 'public' || $visibility === 'public', $actor->id);
 
         return $this->get($actor, $roomId);
     }
@@ -304,6 +311,7 @@ SQL);
             ['target_user_id' => $targetUserId],
             $ipAddress,
         );
+        $this->roomList->user($targetUserId, $actor->id);
     }
 
     public function setRole(
@@ -345,6 +353,7 @@ SQL);
             ['target_user_id' => $targetUserId, 'role' => $role],
             $ipAddress,
         );
+        $this->roomList->user($targetUserId, $actor->id);
     }
 
     public function delete(AuthenticatedUser $actor, int $roomId, string $ipAddress): void
@@ -360,6 +369,7 @@ SQL);
         }
         $statement->execute(['room_id' => $roomId]);
         $this->audit->log($actor->id, 'room.delete', 'room', (string) $roomId, [], $ipAddress);
+        $this->roomList->room($roomId, $room->visibility === 'public', $actor->id);
     }
 
     private function requireRoom(AuthenticatedUser $actor, int $roomId): Room

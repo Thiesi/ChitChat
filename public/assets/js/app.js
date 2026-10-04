@@ -258,6 +258,46 @@ async function loadRooms(preferredRoomId = null) {
   }
 }
 
+// A rooms_changed event only says "your room list may differ now"; bursts
+// (several invitations, a rename right after creation) collapse into one fetch.
+let roomListRefreshTimer = null;
+
+function scheduleRoomListRefresh() {
+  window.clearTimeout(roomListRefreshTimer);
+  roomListRefreshTimer = window.setTimeout(() => {
+    refreshRoomList().catch(handleApiFailure);
+  }, 250);
+}
+
+async function refreshRoomList() {
+  const response = await apiGet('/api/v1/rooms/list.php');
+  state.rooms = Array.isArray(response.rooms) ? response.rooms : [];
+  const current = state.currentRoom;
+  if (!current) {
+    renderRoomList();
+    if (state.rooms.length > 0) {
+      await loadRooms();
+    }
+    return;
+  }
+
+  const fresh = state.rooms.find((room) => room.id === current.id);
+  if (!fresh) {
+    // The open room was deleted or is no longer visible to this account.
+    toast(`#${current.name} is no longer available.`);
+    state.currentRoom = null;
+    await loadRooms();
+    return;
+  }
+  if (canReadHistory(fresh) !== canReadHistory(current)) {
+    await selectRoom(fresh);
+    return;
+  }
+  state.currentRoom = fresh;
+  renderRoomList();
+  renderRoomHeader();
+}
+
 function chooseInitialRoom() {
   return state.rooms.find((room) => room.member_role !== null) ?? state.rooms[0] ?? null;
 }
@@ -749,6 +789,8 @@ function startEventStream() {
       toast(`Broadcast: ${payload.message}`);
     }
   });
+
+  source.addEventListener('rooms_changed', scheduleRoomListRefresh);
 
   source.addEventListener('presence_changed', (event) => {
     const envelope = parseEvent(event);

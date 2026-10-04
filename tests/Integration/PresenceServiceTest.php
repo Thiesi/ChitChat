@@ -34,7 +34,7 @@ final class PresenceServiceTest extends DatabaseTestCase
         self::assertLessThan(5, $users[0]['idle_seconds']);
 
         $presence->heartbeat($member, self::FIRST_CONNECTION, $room->id, false);
-        $events = (new EventRepository($this->pdo))->visibleAfter($admin, 0);
+        $events = self::withoutRoomListSignals((new EventRepository($this->pdo))->visibleAfter($admin, 0));
         self::assertSame(['presence_changed'], array_map(
             static fn ($event): string => $event->type,
             $events,

@@ -42,6 +42,21 @@ WHERE id = 1
 SQL);
     }
 
+    /**
+     * Drops the rooms_changed signals that room setup emits, so a test can
+     * assert exactly the events it is about.
+     *
+     * @param list<\ChitChat\Realtime\RealtimeEvent> $events
+     * @return list<\ChitChat\Realtime\RealtimeEvent>
+     */
+    protected static function withoutRoomListSignals(array $events): array
+    {
+        return array_values(array_filter(
+            $events,
+            static fn ($event): bool => $event->type !== 'rooms_changed',
+        ));
+    }
+
     protected function configWithThrottle(int $attempts, int $minutes = 15): Config
     {
         return new Config(
