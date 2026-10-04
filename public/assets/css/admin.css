@@ -212,14 +212,6 @@
 .deleted-rooms { margin-top: 1rem; }
 .deleted-rooms h4 { margin: 0; }
 
-.danger-button {
-  padding: 0.7rem 0.9rem;
-  border: 1px solid var(--danger);
-  border-radius: 0.75rem;
-  background: transparent;
-  color: var(--danger);
-}
-
 .role-fieldset {
   display: grid;
   gap: 0.55rem;
