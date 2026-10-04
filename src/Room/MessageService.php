@@ -8,6 +8,7 @@ use ChitChat\Auth\AuthenticatedUser;
 use ChitChat\Http\ApiException;
 use ChitChat\Mentions\MentionNotifier;
 use ChitChat\Mentions\RoomMentionResolver;
+use ChitChat\Moderation\MuteService;
 use ChitChat\Reactions\ReactionHydrator;
 use ChitChat\Realtime\EventRepository;
 use ChitChat\Upload\AttachmentPolicy;
@@ -198,6 +199,7 @@ SQL;
         if (!$room->isMember()) {
             throw new ApiException(403, 'membership_required', 'Join the room before sending messages.');
         }
+        (new MuteService($this->pdo))->assertMayPostInRoom($actor->id, $roomId);
 
         [$messageType, $body] = $this->parseMessage($bodyInput);
         if ($replyToMessageId !== null) {
@@ -341,6 +343,28 @@ SQL);
             }
             throw $exception;
         }
+    }
+
+    /**
+     * Posts a neutral notice into a room from nobody in particular, such as
+     * "Alex was muted in this room for 1 hour.", and sends it to everyone
+     * there like any message.
+     *
+     * @return array<string, mixed>
+     */
+    public function postNotice(int $roomId, string $body): array
+    {
+        $statement = $this->pdo->prepare(
+            "INSERT INTO room_messages (room_id, sender_id, message_type, body) VALUES (:room_id, NULL, 'system', :body) RETURNING id",
+        );
+        if ($statement === false) {
+            throw new RuntimeException('Unable to prepare room notice.');
+        }
+        $statement->execute(['room_id' => $roomId, 'body' => $body]);
+        $message = $this->storedMessage((int) $statement->fetchColumn());
+        $this->events->publish(type: 'room_message', payload: ['message' => $message], roomId: $roomId);
+
+        return $message;
     }
 
     /**

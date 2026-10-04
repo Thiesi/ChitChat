@@ -6,6 +6,7 @@ namespace ChitChat\Reactions;
 
 use ChitChat\Auth\AuthenticatedUser;
 use ChitChat\Http\ApiException;
+use ChitChat\Moderation\MuteService;
 use ChitChat\Realtime\EventRepository;
 use PDO;
 use RuntimeException;
@@ -27,6 +28,7 @@ final class DirectMessageReactionService
         if ($deletedAt !== null) {
             throw new ApiException(409, 'message_already_deleted', 'Message is already deleted.');
         }
+        (new MuteService($this->pdo))->assertMaySendDirect($actor->id);
 
         $statement = $this->pdo->prepare(<<<'SQL'
 INSERT INTO direct_message_reactions (message_id, user_id, emoji)

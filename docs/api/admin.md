@@ -58,6 +58,47 @@ Existing account-control endpoints are used by the console:
 
 `reset-password.php` requires active privileged step-up; a successful password verification and the later password reset create separate audit records. `kick.php`, `ban.php`, and `unban.php` do not: they are reversible and audited, and moderators use them from the chat. Only a Super-Administrator may act on an Administrator or another Super-Administrator, for all four actions and for role changes.
 
+## Moderating in place
+
+Moderators act from the chat: from **Delete** on a message and from the **Moderation** part of the profile card behind every name. Everything follows the ranks in [rooms.md](rooms.md) (`delete-message.php`), and only what would succeed is offered.
+
+### What the card offers: `GET /api/v1/users/profile.php?user_id=7&room_id=42`
+
+`profile.moderation` is `null` when the viewer may do nothing to this person (always for themselves). Otherwise:
+
+```json
+{
+  "room": {
+    "id": 42, "name": "General", "member_role": "member",
+    "can_set_moderator": true, "can_remove": true, "can_mute": true,
+    "mute": null
+  },
+  "everywhere": {
+    "can_kick": true, "can_ban": true, "can_mute": true, "can_open_administration": true,
+    "ban": { "id": 3, "reason": "Spam", "expires_at": "2026-10-12T09:45:00+00:00" },
+    "mute": null
+  }
+}
+```
+
+`room` is present only with `room_id`, for room managers and moderators of that room; `everywhere` only for Global Moderators and up (muting) and Administrators and up (signing out, banning).
+
+### Muting: `POST /api/v1/moderation/mute.php`
+
+```json
+{ "user_id": 7, "room_id": 42, "expires_at": "2026-10-05T10:45:00Z", "reason": "Cool down", "announce": true }
+```
+
+`room_id: null` mutes everywhere (Global Moderators and up), which also stops sending direct messages; a room mute needs a room owner, room moderator or global staff, and a higher rank. `expires_at: null` lasts until lifted. A muted person can sign in and read, but cannot post, edit, react, ping, upload or show as typing (`403 muted`). They get a `muted` notification with the reason; `rooms/list.php` reports `muted` per room and `session.php` reports `muted_everywhere`, so the message box can say why and until when. `announce` (room mutes only) posts a neutral system line in the room, such as "Alex was muted in this room for 1 hour.", without the reason or the moderator. A new mute in the same place replaces the current one. Audited as `moderation.mute`.
+
+### Lifting a mute: `POST /api/v1/moderation/unmute.php`
+
+`{ "mute_id": 5 }`, by anyone who could have set it. Audited as `moderation.unmute`.
+
+### Telling the room
+
+`ban.php` accepts `room_id` and `announce: true` to post "Alex was banned for 7 days." in that room (the moderator must be able to moderate it), and `rooms/remove-member.php` accepts `announce: true` to post "Alex was removed from this room.". Removing someone from a room also follows the ranks.
+
 ## Audit log
 
 ### `GET /api/v1/admin/audit.php`

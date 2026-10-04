@@ -1202,6 +1202,17 @@ button.user-name.mention { padding: 0 0.2rem; border-radius: 0.25rem; background
 }
 .name-menu .profile-meta { color: var(--muted); font-size: 0.8rem; }
 .name-menu-status { margin: 0.2rem 0.7rem 0.5rem; color: var(--muted); font-size: 0.82rem; }
+/* The card's Moderation part: a labelled group per scope. */
+.name-menu-moderation, .name-menu-group { display: grid; }
+.name-menu-moderation hr { width: 100%; margin: 0.35rem 0; border: 0; border-top: 1px solid var(--border); }
+.name-menu-group-label {
+  margin: 0.3rem 0.7rem 0.15rem;
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
 .name-menu .popover-identity span { color: var(--muted); font-size: 0.8rem; }
 
 .name-menu-backdrop {
@@ -1447,6 +1458,28 @@ button.user-name.mention { padding: 0 0.2rem; border-radius: 0.25rem; background
   text-decoration: underline;
   cursor: pointer;
 }
+
+/* A neutral room notice ("Alex was muted in this room for 1 hour.") and the
+   message box of someone who is muted. */
+.message.room-notice { display: block; text-align: center; }
+.room-notice p {
+  display: inline-block;
+  margin: 0;
+  padding: 0.4rem 0.9rem;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+.muted-notice {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.9rem 1.1rem;
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: var(--surface-2);
+}
+.muted-notice span { color: var(--muted); font-size: 0.9rem; }
 
 /* A ping: a private notice between its sender and target. */
 .message.ping-notice {

@@ -7,6 +7,7 @@ namespace ChitChat\DirectMessage;
 use ChitChat\Audit\AuditLogger;
 use ChitChat\Auth\AuthenticatedUser;
 use ChitChat\Http\ApiException;
+use ChitChat\Moderation\MuteService;
 use ChitChat\Reactions\ReactionHydrator;
 use ChitChat\Realtime\EventRepository;
 use PDO;
@@ -176,6 +177,7 @@ SQL);
             $recipientId = (int) $row['recipient_user_id'];
             $this->blocks->lockPair($actor->id, $recipientId);
             $this->blocks->requireMessagingAvailable($actor, $recipientId);
+            (new MuteService($this->pdo))->assertMaySendDirect($actor->id);
             $row = $this->message($messageId, true);
             $this->requireAuthor($actor, $row);
             if ((string) $row['body'] === $body) {

@@ -7,6 +7,7 @@ namespace ChitChat\Room;
 use ChitChat\Audit\AuditLogger;
 use ChitChat\Auth\AuthenticatedUser;
 use ChitChat\Http\ApiException;
+use ChitChat\Moderation\MuteService;
 use ChitChat\Reactions\ReactionHydrator;
 use ChitChat\Realtime\EventRepository;
 use PDO;
@@ -146,6 +147,7 @@ SQL);
             $row = $this->lockedMessage($messageId);
             $room = $this->requireMutableRoom($actor, (int) $row['room_id']);
             $this->requireAuthorMutation($actor, $row);
+            (new MuteService($this->pdo))->assertMayPostInRoom($actor->id, $room->id);
             if ((string) $row['body'] === $body) {
                 throw new ApiException(409, 'message_unchanged', 'The edited message is unchanged.');
             }

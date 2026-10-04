@@ -5,7 +5,7 @@ import { attachMentionAutocomplete } from './mention-autocomplete.js';
 import { attachEmojiPicker } from './emoji-picker.js';
 import { createRegistrationChallenge } from './registration-challenge.js';
 import { attachPhoto, avatarTone, initials } from './avatar.js';
-import { nameButton } from './name-menu.js';
+import { nameButton, setModerationRoom } from './name-menu.js';
 import { attachNameCompletion } from './name-completion.js';
 import { createTypingIndicator, createTypingSignal } from './typing.js';
 import { withProviderIcon } from './provider-icons.js';
@@ -92,6 +92,7 @@ function bindElements() {
     'typing-indicator',
     'composer-wrap',
     'composer-form',
+    'muted-notice',
     'composer-input',
     'emoji-button',
     'send-button',
@@ -445,6 +446,7 @@ function renderRoomList() {
 
 async function selectRoom(room) {
   state.currentRoom = room;
+  setModerationRoom(room.id);
   roomTyping?.clear();
   // Where this visit's "New messages" divider goes; it stays put while here.
   state.readMarker = Number.isInteger(room.last_read_message_id) && (room.unread_count ?? 0) > 0
@@ -609,7 +611,37 @@ function renderRoomHeader() {
   elements['join-button'].classList.toggle('hidden', isMember);
   elements['join-button'].textContent = room.invited ? 'Accept invitation' : 'Join room';
   elements['composer-wrap'].classList.toggle('hidden', !isMember);
-  elements['composer-input'].disabled = !isMember;
+  // A muted person reads along; the message box says why and until when.
+  const mute = isMember ? room.muted ?? null : null;
+  elements['composer-form'].classList.toggle('hidden', Boolean(mute));
+  elements['composer-input'].disabled = !isMember || Boolean(mute);
+  renderMuteNotice(room, mute);
+}
+
+let muteTimer = null;
+function renderMuteNotice(room, mute) {
+  const notice = elements['muted-notice'];
+  window.clearTimeout(muteTimer);
+  notice.classList.toggle('hidden', !mute);
+  if (!mute) {
+    notice.replaceChildren();
+    return;
+  }
+  const headline = document.createElement('strong');
+  const where = mute.scope === 'everywhere' ? '' : ` in #${room.name}`;
+  headline.textContent = `You are muted${where} ${mute.expires_at ? `until ${formatDateTime(mute.expires_at)}` : 'until a moderator lifts it'}.`;
+  const detail = document.createElement('span');
+  detail.textContent = [
+    mute.reason ? `Reason: “${mute.reason}”.` : '',
+    'You can still read along.',
+    mute.scope === 'everywhere' ? 'This applies to every room and to direct messages.' : 'Other rooms are not affected.',
+  ].filter(Boolean).join(' ');
+  notice.replaceChildren(headline, detail);
+  // When it runs out, fetch the room list again so the message box returns.
+  if (mute.expires_at) {
+    const wait = Date.parse(mute.expires_at) - Date.now() + 1_000;
+    if (wait > 0 && wait < 2_147_000_000) muteTimer = window.setTimeout(() => refreshRoomList().catch(() => {}), wait);
+  }
 }
 
 function renderNoRoom() {
@@ -805,7 +837,21 @@ function buildIgnoredElement(message) {
   return article;
 }
 
+// A neutral notice from nobody in particular, such as "Alex was muted in this room for 1 hour."
+function buildNoticeElement(message) {
+  const article = document.createElement('article');
+  article.className = 'message room-notice';
+  article.dataset.messageId = String(message.id);
+  const text = document.createElement('p');
+  text.textContent = message.body ?? '';
+  article.append(text);
+  return article;
+}
+
 function buildMessageElement(message) {
+  if (message.type === 'system') {
+    return buildNoticeElement(message);
+  }
   if (isIgnored(message.sender_id) && !state.revealed.has(message.id)) {
     return buildIgnoredElement(message);
   }
@@ -909,7 +955,7 @@ function updateMessageReactions(messageId, reactions) {
 }
 
 function canReplyInCurrentRoom() {
-  return Boolean(state.currentRoom) && !elements['composer-wrap'].classList.contains('hidden');
+  return Boolean(state.currentRoom) && !state.currentRoom.muted && !elements['composer-wrap'].classList.contains('hidden');
 }
 
 async function searchRoomMentions(prefix) {

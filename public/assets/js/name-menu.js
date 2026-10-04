@@ -6,6 +6,7 @@
 import { ApiError, apiGet, apiPost } from './api.js';
 import { miniAvatar, refreshPhoto } from './avatar.js';
 import { formatDateTime } from './datetime.js';
+import { moderationSection } from './moderation-card.js';
 
 const phone = window.matchMedia('(max-width: 34rem)');
 const ICON_MESSAGE = ['M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'];
@@ -23,6 +24,15 @@ let opener = null;
 let openerMessageId = null;
 let currentUserId = null;
 let sequence = 0;
+// The room the chat shows, so the card can offer moderation there.
+let moderationRoomId = null;
+// A confirmation to show once the card reopens after a moderation action.
+let pendingReport = null;
+
+/** The chat page tells the card which room is open (null on other pages). */
+export function setModerationRoom(roomId) {
+  moderationRoomId = Number.isInteger(roomId) ? roomId : null;
+}
 
 /** A username rendered as a button that opens the name menu. */
 export function nameButton(user, className = '') {
@@ -97,7 +107,9 @@ async function open(button) {
   backdrop.classList.toggle('hidden', !phone.matches);
   position(button);
 
-  const profileRequest = apiGet(`/api/v1/users/profile.php?user_id=${encodeURIComponent(userId)}`).catch(() => null);
+  const profileQuery = new URLSearchParams({ user_id: String(userId) });
+  if (moderationRoomId !== null) profileQuery.set('room_id', String(moderationRoomId));
+  const profileRequest = apiGet(`/api/v1/users/profile.php?${profileQuery.toString()}`).catch(() => null);
   const self = (await ownUserId()) === userId;
   if (request !== sequence) return;
   void profileRequest.then((response) => {
@@ -153,6 +165,24 @@ function showProfile(label, actions, profile, self) {
   label.append(since);
 
   if (!self) actions.append(ignoreToggle(profile));
+
+  const moderation = self ? null : moderationSection(profile, {
+    // Reopen the card for the same name, so it shows the new state.
+    refresh: () => {
+      const button = currentOpener();
+      if (button) void open(button);
+    },
+    // Success is shown on the reopened card; an error right away.
+    report: (text, afterRefresh) => {
+      if (afterRefresh) pendingReport = text;
+      else actions.append(statusText(text));
+    },
+  });
+  if (moderation) actions.append(moderation);
+  if (pendingReport) {
+    actions.append(statusText(pendingReport));
+    pendingReport = null;
+  }
 
   if (profile.can_remove_avatar && !self) {
     const remove = document.createElement('button');
