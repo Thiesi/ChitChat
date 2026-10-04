@@ -49,6 +49,10 @@ function bindElements() {
     'auth-shell',
     'login-tab',
     'register-tab',
+    'register-provider-note',
+    'register-provider-text',
+    'register-provider-cancel',
+    'register-password-field',
     'login-form',
     'login-username',
     'login-password',
@@ -104,6 +108,7 @@ function bindElements() {
 function bindEvents() {
   elements['login-tab'].addEventListener('click', () => showAuthMode('login'));
   elements['register-tab'].addEventListener('click', () => showAuthMode('register'));
+  elements['register-provider-cancel'].addEventListener('click', cancelProviderSignUp);
   elements['login-form'].addEventListener('submit', submitLogin);
   elements['register-form'].addEventListener('submit', submitRegistration);
   // The challenge's issue time starts the server's minimum-fill clock, so it is
@@ -141,9 +146,11 @@ async function bootstrap() {
   if (session.user) {
     await enterApplication(session.user);
   } else {
-    showAuthMode('login');
+    showAuthMode(session.pending_sign_up ? 'register' : 'login');
+    setProviderSignUp(session.pending_sign_up ?? null);
     showSignInErrorFromRedirect();
     elements['auth-shell'].classList.remove('hidden');
+    if (session.pending_sign_up) elements['register-username'].focus();
   }
 }
 
@@ -203,16 +210,20 @@ async function submitRegistration(event) {
 
   try {
     const proof = await registrationChallenge.solution();
-    const response = await apiPost('/api/v1/register.php', {
+    const details = {
       username: elements['register-username'].value,
-      password: elements['register-password'].value,
       birth_date: elements['register-birth-date'].value || null,
       website: elements['register-website'].value,
       challenge_nonce: proof?.nonce ?? null,
       challenge_solution: proof?.solution ?? null,
-    });
+    };
+    // After Google or Twitch confirmed who this is, no password is needed.
+    const response = state.providerSignUp
+      ? await apiPost('/api/v1/oidc/register.php', details)
+      : await apiPost('/api/v1/register.php', { ...details, password: elements['register-password'].value });
     registrationChallenge.reset();
     elements['register-form'].reset();
+    setProviderSignUp(null);
     await enterApplication(response.user);
   } catch (error) {
     // Every submission consumes the challenge, so prepare a fresh one.
@@ -1209,6 +1220,34 @@ function forceSignedOut(message) {
       renderLockdown(session.lockdown);
     })
     .catch(() => setCsrfToken(''));
+}
+
+// Signing up with Google or Twitch: the provider is confirmed, the person
+// still chooses a username, and the password field goes away.
+function setProviderSignUp(provider) {
+  state.providerSignUp = provider;
+  elements['register-provider-note'].classList.toggle('hidden', !provider);
+  elements['register-password-field'].classList.toggle('hidden', Boolean(provider));
+  elements['register-password'].required = !provider;
+  elements['register-provider-text'].textContent = provider
+    ? `Signing up with ${provider.label}. Choose the username people will see here. You can add a password later on your Account page.`
+    : '';
+  const parameters = new URLSearchParams(window.location.search);
+  if (parameters.has('sign_up')) {
+    parameters.delete('sign_up');
+    const query = parameters.toString();
+    window.history.replaceState(null, '', `${window.location.pathname}${query ? `?${query}` : ''}`);
+  }
+}
+
+async function cancelProviderSignUp() {
+  try {
+    await apiPost('/api/v1/oidc/cancel-sign-up.php');
+  } catch {
+    // The pending sign-up expires on its own anyway.
+  }
+  setProviderSignUp(null);
+  elements['register-password'].focus();
 }
 
 // "Continue with Google/Twitch": plain links into the provider's sign-in.

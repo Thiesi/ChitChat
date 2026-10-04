@@ -18,7 +18,12 @@ Endpoint::run($config, static function () use ($config): ApiResult {
     SessionManager::requireCsrf(Request::csrfHeader());
     $payload = Request::json();
     $pdo = Database::connect($config);
-    $actor = SessionManager::requireUser(new UserRepository($pdo));
+    $users = new UserRepository($pdo);
+    $actor = SessionManager::requireUser($users);
+    // Without a current password to prove, setting the first one needs step-up.
+    if (!$users->hasPassword($actor->id)) {
+        SessionManager::requirePrivilegedStepUp($actor, $config);
+    }
 
     $auth = new AuthService($pdo, $config);
     $user = $auth->changePassword(

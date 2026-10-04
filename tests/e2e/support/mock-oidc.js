@@ -15,13 +15,16 @@ const clientSecret = 'e2e-secret';
 
 export async function startMockOidc() {
   const { privateKey, publicKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
-  const jwk = { ...publicKey.export({ format: 'jwk' }), kid: 'mock-1', use: 'sig', alg: 'RS256' };
+  // A fresh key gets a fresh key ID, as with a real provider's rotation;
+  // ChitChat caches keys by ID, so a retried test must not reuse the old one.
+  const keyId = `mock-${randomBytes(6).toString('hex')}`;
+  const jwk = { ...publicKey.export({ format: 'jwk' }), kid: keyId, use: 'sig', alg: 'RS256' };
   const codes = new Map();
   let subject = 'mock-subject';
 
   const b64 = (value) => Buffer.from(value).toString('base64url');
   const idToken = (claims) => {
-    const header = b64(JSON.stringify({ alg: 'RS256', typ: 'JWT', kid: 'mock-1' }));
+    const header = b64(JSON.stringify({ alg: 'RS256', typ: 'JWT', kid: keyId }));
     const payload = b64(JSON.stringify(claims));
     const signature = sign('sha256', Buffer.from(`${header}.${payload}`), privateKey).toString('base64url');
     return `${header}.${payload}.${signature}`;

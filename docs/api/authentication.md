@@ -110,7 +110,53 @@ Requires authentication.
 
 Changing a password increments the account's session version, invalidating every existing session. The current request receives a newly rotated session using the new version. Any existing privileged step-up is cleared.
 
-## Privileged step-up authentication
+An account created through Google or Twitch has no password. It sets its first one with the same request: `current_password` is ignored (send `""`), and active privileged step-up is required instead. The audit action is then `auth.password_set`.
+
+## Sign in with Google or Twitch
+
+Configured providers are listed in `session.php` as `sign_in_providers` (`[{"id":"google","label":"Google"}]`). Every round trip uses the OpenID Connect authorization-code flow with PKCE, a state bound to the browser session (single use, 10 minutes) and a nonce; only the `openid` scope is requested, and only the provider plus its `sub` identifier is stored. The provider redirects back to `GET /api/v1/oidc/callback.php`, which answers with a redirect; failures append `sign_in_error=<message>` to the page the attempt started from.
+
+### `GET /api/v1/oidc/start.php?provider=google`
+
+Sign-in. Redirects to the provider. Afterwards:
+
+- a connected account is signed in (bans, maintenance lockdown and MFA apply as with a password; with MFA the browser lands on `/?mfa=continue` and finishes with the passkey or recovery-code endpoints);
+- an unknown provider account may create a ChitChat account, if registration is open and no lockdown is active: the browser lands on `/?sign_up=continue` and `session.php` reports `pending_sign_up` (`{"id":"google","label":"Google"}`) for 10 minutes.
+
+Rate-limited per IP address (`oidc_sign_in`) and audited as `auth.oidc_sign_in`.
+
+### `POST /api/v1/oidc/register.php`
+
+Requires CSRF and a pending provider sign-up. Creates the account without a password and signs it in. The registration rules and bot protection of `register.php` apply unchanged (rate limit, honeypot, proof-of-work challenge, registration switch, lockdown).
+
+```json
+{
+  "username": "new_member",
+  "birth_date": null,
+  "website": "",
+  "challenge_nonce": "…",
+  "challenge_solution": "…"
+}
+```
+
+Returns `201` like `register.php`. `409 identity_taken` if the provider account was connected elsewhere meanwhile; `400 oidc_sign_up_expired` without a pending sign-up.
+
+### `POST /api/v1/oidc/cancel-sign-up.php`
+
+Requires CSRF. Forgets a pending provider sign-up.
+
+### `POST /api/v1/oidc/link.php`
+
+Requires authentication, CSRF and active privileged step-up. Body `{"provider":"google"}`; returns `{"url": "…"}` to send the browser to. Afterwards the provider is connected (`/account.php?connected=google`). A provider account can be connected to one ChitChat account only. Audited as `account.identity_linked`.
+
+### `POST /api/v1/oidc/begin.php`
+
+Requires CSRF. Body `{"provider":"google","purpose":"step_up"}` or `{"provider":"google","purpose":"restore"}`; returns `{"url": "…"}`. These purposes change something, so unlike sign-in they never start from a plain link.
+
+- `step_up` (requires authentication): confirms a sensitive action, as `step-up.php` does with a password. The browser opens the URL in a separate window; it ends on `/step-up-complete.php`, which reports back to the ChitChat tab and closes. The provider is asked for a fresh sign-in (Google: `max_age=0`, and the token's `auth_time` must be from this attempt; Twitch, which reports no `auth_time`: `force_verify=true`). The provider account must be the one connected to the signed-in account. Accounts with MFA keep using a passkey or recovery code. Shares the `privileged_step_up` rate limit and its audit actions, with `method` set to the provider.
+- `restore`: restores a closing account connected to that provider account, exactly like `account/restore.php` but without the password, including the MFA continuation (`/restore-account.php?mfa=continue`).
+
+
 
 Sensitive administrative actions require recent reauthentication with the current account password in addition to ordinary session authentication, CSRF, role authorization, and any action-specific reason or audit requirements.
 

@@ -67,11 +67,15 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
         </form>
 
         <form id="register-form" class="form-stack hidden" role="tabpanel" aria-labelledby="register-tab" autocomplete="on" hidden>
+          <div id="register-provider-note" class="provider-sign-up-note hidden">
+            <p id="register-provider-text"></p>
+            <button id="register-provider-cancel" class="link-button" type="button">Use a password instead</button>
+          </div>
           <label>
             Username
             <input id="register-username" name="username" type="text" autocomplete="username" minlength="3" maxlength="32" pattern="[A-Za-z0-9][A-Za-z0-9._\-]{2,31}" required>
           </label>
-          <label>
+          <label id="register-password-field">
             Password
             <input id="register-password" name="password" type="password" autocomplete="new-password" minlength="12" maxlength="4096" required>
           </label>

@@ -42,6 +42,8 @@ SQL);
         // Lockdown also closes registration, so the sign-in page hides the Register tab.
         // Sign-in providers this installation offers (Google, Twitch), for the sign-in page.
         'sign_in_providers' => (new OidcService($pdo, $config))->providers(),
+        // A Google or Twitch sign-up waiting for its username, if any.
+        'pending_sign_up' => $user === null ? (new OidcService($pdo, $config))->pendingSignUp() : null,
         'registration_enabled' => (int) $policy['registration_enabled'] === 1 && !(new LockdownService($pdo))->status()['enabled'],
         // Public, so the sign-in page can explain a maintenance lockdown.
         'lockdown' => (static function (array $status): array {

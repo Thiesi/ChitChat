@@ -74,6 +74,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   // The session sets the CSRF token that connecting and disconnecting need.
   await apiGet('/api/v1/session.php').catch(() => null);
   await render();
+  window.addEventListener('chitchat:password-set', () => { void render(); });
   if (failure) {
     status.textContent = failure;
   } else if (connected) {

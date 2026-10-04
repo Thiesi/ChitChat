@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace ChitChat\Tests\Integration;
 
+use ChitChat\Account\AccountClosureService;
 use ChitChat\Admin\LockdownService;
 use ChitChat\Auth\AuthenticatedUser;
 use ChitChat\Auth\AuthService;
 use ChitChat\Auth\Oidc\OidcHttpClient;
 use ChitChat\Auth\Oidc\OidcRedirectException;
 use ChitChat\Auth\Oidc\OidcService;
+use ChitChat\Auth\SessionManager;
+use ChitChat\Auth\UserRepository;
 use ChitChat\Http\ApiException;
 
 final class OidcServiceTest extends DatabaseTestCase
@@ -67,8 +70,11 @@ final class OidcServiceTest extends DatabaseTestCase
         $this->oidc->complete(['state' => $this->authorize('link', $member)['state'], 'code' => 'c'], '127.0.0.2');
         $_SESSION = [];
 
+        // With registration closed, an unknown provider account cannot sign up.
+        $this->pdo->exec('UPDATE system_settings SET registration_enabled = FALSE WHERE id = 1');
         $this->provider->subject = 'google-stranger';
-        $this->assertRedirectMessage('login', 'No account here is connected to this Google account yet');
+        $this->assertRedirectMessage('login', 'new accounts are not being accepted right now');
+        $this->pdo->exec('UPDATE system_settings SET registration_enabled = TRUE WHERE id = 1');
 
         (new LockdownService($this->pdo))->update($root, true, 'Back soon.', false, '127.0.0.1');
         $this->provider->subject = 'google-member';
@@ -100,6 +106,112 @@ final class OidcServiceTest extends DatabaseTestCase
         $this->oidc->unlink($member, 'google', '127.0.0.2');
         self::assertSame([], $this->oidc->identities($member->id));
         self::assertSame(1, (int) $this->pdo->query("SELECT COUNT(*) FROM audit_log WHERE action = 'account.identity_unlinked'")?->fetchColumn());
+    }
+
+    public function testSigningUpThroughAProviderCreatesAnAccountWithoutAPassword(): void
+    {
+        $this->users();
+        $this->provider->subject = 'google-newcomer';
+        $state = $this->authorize('login', null)['state'];
+        self::assertSame('/?sign_up=continue', $this->oidc->complete(['state' => $state, 'code' => 'c'], '127.0.0.3'));
+        self::assertSame(['id' => 'google', 'label' => 'Google'], $this->oidc->pendingSignUp());
+
+        $user = $this->oidc->completeSignUp('Newcomer', null, '127.0.0.3');
+        self::assertNull($this->oidc->pendingSignUp(), 'A pending sign-up is used once.');
+        $users = new UserRepository($this->pdo);
+        self::assertFalse($users->hasPassword($user->id));
+        self::assertSame(['google'], array_column($this->oidc->identities($user->id), 'provider'));
+        self::assertSame(
+            'google',
+            $this->pdo->query("SELECT metadata_json->>'provider' FROM audit_log WHERE action = 'auth.register' AND subject_id = '{$user->id}'")?->fetchColumn(),
+        );
+
+        // The random password hash can never be used to sign in.
+        try {
+            (new AuthService($this->pdo, $this->config))->login('Newcomer', 'any password at all', '127.0.0.3');
+            self::fail('A password-less account must not accept a password.');
+        } catch (ApiException $exception) {
+            self::assertSame('invalid_credentials', $exception->errorCode);
+        }
+
+        // The only way in cannot be disconnected until a password exists.
+        try {
+            $this->oidc->unlink($user, 'google', '127.0.0.3');
+            self::fail('Expected the last sign-in method to be kept.');
+        } catch (ApiException $exception) {
+            self::assertSame('last_sign_in_method', $exception->errorCode);
+        }
+        (new AuthService($this->pdo, $this->config))->changePassword($user, '', 'a freshly chosen password', '127.0.0.3');
+        self::assertTrue($users->hasPassword($user->id));
+        self::assertSame(1, (int) $this->pdo->query("SELECT COUNT(*) FROM audit_log WHERE action = 'auth.password_set'")?->fetchColumn());
+        $user = $users->findAuthenticatedById($user->id);
+        self::assertNotNull($user);
+        $this->oidc->unlink($user, 'google', '127.0.0.3');
+
+        // A sign-up that was never finished expires; so does a cancelled one.
+        $_SESSION['oidc_sign_up'] = ['provider' => 'google', 'subject' => 'late', 'created_at' => time() - 3600];
+        self::assertNull($this->oidc->pendingSignUp());
+        $_SESSION['oidc_sign_up'] = ['provider' => 'google', 'subject' => 'later', 'created_at' => time()];
+        $this->oidc->cancelSignUp();
+        $this->expectExceptionObject(new ApiException(400, 'oidc_sign_up_expired', 'This sign-up has expired. Please continue with Google or Twitch again.'));
+        $this->oidc->completeSignUp('Latecomer', null, '127.0.0.3');
+    }
+
+    public function testStepUpNeedsAFreshSignInWithTheConnectedProviderAccount(): void
+    {
+        [, $member] = $this->users();
+        $this->provider->subject = 'google-member';
+        $this->signInAs($member);
+        $this->oidc->complete(['state' => $this->authorize('link', $member)['state'], 'code' => 'c'], '127.0.0.2');
+
+        $query = $this->authorize('step_up', $member);
+        self::assertSame('0', $query['max_age'], 'Google is asked for a fresh sign-in.');
+        $this->provider->authTime = time();
+        self::assertSame('/step-up-complete.php?confirmed=1', $this->oidc->complete(['state' => $query['state'], 'code' => 'c'], '127.0.0.2'));
+        $status = SessionManager::privilegedStepUpStatus($member, $this->config);
+        self::assertTrue($status['active']);
+        self::assertSame('google', $status['method']);
+        unset($_SESSION['privileged_step_up']);
+
+        // An old provider session does not count.
+        $this->provider->authTime = time() - 3600;
+        $this->assertStepUpRefused($member, 'did not ask you to sign in again');
+        // Nor does somebody else's provider account.
+        $this->provider->authTime = time();
+        $this->provider->subject = 'google-someone-else';
+        $this->assertStepUpRefused($member, 'is not the one connected to your account');
+        self::assertFalse(SessionManager::privilegedStepUpStatus($member, $this->config)['active']);
+        self::assertSame(2, (int) $this->pdo->query("SELECT COUNT(*) FROM audit_log WHERE action = 'auth.privileged_step_up_failed'")?->fetchColumn());
+    }
+
+    public function testRestoringThroughAProviderNeedsAClosingAccount(): void
+    {
+        [, $member] = $this->users();
+        $this->provider->subject = 'google-member';
+        $this->signInAs($member);
+        $this->oidc->complete(['state' => $this->authorize('link', $member)['state'], 'code' => 'c'], '127.0.0.2');
+        $_SESSION = [];
+
+        $this->assertRedirectMessage('restore', 'not awaiting closure');
+        $this->provider->subject = 'google-stranger';
+        $this->assertRedirectMessage('restore', 'No account here is connected to this Google account');
+
+        (new AccountClosureService($this->pdo, $this->config))->request($member, '127.0.0.2');
+        // A closing account cannot simply sign in; it has to be restored.
+        $this->provider->subject = 'google-member';
+        $this->assertRedirectMessage('login', 'Restore a closing account');
+    }
+
+    private function assertStepUpRefused(AuthenticatedUser $user, string $message): void
+    {
+        $state = $this->authorize('step_up', $user)['state'];
+        try {
+            $this->oidc->complete(['state' => $state, 'code' => 'c'], '127.0.0.2');
+            self::fail("Expected: {$message}");
+        } catch (OidcRedirectException $exception) {
+            self::assertSame('/step-up-complete.php', $exception->returnTo);
+            self::assertStringContainsString($message, $exception->getMessage());
+        }
     }
 
     /**
@@ -157,6 +269,7 @@ final class FakeProvider implements OidcHttpClient
     public string $nonce = '';
     public string $challenge = '';
     public ?string $nonceOverride = null;
+    public ?int $authTime = null;
     public int $keyFetches = 0;
     private \OpenSSLAsymmetricKey $key;
 
@@ -177,14 +290,19 @@ final class FakeProvider implements OidcHttpClient
         }
         $now = time();
 
-        return ['id_token' => $this->sign([
+        $claims = [
             'iss' => self::ISSUER,
             'aud' => self::CLIENT_ID,
             'sub' => $this->subject,
             'nonce' => $this->nonceOverride ?? $this->nonce,
             'iat' => $now,
             'exp' => $now + 300,
-        ])];
+        ];
+        if ($this->authTime !== null) {
+            $claims['auth_time'] = $this->authTime;
+        }
+
+        return ['id_token' => $this->sign($claims)];
     }
 
     public function getJson(string $url): array

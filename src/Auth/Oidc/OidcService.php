@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace ChitChat\Auth\Oidc;
 
+use ChitChat\Account\AccountClosureService;
 use ChitChat\Admin\LockdownService;
 use ChitChat\Audit\AuditLogger;
 use ChitChat\Auth\AuthenticatedUser;
 use ChitChat\Auth\AuthService;
+use ChitChat\Auth\MfaRepository;
 use ChitChat\Auth\MfaService;
 use ChitChat\Auth\SessionManager;
 use ChitChat\Auth\UserRepository;
@@ -27,6 +29,18 @@ use RuntimeException;
 final class OidcService
 {
     private const FLOW_TTL_SECONDS = 600;
+    private const PURPOSES = ['login', 'link', 'step_up', 'restore'];
+    /** Where each purpose returns to, including when it fails. */
+    private const RETURN_TO = [
+        'login' => '/',
+        'link' => '/account.php',
+        'step_up' => '/step-up-complete.php',
+        'restore' => '/restore-account.php',
+    ];
+    /** A provider-confirmed new account must be finished within this time. */
+    private const SIGN_UP_TTL_SECONDS = 600;
+    /** Clock skew allowed when checking that a step-up login was fresh. */
+    private const AUTH_TIME_SKEW_SECONDS = 60;
     private const MAX_PENDING_FLOWS = 5;
     private const KEY_CACHE_SECONDS = 3600;
 
@@ -54,13 +68,16 @@ final class OidcService
     }
 
     /**
-     * Starts a sign-in ('login') or connects a provider to the signed-in
-     * account ('link'), returning the provider URL to send the browser to.
+     * Starts a provider round trip and returns the provider URL to send the
+     * browser to: signing in or up ('login'), restoring a closing account
+     * ('restore'), or, for the signed-in account, connecting a provider
+     * ('link') or confirming a sensitive action ('step_up').
      */
     public function begin(string $providerName, string $purpose, ?AuthenticatedUser $user): string
     {
         $provider = OidcProvider::require($this->config, $providerName);
-        if (!in_array($purpose, ['login', 'link'], true) || ($purpose === 'link') !== ($user !== null)) {
+        $needsUser = in_array($purpose, ['link', 'step_up'], true);
+        if (!in_array($purpose, self::PURPOSES, true) || $needsUser !== ($user !== null)) {
             throw new ApiException(400, 'validation_error', 'Unsupported sign-in purpose.');
         }
 
@@ -90,7 +107,16 @@ final class OidcService
             'code_challenge' => $this->base64Url(hash('sha256', $verifier, true)),
             'code_challenge_method' => 'S256',
         ];
-        if ($provider->name === 'google') {
+        if ($purpose === 'step_up') {
+            // Ask for a fresh sign-in, not a silent pass on an old provider
+            // session. Google reports auth_time, which complete() then checks;
+            // Twitch has no such claim, so it shows its confirmation screen.
+            if ($provider->name === 'google') {
+                $parameters['max_age'] = '0';
+            } else {
+                $parameters['force_verify'] = 'true';
+            }
+        } elseif ($provider->name === 'google') {
             $parameters['prompt'] = 'select_account';
         }
 
@@ -113,8 +139,8 @@ final class OidcService
         if ($flow === null) {
             throw new ApiException(400, 'oidc_flow_expired', 'This sign-in attempt has expired or was already used. Please start again.');
         }
-        $provider = OidcProvider::require($this->config, (string) $flow['provider']);
-        $returnTo = $flow['purpose'] === 'link' ? '/account.php' : '/';
+        $provider = OidcProvider::require($this->config, $flow['provider']);
+        $returnTo = self::RETURN_TO[$flow['purpose']] ?? '/';
         if (isset($query['error'])) {
             throw new OidcRedirectException($returnTo, sprintf('Signing in with %s was cancelled.', $provider->label));
         }
@@ -124,14 +150,62 @@ final class OidcService
         }
 
         try {
-            $subject = $this->subjectFor($provider, $code, (string) $flow['verifier'], (string) $flow['nonce']);
+            $claims = $this->claimsFor($provider, $code, $flow['verifier'], $flow['nonce']);
         } catch (ApiException $exception) {
             throw new OidcRedirectException($returnTo, $exception->getMessage());
         }
+        $subject = (string) $claims['sub'];
 
-        return $flow['purpose'] === 'link'
-            ? $this->link((int) $flow['user_id'], $provider, $subject, $ipAddress)
-            : $this->signIn($provider, $subject, $ipAddress);
+        return match ($flow['purpose']) {
+            'link' => $this->link((int) $flow['user_id'], $provider, $subject, $ipAddress),
+            'step_up' => $this->stepUp((int) $flow['user_id'], $provider, $claims, $flow['created_at'], $ipAddress),
+            'restore' => $this->restore($provider, $subject, $ipAddress),
+            default => $this->signIn($provider, $subject, $ipAddress),
+        };
+    }
+
+    /**
+     * The provider of a sign-up that is waiting for its username, if any.
+     *
+     * @return ?array{id:string, label:string}
+     */
+    public function pendingSignUp(): ?array
+    {
+        $pending = $this->signUpStash();
+        if ($pending === null) {
+            return null;
+        }
+        $provider = OidcProvider::configured($this->config)[$pending['provider']] ?? null;
+
+        return $provider === null ? null : ['id' => $provider->name, 'label' => $provider->label];
+    }
+
+    /**
+     * Creates the account for a confirmed provider sign-up once its owner has
+     * chosen a username. The caller applies registration protection first and
+     * signs the new account in.
+     */
+    public function completeSignUp(string $username, ?string $birthDate, string $ipAddress): AuthenticatedUser
+    {
+        $pending = $this->signUpStash();
+        if ($pending === null) {
+            throw new ApiException(400, 'oidc_sign_up_expired', 'This sign-up has expired. Please continue with Google or Twitch again.');
+        }
+        $user = (new AuthService($this->pdo, $this->config))->registerWithProvider(
+            $username,
+            $pending['provider'],
+            $pending['subject'],
+            $ipAddress,
+            $birthDate,
+        );
+        unset($_SESSION['oidc_sign_up']);
+
+        return $user;
+    }
+
+    public function cancelSignUp(): void
+    {
+        unset($_SESSION['oidc_sign_up']);
     }
 
     /** @return list<array{provider:string, label:string, linked_at:string, last_used_at:?string}> */
@@ -163,6 +237,13 @@ final class OidcService
 
     public function unlink(AuthenticatedUser $actor, string $providerName, string $ipAddress): void
     {
+        if (!$this->users->hasPassword($actor->id) && count($this->identities($actor->id)) <= 1) {
+            throw new ApiException(
+                409,
+                'last_sign_in_method',
+                'This is your only way to sign in. Set a password or connect another provider first.',
+            );
+        }
         $statement = $this->pdo->prepare('DELETE FROM user_identities WHERE user_id = :user_id AND provider = :provider');
         if ($statement === false) {
             throw new RuntimeException('Unable to prepare identity removal.');
@@ -179,10 +260,7 @@ final class OidcService
         (new RateLimiter($this->pdo, $this->config->rateLimits))->consume('oidc_sign_in', 'ip:' . $ipAddress);
         $userId = $this->userIdFor($provider->name, $subject);
         if ($userId === null) {
-            throw new OidcRedirectException('/', sprintf(
-                'No account here is connected to this %1$s account yet. Sign in with your password, then connect %1$s on your Account page.',
-                $provider->label,
-            ));
+            return $this->offerSignUp($provider, $subject);
         }
         $user = $this->users->findAuthenticatedById($userId);
         if ($user === null) {
@@ -208,6 +286,118 @@ final class OidcService
         SessionManager::login($user);
 
         return '/';
+    }
+
+    /**
+     * A provider account nobody here uses yet: remember it in this session and
+     * let its owner choose a username, if new accounts are being accepted.
+     */
+    private function offerSignUp(OidcProvider $provider, string $subject): string
+    {
+        try {
+            (new LockdownService($this->pdo))->assertOpen();
+        } catch (ApiException $exception) {
+            throw new OidcRedirectException('/', $exception->getMessage());
+        }
+        $settings = $this->pdo->query('SELECT registration_enabled::int FROM system_settings WHERE id = 1');
+        if ($settings === false || (int) $settings->fetchColumn() !== 1) {
+            throw new OidcRedirectException('/', sprintf(
+                'No account here is connected to this %1$s account, and new accounts are not being accepted right now. If you have an account, sign in with your password and connect %1$s on your Account page.',
+                $provider->label,
+            ));
+        }
+        $_SESSION['oidc_sign_up'] = ['provider' => $provider->name, 'subject' => $subject, 'created_at' => time()];
+
+        return '/?sign_up=continue';
+    }
+
+    /**
+     * Confirms a sensitive action for the signed-in account, as a password or
+     * passkey would.
+     *
+     * @param array<string, mixed> $claims
+     */
+    private function stepUp(int $userId, OidcProvider $provider, array $claims, int $startedAt, string $ipAddress): string
+    {
+        $returnTo = self::RETURN_TO['step_up'];
+        $current = SessionManager::currentUser($this->users);
+        if ($current === null || $current->id !== $userId) {
+            throw new OidcRedirectException($returnTo, 'Your session changed while confirming. Please try again.');
+        }
+        try {
+            if ((new MfaRepository($this->pdo))->isEnabled($current->id)) {
+                throw new ApiException(403, 'passkey_step_up_required', 'This account confirms sensitive actions with a passkey or recovery code.');
+            }
+            (new RateLimiter($this->pdo, $this->config->rateLimits))->consume('privileged_step_up', $current->id . '|' . $ipAddress);
+        } catch (ApiException $exception) {
+            throw new OidcRedirectException($returnTo, $exception->getMessage());
+        }
+        $authTime = $claims['auth_time'] ?? null;
+        $fresh = !isset($claims['auth_time'])
+            || (is_int($authTime) && $authTime >= $startedAt - self::AUTH_TIME_SKEW_SECONDS);
+        if ($this->userIdFor($provider->name, (string) $claims['sub']) !== $current->id || !$fresh) {
+            $this->audit->log($current->id, 'auth.privileged_step_up_failed', 'user', (string) $current->id, ['method' => $provider->name], $ipAddress);
+            throw new OidcRedirectException($returnTo, $fresh
+                ? sprintf('That %s account is not the one connected to your account.', $provider->label)
+                : sprintf('%s did not ask you to sign in again. Please try again.', $provider->label));
+        }
+
+        $this->touch($provider->name, (string) $claims['sub']);
+        $this->audit->log(
+            $current->id,
+            'auth.privileged_step_up_succeeded',
+            'user',
+            (string) $current->id,
+            ['method' => $provider->name, 'max_age_seconds' => $this->config->privilegedStepUpMaxAgeSeconds],
+            $ipAddress,
+        );
+        SessionManager::establishPrivilegedStepUp($current, $provider->name);
+
+        return $returnTo . '?confirmed=1';
+    }
+
+    /** Restores a closing account whose owner proved it through a connected provider. */
+    private function restore(OidcProvider $provider, string $subject, string $ipAddress): string
+    {
+        $returnTo = self::RETURN_TO['restore'];
+        $userId = $this->userIdFor($provider->name, $subject);
+        if ($userId === null) {
+            throw new OidcRedirectException($returnTo, sprintf('No account here is connected to this %s account.', $provider->label));
+        }
+        $closure = new AccountClosureService($this->pdo, $this->config);
+        try {
+            $pending = $closure->authenticateRestoreForUser($userId, $ipAddress);
+            $this->touch($provider->name, $subject);
+            // Multi-factor authentication applies exactly as after a password.
+            if ((new MfaService($this->pdo, $this->config))->requiresMfaForLogin($pending)) {
+                SessionManager::beginMfaLogin($pending, $ipAddress, $this->config->mfaPendingLoginTtlSeconds, 'restore');
+                return $returnTo . '?mfa=continue';
+            }
+            $user = $closure->completeRestore($pending->id, $ipAddress);
+            (new AuthService($this->pdo, $this->config))->completeLogin($user, $ipAddress);
+        } catch (ApiException $exception) {
+            throw new OidcRedirectException($returnTo, $exception->getMessage());
+        }
+        SessionManager::login($user);
+
+        return '/';
+    }
+
+    /** @return ?array{provider:string, subject:string} */
+    private function signUpStash(): ?array
+    {
+        $pending = $_SESSION['oidc_sign_up'] ?? null;
+        if (
+            !is_array($pending)
+            || !is_string($pending['provider'] ?? null)
+            || !is_string($pending['subject'] ?? null)
+            || !is_int($pending['created_at'] ?? null)
+            || $pending['created_at'] <= time() - self::SIGN_UP_TTL_SECONDS
+        ) {
+            return null;
+        }
+
+        return ['provider' => $pending['provider'], 'subject' => $pending['subject']];
     }
 
     private function link(int $userId, OidcProvider $provider, string $subject, string $ipAddress): string
@@ -243,7 +433,8 @@ final class OidcService
         return '/account.php?connected=' . rawurlencode($provider->name);
     }
 
-    private function subjectFor(OidcProvider $provider, string $code, string $verifier, string $nonce): string
+    /** @return array<string, mixed> the verified ID-token claims */
+    private function claimsFor(OidcProvider $provider, string $code, string $verifier, string $nonce): array
     {
         $tokens = $this->http->postForm($provider->tokenEndpoint, [
             'grant_type' => 'authorization_code',
@@ -268,7 +459,7 @@ final class OidcService
             $claims = $this->verifier->verify($idToken, $provider, $nonce, $this->signingKeys($provider, true));
         }
 
-        return (string) $claims['sub'];
+        return $claims;
     }
 
     /** @return array<string, mixed> */

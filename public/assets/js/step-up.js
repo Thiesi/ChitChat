@@ -24,22 +24,45 @@ export function verifyCurrentPassword() {
 }
 
 async function chooseMethod() {
-  const response = await apiGet('/api/v1/account/mfa/status.php');
-  return response.mfa?.enabled ? showMfaDialog(response.mfa) : showPasswordDialog();
+  const [response, methods] = await Promise.all([
+    apiGet('/api/v1/account/mfa/status.php'),
+    apiGet('/api/v1/account/identities/list.php').catch(() => null),
+  ]);
+  if (response.mfa?.enabled) return showMfaDialog(response.mfa);
+  // Connected Google or Twitch accounts can confirm too; accounts created
+  // through one of them may have no password at all.
+  const configured = new Set((methods?.providers ?? []).map((provider) => provider.id));
+  const providers = (methods?.identities ?? [])
+    .filter((identity) => configured.has(identity.provider))
+    .map((identity) => ({ id: identity.provider, label: identity.label }));
+  return showPasswordDialog(providers, methods?.has_password !== false);
 }
 
-function showPasswordDialog() {
+function showPasswordDialog(providers = [], hasPassword = true) {
   const elements = ensurePasswordDialog();
   elements.error.textContent = '';
   elements.password.value = '';
+  elements.passwordFields.classList.toggle('hidden', !hasPassword);
+  elements.submit.classList.toggle('hidden', !hasPassword);
+  elements.explanation.textContent = hasPassword
+    ? 'Re-enter your current password. Successful verification permits sensitive actions for a short time in this browser session.'
+    : 'Sign in again with the account you use for ChitChat. Successful verification permits sensitive actions for a short time in this browser session.';
+  elements.providers.replaceChildren(...providers.map((provider) => {
+    const node = button(`Confirm with ${provider.label}`, hasPassword ? 'secondary-button' : 'primary-button');
+    node.dataset.provider = provider.id;
+    return node;
+  }));
   setPasswordBusy(elements, false);
   elements.dialog.showModal();
-  elements.password.focus();
+  (hasPassword ? elements.password : elements.providers.querySelector('button') ?? elements.cancel).focus();
 
   return new Promise((resolve, reject) => {
     let settled = false;
+    let stopWaiting = null;
     const cleanup = () => {
+      stopWaiting?.();
       elements.form.removeEventListener('submit', submit);
+      elements.providers.removeEventListener('click', confirmWithProvider);
       elements.cancel.removeEventListener('click', cancel);
       elements.dialog.removeEventListener('cancel', cancel);
     };
@@ -73,10 +96,75 @@ function showPasswordDialog() {
         setPasswordBusy(elements, false);
       }
     };
+    const confirmWithProvider = async (event) => {
+      const target = event.target.closest('button[data-provider]');
+      if (!target || stopWaiting) return;
+      elements.error.textContent = '';
+      // Open the window inside the click, or pop-up blockers stop it.
+      const popup = window.open('about:blank', 'chitchat-step-up', 'popup,width=520,height=720');
+      if (!popup) {
+        elements.error.textContent = 'Your browser blocked the sign-in window. Allow pop-ups for this site and try again.';
+        return;
+      }
+      setPasswordBusy(elements, true);
+      elements.cancel.disabled = false;
+      try {
+        const { url } = await apiPost('/api/v1/oidc/begin.php', { provider: target.dataset.provider, purpose: 'step_up' });
+        popup.location.href = url;
+        const waiting = waitForProviderConfirmation();
+        stopWaiting = waiting.stop;
+        await waiting.done;
+        finish(resolve);
+      } catch (error) {
+        popup.close();
+        elements.error.textContent = message(error, 'The confirmation did not complete.');
+      } finally {
+        stopWaiting = null;
+        setPasswordBusy(elements, false);
+      }
+    };
     elements.form.addEventListener('submit', submit);
+    elements.providers.addEventListener('click', confirmWithProvider);
     elements.cancel.addEventListener('click', cancel);
     elements.dialog.addEventListener('cancel', cancel);
   });
+}
+
+// Resolves when the provider window reports success, or when the session
+// shows the confirmation (in case the message cannot get through).
+function waitForProviderConfirmation() {
+  let stop = () => {};
+  const done = new Promise((resolve, reject) => {
+    const channel = 'BroadcastChannel' in window ? new BroadcastChannel('chitchat-step-up') : null;
+    let polling = false;
+    const settle = (callback) => {
+      stop();
+      callback();
+    };
+    channel?.addEventListener('message', (event) => {
+      if (event.data?.confirmed) settle(resolve);
+      else if (event.data?.error) settle(() => reject(new Error(event.data.error)));
+    });
+    const poll = window.setInterval(async () => {
+      if (polling) return;
+      polling = true;
+      try {
+        const session = await apiGet('/api/v1/session.php');
+        if (session.security?.privileged_step_up?.active) settle(resolve);
+      } catch {
+        // Keep waiting; the window may still report back.
+      } finally {
+        polling = false;
+      }
+    }, 2_000);
+    const timeout = window.setTimeout(() => settle(() => reject(new Error('The confirmation timed out. Please try again.'))), 600_000);
+    stop = () => {
+      channel?.close();
+      window.clearInterval(poll);
+      window.clearTimeout(timeout);
+    };
+  });
+  return { done, stop: () => stop() };
 }
 
 function showMfaDialog(status) {
@@ -165,7 +253,8 @@ function ensurePasswordDialog() {
   title.id = 'step-up-password-title';
   title.textContent = 'Confirm this sensitive action';
   const explanation = document.createElement('p');
-  explanation.textContent = 'Re-enter your current password. Successful verification permits sensitive actions for a short time in this browser session.';
+  const passwordFields = document.createElement('div');
+  passwordFields.className = 'form-stack';
   const label = document.createElement('label');
   label.htmlFor = 'step-up-password';
   label.textContent = 'Current password';
@@ -173,18 +262,20 @@ function ensurePasswordDialog() {
   password.id = 'step-up-password';
   password.type = 'password';
   password.autocomplete = 'current-password';
-  password.required = true;
   label.append(password);
+  passwordFields.append(label);
+  const providers = document.createElement('div');
+  providers.className = 'step-up-providers';
   const error = alertNode();
   const actions = document.createElement('div');
   actions.className = 'action-row step-up-actions';
   const cancel = button('Cancel', 'secondary-button');
   const submit = button('Verify password', 'primary-button', 'submit');
   actions.append(cancel, submit);
-  form.append(title, explanation, label, error, actions);
+  form.append(title, explanation, passwordFields, providers, error, actions);
   dialog.append(form);
   document.body.append(dialog);
-  passwordDialog = { dialog, form, password, error, cancel, submit };
+  passwordDialog = { dialog, form, explanation, passwordFields, password, providers, error, cancel, submit };
   return passwordDialog;
 }
 
@@ -248,6 +339,7 @@ function setPasswordBusy(elements, busy) {
   elements.password.disabled = busy;
   elements.submit.disabled = busy;
   elements.cancel.disabled = busy;
+  for (const node of elements.providers.querySelectorAll('button')) node.disabled = busy;
 }
 
 function setMfaBusy(elements, busy) {

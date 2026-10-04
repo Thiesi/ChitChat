@@ -39,3 +39,12 @@
 .step-up-actions {
   justify-content: flex-end;
 }
+
+.step-up-providers {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.step-up-providers:empty {
+  display: none;
+}

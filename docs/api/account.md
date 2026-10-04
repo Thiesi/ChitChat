@@ -42,6 +42,26 @@ Both fields are optional and default to `null` (Automatic). Any other value retu
 
 Colour scheme and light/dark mode are per-device choices kept in the browser, not account data.
 
+## Sign-in methods
+
+### `GET /api/v1/account/identities/list.php`
+
+Requires authentication.
+
+```json
+{
+  "providers": [{ "id": "google", "label": "Google" }],
+  "identities": [{ "provider": "google", "label": "Google", "linked_at": "2026-10-04T12:00:00+00:00", "last_used_at": null }],
+  "has_password": true
+}
+```
+
+`providers` lists the providers this installation offers; `has_password` is `false` for an account created through Google or Twitch that has not set a password.
+
+### `POST /api/v1/account/identities/unlink.php`
+
+Requires authentication, CSRF and active privileged step-up. Body `{"provider":"google"}`. Refused with `409 last_sign_in_method` when it would leave an account without a password and without any connected provider. Audited as `account.identity_unlinked`.
+
 ## Personal data export
 
 ### `POST /api/v1/account/export.php`

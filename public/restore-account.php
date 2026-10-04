@@ -38,6 +38,9 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
         </label>
         <button class="primary-button" type="submit">Restore account</button>
       </form>
+      <div id="restore-providers" class="sign-in-providers hidden">
+        <p class="sign-in-divider"><span>or</span></p>
+      </div>
       <p id="restore-account-status" role="status" aria-live="polite"></p>
       <p id="restore-account-error" class="error-text" role="alert"></p>
       <a class="secondary-button" href="/">Back to sign in</a>

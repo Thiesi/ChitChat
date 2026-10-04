@@ -44,7 +44,7 @@ async function fixture(page, signedIn = true) {
       'rooms/pings.php': { pings: [] },
       'users/profile.php': { avatars_available: true, profile: { id: viewer.id, username: viewer.username, member_since: '2026-07-01T10:00:00Z', badge: null, has_avatar: false, avatar_version: null, can_remove_avatar: false } },
       'account/notifications/list.php': { notifications: [], unread_count: 0 },
-      'account/identities/list.php': { providers: signInProviders, identities: [{ provider: 'google', label: 'Google', linked_at: '2026-09-12T18:30:00Z', last_used_at: null }] },
+      'account/identities/list.php': { providers: signInProviders, identities: [{ provider: 'google', label: 'Google', linked_at: '2026-09-12T18:30:00Z', last_used_at: null }], has_password: true },
       'account/mfa/status.php': { mfa: { enabled: false, available: false, credentials: [] } },
       'direct-messages/conversations.php': { conversations: [{ user: peer, unread_count: 0, last_message: { body: 'See you in the living room!', outgoing: false } }] },
       'direct-messages/block-status.php': { relationship: { blocked_by_me: false, messaging_available: true } },
