@@ -6,12 +6,20 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ## [Unreleased]
 
-ChitChat is feature-complete; see [Project status](README.md#project-status-feature-complete) and the [roadmap](docs/roadmap.md) for the maintenance-only policy going forward. Entries only appear here for a discovered bug fix or an accepted new feature request.
+No changes since `v2.2.0`. ChitChat is feature-complete; see [Project status](README.md#project-status-feature-complete) and the [roadmap](docs/roadmap.md) for the maintenance-only policy going forward. Entries only appear here for a discovered bug fix or an accepted new feature request.
+
+## [2.2.0] - 2026-10-04
+
+Maintenance release. Applies one forward-only migration, `0024_application_name.sql`. See the [`v2.2.0` release notes](docs/releases/v2.2.0.md).
 
 ### Added
 
-- Added an **Application name** setting to Operational settings: a Super-Administrator can rename the installation, with `APP_NAME` as the server default. The name is used consistently in page titles and headings, passkey prompts, push notifications, exports, and status output, and several texts that hardcoded "ChitChat" now use it. Migration `0024_application_name.sql` adds the setting.
-- Added a small "Powered by ChitChat!" footer linking to the project repository on every page.
+- Added an **Application name** setting to Operational settings: a Super-Administrator can rename the installation, with `APP_NAME` as the server default. The name is used consistently in page titles and headings, passkey prompts, push notifications, exports, and status output, and several texts that hardcoded "ChitChat" now use it. Migration `0024_application_name.sql` adds the setting (#96).
+- Added a small "Powered by ChitChat!" footer linking to the project repository on every page (#97).
+
+### Maintenance
+
+- Fixed an intermittently failing passkey unit test whose generated key coordinates could be one byte short (#96).
 
 ## [2.1.0] - 2026-10-03
 
