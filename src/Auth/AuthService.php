@@ -3,6 +3,7 @@
 declare(strict_types=1);
 namespace ChitChat\Auth;
 
+use ChitChat\Admin\LockdownService;
 use ChitChat\Audit\AuditLogger;
 use ChitChat\Config;
 use ChitChat\Http\ApiException;
@@ -33,6 +34,7 @@ final class AuthService
         string $ipAddress,
         ?string $birthDate = null,
     ): AuthenticatedUser {
+        (new LockdownService($this->pdo))->assertOpen();
         $username = Username::display($usernameInput);
         $canonical = Username::canonical($usernameInput);
         $normalizedBirthDate = BirthDate::normalize($birthDate);
@@ -214,12 +216,16 @@ SQL);
         if ($user === null) {
             throw new RuntimeException('Authenticated user could not be loaded.');
         }
+        // During maintenance lockdown only Super-Administrators get past the password step.
+        (new LockdownService($this->pdo))->assertSignInAllowed($user);
 
         return $user;
     }
 
     public function completeLogin(AuthenticatedUser $user, string $ipAddress): void
     {
+        // Every sign-in path ends here, including MFA and restoration; lockdown may have begun mid-flow.
+        (new LockdownService($this->pdo))->assertSignInAllowed($user);
         $current = $this->users->findAuthenticatedById($user->id);
         if (
             $current === null

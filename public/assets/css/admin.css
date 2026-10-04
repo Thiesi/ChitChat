@@ -204,6 +204,9 @@
   min-width: 9rem;
 }
 
+.lockdown-card { border-color: color-mix(in srgb, var(--warning) 45%, var(--border)); }
+.lockdown-on { color: var(--warning); font-weight: 700; }
+
 .danger-card { border-color: color-mix(in srgb, var(--danger) 45%, var(--border)); }
 .danger-card .danger-button { justify-self: start; margin-top: 0.5rem; }
 .deleted-rooms { margin-top: 1rem; }

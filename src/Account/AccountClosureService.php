@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace ChitChat\Account;
 
+use ChitChat\Admin\LockdownService;
 use ChitChat\Audit\AuditLogger;
 use ChitChat\Auth\AuthenticatedUser;
 use ChitChat\Auth\PasswordPolicy;
@@ -148,6 +149,7 @@ SQL, 'account-closure state update');
         string $password,
         string $ipAddress,
     ): AuthenticatedUser {
+        (new LockdownService($this->pdo))->assertOpen();
         $canonical = Username::canonical($usernameInput);
         $this->rateLimiter->consume('account_restore', 'username:' . $canonical . '|ip:' . $ipAddress);
         $this->rateLimiter->consume('account_restore_ip', 'ip:' . $ipAddress);

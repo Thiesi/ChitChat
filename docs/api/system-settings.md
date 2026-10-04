@@ -64,6 +64,26 @@ Setting `mfa_required_for_admin_roles` from `false` to `true` additionally requi
 
 Changing settings does not immediately delete data. The operator must run `php bin/maintenance-cleanup`; see `docs/operations/maintenance.md`.
 
+## Maintenance lockdown
+
+```text
+GET  /api/v1/admin/settings/lockdown/get.php
+POST /api/v1/admin/settings/lockdown/update.php
+```
+
+Both require a Super-Administrator; the update also requires active privileged step-up. While lockdown is on:
+
+- nobody can sign in except Super-Administrators, who can always sign in so they can switch it off again. Password sign-in, passkey and recovery-code completion, and account restoration all return `503 maintenance_lockdown` with the configured message;
+- registration is closed (`503 maintenance_lockdown`), and `GET /api/v1/session.php` reports `registration_enabled: false`;
+- `GET /api/v1/session.php` includes `lockdown: {"enabled": true, "message": "…"}` for everyone, signed in or not, so the sign-in page and the chat can show the message;
+- accounts that are already signed in keep working, unless the Super-Administrator chose to sign them out.
+
+```json
+{"enabled": true, "message": "Database upgrade until 22:30.", "sign_out_others": false}
+```
+
+`message` is optional (at most 500 characters; `null` uses a default text). `sign_out_others: true`, only meaningful when switching on, ends every session except Super-Administrators' at once: open tabs get a `forced_logout` event (`action: "maintenance_lockdown"`) showing the message. Switching lockdown on or off sends a `global_broadcast` with a `lockdown` object, so open chat tabs show or hide the banner immediately. Changes are audited as `system.lockdown_enabled` or `system.lockdown_disabled`. The response is the status (`enabled`, `message`, `custom_message`, `since`) plus `signed_out`, the number of accounts signed out.
+
 ## Application name
 
 ```text

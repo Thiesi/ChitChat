@@ -38,6 +38,31 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
     </p>
     <p id="settings-error" class="error-text" role="alert"></p>
 
+    <form id="lockdown-form" class="settings-grid">
+      <section class="admin-card form-stack settings-wide lockdown-card" aria-labelledby="lockdown-heading">
+        <h2 id="lockdown-heading">Maintenance lockdown</h2>
+        <p id="lockdown-state" class="admin-muted" role="status"></p>
+        <p class="admin-muted">
+          While on, nobody can sign in, register, or restore an account, except Super-Administrators, who can always sign in to switch it off again.
+          The message appears on the sign-in page and as a banner for everyone still signed in.
+        </p>
+        <label>Lockdown
+          <select id="lockdown-enabled">
+            <option value="0">Off</option>
+            <option value="1">On</option>
+          </select>
+        </label>
+        <label>Message <span class="optional-label">up to 500 characters; empty uses a default</span>
+          <textarea id="lockdown-message" maxlength="500" rows="2"></textarea>
+        </label>
+        <label id="lockdown-sign-out-label">
+          <input id="lockdown-sign-out" type="checkbox">
+          Also sign out everyone except Super-Administrators now
+        </label>
+        <button id="save-lockdown" class="secondary-button" type="submit">Save lockdown</button>
+      </section>
+    </form>
+
     <form id="settings-form" class="settings-grid">
       <section class="admin-card form-stack">
         <h2>Access</h2>

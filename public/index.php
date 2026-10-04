@@ -44,6 +44,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
         <h1 id="auth-title" class="brand"><?= $appName ?></h1>
         <p class="tagline">Your people. Your place to talk.</p>
 
+        <p id="auth-lockdown" class="lockdown-notice hidden" role="status"><strong>Maintenance.</strong> <span data-lockdown-text></span></p>
         <div class="auth-tabs" role="tablist" aria-label="Account access">
           <button id="login-tab" type="button" role="tab" aria-selected="true" aria-controls="login-form" tabindex="0">Sign in</button>
           <button id="register-tab" type="button" role="tab" aria-selected="false" aria-controls="register-form" tabindex="-1">Register</button>
@@ -91,6 +92,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   </main>
 
   <main id="chat-shell" class="chat-shell hidden">
+    <p id="chat-lockdown" class="lockdown-notice lockdown-banner hidden" role="status"><strong>Maintenance lockdown.</strong> <span data-lockdown-text></span> New sign-ins are paused; you can keep chatting.</p>
     <aside id="sidebar" class="sidebar" aria-label="Rooms and conversations">
       <header class="sidebar-header">
         <div class="brand-row">
