@@ -25,6 +25,11 @@ window.addEventListener('DOMContentLoaded', () => {
     'save-settings',
     'toast-region',
     'application-name-form',
+    'lockdown-form',
+    'lockdown-state',
+    'lockdown-enabled',
+    'lockdown-message',
+    'lockdown-sign-out',
     'app-name',
     'app-name-default',
     'registration-protection-form',
@@ -46,6 +51,8 @@ window.addEventListener('DOMContentLoaded', () => {
   elements['settings-form'].addEventListener('submit', saveSettings);
   elements['registration-protection-form'].addEventListener('submit', saveRegistrationProtection);
   elements['application-name-form'].addEventListener('submit', saveApplicationName);
+  elements['lockdown-form'].addEventListener('submit', saveLockdown);
+  elements['lockdown-enabled'].addEventListener('change', syncLockdownForm);
   bootstrap().catch(handleFatal);
 });
 
@@ -61,6 +68,8 @@ async function bootstrap() {
   elements['settings-identity'].textContent = `Signed in as ${session.user.username}`;
   const response = await apiGet('/api/v1/admin/settings/get.php');
   renderSettings(response.settings);
+  const lockdown = await apiGet('/api/v1/admin/settings/lockdown/get.php');
+  renderLockdown(lockdown.lockdown);
   const name = await apiGet('/api/v1/admin/settings/application-name/get.php');
   renderApplicationName(name.application_name);
   const protection = await apiGet('/api/v1/admin/settings/registration-protection/get.php');
@@ -138,6 +147,52 @@ function renderApplicationName(name) {
   elements['app-name'].value = name.override ?? '';
   elements['app-name'].placeholder = name.default;
   elements['app-name-default'].textContent = `server default ${name.default}`;
+}
+
+function renderLockdown(lockdown) {
+  elements['lockdown-enabled'].value = lockdown.enabled ? '1' : '0';
+  elements['lockdown-message'].value = lockdown.custom_message ?? '';
+  elements['lockdown-message'].placeholder = 'Sign-ins are paused for maintenance. Please try again later.';
+  elements['lockdown-sign-out'].checked = false;
+  elements['lockdown-state'].textContent = lockdown.enabled
+    ? `Lockdown is ON${lockdown.since ? ` since ${formatDateTime(lockdown.since)}` : ''}.`
+    : 'Lockdown is off. Everyone can sign in.';
+  elements['lockdown-state'].classList.toggle('lockdown-on', lockdown.enabled);
+  syncLockdownForm();
+}
+
+// Signing others out only makes sense when switching lockdown on.
+function syncLockdownForm() {
+  const on = elements['lockdown-enabled'].value === '1';
+  elements['lockdown-sign-out'].disabled = !on;
+  if (!on) elements['lockdown-sign-out'].checked = false;
+}
+
+async function saveLockdown(event) {
+  event.preventDefault();
+  elements['settings-error'].textContent = '';
+  const enabled = elements['lockdown-enabled'].value === '1';
+  const signOut = elements['lockdown-sign-out'].checked;
+  if (signOut && !window.confirm('Sign out everyone except Super-Administrators now? They see your message and cannot sign in again until lockdown ends.')) {
+    return;
+  }
+  const message = elements['lockdown-message'].value.trim();
+
+  setFormBusy(elements['lockdown-form'], true);
+  try {
+    const response = await apiPost('/api/v1/admin/settings/lockdown/update.php', {
+      enabled,
+      message: message === '' ? null : message,
+      sign_out_others: signOut,
+    });
+    renderLockdown(response.lockdown);
+    const signedOut = response.lockdown.signed_out > 0 ? ` ${response.lockdown.signed_out} accounts were signed out.` : '';
+    toast(enabled ? `Lockdown is on.${signedOut}` : 'Lockdown is off. Everyone can sign in again.');
+  } catch (error) {
+    elements['settings-error'].textContent = errorMessage(error);
+  } finally {
+    setFormBusy(elements['lockdown-form'], false);
+  }
 }
 
 async function saveApplicationName(event) {

@@ -134,6 +134,7 @@ function bindEvents() {
 async function bootstrap() {
   const session = await apiGet('/api/v1/session.php');
   setCsrfToken(session.csrf_token);
+  renderLockdown(session.lockdown);
   elements['app-loading'].classList.add('hidden');
 
   if (session.user) {
@@ -977,6 +978,7 @@ function startEventStream() {
   source.addEventListener('global_broadcast', (event) => {
     const envelope = parseEvent(event);
     const payload = envelope?.payload;
+    if (payload?.lockdown) renderLockdown(payload.lockdown);
     if (payload) {
       toast(`Broadcast: ${payload.message}`);
     }
@@ -1200,8 +1202,22 @@ function forceSignedOut(message) {
     toast(message, 'error');
   }
   apiGet('/api/v1/session.php')
-    .then((session) => setCsrfToken(session.csrf_token))
+    .then((session) => {
+      setCsrfToken(session.csrf_token);
+      renderLockdown(session.lockdown);
+    })
     .catch(() => setCsrfToken(''));
+}
+
+// During a maintenance lockdown both the sign-in card and the chat say so.
+function renderLockdown(lockdown) {
+  const on = Boolean(lockdown?.enabled);
+  for (const notice of [document.getElementById('auth-lockdown'), document.getElementById('chat-lockdown')]) {
+    if (!notice) continue;
+    notice.classList.toggle('hidden', !on);
+    const text = notice.querySelector('[data-lockdown-text]');
+    if (text) text.textContent = on ? (lockdown.message ?? '') : '';
+  }
 }
 
 function handleFatalError(error) {

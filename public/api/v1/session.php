@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use ChitChat\Account\DisplayPreferenceService;
+use ChitChat\Admin\LockdownService;
 use ChitChat\Auth\SessionManager;
 use ChitChat\Auth\UserRepository;
 use ChitChat\Database;
@@ -37,7 +38,12 @@ SQL);
         'user' => $user?->toSessionArray(),
         // Date and time display; null while signed out (the client then follows the browser).
         'preferences' => $user === null ? null : (new DisplayPreferenceService($pdo))->get($user->id),
-        'registration_enabled' => (int) $policy['registration_enabled'] === 1,
+        // Lockdown also closes registration, so the sign-in page hides the Register tab.
+        'registration_enabled' => (int) $policy['registration_enabled'] === 1 && !(new LockdownService($pdo))->status()['enabled'],
+        // Public, so the sign-in page can explain a maintenance lockdown.
+        'lockdown' => (static function (array $status): array {
+            return ['enabled' => $status['enabled'], 'message' => $status['enabled'] ? $status['message'] : null];
+        })((new LockdownService($pdo))->status()),
         'web_push' => [
             'enabled' => $config->webPushEnabled(),
             'vapid_public_key' => $config->webPushEnabled() ? $config->webPushVapidPublicKey : null,
