@@ -97,6 +97,19 @@ select:focus {
   margin: 0;
 }
 
+/* The message a moderator is about to act on, quoted in the dialog. */
+.moderation-dialog h2 { margin: 0; }
+.moderation-quote {
+  margin: 0;
+  padding: 0.55rem 0.8rem;
+  border-left: 3px solid var(--accent);
+  border-radius: 0 0.5rem 0.5rem 0;
+  background: var(--surface-2);
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.moderation-quote strong { color: var(--text); }
+
 code {
   border-radius: 0.25rem;
   background: var(--surface-2);

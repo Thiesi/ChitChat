@@ -216,12 +216,13 @@ Messages may contain up to 4000 characters. `/me waves` creates an `emote` messa
 
 ### `POST /api/v1/rooms/delete-message.php`
 
-Requires a room owner, room moderator, or global room moderation role.
+Requires a room owner, room moderator, or global room moderation role, and a higher moderation rank than the message's author (member < room moderator < room owner < Chat Admin or Global Moderator < Administrator < Super-Administrator; Super-Administrators act on everyone but themselves). Otherwise `403 forbidden`.
 
 ```json
 {
-  "message_id": 1234
+  "message_id": 1234,
+  "reason": "Spam"
 }
 ```
 
-Deletion is soft and is recorded in the audit log.
+`reason` is optional (at most 500 characters) and is kept in the audit log only. Deletion is soft and is recorded in the audit log; the author gets a `moderator_message_deleted` notification. The `rooms/message-mutations.php` metadata reports `can_moderate` for each message the viewer may delete this way.

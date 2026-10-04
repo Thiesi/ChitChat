@@ -212,7 +212,7 @@ Protected actions currently include:
 - administrator password reset;
 - registration and retention-policy updates.
 
-Ordinary room moderation, kicks, bans, unbans, invitation management, and read-only system status do not require step-up in this milestone.
+Ordinary room moderation, kicks, bans, unbans, invitation management, and read-only system status do not require step-up. They are reversible and audited, and moderators use them directly from the chat.
 
 ## Administrative account controls
 

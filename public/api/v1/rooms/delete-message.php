@@ -19,10 +19,12 @@ Endpoint::run($config, static function () use ($config): ApiResult {
     $payload = Request::json();
     $pdo = Database::connect($config);
     $actor = SessionManager::requireUser(new UserRepository($pdo));
+    $reason = $payload['reason'] ?? '';
     (new MessageService($pdo))->delete(
         $actor,
         Request::integer($payload, 'message_id'),
         Request::clientIp(),
+        is_string($reason) ? $reason : '',
     );
 
     return ApiResult::ok(['status' => 'deleted']);

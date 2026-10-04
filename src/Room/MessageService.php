@@ -260,23 +260,33 @@ SQL);
         AuthenticatedUser $actor,
         int $messageId,
         string $ipAddress,
+        string $reason = '',
     ): void {
         if ($messageId < 1) {
             throw new ApiException(400, 'validation_error', 'message_id must be positive.');
         }
+        $reason = trim($reason);
+        if (mb_strlen($reason, 'UTF-8') > 500) {
+            throw new ApiException(400, 'validation_error', 'The reason must not exceed 500 characters.');
+        }
 
-        $statement = $this->pdo->prepare('SELECT room_id FROM room_messages WHERE id = :id');
+        $statement = $this->pdo->prepare('SELECT room_id, sender_id FROM room_messages WHERE id = :id');
         if ($statement === false) {
             throw new RuntimeException('Unable to prepare message lookup.');
         }
         $statement->execute(['id' => $messageId]);
-        $roomIdValue = $statement->fetchColumn();
-        if ($roomIdValue === false) {
+        $found = $statement->fetch();
+        if (!is_array($found)) {
             throw new ApiException(404, 'message_not_found', 'Message not found.');
         }
-        $roomId = (int) $roomIdValue;
+        $roomId = (int) $found['room_id'];
         $room = $this->requireRoom($actor, $roomId);
         RoomAuthorization::requireModerate($actor, $room);
+        // A room moderator cannot remove the owner's or global staff's words, and so on up.
+        $senderId = $found['sender_id'] === null ? null : (int) $found['sender_id'];
+        if ($senderId !== null && $senderId !== $actor->id && !(new ModerationRank($this->pdo))->inRoom($actor, $room, $senderId)) {
+            throw new ApiException(403, 'forbidden', 'You cannot delete messages from someone with the same or a higher moderation rank.');
+        }
 
         $this->pdo->beginTransaction();
         try {
@@ -311,7 +321,7 @@ SQL);
                 'room.message_deleted',
                 'room_message',
                 (string) $messageId,
-                ['room_id' => $roomId],
+                $reason === '' ? ['room_id' => $roomId] : ['room_id' => $roomId, 'reason' => $reason],
                 $ipAddress,
             );
             $this->events->publish(
