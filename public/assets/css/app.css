@@ -1696,6 +1696,45 @@ button.user-name.mention { padding: 0 0.2rem; border-radius: 0.25rem; background
   background: var(--option-active-bg);
 }
 
+/* The "/" command list and the /help dialog. */
+.command-option {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.2rem 0.75rem;
+}
+.command-option span { color: var(--muted); font-size: 0.85rem; }
+.command-option.active span { color: inherit; }
+/* Six commands at most, so the list grows to fit instead of scrolling. */
+.command-suggestions { max-height: none; overflow-y: visible; }
+.command-help {
+  width: min(34rem, calc(100vw - 2rem));
+  max-height: calc(100vh - 2rem);
+  padding: 1.25rem;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 0.9rem;
+  background: var(--surface);
+  color: inherit;
+  box-shadow: var(--shadow);
+}
+.command-help::backdrop { background: rgb(0 0 0 / 60%); }
+.command-help h2,
+.command-help h3 { margin: 0 0 0.75rem; }
+.command-help h3 { margin-top: 1.25rem; font-size: 1rem; }
+.command-help-list {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 0.5rem 1rem;
+  margin: 0;
+}
+.command-help-list dd { margin: 0; color: var(--muted); }
+.command-help-note { margin: 1.25rem 0; color: var(--muted); font-size: 0.9rem; }
+@media (max-width: 30rem) {
+  .command-help-list { grid-template-columns: minmax(0, 1fr); gap: 0.2rem; }
+  .command-help-list dd { margin-bottom: 0.5rem; }
+}
+
 .composer-wrap {
   position: relative;
   min-width: 0;

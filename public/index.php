@@ -245,7 +245,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
             <button id="attachment-clear" class="secondary-button hidden" type="button">Remove</button>
           </div>
         </form>
-        <p class="composer-help">Enter sends · Shift+Enter adds a line · Attachments may include an optional caption · Commands: <code>/me</code>, <code>/ping username</code></p>
+        <p class="composer-help">Enter sends · Shift+Enter adds a line · Attachments may include an optional caption · Type <code>/</code> for commands, <code>/help</code> for formatting</p>
       </div>
     </section>
 

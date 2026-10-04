@@ -7,6 +7,7 @@ import { createRegistrationChallenge } from './registration-challenge.js';
 import { attachPhoto, avatarTone, initials } from './avatar.js';
 import { nameButton } from './name-menu.js';
 import { attachNameCompletion } from './name-completion.js';
+import { COMMANDS, SHRUG, attachCommandSuggestions, parseSlashCommand, showCommandHelp, splitTarget } from './slash-commands.js';
 import { alertUser } from './attention.js';
 import { formatDateTime } from './datetime.js';
 
@@ -33,6 +34,7 @@ const state = {
 const elements = {};
 let presence = null;
 let mentionAutocomplete = null;
+let commandSuggestions = null;
 
 window.addEventListener('DOMContentLoaded', () => {
   bindElements();
@@ -127,11 +129,13 @@ function bindEvents() {
   elements['composer-form'].addEventListener('submit', submitMessage);
   elements['composer-input'].addEventListener('keydown', (event) => {
     if (event.key === 'Enter' && !event.shiftKey) {
-      if (mentionAutocomplete?.isOpen()) return;
+      if (mentionAutocomplete?.isOpen() || commandSuggestions?.isOpen()) return;
       event.preventDefault();
       elements['composer-form'].requestSubmit();
     }
   });
+  // Before name completion, so Tab picks a command rather than a name.
+  commandSuggestions = attachCommandSuggestions(elements['composer-input'], availableCommands);
   mentionAutocomplete = attachMentionAutocomplete(elements['composer-input'], searchRoomMentions);
   attachNameCompletion(elements['composer-input'], completionCandidates);
   attachEmojiPicker(elements['emoji-button'], elements['composer-input']);
@@ -957,12 +961,28 @@ function focusReplyTarget(replyTo) {
   target.scrollIntoView({ block: 'center', behavior: 'auto' });
 }
 
+function availableCommands() {
+  const room = state.currentRoom;
+  const manages = Boolean(room) && (room.member_role === 'owner' || canCreateRooms(state.user));
+  return COMMANDS.filter((command) => !command.manage || manages);
+}
+
 async function submitMessage(event) {
   event.preventDefault();
   const room = state.currentRoom;
-  const body = elements['composer-input'].value.trim();
+  let body = elements['composer-input'].value.trim();
   if (!room || !body) {
     return;
+  }
+
+  // /me and /ping go to the server as they are; the others run here.
+  const command = parseSlashCommand(body);
+  if (command && !['me', 'ping'].includes(command.name)) {
+    if (command.name !== 'shrug') {
+      await runCommand(command, room);
+      return;
+    }
+    body = command.args === '' ? SHRUG : `${command.args} ${SHRUG}`;
   }
 
   elements['send-button'].disabled = true;
@@ -984,6 +1004,78 @@ async function submitMessage(event) {
   } finally {
     elements['send-button'].disabled = false;
     elements['composer-input'].focus();
+  }
+}
+
+async function runCommand(command, room) {
+  const input = elements['composer-input'];
+  const done = () => {
+    input.value = '';
+    input.focus();
+  };
+  if (command.name === 'help') {
+    done();
+    showCommandHelp(availableCommands());
+    return;
+  }
+  if (command.name === 'topic' && availableCommands().some((known) => known.name === 'topic')) {
+    if (command.args === '') {
+      toast('Write the new info line after /topic.', 'error');
+      return;
+    }
+    await withButtonBusy(async () => {
+      const response = await apiPost('/api/v1/rooms/update.php', {
+        room_id: room.id,
+        name: room.name,
+        info_line: command.args,
+        visibility: room.visibility,
+        minimum_age: room.minimum_age,
+        inactivity_timeout_seconds: room.inactivity_timeout_seconds,
+      });
+      if (response.room && state.currentRoom?.id === room.id) {
+        Object.assign(state.currentRoom, { info_line: response.room.info_line });
+        renderRoomHeader();
+      }
+      toast('The room’s info line is updated.');
+      done();
+    });
+    return;
+  }
+  if (command.name === 'dm') {
+    const target = splitTarget(command.args);
+    if (!target) {
+      toast('Write a name after /dm, and optionally a message.', 'error');
+      return;
+    }
+    await withButtonBusy(async () => {
+      const search = new URLSearchParams({ search: target.name, limit: '10' });
+      const { users } = await apiGet(`/api/v1/direct-messages/users.php?${search.toString()}`);
+      const user = (users ?? []).find((candidate) => candidate.username.toLowerCase() === target.name.toLowerCase());
+      if (!user) {
+        toast(`Nobody here is called ${target.name}.`, 'error');
+        return;
+      }
+      if (target.message === '') {
+        window.location.assign(`/messages.php?with=${encodeURIComponent(user.id)}`);
+        return;
+      }
+      await apiPost('/api/v1/direct-messages/send.php', { recipient_user_id: user.id, body: target.message });
+      toast(`Direct message sent to ${user.username}.`);
+      done();
+    });
+    return;
+  }
+  toast(`/${command.name} is not a command here. Type /help to see what is.`, 'error');
+}
+
+async function withButtonBusy(work) {
+  elements['send-button'].disabled = true;
+  try {
+    await work();
+  } catch (error) {
+    handleApiFailure(error);
+  } finally {
+    elements['send-button'].disabled = false;
   }
 }
 

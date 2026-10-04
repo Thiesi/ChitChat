@@ -6,7 +6,8 @@
  * Blocks: ``` fenced code blocks ``` and "> " quoted lines; everything else
  * is text. Inline: `code`, *bold* (also **bold**), _italic_ and http(s)
  * links. Markers only count when they hug a word (`*so*`, not `2 * 3 * 4`
- * or snake_case_names), so ordinary text stays as typed.
+ * or snake_case_names), and not right after a backslash, so ordinary text
+ * stays as typed.
  */
 
 const URL_PATTERN = /https?:\/\/[^\s<>"'`]+/iuy;
@@ -109,6 +110,8 @@ export function safeLinkTarget(candidate) {
 
 function readToken(text, index) {
   const character = text[index];
+  // A marker right after a backslash is meant literally, as in ¯\_(ツ)_/¯.
+  if (index > 0 && text[index - 1] === '\\' && '*_`'.includes(character)) return null;
   if (character === '`') return readCode(text, index);
   if (character === 'h' || character === 'H') return readLink(text, index);
   // A mention is one word, even with underscores or dots inside, so it is
