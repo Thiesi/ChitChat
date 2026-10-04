@@ -71,7 +71,7 @@ Running the sweep from multiple hosts is safe — each row is claimed by whichev
 
 ## Notification categories and preferences
 
-Five notification kinds exist; only `mentioned` can be muted per account, via `POST /api/v1/push/update-preferences.php`. `revision_review`, `moderator_message_deleted`, `admin_password_reset`, and `system_policy_changed` are security/audit notices and always push when Web Push is configured and the account is outside quiet hours — the same way they are already non-optional in the in-app timeline. An account can still stop receiving any push by removing every subscribed browser.
+Six notification kinds exist; only `mentioned` and `pinged` can be muted per account, via `POST /api/v1/push/update-preferences.php`. `revision_review`, `moderator_message_deleted`, `admin_password_reset`, and `system_policy_changed` are security/audit notices and always push when Web Push is configured and the account is outside quiet hours — the same way they are already non-optional in the in-app timeline. An account can still stop receiving any push by removing every subscribed browser.
 
 Quiet hours are a per-account local-time window (`push_quiet_hours_start`, `push_quiet_hours_end`, an hour 0-23 each, plus `push_quiet_hours_timezone`, an IANA identifier) that suppresses every category, mutable or not, uniformly. All three or none may be set. A notification skipped for quiet hours is marked attempted like any other — it is not queued for redelivery once the window ends; the in-app timeline is where a participant catches up on anything push missed.
 

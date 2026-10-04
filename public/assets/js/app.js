@@ -20,6 +20,7 @@ const state = {
   eventSource: null,
   replyTo: null,
   roomMembers: [],
+  pings: [],
 };
 
 const elements = {};
@@ -377,6 +378,7 @@ function renderRoomList() {
 async function selectRoom(room) {
   state.currentRoom = room;
   state.roomMembers = [];
+  state.pings = [];
   delete elements['message-list'].dataset.highlightMessageId;
   state.messages = [];
   state.messageIds = new Set();
@@ -394,6 +396,85 @@ async function selectRoom(room) {
 
   await loadMessages({ replace: true });
   void loadRoomMembers(room);
+  void loadPings(room);
+}
+
+// Pings this account sent or received here are shown as private notices in the timeline.
+async function loadPings(room) {
+  try {
+    const response = await apiGet(`/api/v1/rooms/pings.php?room_id=${encodeURIComponent(room.id)}`);
+    if (state.currentRoom?.id !== room.id) return;
+    state.pings = Array.isArray(response.pings) ? response.pings : [];
+    renderMessages({ scrollToEnd: isScrolledToEnd() });
+  } catch {
+    // The conversation stays usable without its ping notices.
+  }
+}
+
+function addPing(ping) {
+  if (!ping || ping.room_id !== state.currentRoom?.id || state.pings.some((known) => known.id === ping.id)) return;
+  state.pings.push(ping);
+  renderMessages({ scrollToEnd: true });
+}
+
+function isScrolledToEnd() {
+  const list = elements['message-list'];
+  return list.scrollHeight - list.scrollTop - list.clientHeight < 80;
+}
+
+/** Messages and visible pings in time order. Pings older than the loaded history stay hidden until it loads. */
+function timeline() {
+  const oldest = state.messages[0] ? Date.parse(state.messages[0].created_at) : null;
+  const complete = elements['load-older-button'].classList.contains('hidden');
+  const pings = state.pings.filter((ping) => complete || oldest === null || Date.parse(ping.created_at) >= oldest);
+  return [
+    ...state.messages.map((message) => ({ kind: 'message', at: Date.parse(message.created_at), item: message })),
+    ...pings.map((ping) => ({ kind: 'ping', at: Date.parse(ping.created_at), item: ping })),
+  ].sort((left, right) => (left.at - right.at) || (left.kind === 'message' ? -1 : 1));
+}
+
+function buildPingElement(ping) {
+  const article = document.createElement('article');
+  article.className = 'message ping-notice';
+  article.dataset.pingId = String(ping.id);
+  article.classList.toggle(
+    'search-result-target',
+    elements['message-list'].dataset.highlightPingId === article.dataset.pingId,
+  );
+
+  const icon = document.createElement('span');
+  icon.className = 'message-avatar ping-icon';
+  icon.setAttribute('aria-hidden', 'true');
+  icon.textContent = '🔔';
+
+  const body = document.createElement('p');
+  body.className = 'message-body';
+  if (ping.sender.id === state.user?.id) {
+    body.append('You pinged ', nameButton(ping.target));
+  } else {
+    body.append(nameButton(ping.sender), ' pinged you');
+  }
+  if (ping.message) {
+    body.append(': ');
+    const text = document.createElement('span');
+    text.className = 'ping-text';
+    text.textContent = ping.message;
+    body.append(text);
+  }
+
+  const time = document.createElement('time');
+  time.className = 'message-time';
+  time.dateTime = ping.created_at;
+  time.textContent = formatDateTime(ping.created_at);
+  const meta = document.createElement('div');
+  meta.className = 'message-header';
+  const label = document.createElement('span');
+  label.className = 'ping-label';
+  label.textContent = 'Ping · only you two see this';
+  meta.append(label, time);
+
+  article.append(icon, meta, body);
+  return article;
 }
 
 // Tab completion needs names synchronously, so the room's members are
@@ -557,7 +638,8 @@ function renderMessages({ scrollToEnd = false, prepended = false } = {}) {
   const previousHeight = list.scrollHeight;
   list.replaceChildren();
 
-  if (state.messages.length === 0) {
+  const entries = timeline();
+  if (entries.length === 0) {
     showEmptyState(state.currentRoom ? 'No messages yet.' : 'Choose a room to begin.');
     return;
   }
@@ -567,8 +649,8 @@ function renderMessages({ scrollToEnd = false, prepended = false } = {}) {
     list.append(elements['load-older-button']);
   }
 
-  for (const message of state.messages) {
-    list.append(buildMessageElement(message));
+  for (const entry of entries) {
+    list.append(entry.kind === 'ping' ? buildPingElement(entry.item) : buildMessageElement(entry.item));
   }
 
   if (scrollToEnd) {
@@ -761,7 +843,7 @@ async function submitMessage(event) {
     if (response.message) {
       appendMessage(response.message, true);
     } else if (response.ping) {
-      toast('Ping sent.');
+      addPing(response.ping);
     }
   } catch (error) {
     handleApiFailure(error);
@@ -829,14 +911,20 @@ function startEventStream() {
   });
 
   source.addEventListener('ping', (event) => {
-    const envelope = parseEvent(event);
-    const payload = envelope?.payload;
-    if (!payload) {
+    const ping = parseEvent(event)?.payload?.ping;
+    if (!ping) {
       return;
     }
-    const sender = payload.sender?.username ?? 'Someone';
-    const message = payload.message ? `: ${payload.message}` : '';
-    toast(`${sender} pinged you${message}`);
+    addPing(ping);
+    if (ping.target?.id === state.user?.id) {
+      window.dispatchEvent(new CustomEvent('chitchat:notifications-changed'));
+      // In the open room the notice is in the timeline; elsewhere, say where it came from.
+      if (ping.room_id !== state.currentRoom?.id) {
+        const room = state.rooms.find((candidate) => candidate.id === ping.room_id);
+        const where = room ? ` in #${room.name}` : '';
+        toast(`${ping.sender.username} pinged you${where}${ping.message ? `: ${ping.message}` : ''}`);
+      }
+    }
   });
 
   source.addEventListener('room_broadcast', (event) => {

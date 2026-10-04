@@ -54,6 +54,10 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
             <input id="push-mentioned-enabled" type="checkbox">
             Notify me when I'm mentioned (@username, @room, or @here)
           </label>
+          <label>
+            <input id="push-pinged-enabled" type="checkbox">
+            Notify me when someone pings me (/ping)
+          </label>
 
           <h3>Quiet hours</h3>
           <p class="account-muted">Push is suppressed during this local time window; the in-app timeline is unaffected.</p>

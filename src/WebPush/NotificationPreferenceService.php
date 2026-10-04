@@ -18,22 +18,26 @@ final class NotificationPreferenceService
     /**
      * @return array{
      *   mentioned_push_enabled:bool,
+     *   pinged_push_enabled:bool,
      *   quiet_hours:?array{start:int, end:int, timezone:string}
      * }
      */
     public function get(int $userId): array
     {
         $preferenceStatement = $this->pdo->prepare(
-            "SELECT push_enabled FROM notification_preferences WHERE user_id = :user_id AND category = 'mentioned'",
+            'SELECT category, push_enabled FROM notification_preferences WHERE user_id = :user_id',
         );
         if ($preferenceStatement === false) {
             throw new RuntimeException('Unable to prepare notification preference lookup.');
         }
         $preferenceStatement->execute(['user_id' => $userId]);
-        $preferenceRow = $preferenceStatement->fetch();
-        $mentionedPushEnabled = is_array($preferenceRow)
-            ? $this->databaseBoolean($preferenceRow['push_enabled'])
-            : true;
+        // An absent row means the category is enabled; only an explicit mute row suppresses it.
+        $enabled = ['mentioned' => true, 'pinged' => true];
+        foreach ($preferenceStatement->fetchAll() as $preferenceRow) {
+            if (is_array($preferenceRow) && array_key_exists((string) $preferenceRow['category'], $enabled)) {
+                $enabled[(string) $preferenceRow['category']] = $this->databaseBoolean($preferenceRow['push_enabled']);
+            }
+        }
 
         $quietHoursStatement = $this->pdo->prepare(<<<'SQL'
 SELECT push_quiet_hours_start, push_quiet_hours_end, push_quiet_hours_timezone
@@ -60,22 +64,34 @@ SQL);
         }
 
         return [
-            'mentioned_push_enabled' => $mentionedPushEnabled,
+            'mentioned_push_enabled' => $enabled['mentioned'],
+            'pinged_push_enabled' => $enabled['pinged'],
             'quiet_hours' => $quietHours,
         ];
     }
 
     public function setMentionedPushEnabled(int $userId, bool $enabled): void
     {
+        $this->setPushEnabled($userId, 'mentioned', $enabled);
+    }
+
+    public function setPingedPushEnabled(int $userId, bool $enabled): void
+    {
+        $this->setPushEnabled($userId, 'pinged', $enabled);
+    }
+
+    private function setPushEnabled(int $userId, string $category, bool $enabled): void
+    {
         $statement = $this->pdo->prepare(<<<'SQL'
 INSERT INTO notification_preferences (user_id, category, push_enabled)
-VALUES (:user_id, 'mentioned', :enabled)
+VALUES (:user_id, :category, :enabled)
 ON CONFLICT (user_id, category) DO UPDATE SET push_enabled = EXCLUDED.push_enabled
 SQL);
         if ($statement === false) {
             throw new RuntimeException('Unable to prepare notification preference update.');
         }
         $statement->bindValue(':user_id', $userId, PDO::PARAM_INT);
+        $statement->bindValue(':category', $category);
         $statement->bindValue(':enabled', $enabled, PDO::PARAM_BOOL);
         $statement->execute();
     }

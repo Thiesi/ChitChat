@@ -64,6 +64,7 @@ Example response:
 {
   "preferences": {
     "mentioned_push_enabled": true,
+    "pinged_push_enabled": true,
     "quiet_hours": {"start": 22, "end": 7, "timezone": "Europe/Berlin"}
   },
   "devices": [
@@ -81,13 +82,14 @@ Example response:
 
 ## `POST /api/v1/push/update-preferences.php`
 
-Updates the mute preference for `mentioned` and the account's quiet-hours window in one call. This is the only mutable preference: `revision_review`, `moderator_message_deleted`, `admin_password_reset`, and `system_policy_changed` remain non-optional short of removing every subscription, matching how those four kinds are already non-optional in the in-app timeline.
+Updates the mute preferences for `mentioned` and `pinged` and the account's quiet-hours window in one call. These are the only mutable preferences: `revision_review`, `moderator_message_deleted`, `admin_password_reset`, and `system_policy_changed` remain non-optional short of removing every subscription, matching how those four kinds are already non-optional in the in-app timeline.
 
 Request body:
 
 ```json
 {
   "mentioned_push_enabled": false,
+  "pinged_push_enabled": true,
   "quiet_hours_start": 22,
   "quiet_hours_end": 7,
   "quiet_hours_timezone": "Europe/Berlin"
@@ -97,6 +99,7 @@ Request body:
 Fields:
 
 - `mentioned_push_enabled`: required boolean;
+- `pinged_push_enabled`: optional boolean; when omitted, the ping preference is left unchanged;
 - `quiet_hours_start`, `quiet_hours_end`: optional integers, 0-23, an hour of the day in the account's configured time zone;
 - `quiet_hours_timezone`: optional, a valid IANA time zone identifier.
 
@@ -108,6 +111,7 @@ Response is the updated preferences object, in the same shape as the `preference
 {
   "preferences": {
     "mentioned_push_enabled": false,
+    "pinged_push_enabled": true,
     "quiet_hours": {"start": 22, "end": 7, "timezone": "Europe/Berlin"}
   }
 }

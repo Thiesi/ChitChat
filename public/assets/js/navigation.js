@@ -52,6 +52,7 @@ window.addEventListener('DOMContentLoaded', () => {
   });
 
   window.addEventListener('chitchat:room-chosen', () => setDrawerOpen(false));
+  window.addEventListener('chitchat:notifications-changed', () => void refreshBadge());
   window.addEventListener('chitchat:realtime', (event) => {
     if (event.detail?.type === 'direct_message') scheduleConversationRefresh();
   });

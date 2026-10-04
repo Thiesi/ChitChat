@@ -7,6 +7,7 @@ const elements = {
   settings: document.querySelector('#push-settings'),
   preferencesForm: document.querySelector('#push-preferences-form'),
   mentionedEnabled: document.querySelector('#push-mentioned-enabled'),
+  pingedEnabled: document.querySelector('#push-pinged-enabled'),
   quietStart: document.querySelector('#push-quiet-start'),
   quietEnd: document.querySelector('#push-quiet-end'),
   quietTimezone: document.querySelector('#push-quiet-timezone'),
@@ -121,6 +122,7 @@ async function loadPreferencesAndDevices() {
     const payload = await apiGet('/api/v1/push/preferences.php');
     const preferences = payload.preferences ?? {};
     elements.mentionedEnabled.checked = preferences.mentioned_push_enabled !== false;
+    elements.pingedEnabled.checked = preferences.pinged_push_enabled !== false;
 
     const quietHours = preferences.quiet_hours ?? null;
     elements.quietStart.value = quietHours ? String(quietHours.start) : '';
@@ -189,6 +191,7 @@ async function savePreferences(event) {
   try {
     await apiPost('/api/v1/push/update-preferences.php', {
       mentioned_push_enabled: elements.mentionedEnabled.checked,
+      pinged_push_enabled: elements.pingedEnabled.checked,
       quiet_hours_start: startValue === '' ? null : Number(startValue),
       quiet_hours_end: endValue === '' ? null : Number(endValue),
       quiet_hours_timezone: timezoneValue === '' ? null : timezoneValue,

@@ -44,6 +44,7 @@ The export includes:
 - retained room messages authored by the account, including their retained revision history;
 - retained direct messages the account can already read, including attachment metadata;
 - retained revision history only for direct messages authored by the exporting account;
+- retained pings the account sent or received, including their text, room, and both participants;
 - direct-message blocks created by the account;
 - moderation reports submitted by the account, including its category, optional participant-authored details, retained exact-message snapshot, structural evidence metadata, current case status, and public outcome code;
 - login-attempt history associated with the account's canonical username;

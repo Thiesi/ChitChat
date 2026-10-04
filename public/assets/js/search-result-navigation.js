@@ -3,13 +3,16 @@ window.addEventListener('DOMContentLoaded', () => {
   const roomId = positiveInteger(parameters.get('room_id'));
   const userId = positiveInteger(parameters.get('user_id'));
   const messageId = positiveInteger(parameters.get('message_id'));
+  const pingId = positiveInteger(parameters.get('ping_id'));
   const peerName = parameters.get('peer_name')?.trim() ?? '';
 
-  if (roomId !== null && messageId !== null && document.getElementById('room-list')) {
+  if (roomId !== null && (messageId !== null || pingId !== null) && document.getElementById('room-list')) {
     navigateToResult({
       findContext: () => document.querySelector(`#room-list [data-room-id="${roomId}"]`),
       loadButton: document.getElementById('load-older-button'),
-      messageSelector: `.message[data-message-id="${messageId}"]`,
+      messageSelector: messageId !== null
+        ? `.message[data-message-id="${messageId}"]`
+        : `.ping-notice[data-ping-id="${pingId}"]`,
     }).catch(() => {});
   }
 
@@ -49,7 +52,8 @@ async function revealMessage(selector, loadButton) {
     const message = document.querySelector(selector);
     if (message instanceof HTMLElement) {
       // The list re-applies this highlight to rebuilt nodes; see buildMessageElement().
-      if (message.parentElement) message.parentElement.dataset.highlightMessageId = message.dataset.messageId;
+      if (message.parentElement && message.dataset.messageId) message.parentElement.dataset.highlightMessageId = message.dataset.messageId;
+      if (message.parentElement && message.dataset.pingId) message.parentElement.dataset.highlightPingId = message.dataset.pingId;
       message.classList.add('search-result-target');
       message.tabIndex = -1;
       message.focus({ preventScroll: true });

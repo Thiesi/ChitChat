@@ -23,8 +23,11 @@ use Throwable;
  */
 final class WebPushDispatcher
 {
-    /** @var list<string> notification kinds a user can mute via NotificationPreferenceService */
-    private const MUTABLE_KINDS = ['mentioned'];
+    /** @var array<string, string> notification kinds a user can mute, mapped to their preference key */
+    private const MUTABLE_KINDS = [
+        'mentioned' => 'mentioned_push_enabled',
+        'pinged' => 'pinged_push_enabled',
+    ];
 
     private readonly PrivacyNotificationService $notifications;
     private readonly NotificationPreferenceService $preferences;
@@ -130,7 +133,8 @@ SQL);
             $this->markDispatched($notification['id']);
             return;
         }
-        if (in_array($notification['kind'], self::MUTABLE_KINDS, true) && !$preferences['mentioned_push_enabled']) {
+        $preferenceKey = self::MUTABLE_KINDS[$notification['kind']] ?? null;
+        if ($preferenceKey !== null && !$preferences[$preferenceKey]) {
             $summary['skipped_muted']++;
             $this->markDispatched($notification['id']);
             return;

@@ -64,6 +64,11 @@ final class CleanupService
                     'SELECT COUNT(*) FROM room_messages WHERE created_at < :cutoff',
                     $cutoffs['room'],
                 ),
+                // Pings are room content and follow room-message retention.
+                'room_pings' => $this->optionalCount(
+                    'SELECT COUNT(*) FROM room_pings WHERE created_at < :cutoff',
+                    $cutoffs['room'],
+                ),
                 'deleted_attachments' => count($deletedKeys),
                 'audit_entries' => $this->optionalCount(
                     'SELECT COUNT(*) FROM audit_log WHERE created_at < :cutoff',
@@ -102,6 +107,10 @@ final class CleanupService
                 );
                 $result['room_messages'] = $this->optionalDelete(
                     'DELETE FROM room_messages WHERE created_at < :cutoff',
+                    $cutoffs['room'],
+                );
+                $result['room_pings'] = $this->optionalDelete(
+                    'DELETE FROM room_pings WHERE created_at < :cutoff',
                     $cutoffs['room'],
                 );
                 $result['deleted_attachments'] = $this->optionalDelete(

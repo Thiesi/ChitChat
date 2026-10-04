@@ -37,14 +37,12 @@ Endpoint::run($config, static function () use ($config): ApiResult {
     }
 
     if ($ping !== null) {
-        $event = (new PingService($pdo))->send(
+        return ApiResult::created(['ping' => (new PingService($pdo))->send(
             $actor,
             $roomId,
             $ping['username'],
             $ping['message'],
-        );
-
-        return ApiResult::created(['ping' => $event->toArray()]);
+        )]);
     }
 
     $message = (new MessageService($pdo))->send($actor, $roomId, $body, $replyToMessageId);
