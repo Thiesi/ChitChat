@@ -69,6 +69,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
 
       <p id="auth-error" class="error-text" role="alert"></p>
     </section>
+    <?= \ChitChat\View\PoweredBy::html() ?>
   </main>
 
   <main id="chat-shell" class="chat-shell hidden">
@@ -103,6 +104,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
         <a class="secondary-button" href="/account.php">Account</a>
         <a id="admin-link" class="secondary-button hidden" href="/admin.php">Administration</a>
         <button id="logout-button" class="secondary-button" type="button">Sign out</button>
+        <?= \ChitChat\View\PoweredBy::html() ?>
       </footer>
     </aside>
 

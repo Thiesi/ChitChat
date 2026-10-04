@@ -141,6 +141,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
         <button id="save-registration-protection" class="secondary-button" type="submit">Save registration protection</button>
       </section>
     </form>
+    <?= \ChitChat\View\PoweredBy::html() ?>
   </main>
 
   <div id="toast-region" class="toast-region" aria-live="assertive"></div>

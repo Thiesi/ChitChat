@@ -26,6 +26,7 @@ async function loginOrRegister(page) {
   await expect(page.locator('#chat-shell')).toBeVisible();
 }
 
+// Soft assertions, so a run reports (and captures) every changed layout at once.
 const screenshotOptions = {
   animations: 'disabled',
   caret: 'hide',
@@ -41,17 +42,17 @@ test('critical authentication and account layouts remain visually stable', async
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto('/');
   await expect(page.locator('#auth-shell')).toBeVisible();
-  await expect(page).toHaveScreenshot('auth-desktop.png', screenshotOptions);
+  await expect.soft(page).toHaveScreenshot('auth-desktop.png', screenshotOptions);
 
   await loginOrRegister(page);
   await page.goto('/account.php');
   await expect(page.locator('#account-shell')).toBeVisible();
   await expect(page.locator('#account-loading')).toBeHidden();
-  await expect(page).toHaveScreenshot('account-desktop.png', screenshotOptions);
+  await expect.soft(page).toHaveScreenshot('account-desktop.png', screenshotOptions);
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/account.php');
   await expect(page.locator('#account-shell')).toBeVisible();
   await expect(page.locator('#account-loading')).toBeHidden();
-  await expect(page).toHaveScreenshot('account-narrow.png', screenshotOptions);
+  await expect.soft(page).toHaveScreenshot('account-narrow.png', screenshotOptions);
 });

@@ -11,6 +11,7 @@ ChitChat is feature-complete; see [Project status](README.md#project-status-feat
 ### Added
 
 - Added an **Application name** setting to Operational settings: a Super-Administrator can rename the installation, with `APP_NAME` as the server default. The name is used consistently in page titles and headings, passkey prompts, push notifications, exports, and status output, and several texts that hardcoded "ChitChat" now use it. Migration `0024_application_name.sql` adds the setting.
+- Added a small "Powered by ChitChat!" footer linking to the project repository on every page.
 
 ## [2.1.0] - 2026-10-03
 

@@ -95,6 +95,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
     </section>
 
     <p id="account-error" class="error-text" role="alert"></p>
+    <?= \ChitChat\View\PoweredBy::html() ?>
   </main>
 
   <script type="module" src="/assets/js/account.js"></script>

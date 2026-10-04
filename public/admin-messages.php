@@ -75,6 +75,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
         <button id="inspection-load-older" class="secondary-button hidden" type="button">Inspect older messages</button>
       </section>
     </section>
+    <?= \ChitChat\View\PoweredBy::html() ?>
   </main>
 
   <div id="toast-region" class="toast-region" aria-live="assertive"></div>
