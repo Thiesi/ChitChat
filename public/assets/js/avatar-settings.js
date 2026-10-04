@@ -21,7 +21,11 @@ window.addEventListener('DOMContentLoaded', async () => {
   const providerButtons = document.getElementById('avatar-providers');
   if (!preview || !fileInput || !providerButtons || !removeButton || !status || !dialog || !canvas || !zoom || !save || !cancel) return;
 
-  // Wired before any network request, so a picture chosen right away is not missed.
+  // Wired before any network request, so a picture chosen right away is not
+  // missed. The session (and with it the CSRF token) is asked for at once,
+  // and saving waits for it, so a quick save cannot go out without a token.
+  const session = apiGet('/api/v1/session.php');
+  session.catch(() => {}); // Failures surface where it is awaited.
   let user = null;
   const showState = async () => {
     if (!user) return;
@@ -150,6 +154,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     canvas.toBlob(async (blob) => {
       try {
         if (!blob) throw new Error('The picture could not be prepared.');
+        await session;
         const form = new FormData();
         form.append('avatar', blob, 'avatar.png');
         await apiUpload('/api/v1/account/avatar/upload.php', form);
@@ -181,7 +186,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   });
 
   try {
-    user = (await apiGet('/api/v1/session.php')).user ?? null;
+    user = (await session).user ?? null;
   } catch {
     user = null;
   }
