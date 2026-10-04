@@ -1,6 +1,5 @@
 .admin-shell {
   width: calc(100% - 2rem);
-  max-width: 90rem;
   margin: 0 auto;
   padding: 1.25rem 0 3rem;
 }
@@ -152,6 +151,37 @@
 .ban-badge {
   border-color: var(--danger);
   color: var(--danger);
+}
+
+/* Operational settings: panels share the width evenly and wrap as needed. */
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+  gap: 1rem;
+  align-items: start;
+}
+
+.settings-grid + .settings-grid {
+  margin-top: 1rem;
+}
+
+/* A full-width panel lays its fields out side by side instead of stretching them. */
+.settings-wide {
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  column-gap: 1rem;
+  align-items: end;
+}
+
+.settings-wide > :not(label) {
+  grid-column: 1 / -1;
+}
+
+.settings-wide > label {
+  max-width: 32rem;
+}
+
+.settings-wide > button {
+  justify-self: start;
 }
 
 .room-admin-grid {

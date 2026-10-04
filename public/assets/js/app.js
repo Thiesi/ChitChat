@@ -906,7 +906,16 @@ function toast(message, type = 'info') {
   const item = document.createElement('div');
   item.className = `toast ${type}`;
   item.setAttribute('role', type === 'error' ? 'alert' : 'status');
-  item.textContent = message;
+  // Slash commands stay on one line; browsers otherwise may break right after "/".
+  for (const part of String(message).split(/((?<=^|\s)\/[a-z]+(?=[\s.,;:!?)]|$))/)) {
+    if (/^\/[a-z]+$/.test(part)) {
+      const command = document.createElement('code');
+      command.textContent = part;
+      item.append(command);
+    } else if (part !== '') {
+      item.append(part);
+    }
+  }
   elements['toast-region'].append(item);
   window.setTimeout(() => item.remove(), 6000);
 }
