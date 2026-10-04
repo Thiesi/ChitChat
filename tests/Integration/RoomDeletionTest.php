@@ -66,20 +66,20 @@ final class RoomDeletionTest extends DatabaseTestCase
         // Within the grace period nothing is removed.
         $cleanup = new CleanupService($this->pdo, $this->config);
         self::assertSame(0, $cleanup->run(false)['purged_rooms']);
-        self::assertSame(1, $this->count("SELECT COUNT(*) FROM rooms WHERE id = {$roomId}"));
+        self::assertSame(1, $this->countRows("SELECT COUNT(*) FROM rooms WHERE id = {$roomId}"));
 
         $this->pdo->exec("UPDATE rooms SET deleted_at = NOW() - INTERVAL '31 days' WHERE id = {$roomId}");
         self::assertSame(1, $cleanup->run(true)['purged_rooms'], 'A dry run reports the purge.');
         self::assertSame(1, $cleanup->run(false)['purged_rooms']);
 
-        self::assertSame(0, $this->count("SELECT COUNT(*) FROM rooms WHERE id = {$roomId}"));
-        self::assertSame(0, $this->count("SELECT COUNT(*) FROM room_messages WHERE room_id = {$roomId}"));
-        self::assertSame(0, $this->count("SELECT COUNT(*) FROM room_members WHERE room_id = {$roomId}"));
-        self::assertSame(1, $this->count("SELECT COUNT(*) FROM audit_log WHERE action = 'room.purged' AND subject_id = '{$roomId}'"));
+        self::assertSame(0, $this->countRows("SELECT COUNT(*) FROM rooms WHERE id = {$roomId}"));
+        self::assertSame(0, $this->countRows("SELECT COUNT(*) FROM room_messages WHERE room_id = {$roomId}"));
+        self::assertSame(0, $this->countRows("SELECT COUNT(*) FROM room_members WHERE room_id = {$roomId}"));
+        self::assertSame(1, $this->countRows("SELECT COUNT(*) FROM audit_log WHERE action = 'room.purged' AND subject_id = '{$roomId}'"));
 
         // The case and its evidence snapshot outlive the room.
-        self::assertSame(1, $this->count('SELECT COUNT(*) FROM moderation_cases WHERE room_id IS NULL'));
-        self::assertSame(1, $this->count(
+        self::assertSame(1, $this->countRows('SELECT COUNT(*) FROM moderation_cases WHERE room_id IS NULL'));
+        self::assertSame(1, $this->countRows(
             "SELECT COUNT(*) FROM moderation_reports WHERE evidence_body = 'Reported before the room went away.'",
         ));
         try {
@@ -147,7 +147,7 @@ final class RoomDeletionTest extends DatabaseTestCase
         return array_map('intval', $statement === false ? [] : $statement->fetchAll(\PDO::FETCH_COLUMN));
     }
 
-    private function count(string $sql): int
+    private function countRows(string $sql): int
     {
         $statement = $this->pdo->query($sql);
         return $statement === false ? -1 : (int) $statement->fetchColumn();
