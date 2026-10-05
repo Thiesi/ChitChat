@@ -6,6 +6,12 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ## [Unreleased]
 
+No changes since `v3.2.1`.
+
+## [3.2.1] - 2026-10-05
+
+A cosmetic update with no database migration. See the [`v3.2.1` release notes](docs/releases/v3.2.1.md).
+
 ### Changed
 
 - Tidied up Operational settings:
