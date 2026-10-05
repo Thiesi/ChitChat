@@ -74,6 +74,16 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
           </select>
         </label>
         <label>
+          <span>Guest access</span>
+          <select id="guest-access-enabled">
+            <option value="0">Disabled</option>
+            <option value="1">Enabled</option>
+          </select>
+        </label>
+        <p class="admin-muted">
+          Lets visitors look around without an account, in rooms that allow guests. Each visit is a numbered guest that ends after two idle hours or a day at most. Switching it off ends every visit.
+        </p>
+        <label>
           <span>Require MFA for administrative roles</span>
           <select id="admin-mfa-required">
             <option value="0">Disabled</option>

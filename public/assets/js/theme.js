@@ -2,17 +2,40 @@
 // paints. Loaded as a classic, blocking script in <head> so there is no flash
 // of the wrong colours. Both choices are per device: the mode "system" (the
 // default) follows the operating system, "light" or "dark" are stored in
-// localStorage; the scheme defaults to Lounge.
+// localStorage; the scheme defaults to Lounge. A guest's choices last only
+// for the visit: they go to sessionStorage and leave the device's own alone.
 (() => {
   const storageKey = 'chitchat-theme';
   const schemeKey = 'chitchat-scheme';
+  const guestKey = 'chitchat-guest';
   const schemes = ['lounge', 'dusk', 'ember', 'rose', 'midnight', 'contrast'];
   const lightQuery = window.matchMedia('(prefers-color-scheme: light)');
 
+  function guest() {
+    try {
+      return window.sessionStorage.getItem(guestKey) === '1';
+    } catch {
+      return false;
+    }
+  }
+
+  // A guest's own choice first, else the device's.
+  function stored(key) {
+    if (guest()) {
+      const own = window.sessionStorage.getItem(key);
+      if (own !== null) return own;
+    }
+    return window.localStorage.getItem(key);
+  }
+
+  function store() {
+    return guest() ? window.sessionStorage : window.localStorage;
+  }
+
   function preference() {
     try {
-      const stored = window.localStorage.getItem(storageKey);
-      return stored === 'light' || stored === 'dark' ? stored : 'system';
+      const value = stored(storageKey);
+      return value === 'light' || value === 'dark' ? value : 'system';
     } catch {
       return 'system';
     }
@@ -20,8 +43,8 @@
 
   function scheme() {
     try {
-      const stored = window.localStorage.getItem(schemeKey);
-      return schemes.includes(stored) ? stored : 'lounge';
+      const value = stored(schemeKey);
+      return schemes.includes(value) ? value : 'lounge';
     } catch {
       return 'lounge';
     }
@@ -59,8 +82,9 @@
     schemes: [...schemes],
     set(value) {
       try {
-        if (value === 'light' || value === 'dark') {
-          window.localStorage.setItem(storageKey, value);
+        // A guest's "System" is stored too, so it is not overruled by the device's choice.
+        if (value === 'light' || value === 'dark' || guest()) {
+          store().setItem(storageKey, value === 'light' || value === 'dark' ? value : 'system');
         } else {
           window.localStorage.removeItem(storageKey);
         }
@@ -76,15 +100,29 @@
     setScheme(value) {
       const chosen = schemes.includes(value) ? value : 'lounge';
       try {
-        if (chosen === 'lounge') {
+        if (chosen === 'lounge' && !guest()) {
           window.localStorage.removeItem(schemeKey);
         } else {
-          window.localStorage.setItem(schemeKey, chosen);
+          store().setItem(schemeKey, chosen);
         }
       } catch {
         // Storage can be unavailable; the scheme then lasts for this page only.
       }
       applyScheme(chosen);
+    },
+    /** Starts or ends a guest visit; ending it forgets the guest's choices. */
+    setGuest(on) {
+      try {
+        if (on) {
+          window.sessionStorage.setItem(guestKey, '1');
+        } else if (guest()) {
+          for (const key of [guestKey, storageKey, schemeKey]) window.sessionStorage.removeItem(key);
+        }
+      } catch {
+        // Without storage a guest's choices last for this page only anyway.
+      }
+      apply();
+      window.dispatchEvent(new CustomEvent('chitchat:appearance-changed'));
     },
   };
 })();

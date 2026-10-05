@@ -286,7 +286,8 @@ function scheduleConversationRefresh() {
 }
 
 async function refreshConversations() {
-  if (!signedIn) return;
+  // Guests have no direct messages; the sidebar invites them to sign up instead.
+  if (!signedIn || elements['chat-shell'].classList.contains('guest-mode')) return;
   const list = elements['dm-list'];
   try {
     const payload = await apiGet('/api/v1/direct-messages/conversations.php');

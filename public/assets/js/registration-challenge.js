@@ -6,12 +6,12 @@ import { apiGet } from './api.js';
  * its small proof-of-work puzzle is solved in the background while the person
  * fills in the form. Each challenge is single-use.
  */
-export function createRegistrationChallenge() {
+export function createRegistrationChallenge(endpoint = '/api/v1/registration-challenge.php') {
   let pending = null;
 
   function prepare() {
     if (pending === null) {
-      pending = fetchAndSolve();
+      pending = fetchAndSolve(endpoint);
       pending.catch(() => {
         pending = null;
       });
@@ -29,8 +29,8 @@ export function createRegistrationChallenge() {
   };
 }
 
-async function fetchAndSolve() {
-  const response = await apiGet('/api/v1/registration-challenge.php');
+async function fetchAndSolve(endpoint) {
+  const response = await apiGet(endpoint);
   const challenge = response.challenge;
   if (!challenge) return null;
   return { nonce: challenge.nonce, solution: await solve(challenge.nonce, challenge.bits) };
