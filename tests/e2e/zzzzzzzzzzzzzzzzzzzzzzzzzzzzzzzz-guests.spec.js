@@ -23,6 +23,8 @@ async function setGuestAccess(page, enabled) {
   await expect(page.locator('#settings-shell')).toBeVisible();
   await page.locator('#guest-access-enabled').selectOption(enabled ? '1' : '0');
   page.once('dialog', (dialog) => dialog.accept());
+  // The save may first ask for step-up and then retry, so wait for the one that succeeds.
+  const saved = page.waitForResponse((response) => response.url().includes('/api/v1/admin/settings/update.php') && response.ok());
   await page.locator('#save-settings').click();
   const stepUp = page.locator('.step-up-dialog');
   try {
@@ -33,7 +35,7 @@ async function setGuestAccess(page, enabled) {
   } catch {
     // No step-up prompt was needed.
   }
-  await expect(page.locator('#save-settings')).toBeEnabled();
+  await saved;
   await page.reload();
   await expect(page.locator('#guest-access-enabled')).toHaveValue(enabled ? '1' : '0');
 }

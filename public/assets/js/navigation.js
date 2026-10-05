@@ -174,7 +174,10 @@ function bindPopover(button, popover, onOpen = null) {
     button.setAttribute('aria-expanded', 'true');
     elements['chat-shell'].classList.toggle('sheet-open', phone.matches);
     onOpen?.();
-    popover.querySelector('a[href], button:not(.hidden), input')?.focus();
+    // The first control actually shown; guest-only or member-only items may be hidden.
+    [...popover.querySelectorAll('a[href], button, input')]
+      .find((control) => control.getClientRects().length > 0)
+      ?.focus();
   });
 }
 
