@@ -23,6 +23,10 @@ One forward-only database migration (`0039_guest_access.sql`); back up before up
   - The profile card offers global moderators **End guest session** and **Block guests from this connection…**. Operational settings gain the **Guest access** switch.
   - Migration `0039_guest_access.sql`; see [Guest access](docs/api/guest-access.md).
 
+### Fixed
+
+- Fixed the Search button under "Invite a user" in Room administration running past the edge of its card on mid-sized screens.
+
 ## [3.1.0] - 2026-10-05
 
 Moderating in place and muting, with one forward-only database migration (`0038_user_mutes.sql`); back up before upgrading. See the [`v3.1.0` release notes](docs/releases/v3.1.0.md).
