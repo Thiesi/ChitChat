@@ -6,7 +6,13 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ## [Unreleased]
 
-No changes since `v3.2.0`.
+### Changed
+
+- Tidied up Operational settings:
+  - The lockdown message has room to write in.
+  - Saving the policy is a bar under its cards.
+  - The application name sits beside registration protection instead of filling a full-width card.
+  - Cards in a row share one height, and headings sit closer to their content.
 
 ## [3.2.0] - 2026-10-05
 
