@@ -127,8 +127,12 @@ SQL
         AND EXISTS (
             SELECT 1
             FROM room_members rm
+            JOIN users member ON member.id = rm.user_id
+            JOIN rooms room ON room.id = rm.room_id
             WHERE rm.room_id = e.room_id
               AND rm.user_id = :member_user_id
+              -- A guest hears a room only while it lets guests in.
+              AND (member.account_kind = 'member' OR room.guest_access <> 'none')
         )
     )
 )

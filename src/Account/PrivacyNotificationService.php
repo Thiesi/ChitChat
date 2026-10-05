@@ -267,6 +267,11 @@ SQL);
                 : sprintf('“%s” was restored and is available again.', $roomName);
             $roomId = $context['room_id'] ?? null;
             $link = !$deleted && is_int($roomId) ? sprintf('/?room_id=%d', $roomId) : null;
+        } elseif ($kind === 'guest_welcome') {
+            $name = $this->nonEmptyString($context['username'] ?? null);
+            $title = $name === null ? 'Welcome!' : sprintf('Welcome, %s!', $name);
+            $message = 'You are looking around as a guest. Create an account to write in every room, send direct messages and keep your settings.';
+            $link = '/?register=1';
         } elseif ($kind === 'pinged') {
             $sender = $this->nonEmptyString($context['sender_username'] ?? null) ?? 'Someone';
             $roomName = $this->nonEmptyString($context['room_name'] ?? null);

@@ -147,6 +147,7 @@ SQL);
             $row = $this->lockedMessage($messageId);
             $room = $this->requireMutableRoom($actor, (int) $row['room_id']);
             $this->requireAuthorMutation($actor, $row);
+            RoomAuthorization::requirePost($actor, $room);
             (new MuteService($this->pdo))->assertMayPostInRoom($actor->id, $room->id);
             if ((string) $row['body'] === $body) {
                 throw new ApiException(409, 'message_unchanged', 'The edited message is unchanged.');

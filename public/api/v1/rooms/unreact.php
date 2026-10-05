@@ -19,7 +19,7 @@ Endpoint::run($config, static function () use ($config): ApiResult {
     SessionManager::requireCsrf(Request::csrfHeader());
     $payload = Request::json();
     $pdo = Database::connect($config);
-    $actor = SessionManager::requireUser(new UserRepository($pdo));
+    $actor = SessionManager::requireUserOrGuest(new UserRepository($pdo));
     (new RateLimiter($pdo, $config->rateLimits))->consume(
         'room_message_mutation',
         'user:' . $actor->id,

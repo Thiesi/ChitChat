@@ -8,6 +8,7 @@ use ChitChat\Auth\AuthenticatedUser;
 use ChitChat\DirectMessage\DirectMessageBlockService;
 use ChitChat\Http\ApiException;
 use ChitChat\Moderation\MuteService;
+use ChitChat\Room\RoomAuthorization;
 use ChitChat\Room\RoomRepository;
 use DateTimeImmutable;
 use PDO;
@@ -65,6 +66,9 @@ final class TypingService
         if ($room === null || !$room->isMember()) {
             throw new ApiException(403, 'membership_required', 'Join the room before typing in it.');
         }
+        if (!RoomAuthorization::canPost($actor, $room)) {
+            return false;
+        }
         if (
             !$this->isShared($actor->id)
             || (new MuteService($this->pdo))->isMutedInRoom($actor->id, $roomId)
@@ -88,6 +92,9 @@ final class TypingService
     {
         if ($recipientId === $actor->id) {
             throw new ApiException(400, 'validation_error', 'You cannot message yourself.');
+        }
+        if ($actor->guest) {
+            throw new ApiException(403, 'guest_not_allowed', 'Create an account to send direct messages.');
         }
         (new DirectMessageBlockService($this->pdo))->requireMessagingAvailable($actor, $recipientId);
         if (

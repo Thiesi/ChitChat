@@ -90,7 +90,7 @@ final class AuthService
                 throw new ApiException(403, 'registration_disabled', 'Registration is currently disabled.');
             }
 
-            $countResult = $this->pdo->query("SELECT COUNT(*) FROM users WHERE account_state = 'active'");
+            $countResult = $this->pdo->query("SELECT COUNT(*) FROM users WHERE account_state = 'active' AND account_kind = 'member'");
             if ($countResult === false) {
                 throw new RuntimeException('Unable to count users.');
             }

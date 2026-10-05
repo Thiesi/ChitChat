@@ -45,11 +45,14 @@ Room objects contain:
   "inactivity_timeout_seconds": 0,
   "created_by": 1,
   "member_role": "member",
-  "invited": false
+  "invited": false,
+  "guest_access": "none"
 }
 ```
 
 `inactivity_timeout_seconds` is 0 when disabled. Otherwise it is 120-86400 seconds and applies only to active presence, not persistent membership.
+
+`guest_access` is `none`, `read` (guests may read) or `write` (guests may also post and react). Only public rooms without a minimum age can let guests in. A guest sees only rooms whose `guest_access` is not `none`; see [Guest access](guest-access.md).
 
 ## Room management
 
@@ -64,11 +67,12 @@ Requires Super-Administrator, Administrator, or Chat Admin.
   "info_line": "General discussion",
   "visibility": "public",
   "minimum_age": 0,
-  "inactivity_timeout_seconds": 0
+  "inactivity_timeout_seconds": 0,
+  "guest_access": "read"
 }
 ```
 
-The inactivity field is optional and defaults to 0. The creator becomes the immutable room owner. Room keys are lowercase, unique, and contain 3-48 letters, numbers, underscores, or hyphens.
+The inactivity field is optional and defaults to 0. `guest_access` is optional and defaults to `none`; a value other than `none` for a room that is not public or has a minimum age is refused with `guest_access_scope`. The creator becomes the immutable room owner. Room keys are lowercase, unique, and contain 3-48 letters, numbers, underscores, or hyphens.
 
 ### `POST /api/v1/rooms/update.php`
 
@@ -85,7 +89,7 @@ Requires a global room administrator or the room owner. The request supplies the
 }
 ```
 
-The inactivity field is optional for backward-compatible API clients. When omitted, the room's existing inactivity policy is preserved.
+The inactivity field is optional for backward-compatible API clients. When omitted, the room's existing inactivity policy is preserved. `guest_access` is optional too: when omitted it is kept, unless the room stops being public or gains a minimum age, which closes it to guests. Closing a room to guests removes the guests in it at once.
 
 ### `POST /api/v1/rooms/delete.php`
 

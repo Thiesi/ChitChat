@@ -19,7 +19,7 @@ $config = require dirname(__DIR__, 4) . '/bootstrap/http.php';
 try {
     Request::requireMethod('GET');
     $pdo = Database::connect($config);
-    SessionManager::requireUser(new UserRepository($pdo));
+    SessionManager::requireUserOrGuest(new UserRepository($pdo));
     $image = (new AvatarService($pdo, $config))->imagePath(Request::queryInteger('user_id'));
     if (session_status() === PHP_SESSION_ACTIVE) {
         session_write_close();

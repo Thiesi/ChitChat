@@ -193,10 +193,29 @@ final class SessionManager
             self::clearAuthentication();
             return null;
         }
+        // A guest session ends when it idles out or expires, or guest access is switched off.
+        if ($user->guest && !$users->touchGuest($user->id, GuestService::IDLE_SECONDS)) {
+            self::clearAuthentication();
+            return null;
+        }
         return $user;
     }
 
+    /**
+     * A signed-in account. Guests are refused here, so every endpoint is
+     * closed to them unless it opts in with requireUserOrGuest().
+     */
     public static function requireUser(UserRepository $users): AuthenticatedUser
+    {
+        $user = self::requireUserOrGuest($users);
+        if ($user->guest) {
+            throw new ApiException(403, 'guest_not_allowed', 'Create an account to use this.');
+        }
+        return $user;
+    }
+
+    /** A signed-in account or a guest; for the endpoints guests may use. */
+    public static function requireUserOrGuest(UserRepository $users): AuthenticatedUser
     {
         $user = self::currentUser($users);
         if ($user === null) {

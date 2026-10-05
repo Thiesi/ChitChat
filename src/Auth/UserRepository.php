@@ -87,7 +87,7 @@ SQL);
     public function findAuthenticatedById(int $userId): ?AuthenticatedUser
     {
         $statement = $this->pdo->prepare(<<<'SQL'
-SELECT id, username, session_version
+SELECT id, username, session_version, account_kind, guest_expires_at
 FROM users
 WHERE id = :id
   AND account_state = 'active'
@@ -101,12 +101,16 @@ SQL);
         if (!is_array($row)) {
             return null;
         }
+        $guest = (string) $row['account_kind'] === 'guest';
 
         return new AuthenticatedUser(
             id: (int) $row['id'],
             username: (string) $row['username'],
-            roles: $this->rolesForUser((int) $row['id']),
+            // A guest never holds a role, whatever the table says.
+            roles: $guest ? [] : $this->rolesForUser((int) $row['id']),
             sessionVersion: (int) $row['session_version'],
+            guest: $guest,
+            guestExpiresAt: $guest && $row['guest_expires_at'] !== null ? (string) $row['guest_expires_at'] : null,
         );
     }
 
@@ -237,5 +241,42 @@ SQL);
         }
 
         return (int) $version;
+    }
+
+    /**
+     * Whether a guest session may continue: guest access is on, and the
+     * guest has neither expired nor idled out. Marks the guest as seen, at
+     * most once a minute so busy pages do not write on every request.
+     */
+    public function touchGuest(int $userId, int $idleSeconds): bool
+    {
+        $statement = $this->pdo->prepare(<<<'SQL'
+WITH valid AS (
+    SELECT u.id, u.guest_last_seen_at
+    FROM users u
+    CROSS JOIN system_settings s
+    WHERE u.id = :user_id
+      AND s.id = 1
+      AND s.guest_access_enabled
+      AND u.account_kind = 'guest'
+      AND u.account_state = 'active'
+      AND u.guest_expires_at > NOW()
+      AND u.guest_last_seen_at > NOW() - CAST(:idle_seconds AS integer) * INTERVAL '1 second'
+), touched AS (
+    -- A data-modifying CTE always runs, whether or not it is read.
+    UPDATE users
+    SET guest_last_seen_at = NOW()
+    FROM valid
+    WHERE users.id = valid.id
+      AND valid.guest_last_seen_at < NOW() - INTERVAL '1 minute'
+)
+SELECT COUNT(*) FROM valid
+SQL);
+        if ($statement === false) {
+            throw new RuntimeException('Unable to prepare the guest session check.');
+        }
+        $statement->execute(['user_id' => $userId, 'idle_seconds' => $idleSeconds]);
+
+        return (int) $statement->fetchColumn() === 1;
     }
 }

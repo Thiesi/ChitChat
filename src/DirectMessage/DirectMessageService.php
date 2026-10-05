@@ -48,6 +48,7 @@ final class DirectMessageService
 SELECT id, username
 FROM users
 WHERE id <> :actor_id
+  AND account_kind = 'member'
   AND lower(username) LIKE :pattern
 ORDER BY lower(username), id
 LIMIT :limit
@@ -379,7 +380,8 @@ SQL);
             throw new ApiException(400, 'direct_message_self_forbidden', 'You cannot send direct messages to yourself.');
         }
         $other = $this->users->findAuthenticatedById($otherUserId);
-        if ($other === null) {
+        // Guests take no part in direct messages.
+        if ($other === null || $other->guest) {
             throw new ApiException(404, 'user_not_found', 'User not found.');
         }
 

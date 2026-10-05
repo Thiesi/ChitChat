@@ -38,6 +38,8 @@ The command:
 
 The result field `account_closures_finalized` is a count. In dry-run mode it reports closures currently due; in destructive mode it reports closures finalized during that invocation.
 
+The result field `guests_ended` counts guest sessions that idled out (two hours without a request) or reached their 24-hour limit; their sessions already stopped working, and the cleanup closes the guest accounts, which keep their "Guest NNNN" names on past messages. `expired_guest_blocks` counts "Block guests from this connection" entries that ran out. Both report what is due in dry-run mode.
+
 Database deletion occurs before physical file removal. A file-removal failure therefore leaves an unreferenced opaque file rather than a downloadable record without a file. The next maintenance run detects the file as an orphan and retries it.
 
 The command exits with status `3` when one or more files could not be removed. Database cleanup and account finalization may still have succeeded; inspect the JSON report, `/admin-status.php`, and filesystem permissions before rerunning.

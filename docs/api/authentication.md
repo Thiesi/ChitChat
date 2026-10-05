@@ -97,6 +97,8 @@ Active bans are checked before a session is created. Login rotates the session i
 
 No body is required. The server clears authentication, privileged step-up state, and CSRF state, expires the cookie, and destroys the session.
 
+For a guest, logging out also ends the guest for good (see [Guest access](guest-access.md)).
+
 ### `POST /api/v1/password.php`
 
 Requires authentication.

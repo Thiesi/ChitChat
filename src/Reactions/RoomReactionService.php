@@ -8,6 +8,7 @@ use ChitChat\Auth\AuthenticatedUser;
 use ChitChat\Http\ApiException;
 use ChitChat\Moderation\MuteService;
 use ChitChat\Realtime\EventRepository;
+use ChitChat\Room\Room;
 use ChitChat\Room\RoomAuthorization;
 use ChitChat\Room\RoomEligibility;
 use ChitChat\Room\RoomRepository;
@@ -29,9 +30,13 @@ final class RoomReactionService
     public function add(AuthenticatedUser $actor, int $messageId, string $emoji): array
     {
         $emoji = ReactionVocabulary::require($emoji);
-        [$roomId, $deletedAt] = $this->requireMessage($actor, $messageId);
+        [$roomId, $deletedAt, $room] = $this->requireMessage($actor, $messageId);
         if ($deletedAt !== null) {
             throw new ApiException(409, 'message_already_deleted', 'Message is already deleted.');
+        }
+        // Reacting is joining in, so a guest reacts only where guests may write.
+        if ($actor->guest) {
+            RoomAuthorization::requirePost($actor, $room);
         }
         (new MuteService($this->pdo))->assertMayPostInRoom($actor->id, $roomId);
 
@@ -66,7 +71,7 @@ SQL);
         return $this->publishAndReturn($messageId, $roomId, $actor->id);
     }
 
-    /** @return array{0:int, 1:?string} room_id and deleted_at */
+    /** @return array{0:int, 1:?string, 2:Room} room_id, deleted_at and the room */
     private function requireMessage(AuthenticatedUser $actor, int $messageId): array
     {
         if ($messageId < 1) {
@@ -91,7 +96,7 @@ SQL);
         RoomAuthorization::requireHistory($actor, $room);
         (new RoomEligibility($this->rooms))->requireMinimumAge($actor, $room);
 
-        return [$roomId, $row['deleted_at'] === null ? null : (string) $row['deleted_at']];
+        return [$roomId, $row['deleted_at'] === null ? null : (string) $row['deleted_at'], $room];
     }
 
     /** @return list<array{emoji:string, users:list<array{id:int, username:string}>, reacted_by_me:bool}> */

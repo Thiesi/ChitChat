@@ -24,7 +24,7 @@ Endpoint::run($config, static function () use ($config): ApiResult {
         throw new ApiException(400, 'validation_error', 'ignored must be true or false.');
     }
     $pdo = Database::connect($config);
-    $actor = SessionManager::requireUser(new UserRepository($pdo));
+    $actor = SessionManager::requireUserOrGuest(new UserRepository($pdo));
     $service = new IgnoreService($pdo);
     $service->setIgnored($actor, Request::integer($payload, 'user_id'), $ignored);
 

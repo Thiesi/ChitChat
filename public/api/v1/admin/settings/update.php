@@ -46,6 +46,7 @@ Endpoint::run($config, static function () use ($config): ApiResult {
         loginAttemptRetentionDays: Request::integer($payload, 'login_attempt_retention_days'),
         ipAddress: Request::clientIp(),
         deletedRoomGraceDays: Request::optionalInteger($payload, 'deleted_room_grace_days'),
+        guestAccessEnabled: array_key_exists('guest_access_enabled', $payload) ? Request::boolean($payload, 'guest_access_enabled') : null,
     );
 
     return ApiResult::ok(['settings' => $settings]);

@@ -18,7 +18,7 @@ $config = require dirname(__DIR__, 4) . '/bootstrap/http.php';
 try {
     Request::requireMethod('GET');
     $pdo = Database::connect($config);
-    $actor = SessionManager::requireUser(new UserRepository($pdo));
+    $actor = SessionManager::requireUserOrGuest(new UserRepository($pdo));
     $attachment = (new AttachmentService($pdo, $config))->authorizeDownload(
         $actor,
         Request::queryInteger('id'),

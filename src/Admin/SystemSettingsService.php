@@ -5,6 +5,7 @@ namespace ChitChat\Admin;
 
 use ChitChat\Audit\AuditLogger;
 use ChitChat\Auth\AuthenticatedUser;
+use ChitChat\Auth\GuestService;
 use ChitChat\Http\ApiException;
 use PDO;
 use RuntimeException;
@@ -40,6 +41,7 @@ final class SystemSettingsService
         int $loginAttemptRetentionDays,
         string $ipAddress,
         ?int $deletedRoomGraceDays = null,
+        ?bool $guestAccessEnabled = null,
     ): array {
         $this->requireSuperAdministrator($actor);
         $this->validateDays('room_message_retention_days', $roomMessageRetentionDays, true);
@@ -75,6 +77,7 @@ SET registration_enabled = :registration_enabled,
     realtime_event_retention_hours = :realtime_event_retention_hours,
     login_attempt_retention_days = :login_attempt_retention_days,
     deleted_room_grace_days = COALESCE(CAST(:deleted_room_grace_days AS integer), deleted_room_grace_days),
+    guest_access_enabled = COALESCE(CAST(:guest_access_enabled AS boolean), guest_access_enabled),
     updated_at = NOW()
 WHERE id = 1
 SQL);
@@ -95,8 +98,17 @@ SQL);
                 $deletedRoomGraceDays,
                 $deletedRoomGraceDays === null ? PDO::PARAM_NULL : PDO::PARAM_INT,
             );
+            $statement->bindValue(
+                ':guest_access_enabled',
+                $guestAccessEnabled,
+                $guestAccessEnabled === null ? PDO::PARAM_NULL : PDO::PARAM_BOOL,
+            );
             $statement->execute();
             $new = $this->load();
+            // Switching guest access off ends every guest at once.
+            if ($old['guest_access_enabled'] && !$new['guest_access_enabled']) {
+                (new GuestService($this->pdo))->endAll($actor);
+            }
             $this->audit->log(
                 actorUserId: $actor->id,
                 action: 'system.settings_updated',
@@ -129,6 +141,7 @@ SELECT registration_enabled::int,
        realtime_event_retention_hours,
        login_attempt_retention_days,
        deleted_room_grace_days,
+       guest_access_enabled::int,
        updated_at
 FROM system_settings
 WHERE id = 1
@@ -151,6 +164,7 @@ SQL);
             'realtime_event_retention_hours' => (int) $row['realtime_event_retention_hours'],
             'login_attempt_retention_days' => (int) $row['login_attempt_retention_days'],
             'deleted_room_grace_days' => (int) $row['deleted_room_grace_days'],
+            'guest_access_enabled' => (int) $row['guest_access_enabled'] === 1,
             'updated_at' => (string) $row['updated_at'],
         ];
     }

@@ -36,7 +36,7 @@ test('Administrator sees shared operational status and metrics remain disabled b
 
     const policyTable = page.getByRole('table', { name: 'Effective rate-limit policies' });
     await expect(policyTable).toBeVisible();
-    const roomSendRow = policyTable.getByRole('row', { name: /room_send/ });
+    const roomSendRow = policyTable.getByRole('row', { name: /^room_send / });
     await expect(roomSendRow).toContainText('30 / 1m');
     await expect(roomSendRow.getByRole('rowheader')).toHaveCount(1);
     await expect(roomSendRow.getByRole('cell')).toHaveCount(4);

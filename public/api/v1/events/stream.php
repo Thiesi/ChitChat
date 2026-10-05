@@ -21,7 +21,7 @@ try {
     Request::requireMethod('GET');
     $pdo = Database::connect($config);
     $users = new UserRepository($pdo);
-    $actor = SessionManager::requireUser($users);
+    $actor = SessionManager::requireUserOrGuest($users);
 
     $afterId = 0;
     $lastEventHeader = trim((string) ($_SERVER['HTTP_LAST_EVENT_ID'] ?? ''));

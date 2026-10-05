@@ -180,7 +180,7 @@ SQL);
         ];
     }
 
-    /** @return list<array{id:int, username:string, idle_seconds:int, connections:int}> */
+    /** @return list<array{id:int, username:string, guest:bool, idle_seconds:int, connections:int}> */
     public function list(AuthenticatedUser $actor, int $roomId): array
     {
         $room = $this->requirePresenceRoom($actor, $roomId);
@@ -189,6 +189,7 @@ SQL);
         $statement = $this->pdo->prepare(<<<'SQL'
 SELECT u.id,
        u.username,
+       (u.account_kind = 'guest')::int AS guest,
        MIN(GREATEST(0, FLOOR(EXTRACT(EPOCH FROM (NOW() - p.last_interaction_at)))))::integer AS idle_seconds,
        COUNT(*)::integer AS connections
 FROM room_presence p
@@ -199,7 +200,7 @@ WHERE p.room_id = :room_id
       CAST(:inactivity_timeout AS integer) = 0
       OR p.last_interaction_at > NOW() - CAST(:inactivity_window AS integer) * INTERVAL '1 second'
   )
-GROUP BY u.id, u.username
+GROUP BY u.id, u.username, u.account_kind
 ORDER BY lower(u.username), u.id
 SQL);
         if ($statement === false) {
@@ -219,6 +220,7 @@ SQL);
             $users[] = [
                 'id' => (int) $presenceRow['id'],
                 'username' => (string) $presenceRow['username'],
+                'guest' => (int) $presenceRow['guest'] === 1,
                 'idle_seconds' => (int) $presenceRow['idle_seconds'],
                 'connections' => (int) $presenceRow['connections'],
             ];

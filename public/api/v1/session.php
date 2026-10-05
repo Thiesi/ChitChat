@@ -5,6 +5,7 @@ declare(strict_types=1);
 use ChitChat\Account\DisplayPreferenceService;
 use ChitChat\Account\IgnoreService;
 use ChitChat\Admin\LockdownService;
+use ChitChat\Auth\GuestService;
 use ChitChat\Auth\Oidc\OidcService;
 use ChitChat\Auth\SessionManager;
 use ChitChat\Auth\UserRepository;
@@ -53,6 +54,8 @@ SQL);
         'sign_in_providers' => (new OidcService($pdo, $config))->providers(),
         // A Google or Twitch sign-up waiting for its username, if any.
         'pending_sign_up' => $user === null ? (new OidcService($pdo, $config))->pendingSignUp() : null,
+        // Whether the sign-in page offers "Look around as a guest".
+        'guest_access' => (new GuestService($pdo))->available(),
         'registration_enabled' => (int) $policy['registration_enabled'] === 1 && !(new LockdownService($pdo))->status()['enabled'],
         // Public, so the sign-in page can explain a maintenance lockdown.
         'lockdown' => (static function (array $status): array {

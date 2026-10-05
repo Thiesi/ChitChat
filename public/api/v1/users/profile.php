@@ -18,7 +18,7 @@ $config = require dirname(__DIR__, 4) . '/bootstrap/http.php';
 Endpoint::run($config, static function () use ($config): ApiResult {
     Request::requireMethod('GET');
     $pdo = Database::connect($config);
-    $actor = SessionManager::requireUser(new UserRepository($pdo));
+    $actor = SessionManager::requireUserOrGuest(new UserRepository($pdo));
     $userId = Request::queryInteger('user_id');
 
     return ApiResult::ok([

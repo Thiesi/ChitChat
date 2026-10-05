@@ -19,7 +19,7 @@ abstract class DatabaseTestCase extends TestCase
         $this->config = Config::fromEnvironment();
         $this->pdo = Database::connect($this->config);
         $this->pdo->exec(
-            'TRUNCATE TABLE oidc_signing_keys, user_identities, account_notifications, maintenance_runs, sse_connections, rate_limit_counters, request_rate_limits, direct_message_attachments, direct_messages, attachments, room_presence, realtime_events, room_messages, room_invitations, room_members, rooms, audit_log, user_bans, login_attempts, account_closures, mfa_recovery_codes, webauthn_credentials, user_roles, users RESTART IDENTITY CASCADE',
+            'TRUNCATE TABLE guest_blocks, oidc_signing_keys, user_identities, account_notifications, maintenance_runs, sse_connections, rate_limit_counters, request_rate_limits, direct_message_attachments, direct_messages, attachments, room_presence, realtime_events, room_messages, room_invitations, room_members, rooms, audit_log, user_bans, login_attempts, account_closures, mfa_recovery_codes, webauthn_credentials, user_roles, users RESTART IDENTITY CASCADE',
         );
         $this->pdo->exec(<<<'SQL'
 UPDATE system_settings
@@ -41,6 +41,7 @@ SET registration_enabled = TRUE,
     registration_min_fill_seconds = NULL,
     registration_proof_of_work_bits = NULL,
     application_name = NULL,
+    guest_access_enabled = FALSE,
     updated_at = NOW()
 WHERE id = 1
 SQL);

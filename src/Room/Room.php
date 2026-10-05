@@ -17,6 +17,8 @@ final readonly class Room
         public int $createdBy,
         public ?string $memberRole,
         public bool $invited,
+        // 'none', 'read' or 'write': whether guests may enter, read, or also post.
+        public string $guestAccess = 'none',
     ) {
     }
 
@@ -25,7 +27,12 @@ final readonly class Room
         return $this->memberRole !== null;
     }
 
-    /** @return array{id:int, key:string, name:string, info_line:string, visibility:string, minimum_age:int, inactivity_timeout_seconds:int, created_by:int, member_role:?string, invited:bool} */
+    public function guestsMayPost(): bool
+    {
+        return $this->guestAccess === 'write';
+    }
+
+    /** @return array{id:int, key:string, name:string, info_line:string, visibility:string, minimum_age:int, inactivity_timeout_seconds:int, created_by:int, member_role:?string, invited:bool, guest_access:string} */
     public function toArray(): array
     {
         return [
@@ -39,6 +46,7 @@ final readonly class Room
             'created_by' => $this->createdBy,
             'member_role' => $this->memberRole,
             'invited' => $this->invited,
+            'guest_access' => $this->guestAccess,
         ];
     }
 }

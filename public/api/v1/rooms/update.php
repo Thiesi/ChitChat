@@ -32,6 +32,7 @@ Endpoint::run($config, static function () use ($config): ApiResult {
         Request::optionalInteger($payload, 'inactivity_timeout_seconds')
             ?? $existing->inactivityTimeoutSeconds,
         Request::clientIp(),
+        Request::optionalString($payload, 'guest_access'),
     );
 
     return ApiResult::ok(['room' => $room->toArray()]);

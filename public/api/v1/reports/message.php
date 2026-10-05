@@ -20,10 +20,13 @@ Endpoint::run($config, static function () use ($config): ApiResult {
     SessionManager::requireCsrf(Request::csrfHeader());
     $payload = Request::json();
     $pdo = Database::connect($config);
-    $actor = SessionManager::requireUser(new UserRepository($pdo));
+    $actor = SessionManager::requireUserOrGuest(new UserRepository($pdo));
     (new RateLimiter($pdo, $config->rateLimits))->consume('message_report', 'user:' . $actor->id);
 
     $kind = Request::string($payload, 'message_kind');
+    if ($kind !== 'room' && $actor->guest) {
+        throw new ApiException(403, 'guest_not_allowed', 'Guests can only report room messages.');
+    }
     $service = new ReportService($pdo);
     $arguments = [
         $actor,

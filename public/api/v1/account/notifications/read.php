@@ -18,7 +18,7 @@ Endpoint::run($config, static function () use ($config): ApiResult {
     Request::requireMethod('POST');
     SessionManager::requireCsrf(Request::csrfHeader());
     $pdo = Database::connect($config);
-    $actor = SessionManager::requireUser(new UserRepository($pdo));
+    $actor = SessionManager::requireUserOrGuest(new UserRepository($pdo));
     $payload = Request::json();
     $all = $payload['all'] ?? false;
     if (!is_bool($all)) {
