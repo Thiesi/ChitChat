@@ -174,7 +174,10 @@ function bindPopover(button, popover, onOpen = null) {
     button.setAttribute('aria-expanded', 'true');
     elements['chat-shell'].classList.toggle('sheet-open', phone.matches);
     onOpen?.();
-    popover.querySelector('a[href], button:not(.hidden), input')?.focus();
+    // The first control actually shown; guest-only or member-only items may be hidden.
+    [...popover.querySelectorAll('a[href], button, input')]
+      .find((control) => control.getClientRects().length > 0)
+      ?.focus();
   });
 }
 
@@ -286,7 +289,8 @@ function scheduleConversationRefresh() {
 }
 
 async function refreshConversations() {
-  if (!signedIn) return;
+  // Guests have no direct messages; the sidebar invites them to sign up instead.
+  if (!signedIn || elements['chat-shell'].classList.contains('guest-mode')) return;
   const list = elements['dm-list'];
   try {
     const payload = await apiGet('/api/v1/direct-messages/conversations.php');

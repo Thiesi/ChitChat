@@ -16,6 +16,11 @@ One forward-only database migration (`0039_guest_access.sql`); back up before up
   - Guests cannot send or receive direct messages, ping, mention or be mentioned, upload, search, or hold a role.
   - Global moderators can end a guest's session, or block guests from that connection for an hour, a day or a week, without seeing the address.
   - Starting a guest session solves the registration proof-of-work puzzle and is rate-limited per address, with at most three guests per connection at a time. Guests also post more slowly (`guest_room_send`).
+  - The sign-in page offers **Look around as a guest** while guest access is on, and the room settings (when creating a room, and in Administration) gain a **Guests** choice.
+  - Guests wear a dashed **Guest** badge and outline wherever their name appears, and members see them in their own **Guests** group in the members panel.
+  - A guest sees a banner and a welcome notification that point to registration. Direct messages give way to an invitation, and rooms they may only read say so in place of the message box.
+  - Appearance choices made as a guest last only for the visit. **Create an account** ends the visit and opens registration.
+  - The profile card offers global moderators **End guest session** and **Block guests from this connection…**. Operational settings gain the **Guest access** switch.
   - Migration `0039_guest_access.sql`; see [Guest access](docs/api/guest-access.md).
 
 ## [3.1.0] - 2026-10-05

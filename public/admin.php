@@ -89,6 +89,13 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
             </select>
           </label>
           <label>Minimum age <input id="admin-room-age" type="number" min="0" max="120" required></label>
+          <label>Guests <span class="optional-label">public rooms without a minimum age only</span>
+            <select id="admin-room-guest-access">
+              <option value="none">Not allowed</option>
+              <option value="read">Can read</option>
+              <option value="write">Can read and write</option>
+            </select>
+          </label>
           <label>Inactivity timeout in seconds <input id="admin-room-timeout" type="number" min="0" max="86400" required></label>
           <button class="primary-button" type="submit">Save room settings</button>
         </form>

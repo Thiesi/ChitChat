@@ -12,6 +12,7 @@ window.addEventListener('DOMContentLoaded', () => {
     'settings-error',
     'settings-form',
     'registration-enabled',
+    'guest-access-enabled',
     'admin-mfa-required',
     'room-retention',
     'dm-retention',
@@ -81,6 +82,7 @@ async function bootstrap() {
 function renderSettings(settings) {
   currentSettings = settings;
   elements['registration-enabled'].value = settings.registration_enabled ? '1' : '0';
+  elements['guest-access-enabled'].value = settings.guest_access_enabled ? '1' : '0';
   elements['admin-mfa-required'].value = settings.mfa_required_for_admin_roles ? '1' : '0';
   elements['room-retention'].value = String(settings.room_message_retention_days);
   elements['dm-retention'].value = String(settings.direct_message_retention_days);
@@ -98,6 +100,7 @@ async function saveSettings(event) {
   elements['settings-error'].textContent = '';
   const payload = {
     registration_enabled: elements['registration-enabled'].value === '1',
+    guest_access_enabled: elements['guest-access-enabled'].value === '1',
     mfa_required_for_admin_roles: elements['admin-mfa-required'].value === '1',
     room_message_retention_days: numberValue('room-retention'),
     direct_message_retention_days: numberValue('dm-retention'),
@@ -108,6 +111,12 @@ async function saveSettings(event) {
     login_attempt_retention_days: numberValue('login-retention'),
     deleted_room_grace_days: numberValue('deleted-room-grace'),
   };
+
+  if (currentSettings?.guest_access_enabled && !payload.guest_access_enabled && !window.confirm(
+    'Switching guest access off ends every guest visit at once. Save?',
+  )) {
+    return;
+  }
 
   const destructive = [
     payload.room_message_retention_days,

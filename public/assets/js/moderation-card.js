@@ -3,16 +3,16 @@
 // server worked out the options (users/profile.php) and checks every action.
 import { apiPost } from './api.js';
 import { formatDateTime } from './datetime.js';
-import { chooseRestriction, confirmAction } from './moderation-tools.js';
+import { chooseGuestBlock, chooseRestriction, confirmAction } from './moderation-tools.js';
 
 /**
- * @param {{ id: number, username: string, moderation: null | { room: null | object, everywhere: null | object } }} profile
+ * @param {{ id: number, username: string, moderation: null | { room: null | object, everywhere: null | object, guest?: null | object } }} profile
  * @param {{ refresh: () => void, report: (text: string, afterRefresh: boolean) => void }} hooks
  * @returns {HTMLElement | null}
  */
 export function moderationSection(profile, { refresh, report }) {
   const options = profile.moderation;
-  if (!options || (!options.room && !options.everywhere)) return null;
+  if (!options || (!options.room && !options.everywhere && !options.guest)) return null;
   const section = document.createElement('div');
   section.className = 'name-menu-moderation';
   const name = profile.username;
@@ -140,6 +140,33 @@ export function moderationSection(profile, { refresh, report }) {
       link.href = `/admin.php?user=${encodeURIComponent(profile.username)}`;
       link.textContent = 'Open in Administration';
       group.append(link);
+    }
+    section.append(document.createElement('hr'), group);
+  }
+
+  // A guest is not signed out or banned: the visit ends, or the connection is blocked for a while.
+  const guest = options.guest;
+  if (guest) {
+    const group = groupWithLabel('Guest session');
+    if (guest.can_end) {
+      group.append(item('End guest session', true, async (button) => {
+        const choice = await confirmAction({
+          title: `End ${name}'s visit?`,
+          text: `${name} is signed out at once and leaves every room. Their messages stay. They can start a new guest visit unless you also block their connection.`,
+          confirmLabel: 'End visit',
+          announce: null,
+        });
+        if (choice) await run(button, () => apiPost('/api/v1/moderation/guest-end.php', { user_id: profile.id }), `${name}'s visit has ended.`);
+      }));
+    }
+    if (guest.can_block_connection) {
+      group.append(item('Block guests from this connection…', true, async (button) => {
+        const choice = await chooseGuestBlock({ name });
+        if (!choice) return;
+        await run(button, () => apiPost('/api/v1/moderation/guest-block.php', {
+          user_id: profile.id, duration_seconds: choice.seconds, reason: choice.reason,
+        }), `Guests from ${name}'s connection are blocked.`);
+      }));
     }
     section.append(document.createElement('hr'), group);
   }

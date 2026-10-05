@@ -49,6 +49,7 @@ function bindElements() {
     'admin-room-info',
     'admin-room-visibility',
     'admin-room-age',
+    'admin-room-guest-access',
     'admin-room-timeout',
     'room-member-list',
     'invitation-search-form',
@@ -96,6 +97,9 @@ function bindEvents() {
   elements['users-more'].addEventListener('click', () => loadUsers(false));
   elements['room-picker'].addEventListener('change', () => loadRoomSnapshot(Number(elements['room-picker'].value)));
   elements['room-settings-form'].addEventListener('submit', saveRoomSettings);
+  for (const field of [elements['admin-room-visibility'], elements['admin-room-age']]) {
+    field.addEventListener('input', syncRoomGuestAccess);
+  }
   elements['invitation-search-form'].addEventListener('submit', searchInvitableUsers);
   elements['room-delete'].addEventListener('click', () => withButton(elements['room-delete'], deleteSelectedRoom));
   elements['audit-more'].addEventListener('click', () => loadAudit(false));
@@ -412,6 +416,8 @@ function renderRoomSnapshot() {
   elements['admin-room-info'].value = room.info_line;
   elements['admin-room-visibility'].value = room.visibility;
   elements['admin-room-age'].value = String(room.minimum_age);
+  elements['admin-room-guest-access'].value = room.guest_access ?? 'none';
+  syncRoomGuestAccess();
   elements['admin-room-timeout'].value = String(room.inactivity_timeout_seconds);
   renderRoomMembers(snapshot.members ?? []);
   renderRoomInvitations(snapshot.invitations ?? []);
@@ -499,6 +505,14 @@ function renderRoomInvitations(invitations) {
   }
 }
 
+// Only public rooms without a minimum age can let guests in.
+function syncRoomGuestAccess() {
+  const qualifies = elements['admin-room-visibility'].value === 'public'
+    && (Number.parseInt(elements['admin-room-age'].value, 10) || 0) === 0;
+  elements['admin-room-guest-access'].disabled = !qualifies;
+  if (!qualifies) elements['admin-room-guest-access'].value = 'none';
+}
+
 async function saveRoomSettings(event) {
   event.preventDefault();
   const room = state.roomSnapshot?.room;
@@ -511,6 +525,7 @@ async function saveRoomSettings(event) {
       visibility: elements['admin-room-visibility'].value,
       minimum_age: Number.parseInt(elements['admin-room-age'].value, 10),
       inactivity_timeout_seconds: Number.parseInt(elements['admin-room-timeout'].value, 10),
+      guest_access: elements['admin-room-guest-access'].value,
     });
     state.roomSnapshot.room = response.room;
     const index = state.manageableRooms.findIndex((candidate) => candidate.id === response.room.id);

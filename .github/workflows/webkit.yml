@@ -42,6 +42,8 @@ jobs:
       CHITCHAT_BASE_URL: http://127.0.0.1:8080
       MESSAGE_REVISION_REVIEW_ENABLED: 1
       RATE_LIMIT_REGISTRATION_MAX_ATTEMPTS: 100
+      # Every spec starts its guests from the same address.
+      RATE_LIMIT_GUEST_START_MAX_ATTEMPTS: 100
       # Many specs confirm sensitive actions as the same administrator within one window.
       RATE_LIMIT_PRIVILEGED_STEP_UP_MAX_ATTEMPTS: 100
       # Google sign-in against the local mock provider in tests/e2e/support/mock-oidc.js.

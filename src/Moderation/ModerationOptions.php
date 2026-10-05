@@ -69,7 +69,8 @@ final class ModerationOptions
                 'can_kick' => $manageUsers,
                 'can_ban' => $manageUsers,
                 'can_mute' => $muteEverywhere,
-                'can_open_administration' => $viewer->canManageUsers(),
+                // Administration lists accounts, not guests.
+                'can_open_administration' => !$targetIsGuest && $viewer->canManageUsers(),
                 'ban' => $ban,
                 'mute' => $mutes->current($targetId, null),
             ];

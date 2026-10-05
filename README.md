@@ -54,6 +54,7 @@ The application currently provides:
 - durable participant-facing notifications for revision review, moderator room-message deletion, administrator password reset, material installation-policy changes, and mentions, with bounded context, account-scoped read state, and an unread badge;
 - optional Web Push delivery of that same notification set to subscribed browsers, with a per-category mute for mentions, per-account quiet hours, per-device subscription management, and delivery through a periodic operator-scheduled sweep rather than a request-time side effect;
 - public, unlisted, and invitation-only private rooms;
+- optional guest access: a Super-Administrator can let visitors look around as numbered guests, in public rooms that let guests read or also write. Guests can't use direct messages, pings or mentions, are marked everywhere, and global moderators can end a visit or block guests from a connection;
 - room owners, moderators, members, minimum-age enforcement, and optional inactivity policies;
 - persistent room-message history with pagination;
 - authorization-aware PostgreSQL full-text search over current undeleted room and direct-message bodies, with room discoverability, membership, invitation, minimum-age and DM-participant rules enforced inside the query;

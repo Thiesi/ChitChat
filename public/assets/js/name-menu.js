@@ -7,6 +7,7 @@ import { ApiError, apiGet, apiPost } from './api.js';
 import { miniAvatar, refreshPhoto } from './avatar.js';
 import { formatDateTime } from './datetime.js';
 import { moderationSection } from './moderation-card.js';
+import { REGISTER_URL, guestBadge, isGuestName, markGuestAvatar } from './guest.js';
 
 const phone = window.matchMedia('(max-width: 34rem)');
 const ICON_MESSAGE = ['M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'];
@@ -23,6 +24,7 @@ let backdrop = null;
 let opener = null;
 let openerMessageId = null;
 let currentUserId = null;
+let currentUserIsGuest = false;
 let sequence = 0;
 // The room the chat shows, so the card can offer moderation there.
 let moderationRoomId = null;
@@ -96,8 +98,10 @@ async function open(button) {
   name.textContent = username;
   const label = document.createElement('div');
   label.append(name);
+  const targetIsGuest = isGuestName(username);
   const avatar = miniAvatar(username, userId);
   avatar.classList.add('profile-avatar');
+  if (targetIsGuest) markGuestAvatar(avatar);
   identity.append(avatar, label);
   const actions = document.createElement('div');
   actions.className = 'name-menu-actions';
@@ -120,7 +124,18 @@ async function open(button) {
     note.className = 'profile-meta';
     note.textContent = 'This is you';
     label.append(note);
-    actions.append(menuLink('/account.php', 'Your account', ICON_PERSON));
+    actions.append(currentUserIsGuest
+      ? menuLink(REGISTER_URL, 'Create an account', ICON_PERSON)
+      : menuLink('/account.php', 'Your account', ICON_PERSON));
+    focusFirst();
+    return;
+  }
+
+  // Guests take no part in direct messages, either way.
+  if (targetIsGuest || currentUserIsGuest) {
+    actions.append(statusText(targetIsGuest
+      ? 'Guests can’t receive direct messages or mentions.'
+      : 'Create an account to send direct messages.'));
     focusFirst();
     return;
   }
@@ -153,7 +168,9 @@ async function open(button) {
 // Fills in what the profile adds: a staff badge, when they joined, and the
 // moderator action for an inappropriate picture.
 function showProfile(label, actions, profile, self) {
-  if (profile.badge) {
+  if (profile.guest) {
+    label.querySelector('strong')?.after(guestBadge('profile-badge'));
+  } else if (profile.badge) {
     const badge = document.createElement('span');
     badge.className = 'profile-badge';
     badge.textContent = profile.badge;
@@ -161,7 +178,9 @@ function showProfile(label, actions, profile, self) {
   }
   const since = document.createElement('span');
   since.className = 'profile-meta';
-  since.textContent = `Member since ${formatDateTime(profile.member_since, { dateStyle: 'long', timeStyle: null })}`;
+  since.textContent = profile.guest
+    ? `Visiting as a guest since ${formatDateTime(profile.member_since, { dateStyle: null, timeStyle: 'short' })}`
+    : `Member since ${formatDateTime(profile.member_since, { dateStyle: 'long', timeStyle: null })}`;
   label.append(since);
 
   if (!self) actions.append(ignoreToggle(profile));
@@ -311,7 +330,7 @@ function statusText(text) {
 }
 
 function focusFirst() {
-  menu.querySelector('a[href]')?.focus();
+  (menu.querySelector('a[href]') ?? menu.querySelector('.name-menu-actions button'))?.focus();
 }
 
 async function ownUserId() {
@@ -319,8 +338,10 @@ async function ownUserId() {
   try {
     const session = await apiGet('/api/v1/session.php');
     currentUserId = session.user?.id ?? null;
+    currentUserIsGuest = session.user?.guest === true;
   } catch {
     currentUserId = null;
+    currentUserIsGuest = false;
   }
   return currentUserId;
 }

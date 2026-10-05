@@ -1,6 +1,7 @@
 import { ApiError, apiGet, apiPost } from './api.js';
 import { miniAvatar } from './avatar.js';
 import { nameButton } from './name-menu.js';
+import { markGuestAvatar } from './guest.js';
 
 export function createPresenceClient({
   getCurrentRoom,
@@ -15,7 +16,10 @@ export function createPresenceClient({
   const heading = document.getElementById('presence-heading');
   const toggle = document.getElementById('members-toggle');
   const count = document.getElementById('members-count');
-  if (!list || !heading || !toggle || !count) {
+  // Guests are listed apart, below the members.
+  const guestList = document.getElementById('guest-presence-list');
+  const guestHeading = document.getElementById('guest-presence-heading');
+  if (!list || !heading || !toggle || !count || !guestList || !guestHeading) {
     throw new Error('Presence interface is incomplete.');
   }
 
@@ -122,35 +126,44 @@ export function createPresenceClient({
 
   function render(users) {
     currentUsers = users;
+    const members = users.filter((user) => !user.guest);
+    const guests = users.filter((user) => user.guest);
     list.replaceChildren();
-    renderCount(users.length);
+    guestList.replaceChildren();
+    renderCount(users.length, members.length, guests.length);
 
-    if (users.length === 0) {
+    if (members.length === 0) {
       const empty = document.createElement('li');
       empty.className = 'room-meta';
-      empty.textContent = 'No active users.';
+      empty.textContent = guests.length === 0 ? 'No active users.' : 'No members online.';
       list.append(empty);
-      return;
     }
-
-    for (const user of users) {
-      const item = document.createElement('li');
-      item.className = 'member-row';
-
-      const idleText = formatIdle(user.idle_seconds);
-      const name = nameButton(user, 'member-name');
-
-      const note = document.createElement('span');
-      note.className = 'member-note';
-      note.textContent = user.id === getCurrentUserId() ? 'you' : idleText;
-
-      item.append(miniAvatar(user.username, user.id, idleText === 'active' ? 'online' : 'idle'), name, note);
-      list.append(item);
-    }
+    list.append(...members.map(memberRow));
+    guestList.append(...guests.map(memberRow));
   }
 
-  function renderCount(total) {
-    heading.textContent = total > 0 ? `Online here — ${total}` : 'Online here';
+  function memberRow(user) {
+    const item = document.createElement('li');
+    item.className = 'member-row';
+
+    const idleText = formatIdle(user.idle_seconds);
+    const name = nameButton(user, 'member-name');
+
+    const note = document.createElement('span');
+    note.className = 'member-note';
+    note.textContent = user.id === getCurrentUserId() ? 'you' : idleText;
+
+    const avatar = miniAvatar(user.username, user.id, idleText === 'active' ? 'online' : 'idle');
+    if (user.guest) markGuestAvatar(avatar);
+    item.append(avatar, name, note);
+    return item;
+  }
+
+  function renderCount(total, members = total, guests = 0) {
+    heading.textContent = members > 0 ? `Online here — ${members}` : 'Online here';
+    guestHeading.textContent = `Guests — ${guests}`;
+    guestHeading.classList.toggle('hidden', guests === 0);
+    guestList.classList.toggle('hidden', guests === 0);
     count.textContent = total > 0 ? String(total) : '';
     toggle.setAttribute('aria-label', total === 1 ? 'Members, 1 online' : `Members, ${total > 0 ? total : 'none'} online`);
   }
@@ -158,6 +171,7 @@ export function createPresenceClient({
   function clear() {
     currentUsers = [];
     list.replaceChildren();
+    guestList.replaceChildren();
     renderCount(0);
   }
 

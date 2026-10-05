@@ -1,0 +1,103 @@
+/* Guests: what only guests see, what they do not, and how a guest looks to everyone. */
+
+.chat-shell:not(.guest-mode) .guest-only { display: none !important; }
+.chat-shell.guest-mode .member-only { display: none !important; }
+
+/* A dashed outline reads as "visiting" without relying on colour. */
+.guest-badge {
+  display: inline-block;
+  margin-left: 0.35rem;
+  padding: 0 0.42rem;
+  border: 1px dashed color-mix(in srgb, var(--muted) 80%, transparent);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1.35;
+  letter-spacing: 0.02em;
+  vertical-align: 0.1em;
+  white-space: nowrap;
+}
+.message-header .guest-badge { margin-left: -0.15rem; margin-right: 0.15rem; }
+.profile-badge.guest-badge { margin-left: 0; font-size: 0.72rem; }
+
+.guest-avatar {
+  display: inline-grid;
+  place-items: center;
+  border: 1.5px dashed color-mix(in srgb, var(--muted) 80%, transparent) !important;
+  background: transparent !important;
+  color: var(--muted) !important;
+}
+.guest-avatar svg { width: 58%; height: 58%; }
+.user-button.guest-avatar { display: grid; }
+.user-button.guest-avatar svg { width: 1.2rem; height: 1.2rem; }
+
+/* The strip across the top, like the maintenance one. */
+.guest-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--border));
+  border-radius: 0.8rem;
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+  color: var(--text);
+  font-size: 0.9rem;
+}
+.chat-shell > .guest-banner { grid-column: 1 / -1; }
+.chat-shell:has(> .guest-banner:not(.hidden)) { grid-template-rows: auto minmax(0, 1fr); }
+.chat-shell:has(> .lockdown-banner:not(.hidden)):has(> .guest-banner:not(.hidden)) { grid-template-rows: auto auto minmax(0, 1fr); }
+.guest-banner > span { flex: 1; min-width: 0; }
+.guest-banner a { color: var(--accent-strong); font-weight: 700; white-space: nowrap; }
+.guest-banner .icon-button { flex: none; }
+
+.guest-dm-card {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0.25rem 0.5rem 0;
+  padding: 0.8rem 0.85rem;
+  border: 1px dashed var(--border);
+  border-radius: 0.8rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.guest-dm-card strong { color: var(--text); }
+.guest-dm-card .secondary-button { justify-self: start; padding: 0.35rem 0.75rem; font-size: 0.85rem; }
+
+.guest-readonly { grid-template-columns: 1fr auto; align-items: center; }
+.guest-readonly > div { display: grid; gap: 0.2rem; }
+.guest-readonly span { color: var(--muted); font-size: 0.9rem; }
+.guest-readonly .primary-button { white-space: nowrap; text-decoration: none; }
+
+.menu-item.guest-signup { color: var(--accent-strong); font-weight: 700; }
+.guest-menu-note { margin: 0.1rem 0.7rem 0.4rem; color: var(--muted); font-size: 0.78rem; }
+
+/* Without the attach button the field needs no room on its left. */
+.guest-mode .composer-field textarea { padding-left: 1rem; }
+
+.members-panel h3.guest-heading { margin-top: 0.4rem; }
+
+/* The way in, on the sign-in page: beside the welcome on wide screens, in the card on phones. */
+.guest-intro-cta { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem 1rem; margin-top: 1.6rem; }
+.guest-intro-cta .secondary-button { padding: 0.6rem 1.1rem; }
+.guest-intro-cta span { color: var(--muted); font-size: 0.88rem; }
+.guest-entry {
+  display: grid;
+  gap: 0.45rem;
+  margin-top: 1.1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+  text-align: center;
+}
+.guest-entry p { margin: 0; color: var(--muted); font-size: 0.85rem; }
+.guest-entry .secondary-button { width: 100%; }
+@media (min-width: 48.01rem) { .guest-entry { display: none; } }
+@media (max-width: 48rem) { .guest-intro-cta { display: none; } }
+
+@media (max-width: 34rem) {
+  .guest-banner-more { display: none; }
+  .chat-shell > .guest-banner { padding: 0.45rem 0.75rem; border-radius: 0; border-width: 0 0 1px; font-size: 0.8rem; }
+  .guest-readonly { grid-template-columns: 1fr; }
+  .guest-readonly .primary-button { justify-self: start; }
+}

@@ -231,6 +231,63 @@ export function chooseRestriction(options) {
   });
 }
 
+const GUEST_BLOCKS = [['1 hour', 3600], ['1 day', 86400], ['1 week', 604800]];
+
+/**
+ * "Block guests from this connection": for how long, and why. The
+ * moderator never sees the address itself. Resolves to the choice, or null.
+ *
+ * @param {{ name: string }} guest
+ * @returns {Promise<{ seconds: number, reason: string } | null>}
+ */
+export function chooseGuestBlock({ name }) {
+  const id = `guest-block-${(dialogCount += 1)}`;
+  const { dialog, form } = dialogShell(id, 'Block guests from this connection?');
+
+  const lengths = document.createElement('fieldset');
+  lengths.className = 'duration-choices';
+  const legend = document.createElement('legend');
+  legend.textContent = 'For';
+  lengths.append(legend);
+  GUEST_BLOCKS.forEach(([label, seconds], index) => {
+    const option = document.createElement('label');
+    option.className = 'duration-chip';
+    const radio = document.createElement('input');
+    radio.type = 'radio';
+    radio.name = `${id}-length`;
+    radio.value = String(seconds);
+    radio.checked = index === 1;
+    option.append(radio, label);
+    lengths.append(option);
+  });
+
+  const reasonLabel = document.createElement('label');
+  reasonLabel.append('Reason ');
+  const hint = document.createElement('span');
+  hint.className = 'optional-label';
+  hint.textContent = 'optional, kept in the audit log';
+  const reason = document.createElement('input');
+  reason.type = 'text';
+  reason.maxLength = 500;
+  reason.autocomplete = 'off';
+  reasonLabel.append(hint, reason);
+
+  const effect = document.createElement('p');
+  effect.className = 'optional-label';
+  effect.textContent = `${name} and every other guest from the same connection leave at once, and no new guest can start from it. Members there can still sign in and register.`;
+
+  form.append(lengths, reasonLabel, effect, actionRow('Block guests'));
+  dialog.append(form);
+  document.body.append(dialog);
+  dialog.showModal();
+  form.querySelector(`input[name="${id}-length"]:checked`)?.focus();
+
+  return settle(dialog, form, () => ({
+    seconds: Number(form.querySelector(`input[name="${id}-length"]:checked`)?.value ?? 86400),
+    reason: reason.value.trim(),
+  }));
+}
+
 /**
  * A plain confirmation, optionally with "Let the room know".
  *

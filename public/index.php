@@ -20,6 +20,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <link rel="stylesheet" href="/assets/css/accessibility.css">
   <link rel="stylesheet" href="/assets/css/message-mutations.css">
   <link rel="stylesheet" href="/assets/css/privacy-notifications.css">
+  <link rel="stylesheet" href="/assets/css/guest.css">
 </head>
 <body>
   <div id="app-loading" class="app-loading" role="status">Loading <?= $appName ?>…</div>
@@ -30,6 +31,10 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
         <p class="welcome-eyebrow">Make yourself at home</p>
         <p class="welcome-title">Good company.<br>Great conversations.</p>
         <p class="welcome-copy">A little hello can go a long way. Settle in, find your people, and let the conversation flow.</p>
+        <div class="guest-intro-cta hidden" data-guest-entry>
+          <button class="secondary-button" type="button" data-guest-start>Look around as a guest →</button>
+          <span>No account needed.</span>
+        </div>
         <svg class="welcome-art" viewBox="0 0 400 220" fill="none" aria-hidden="true" focusable="false">
           <circle cx="196" cy="108" r="96" class="art-orbit"/>
           <circle cx="196" cy="108" r="70" class="art-orbit"/>
@@ -92,6 +97,12 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
           <button class="primary-button" type="submit">Create account</button>
         </form>
 
+        <div class="guest-entry hidden" data-guest-entry>
+          <p>Just curious?</p>
+          <button class="secondary-button" type="button" data-guest-start>Look around as a guest</button>
+          <p>No account needed. Read open rooms and chat where guests are welcome.</p>
+        </div>
+
         <p id="auth-error" class="error-text" role="alert"></p>
       </section>
     </div>
@@ -100,6 +111,11 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
 
   <main id="chat-shell" class="chat-shell hidden">
     <p id="chat-lockdown" class="lockdown-notice lockdown-banner hidden" role="status"><strong>Maintenance lockdown.</strong> <span data-lockdown-text></span> New sign-ins are paused; you can keep chatting.</p>
+    <div id="guest-banner" class="guest-banner hidden" role="status">
+      <span><strong>You are visiting as <span data-guest-name></span>.</strong><span class="guest-banner-more"> Look around and join in where guests can write. Nothing is kept after you leave.</span></span>
+      <a href="/?register=1">Create an account</a>
+      <button id="guest-banner-dismiss" class="icon-button close-button" type="button" aria-label="Dismiss">×</button>
+    </div>
     <aside id="sidebar" class="sidebar" aria-label="Rooms and conversations">
       <header class="sidebar-header">
         <div class="brand-row">
@@ -109,7 +125,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
         <button id="drawer-close" class="icon-button close-button drawer-close" type="button" aria-label="Close rooms and conversations">×</button>
       </header>
 
-      <a class="drawer-search" href="/search.php"><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>Search messages</a>
+      <a class="drawer-search member-only" href="/search.php"><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>Search messages</a>
 
       <section class="nav-section" aria-labelledby="rooms-heading">
         <div class="rooms-heading-row">
@@ -122,10 +138,14 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
       <section class="nav-section" aria-labelledby="dm-heading">
         <div class="rooms-heading-row">
           <h2 id="dm-heading" class="rooms-heading">Direct messages</h2>
-          <a class="icon-button section-add" href="/messages.php" aria-label="New conversation" title="New conversation">+</a>
+          <a class="icon-button section-add member-only" href="/messages.php" aria-label="New conversation" title="New conversation">+</a>
         </div>
-        <ul id="dm-list" class="dm-list"></ul>
-        <a class="all-conversations" href="/messages.php">All conversations →</a>
+        <ul id="dm-list" class="dm-list member-only"></ul>
+        <a class="all-conversations member-only" href="/messages.php">All conversations →</a>
+        <div class="guest-dm-card guest-only">
+          <span><strong>Direct messages are for members.</strong> With a free account you can message people, mention them and get notified.</span>
+          <a class="secondary-button" href="/?register=1">Create an account</a>
+        </div>
       </section>
     </aside>
     <div id="drawer-backdrop" class="drawer-backdrop" aria-hidden="true"></div>
@@ -145,8 +165,8 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
             <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
             <span id="members-count" aria-hidden="true"></span>
           </button>
-          <span class="header-divider" aria-hidden="true"></span>
-          <a class="header-button header-search" href="/search.php" aria-label="Search messages" title="Search messages"><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></a>
+          <span class="header-divider member-only" aria-hidden="true"></span>
+          <a class="header-button header-search member-only" href="/search.php" aria-label="Search messages" title="Search messages"><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></a>
           <div class="popover-anchor">
             <button id="notifications-button" class="header-button" type="button" aria-expanded="false" aria-controls="notifications-popover" aria-label="Notifications, none unread">
               <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
@@ -159,7 +179,8 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
               </div>
               <ul id="notifications-preview" class="notification-preview"></ul>
               <hr>
-              <a class="popover-footer" href="/notifications.php">All notifications and push settings →</a>
+              <a class="popover-footer member-only" href="/notifications.php">All notifications and push settings →</a>
+              <a class="popover-footer guest-only" href="/?register=1">Create an account →</a>
             </section>
           </div>
           <div class="popover-anchor">
@@ -167,10 +188,13 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
             <section id="user-menu" class="popover hidden" aria-label="Account menu">
               <div class="popover-identity">
                 <span id="user-menu-avatar" class="mini-avatar" aria-hidden="true"></span>
-                <div><span class="visually-hidden">Signed in as </span><strong id="current-user"></strong><span aria-hidden="true">Signed in</span></div>
+                <div><span class="visually-hidden" data-identity-prefix>Signed in as </span><strong id="current-user"></strong><span aria-hidden="true" data-identity-status>Signed in</span></div>
               </div>
               <hr>
-              <a class="menu-item" href="/account.php">
+              <a class="menu-item guest-only guest-signup" href="/?register=1">
+                <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Create an account
+              </a>
+              <a class="menu-item member-only" href="/account.php">
                 <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Account
               </a>
               <a id="admin-link" class="menu-item hidden" href="/admin.php">
@@ -192,8 +216,9 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
                   <label class="scheme-option" title="Midnight"><input type="radio" name="menu-scheme" value="midnight" data-scheme-radio><span class="scheme-swatch" data-swatch="midnight" aria-hidden="true"></span><span class="visually-hidden">Midnight</span></label>
                   <label class="scheme-option" title="High contrast"><input type="radio" name="menu-scheme" value="contrast" data-scheme-radio><span class="scheme-swatch" data-swatch="contrast" aria-hidden="true"></span><span class="visually-hidden">High contrast</span></label>
                 </div>
+                <p class="guest-menu-note guest-only">Kept on this device until you leave.</p>
               </fieldset>
-              <fieldset class="menu-group">
+              <fieldset class="menu-group member-only">
                 <legend class="menu-group-label">Sounds on this device</legend>
                 <label class="menu-switch"><input type="checkbox" data-sound="ping" checked> Pings</label>
                 <label class="menu-switch"><input type="checkbox" data-sound="mention" checked> Mentions</label>
@@ -201,7 +226,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
               </fieldset>
               <hr>
               <button id="logout-button" class="menu-item danger-item" type="button">
-                <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>Sign out
+                <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg><span class="member-only">Sign out</span><span class="guest-only">Leave</span>
               </button>
               <?= \ChitChat\View\PoweredBy::html() ?>
             </section>
@@ -218,6 +243,10 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
         <button id="jump-latest" class="jump-latest hidden" type="button">Jump to latest</button>
         <p id="typing-indicator" class="typing-indicator"></p>
         <div id="muted-notice" class="muted-notice hidden" role="status"></div>
+        <div id="guest-readonly-notice" class="muted-notice guest-readonly hidden" role="status">
+          <div><strong>Guests can read this room.</strong><span>Create an account to join the conversation.</span></div>
+          <a class="primary-button" href="/?register=1">Create an account</a>
+        </div>
         <div id="reply-banner" class="reply-banner hidden">
           <span id="reply-banner-text"></span>
           <button id="reply-banner-cancel" class="reply-banner-cancel" type="button" aria-label="Cancel reply">Cancel</button>
@@ -229,13 +258,13 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
             <button id="emoji-button" class="emoji-button" type="button" aria-label="Insert emoji" title="Insert emoji">
               <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
             </button>
-            <label class="attachment-button" for="attachment-input" title="Attach file">
+            <label class="attachment-button member-only" for="attachment-input" title="Attach file">
               <svg class="attachment-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
               <span class="visually-hidden">Attach file</span>
             </label>
             <input
               id="attachment-input"
-              class="visually-hidden"
+              class="visually-hidden member-only"
               name="file"
               type="file"
               accept="image/jpeg,image/png,image/gif,image/webp,application/pdf,text/plain,text/csv,application/json,application/zip"
@@ -247,7 +276,8 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
             <button id="attachment-clear" class="secondary-button hidden" type="button">Remove</button>
           </div>
         </form>
-        <p class="composer-help">Enter sends · Shift+Enter adds a line · Attachments may include an optional caption · Type <code>/</code> for commands, <code>/help</code> for formatting</p>
+        <p class="composer-help member-only">Enter sends · Shift+Enter adds a line · Attachments may include an optional caption · Type <code>/</code> for commands, <code>/help</code> for formatting</p>
+        <p class="composer-help guest-only">Enter sends · Shift+Enter adds a line · As a guest, <code>@names</code> and <code>/ping</code> don’t notify anyone</p>
       </div>
     </section>
 
@@ -258,6 +288,8 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
       </header>
       <h3 id="presence-heading">Online here</h3>
       <ul id="presence-list" class="member-list" aria-labelledby="presence-heading"></ul>
+      <h3 id="guest-presence-heading" class="guest-heading hidden">Guests</h3>
+      <ul id="guest-presence-list" class="member-list hidden" aria-labelledby="guest-presence-heading"></ul>
     </aside>
   </main>
 
@@ -290,6 +322,14 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
       <label>
         Minimum age
         <input id="room-minimum-age" name="minimum_age" type="number" min="0" max="120" value="0" required>
+      </label>
+      <label>
+        Guests <span class="optional-label">public rooms without a minimum age only</span>
+        <select id="room-guest-access" name="guest_access">
+          <option value="none">Not allowed</option>
+          <option value="read">Can read</option>
+          <option value="write">Can read and write</option>
+        </select>
       </label>
       <label>
         Inactivity timeout in seconds <span class="optional-label">0 disables; minimum 120</span>

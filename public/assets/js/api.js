@@ -9,6 +9,7 @@ const SESSION_VERSION_MARKER = Symbol.for('chitchat.sessionVersion');
 const SESSION_CHANGE_ENDPOINTS = new Set([
   '/api/v1/login.php',
   '/api/v1/register.php',
+  '/api/v1/guest/start.php',
   '/api/v1/logout.php',
   '/api/v1/account/close.php',
   '/api/v1/account/restore.php',
@@ -92,6 +93,10 @@ async function request(path, options) {
 
   if (!response.ok) {
     const error = payload?.error ?? {};
+    // A guest who reaches a members-only page goes back to the chat.
+    if (error.code === 'guest_not_allowed' && window.location.pathname !== '/') {
+      window.location.assign('/');
+    }
     throw new ApiError(
       response.status,
       typeof error.code === 'string' ? error.code : 'request_failed',

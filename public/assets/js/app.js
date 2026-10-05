@@ -12,8 +12,12 @@ import { withProviderIcon } from './provider-icons.js';
 import { COMMANDS, SHRUG, attachCommandSuggestions, parseSlashCommand, showCommandHelp, splitTarget } from './slash-commands.js';
 import { alertUser } from './attention.js';
 import { formatDateTime } from './datetime.js';
+import { guestBadge, isGuestName, markGuestAvatar } from './guest.js';
 
 const registrationChallenge = createRegistrationChallenge();
+const guestChallenge = createRegistrationChallenge('/api/v1/guest/challenge.php');
+const GUEST_BANNER_KEY = 'chitchat.guestBannerDismissed';
+const GUEST_COMMANDS = ['me', 'shrug', 'help'];
 
 const state = {
   user: null,
@@ -31,6 +35,8 @@ const state = {
   replyTo: null,
   roomMembers: [],
   pings: [],
+  // Whether the sign-in page offers "Look around as a guest".
+  guestAccess: false,
 };
 
 const elements = {};
@@ -48,7 +54,7 @@ window.addEventListener('DOMContentLoaded', () => {
     getCurrentUserId: () => state.user?.id ?? null,
     canOccupy: canUsePresence,
     onExpired: handlePresenceExpired,
-    onUnauthorized: () => forceSignedOut('Your session has ended. Please sign in again.'),
+    onUnauthorized: () => forceSignedOut(sessionEndedMessage()),
     toast,
   });
   bootstrap().catch(handleFatalError);
@@ -110,6 +116,10 @@ function bindElements() {
     'reply-banner',
     'reply-banner-text',
     'reply-banner-cancel',
+    'guest-banner',
+    'guest-banner-dismiss',
+    'guest-readonly-notice',
+    'room-guest-access',
   ]) {
     const element = document.getElementById(id);
     if (!element) {
@@ -167,6 +177,20 @@ function bindEvents() {
   elements['new-room-button'].addEventListener('click', openRoomDialog);
   elements['room-dialog-cancel'].addEventListener('click', () => elements['room-dialog'].close());
   elements['room-create-form'].addEventListener('submit', createRoom);
+  for (const field of [elements['room-visibility'], elements['room-minimum-age']]) {
+    field.addEventListener('input', syncRoomGuestAccess);
+  }
+  for (const button of document.querySelectorAll('[data-guest-start]')) {
+    button.addEventListener('click', startGuest);
+  }
+  elements['guest-banner-dismiss'].addEventListener('click', () => {
+    elements['guest-banner'].classList.add('hidden');
+    try {
+      window.sessionStorage.setItem(GUEST_BANNER_KEY, '1');
+    } catch {
+      // Without storage the banner returns on the next page load.
+    }
+  });
 }
 
 async function bootstrap() {
@@ -176,12 +200,23 @@ async function bootstrap() {
   state.shareTyping = session.share_typing !== false;
   renderLockdown(session.lockdown);
   renderSignInProviders(session.sign_in_providers);
+  state.guestAccess = session.guest_access === true;
   elements['app-loading'].classList.add('hidden');
+
+  // "Create an account" ends a guest visit and opens registration.
+  const wantsRegistration = consumeRegisterParameter();
+  if (session.user?.guest && wantsRegistration) {
+    await leaveGuestVisit();
+    showSignedOutPage('register');
+    toast('Your guest visit has ended. Create your account below.');
+    return;
+  }
 
   if (session.user) {
     await enterApplication(session.user);
   } else {
-    showAuthMode(session.pending_sign_up ? 'register' : 'login');
+    renderGuestEntry();
+    showAuthMode(session.pending_sign_up || wantsRegistration ? 'register' : 'login');
     setProviderSignUp(session.pending_sign_up ?? null);
     showSignInErrorFromRedirect();
     elements['auth-shell'].classList.remove('hidden');
@@ -191,17 +226,30 @@ async function bootstrap() {
 
 async function enterApplication(user) {
   state.user = user;
+  const guest = user.guest === true;
+  window.chitchatTheme?.setGuest(guest);
+  elements['chat-shell'].classList.toggle('guest-mode', guest);
   elements['auth-shell'].classList.add('hidden');
   elements['chat-shell'].classList.remove('hidden');
   elements['current-user'].textContent = user.username;
+  document.querySelector('[data-identity-prefix]').textContent = guest ? 'Visiting as ' : 'Signed in as ';
+  document.querySelector('[data-identity-status]').textContent = guest ? 'Visiting as a guest' : 'Signed in';
   for (const avatar of [elements['user-initials'], elements['user-menu-avatar']]) {
     avatar.textContent = initials(user.username);
   }
   elements['user-menu-avatar'].dataset.tone = String(avatarTone(user.id));
-  for (const avatar of [elements['user-menu-button'], elements['user-menu-avatar']]) {
-    avatar.dataset.avatarUser = String(user.id);
-    attachPhoto(avatar, user.id);
+  elements['user-menu-button'].classList.toggle('guest-avatar', guest);
+  elements['user-menu-avatar'].classList.toggle('guest-avatar', guest);
+  if (guest) {
+    markGuestAvatar(elements['user-initials'], { outline: false });
+    markGuestAvatar(elements['user-menu-avatar']);
+  } else {
+    for (const avatar of [elements['user-menu-button'], elements['user-menu-avatar']]) {
+      avatar.dataset.avatarUser = String(user.id);
+      attachPhoto(avatar, user.id);
+    }
   }
+  renderGuestBanner();
   elements['new-room-button'].classList.toggle('hidden', !canCreateRooms(user));
   clearAuthError();
   presence.start();
@@ -270,6 +318,86 @@ async function submitRegistration(event) {
   }
 }
 
+// ---- Guests ----
+
+/** "Look around as a guest": solve the puzzle, start a guest session, and go in. */
+async function startGuest(event) {
+  const buttons = [...document.querySelectorAll('[data-guest-start]')];
+  for (const button of buttons) button.disabled = true;
+  clearAuthError();
+  try {
+    const proof = await guestChallenge.solution();
+    const response = await apiPost('/api/v1/guest/start.php', {
+      challenge_nonce: proof?.nonce ?? null,
+      challenge_solution: proof?.solution ?? null,
+    });
+    await enterApplication(response.user);
+  } catch (error) {
+    showAuthError(error);
+    event?.target?.focus?.();
+  } finally {
+    // Each attempt uses up its puzzle.
+    guestChallenge.reset();
+    for (const button of buttons) button.disabled = false;
+  }
+}
+
+function renderGuestEntry() {
+  for (const entry of document.querySelectorAll('[data-guest-entry]')) {
+    entry.classList.toggle('hidden', !state.guestAccess);
+  }
+}
+
+function renderGuestBanner() {
+  let dismissed = false;
+  try {
+    dismissed = window.sessionStorage.getItem(GUEST_BANNER_KEY) === '1';
+  } catch {
+    dismissed = false;
+  }
+  const guest = state.user?.guest === true;
+  elements['guest-banner'].querySelector('[data-guest-name]').textContent = guest ? state.user.username : '';
+  elements['guest-banner'].classList.toggle('hidden', !guest || dismissed);
+}
+
+async function leaveGuestVisit() {
+  try {
+    await apiPost('/api/v1/logout.php');
+  } catch {
+    // The visit ends on its own when it idles out.
+  }
+  window.chitchatTheme?.setGuest(false);
+  try {
+    window.sessionStorage.removeItem(GUEST_BANNER_KEY);
+  } catch {
+    // Nothing to forget.
+  }
+  const session = await apiGet('/api/v1/session.php');
+  setCsrfToken(session.csrf_token);
+  state.guestAccess = session.guest_access === true;
+}
+
+function consumeRegisterParameter() {
+  const parameters = new URLSearchParams(window.location.search);
+  if (!parameters.has('register')) return false;
+  parameters.delete('register');
+  const query = parameters.toString();
+  window.history.replaceState(null, '', `${window.location.pathname}${query ? `?${query}` : ''}`);
+  return true;
+}
+
+function showSignedOutPage(mode) {
+  renderGuestEntry();
+  showAuthMode(mode);
+  elements['auth-shell'].classList.remove('hidden');
+  if (mode === 'register') elements['register-username'].focus();
+}
+
+/** A guest posts only where the room lets guests write. */
+function guestReadOnly(room) {
+  return state.user?.guest === true && room?.guest_access !== 'write';
+}
+
 async function submitLogout() {
   elements['logout-button'].disabled = true;
   try {
@@ -280,7 +408,7 @@ async function submitLogout() {
     }
   } finally {
     elements['logout-button'].disabled = false;
-    forceSignedOut('You have been logged out.');
+    forceSignedOut(state.user?.guest ? 'Thanks for visiting. Your guest visit has ended.' : 'You have been logged out.');
   }
 }
 
@@ -435,6 +563,9 @@ function renderRoomList() {
     if (room.visibility !== 'public') {
       button.append(roomLock(room.visibility));
     }
+    if (guestReadOnly(room)) {
+      button.append(roomFlag('read only'));
+    }
 
     button.addEventListener('click', () => {
       window.dispatchEvent(new CustomEvent('chitchat:room-chosen'));
@@ -444,7 +575,17 @@ function renderRoomList() {
   }
 }
 
-async function selectRoom(room) {
+async function selectRoom(chosen) {
+  let room = chosen;
+  if (state.user?.guest && room.member_role === null) {
+    try {
+      room = (await apiPost('/api/v1/rooms/join.php', { room_id: room.id })).room ?? room;
+      const index = state.rooms.findIndex((candidate) => candidate.id === room.id);
+      if (index !== -1) state.rooms[index] = { ...state.rooms[index], ...room };
+    } catch (error) {
+      handleApiFailure(error);
+    }
+  }
   state.currentRoom = room;
   setModerationRoom(room.id);
   roomTyping?.clear();
@@ -558,6 +699,8 @@ function buildPingElement(ping) {
 // Tab completion needs names synchronously, so the room's members are
 // fetched once per room and kept alongside recent speakers and who is online.
 async function loadRoomMembers(room) {
+  // Guests do not mention anyone, so they need no list to complete from.
+  if (state.user?.guest) return;
   try {
     const parameters = new URLSearchParams({ room_id: String(room.id), search: '', limit: '25' });
     const response = await apiGet(`/api/v1/rooms/mentionable-users.php?${parameters.toString()}`);
@@ -571,6 +714,7 @@ async function loadRoomMembers(room) {
 
 /** Names to complete, best first: recent speakers, then who is online, then other members. */
 function completionCandidates() {
+  if (state.user?.guest) return [];
   const own = state.user?.id;
   const names = [];
   for (let index = state.messages.length - 1; index >= 0; index -= 1) {
@@ -613,8 +757,12 @@ function renderRoomHeader() {
   elements['composer-wrap'].classList.toggle('hidden', !isMember);
   // A muted person reads along; the message box says why and until when.
   const mute = isMember ? room.muted ?? null : null;
-  elements['composer-form'].classList.toggle('hidden', Boolean(mute));
-  elements['composer-input'].disabled = !isMember || Boolean(mute);
+  // So does a guest in a room guests may only read, with a way to sign up.
+  const readOnly = isMember && guestReadOnly(room);
+  elements['composer-form'].classList.toggle('hidden', Boolean(mute) || readOnly);
+  elements['composer-input'].disabled = !isMember || Boolean(mute) || readOnly;
+  elements['guest-readonly-notice'].classList.toggle('hidden', !readOnly || Boolean(mute));
+  document.querySelector('.composer-help.guest-only')?.classList.toggle('hidden', readOnly);
   renderMuteNotice(room, mute);
 }
 
@@ -870,6 +1018,7 @@ function buildMessageElement(message) {
   header.className = 'message-header';
 
   let author;
+  const fromGuest = isGuestName(message.username);
   if (Number.isInteger(message.sender_id) && typeof message.username === 'string') {
     author = nameButton({ id: message.sender_id, username: message.username }, 'message-author');
   } else {
@@ -885,7 +1034,9 @@ function buildMessageElement(message) {
   avatar.setAttribute('aria-hidden', 'true');
   avatar.textContent = initials(message.username ?? 'System');
   avatar.dataset.tone = String(avatarTone(message.sender_id ?? message.username));
-  if (Number.isInteger(message.sender_id)) {
+  if (fromGuest) {
+    markGuestAvatar(avatar);
+  } else if (Number.isInteger(message.sender_id)) {
     avatar.dataset.avatarUser = String(message.sender_id);
     attachPhoto(avatar, message.sender_id);
   }
@@ -896,7 +1047,9 @@ function buildMessageElement(message) {
   time.dateTime = message.created_at;
   time.textContent = formatPageDateTime(message.created_at);
 
-  header.append(author, time);
+  header.append(author);
+  if (fromGuest) header.append(guestBadge());
+  header.append(time);
 
   if (canReplyInCurrentRoom() && !message.deleted) {
     const replyButton = document.createElement('button');
@@ -928,9 +1081,16 @@ function buildMessageElement(message) {
   }
   article.append(body);
   if (!message.deleted) {
-    article.append(buildReactionBar(message.reactions, state.user?.id, (emoji, reactedByMe) => {
+    const reactions = buildReactionBar(message.reactions, state.user?.id, (emoji, reactedByMe) => {
       toggleReaction(message.id, emoji, reactedByMe);
-    }));
+    });
+    // Reacting is joining in: a guest who may only read sees reactions but adds none.
+    if (guestReadOnly(state.currentRoom)) {
+      reactions.querySelector('.reaction-add-button')?.remove();
+      reactions.querySelector('.reaction-picker')?.remove();
+      for (const button of reactions.querySelectorAll('button')) button.disabled = true;
+    }
+    article.append(reactions);
   }
   return article;
 }
@@ -955,12 +1115,14 @@ function updateMessageReactions(messageId, reactions) {
 }
 
 function canReplyInCurrentRoom() {
-  return Boolean(state.currentRoom) && !state.currentRoom.muted && !elements['composer-wrap'].classList.contains('hidden');
+  return Boolean(state.currentRoom) && !state.currentRoom.muted && !guestReadOnly(state.currentRoom)
+    && !elements['composer-wrap'].classList.contains('hidden');
 }
 
 async function searchRoomMentions(prefix) {
   const room = state.currentRoom;
-  if (!room) return [];
+  // A guest's @names notify nobody, so nobody is suggested.
+  if (!room || state.user?.guest) return [];
   const lower = prefix.toLowerCase();
   const broadcastKeywords = ['room', 'here']
     .filter((keyword) => keyword.startsWith(lower))
@@ -1020,6 +1182,7 @@ function focusReplyTarget(replyTo) {
 }
 
 function availableCommands() {
+  if (state.user?.guest) return COMMANDS.filter((command) => GUEST_COMMANDS.includes(command.name));
   const room = state.currentRoom;
   const manages = Boolean(room) && (room.member_role === 'owner' || canCreateRooms(state.user));
   return COMMANDS.filter((command) => !command.manage || manages);
@@ -1353,7 +1516,7 @@ function startEventStream() {
   });
 
   source.addEventListener('forced_logout', (event) => {
-    let reason = 'Your session was invalidated.';
+    let reason = state.user?.guest ? sessionEndedMessage() : 'Your session was invalidated.';
     const envelope = parseEvent(event);
     if (typeof envelope?.payload?.reason === 'string' && envelope.payload.reason) {
       reason = envelope.payload.reason;
@@ -1391,6 +1554,8 @@ function openRoomDialog() {
   elements['room-visibility'].value = 'public';
   elements['room-minimum-age'].value = '0';
   elements['room-inactivity-timeout'].value = '0';
+  elements['room-guest-access'].value = 'none';
+  syncRoomGuestAccess();
   elements['room-dialog-error'].textContent = '';
   elements['room-dialog'].showModal();
   elements['room-key'].focus();
@@ -1409,6 +1574,7 @@ async function createRoom(event) {
       visibility: elements['room-visibility'].value,
       minimum_age: Number.parseInt(elements['room-minimum-age'].value, 10),
       inactivity_timeout_seconds: Number.parseInt(elements['room-inactivity-timeout'].value, 10),
+      guest_access: elements['room-guest-access'].value,
     });
     elements['room-dialog'].close();
     await loadRooms(response.room.id);
@@ -1418,6 +1584,14 @@ async function createRoom(event) {
   } finally {
     setFormBusy(elements['room-create-form'], false);
   }
+}
+
+// Only public rooms without a minimum age can let guests in.
+function syncRoomGuestAccess() {
+  const qualifies = elements['room-visibility'].value === 'public'
+    && (Number.parseInt(elements['room-minimum-age'].value, 10) || 0) === 0;
+  elements['room-guest-access'].disabled = !qualifies;
+  if (!qualifies) elements['room-guest-access'].value = 'none';
 }
 
 function replaceRoom(room) {
@@ -1528,10 +1702,14 @@ function errorMessage(error) {
 
 function handleApiFailure(error) {
   if (error instanceof ApiError && error.status === 401) {
-    forceSignedOut('Your session has ended. Please sign in again.');
+    forceSignedOut(sessionEndedMessage());
     return;
   }
   toast(errorMessage(error), 'error');
+}
+
+function sessionEndedMessage() {
+  return state.user?.guest ? 'Your guest visit has ended.' : 'Your session has ended. Please sign in again.';
 }
 
 function forceSignedOut(message) {
@@ -1544,7 +1722,15 @@ function forceSignedOut(message) {
   state.messageIds = new Set();
   state.oldestMessageId = null;
   clearReplyTo();
+  window.chitchatTheme?.setGuest(false);
+  try {
+    window.sessionStorage.removeItem(GUEST_BANNER_KEY);
+  } catch {
+    // Nothing to forget.
+  }
+  elements['guest-banner'].classList.add('hidden');
   elements['chat-shell'].classList.add('hidden');
+  elements['chat-shell'].classList.remove('guest-mode');
   elements['auth-shell'].classList.remove('hidden');
   showAuthMode('login');
   if (message) {
@@ -1554,6 +1740,8 @@ function forceSignedOut(message) {
     .then((session) => {
       setCsrfToken(session.csrf_token);
       renderLockdown(session.lockdown);
+      state.guestAccess = session.guest_access === true;
+      renderGuestEntry();
     })
     .catch(() => setCsrfToken(''));
 }
