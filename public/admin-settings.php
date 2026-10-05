@@ -22,7 +22,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
 <body>
   <div id="settings-loading" class="app-loading" role="status">Loading operational settings…</div>
 
-  <main id="settings-shell" class="admin-shell hidden">
+  <main id="settings-shell" class="admin-shell settings-page hidden">
     <header class="admin-header">
       <div>
         <p class="admin-eyebrow"><?= $appName ?></p>
@@ -46,16 +46,18 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
           While on, nobody can sign in, register, or restore an account, except Super-Administrators, who can always sign in to switch it off again.
           The message appears on the sign-in page and as a banner for everyone still signed in.
         </p>
-        <label>Lockdown
-          <select id="lockdown-enabled">
-            <option value="0">Off</option>
-            <option value="1">On</option>
-          </select>
-        </label>
-        <label>Message <span class="optional-label">up to 500 characters; empty uses a default</span>
-          <textarea id="lockdown-message" maxlength="500" rows="2"></textarea>
-        </label>
-        <label id="lockdown-sign-out-label">
+        <div class="lockdown-fields">
+          <label>Lockdown
+            <select id="lockdown-enabled">
+              <option value="0">Off</option>
+              <option value="1">On</option>
+            </select>
+          </label>
+          <label>Message <span class="optional-label">up to 500 characters; empty uses a default</span>
+            <textarea id="lockdown-message" maxlength="500" rows="3"></textarea>
+          </label>
+        </div>
+        <label id="lockdown-sign-out-label" class="check-row">
           <input id="lockdown-sign-out" type="checkbox">
           Also sign out everyone except Super-Administrators now
         </label>
@@ -132,15 +134,15 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
         </label>
       </section>
 
-      <section class="admin-card form-stack">
-        <h2>Apply policy</h2>
+      <section class="admin-card settings-apply" aria-label="Apply policy">
         <p id="settings-updated" class="admin-muted"></p>
         <button id="save-settings" class="danger-button" type="submit">Save operational settings</button>
       </section>
     </form>
 
-    <form id="application-name-form" class="settings-grid">
-      <section class="admin-card form-stack settings-wide">
+    <div class="settings-pair">
+    <form id="application-name-form">
+      <section class="admin-card form-stack">
         <h2>Application name</h2>
         <p class="admin-muted">
           The name this installation shows people: page titles and headings, passkey prompts, push notifications,
@@ -153,7 +155,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
       </section>
     </form>
 
-    <form id="registration-protection-form" class="settings-grid">
+    <form id="registration-protection-form">
       <section class="admin-card form-stack settings-wide">
         <h2>Registration protection</h2>
         <p class="admin-muted">
@@ -180,6 +182,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
         <button id="save-registration-protection" class="secondary-button" type="submit">Save registration protection</button>
       </section>
     </form>
+    </div>
     <?= \ChitChat\View\PoweredBy::html() ?>
   </main>
 

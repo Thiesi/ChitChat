@@ -194,6 +194,48 @@
   justify-self: start;
 }
 
+/* Operational settings: compact card headings, equal-height cards in a row. */
+.settings-page .admin-card > h2 { margin: 0; font-size: 1.25rem; }
+.settings-page .admin-card > p { margin: 0; }
+.settings-page .settings-grid { align-items: stretch; }
+.settings-page .form-stack { align-content: start; }
+.settings-page .form-stack > button { justify-self: start; }
+
+/* Lockdown: a narrow switch, and room to write the message. */
+.lockdown-fields {
+  display: grid;
+  grid-template-columns: minmax(9rem, 13rem) minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+}
+.lockdown-fields textarea { min-height: 5.5rem; resize: vertical; }
+.settings-page .check-row { display: flex; align-items: flex-start; gap: 0.55rem; font-weight: 400; }
+.settings-page .check-row input { margin-top: 0.25rem; accent-color: var(--accent); }
+.lockdown-card > .check-row { grid-column: 1 / -1; max-width: none; }
+
+/* Saving the policy is a bar under its cards. */
+.settings-apply {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+}
+
+/* The application name needs little room; registration protection takes the rest. */
+.settings-pair {
+  display: grid;
+  grid-template-columns: minmax(18rem, 1fr) minmax(0, 2fr);
+  gap: 1rem;
+  align-items: stretch;
+  margin-top: 1rem;
+}
+.settings-pair > form, .settings-pair > form > .admin-card { height: 100%; }
+.settings-pair > form > .admin-card { box-sizing: border-box; align-content: start; }
+.settings-pair .settings-wide { grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); }
+.settings-pair .settings-wide > label { max-width: none; }
+
 .room-admin-grid {
   display: grid;
   grid-template-columns: minmax(17rem, 0.85fr) minmax(20rem, 1fr) minmax(20rem, 1fr);
@@ -284,6 +326,11 @@
 }
 
 @media (max-width: 46rem) {
+  .lockdown-fields,
+  .settings-pair {
+    grid-template-columns: 1fr;
+  }
+
   .admin-header,
   .panel-heading,
   .inline-form,
