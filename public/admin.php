@@ -69,10 +69,13 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
           <h2>Room administration</h2>
           <p>Edit settings, manage members, and control pending invitations.</p>
         </div>
-        <label class="room-picker-label">
-          Room
-          <select id="room-picker"></select>
-        </label>
+        <div class="inline-form room-heading-actions">
+          <label class="room-picker-label">
+            Room
+            <select id="room-picker"></select>
+          </label>
+          <button id="room-create-open" class="primary-button hidden" type="button">Create room</button>
+        </div>
       </div>
 
       <div id="room-admin-empty" class="admin-empty hidden">No manageable rooms are available.</div>
@@ -144,6 +147,53 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
     </section>
     <?= \ChitChat\View\PoweredBy::html() ?>
   </main>
+
+  <dialog id="room-create-dialog" class="room-dialog" aria-labelledby="room-create-title">
+    <form id="room-create-form" class="form-stack">
+      <header class="dialog-header">
+        <h2 id="room-create-title">Create room</h2>
+        <button id="room-create-cancel" class="icon-button" type="button" aria-label="Close">×</button>
+      </header>
+      <label>
+        Room key <span class="optional-label">lowercase letters, numbers, - and _; can't be changed later</span>
+        <input id="new-room-key" type="text" minlength="3" maxlength="48" pattern="[a-z0-9][a-z0-9_\-]{2,47}" placeholder="general" required>
+      </label>
+      <label>
+        Name
+        <input id="new-room-name" type="text" maxlength="120" placeholder="General" required>
+      </label>
+      <label>
+        Description
+        <input id="new-room-info" type="text" maxlength="255" placeholder="General discussion">
+      </label>
+      <label>
+        Visibility
+        <select id="new-room-visibility">
+          <option value="public">Public</option>
+          <option value="unlisted">Unlisted</option>
+          <option value="private">Private, invitation only</option>
+        </select>
+      </label>
+      <label>
+        Minimum age
+        <input id="new-room-age" type="number" min="0" max="120" value="0" required>
+      </label>
+      <label>
+        Guests <span class="optional-label">public rooms without a minimum age only</span>
+        <select id="new-room-guest-access">
+          <option value="none">Not allowed</option>
+          <option value="read">Can read</option>
+          <option value="write">Can read and write</option>
+        </select>
+      </label>
+      <label>
+        Inactivity timeout in seconds <span class="optional-label">0 disables; minimum 120</span>
+        <input id="new-room-timeout" type="number" min="0" max="86400" step="60" value="0" required>
+      </label>
+      <p id="room-create-error" class="error-text" role="alert"></p>
+      <button class="primary-button" type="submit">Create room</button>
+    </form>
+  </dialog>
 
   <dialog id="user-dialog" class="room-dialog admin-user-dialog">
     <form id="user-admin-form" class="form-stack" method="dialog">

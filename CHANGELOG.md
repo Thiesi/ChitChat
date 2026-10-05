@@ -10,6 +10,7 @@ One forward-only database migration (`0039_guest_access.sql`); back up before up
 
 ### Added
 
+- Added **Create room** to Room administration, for Super-Administrators, Administrators and Chat Admins. It asks for the same settings as in the chat and then opens the new room's settings, members and invitations. The Rooms tab now shows for them even before the first room exists.
 - Added **guest access**, off by default. A Super-Administrator can let visitors look around without an account. Each visit is a numbered guest ("Guest 0042"), whose number is never reused.
   - A guest lasts one browser session. It ends after two idle hours, after 24 hours at most, when the guest leaves, or when guest access is switched off.
   - Rooms choose whether guests may not enter, may read, or may also write. Only public rooms without a minimum age qualify.
