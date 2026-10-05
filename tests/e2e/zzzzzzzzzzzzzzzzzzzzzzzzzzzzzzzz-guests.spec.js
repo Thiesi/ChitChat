@@ -22,7 +22,9 @@ async function setGuestAccess(page, enabled) {
   await page.goto('/admin-settings.php');
   await expect(page.locator('#settings-shell')).toBeVisible();
   await page.locator('#guest-access-enabled').selectOption(enabled ? '1' : '0');
-  page.once('dialog', (dialog) => dialog.accept());
+  // Switching guests off asks first, and so does a nonzero retention policy another spec left behind.
+  const accept = (dialog) => dialog.accept();
+  page.on('dialog', accept);
   // The save may first ask for step-up and then retry, so wait for the one that succeeds.
   const saved = page.waitForResponse((response) => response.url().includes('/api/v1/admin/settings/update.php') && response.ok());
   await page.locator('#save-settings').click();
@@ -36,6 +38,7 @@ async function setGuestAccess(page, enabled) {
     // No step-up prompt was needed.
   }
   await saved;
+  page.off('dialog', accept);
   await page.reload();
   await expect(page.locator('#guest-access-enabled')).toHaveValue(enabled ? '1' : '0');
 }
