@@ -235,12 +235,12 @@ SQL);
     /**
      * The small profile behind a name.
      *
-     * @return array{id:int, username:string, member_since:string, badge:?string, has_avatar:bool, avatar_version:?int, can_remove_avatar:bool}
+     * @return array{id:int, username:string, member_since:string, badge:?string, guest:bool, has_avatar:bool, avatar_version:?int, can_remove_avatar:bool}
      */
     public function profile(AuthenticatedUser $viewer, int $userId): array
     {
         $statement = $this->pdo->prepare(<<<'SQL'
-SELECT u.id, u.username, u.created_at, u.avatar_key, u.avatar_updated_at,
+SELECT u.id, u.username, u.created_at, u.avatar_key, u.avatar_updated_at, u.account_kind,
        COALESCE(array_to_json(array_agg(r.role) FILTER (WHERE r.role IS NOT NULL)), '[]')::text AS roles
 FROM users u
 LEFT JOIN user_roles r ON r.user_id = u.id
@@ -272,6 +272,8 @@ SQL);
             'username' => (string) $row['username'],
             'member_since' => (string) $row['created_at'],
             'badge' => $badge,
+            // A guest's member_since is when the visit began.
+            'guest' => (string) $row['account_kind'] === 'guest',
             'has_avatar' => $hasAvatar,
             'avatar_version' => $hasAvatar ? $this->version($row['avatar_updated_at']) : null,
             'can_remove_avatar' => $hasAvatar && ($viewer->id === (int) $row['id'] || $this->isModerator($viewer)),

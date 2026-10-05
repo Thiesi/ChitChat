@@ -6,7 +6,17 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ## [Unreleased]
 
-No changes since `v3.1.0`. ChitChat is feature-complete; see [Project status](README.md#project-status-feature-complete) and the [roadmap](docs/roadmap.md) for the maintenance-only policy going forward. Entries only appear here for a discovered bug fix or an accepted new feature request.
+One forward-only database migration (`0039_guest_access.sql`); back up before upgrading.
+
+### Added
+
+- Added **guest access**, off by default. A Super-Administrator can let visitors look around without an account. Each visit is a numbered guest ("Guest 0042"), whose number is never reused.
+  - A guest lasts one browser session. It ends after two idle hours, after 24 hours at most, when the guest leaves, or when guest access is switched off.
+  - Rooms choose whether guests may not enter, may read, or may also write. Only public rooms without a minimum age qualify.
+  - Guests cannot send or receive direct messages, ping, mention or be mentioned, upload, search, or hold a role.
+  - Global moderators can end a guest's session, or block guests from that connection for an hour, a day or a week, without seeing the address.
+  - Starting a guest session solves the registration proof-of-work puzzle and is rate-limited per address, with at most three guests per connection at a time. Guests also post more slowly (`guest_room_send`).
+  - Migration `0039_guest_access.sql`; see [Guest access](docs/api/guest-access.md).
 
 ## [3.1.0] - 2026-10-05
 

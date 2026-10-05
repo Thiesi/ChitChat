@@ -83,7 +83,8 @@ final class RoomMentionResolver
     private function canBeMentioned(int $roomId, int $candidateUserId): bool
     {
         $candidate = $this->users->findAuthenticatedById($candidateUserId);
-        if ($candidate === null) {
+        // Guests are never mentioned; they only look around.
+        if ($candidate === null || $candidate->guest) {
             return false;
         }
 

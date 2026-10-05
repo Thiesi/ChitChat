@@ -43,6 +43,9 @@ final class PingService
         string $targetUsername,
         string $messageInput = '',
     ): array {
+        if ($actor->guest) {
+            throw new ApiException(403, 'guest_not_allowed', 'Guests cannot ping people. Create an account to ping.');
+        }
         if ($roomId < 1) {
             throw new ApiException(400, 'validation_error', 'room_id must be positive.');
         }
@@ -62,6 +65,7 @@ FROM users u
 JOIN room_members rm ON rm.user_id = u.id
 WHERE u.username_canonical = :username
   AND u.account_state = 'active'
+  AND u.account_kind = 'member'
   AND rm.room_id = :room_id
 SQL);
         if ($statement === false) {

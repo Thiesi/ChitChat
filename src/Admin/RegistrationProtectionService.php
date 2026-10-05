@@ -45,6 +45,12 @@ final class RegistrationProtectionService
         return new RegistrationChallenge($effective['min_fill_seconds'], $effective['proof_of_work_bits']);
     }
 
+    /** Starting a guest session solves the same puzzle; there is no form to fill, so no minimum time. */
+    public function guestChallenge(): RegistrationChallenge
+    {
+        return new RegistrationChallenge(0, $this->effective()['proof_of_work_bits'], 'guest_challenge');
+    }
+
     public function rateLimits(): RateLimitPolicySet
     {
         $effective = $this->effective();

@@ -138,6 +138,7 @@ SQL);
 SELECT u.id, u.username
 FROM users u
 WHERE lower(u.username) LIKE :pattern
+  AND u.account_kind = 'member'
   AND NOT EXISTS (
       SELECT 1 FROM room_members rm
       WHERE rm.room_id = :member_room_id AND rm.user_id = u.id

@@ -12,6 +12,9 @@ final readonly class AuthenticatedUser
         public string $username,
         public array $roles,
         public int $sessionVersion,
+        // A guest looks around without an account; see migrations/0039_guest_access.sql.
+        public bool $guest = false,
+        public ?string $guestExpiresAt = null,
     ) {
     }
 
@@ -35,12 +38,14 @@ final readonly class AuthenticatedUser
         ];
     }
 
-    /** @return array{id:int, username:string, roles:list<string>, session_version:int} */
+    /** @return array{id:int, username:string, roles:list<string>, session_version:int, guest:bool, guest_expires_at:?string} */
     public function toSessionArray(): array
     {
         return [
             ...$this->toArray(),
             'session_version' => $this->sessionVersion,
+            'guest' => $this->guest,
+            'guest_expires_at' => $this->guestExpiresAt,
         ];
     }
 }

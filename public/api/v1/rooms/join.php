@@ -18,7 +18,7 @@ Endpoint::run($config, static function () use ($config): ApiResult {
     SessionManager::requireCsrf(Request::csrfHeader());
     $payload = Request::json();
     $pdo = Database::connect($config);
-    $actor = SessionManager::requireUser(new UserRepository($pdo));
+    $actor = SessionManager::requireUserOrGuest(new UserRepository($pdo));
     $room = (new RoomService($pdo))->join(
         $actor,
         Request::integer($payload, 'room_id'),

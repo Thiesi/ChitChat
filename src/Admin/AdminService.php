@@ -85,6 +85,8 @@ LEFT JOIN LATERAL (
     LIMIT 1
 ) active_ban ON TRUE
 WHERE u.id > :after_id
+  -- Guests come and go; they are managed from the chat, not here.
+  AND u.account_kind = 'member'
   AND (
       CAST(:search_empty AS integer) = 1
       OR lower(u.username) LIKE :search_pattern
@@ -169,7 +171,8 @@ SQL);
             $actor = $currentActor;
 
             $target = $this->users->findAuthenticatedById($targetUserId);
-            if ($target === null) {
+            // A guest never holds a role.
+            if ($target === null || $target->guest) {
                 throw new ApiException(404, 'user_not_found', 'Target user not found.');
             }
             if (($target->hasRole('super_admin') || $target->hasRole('admin')) && !$actor->hasRole('super_admin')) {

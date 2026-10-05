@@ -26,7 +26,7 @@ Endpoint::run($config, static function () use ($config): ApiResult {
         throw new ApiException(400, 'validation_error', 'Send either room_id or recipient_user_id.');
     }
     $pdo = Database::connect($config);
-    $actor = SessionManager::requireUser(new UserRepository($pdo));
+    $actor = SessionManager::requireUserOrGuest(new UserRepository($pdo));
     (new RateLimiter($pdo, $config->rateLimits))->consume('typing', 'user:' . $actor->id);
     $typing = new TypingService($pdo);
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace ChitChat\Maintenance;
 
 use ChitChat\Account\AccountClosureService;
+use ChitChat\Auth\GuestService;
 use ChitChat\Config;
 use ChitChat\Observability\MaintenanceRunRepository;
 use DateTimeImmutable;
@@ -16,6 +17,7 @@ final class MaintenanceCoordinator
 {
     private readonly CleanupService $cleanup;
     private readonly AccountClosureService $closures;
+    private readonly GuestService $guests;
     private readonly MaintenanceRunRepository $runs;
 
     public function __construct(
@@ -24,6 +26,7 @@ final class MaintenanceCoordinator
     ) {
         $this->cleanup = new CleanupService($pdo, $config);
         $this->closures = new AccountClosureService($pdo, $config);
+        $this->guests = new GuestService($pdo);
         $this->runs = new MaintenanceRunRepository($pdo);
     }
 
@@ -38,6 +41,9 @@ final class MaintenanceCoordinator
             $result['account_closures_finalized'] = $dryRun
                 ? $this->closures->dueCount()
                 : $this->closures->finalizeDue();
+            // Guests that idled out or expired; their sessions already stopped working.
+            $result['guests_ended'] = $dryRun ? $this->guests->expiredCount() : $this->guests->endExpired();
+            $result['expired_guest_blocks'] = $this->guests->purgeExpiredBlocks($dryRun);
             $result['expired_sse_connections'] = $this->expiredSseConnections($dryRun);
             $result['maintenance_run_rows'] = $this->oldMaintenanceRuns($dryRun, $runId);
             $durationMs = self::durationMs($started);

@@ -22,7 +22,7 @@ Endpoint::run($config, static function () use ($config): ApiResult {
     SessionManager::requireCsrf(Request::csrfHeader());
     $payload = Request::json();
     $pdo = Database::connect($config);
-    $actor = SessionManager::requireUser(new UserRepository($pdo));
+    $actor = SessionManager::requireUserOrGuest(new UserRepository($pdo));
     $roomId = Request::integer($payload, 'room_id');
     $body = Request::string($payload, 'body');
     $replyToMessageId = Request::optionalInteger($payload, 'reply_to_message_id');
@@ -32,6 +32,10 @@ Endpoint::run($config, static function () use ($config): ApiResult {
         $ping === null ? 'room_send' : 'room_ping',
         'user:' . $actor->id,
     );
+    if ($actor->guest) {
+        // Guests write more slowly, so a passer-by cannot flood a room.
+        $rateLimiter->consume('guest_room_send', 'user:' . $actor->id);
+    }
     if ($ping === null && MentionParser::containsBroadcastToken($body)) {
         $rateLimiter->consume('room_broadcast_mention', 'user:' . $actor->id);
     }

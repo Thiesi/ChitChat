@@ -196,9 +196,7 @@ SQL;
         ?int $replyToMessageId = null,
     ): array {
         $room = $this->requireRoom($actor, $roomId);
-        if (!$room->isMember()) {
-            throw new ApiException(403, 'membership_required', 'Join the room before sending messages.');
-        }
+        RoomAuthorization::requirePost($actor, $room);
         (new MuteService($this->pdo))->assertMayPostInRoom($actor->id, $roomId);
 
         [$messageType, $body] = $this->parseMessage($bodyInput);
@@ -230,7 +228,8 @@ SQL);
             }
             $messageId = (int) $messageId;
 
-            $mentions = $this->mentions->resolve($roomId, $actor->id, $body);
+            // A guest's @names notify nobody.
+            $mentions = $actor->guest ? [] : $this->mentions->resolve($roomId, $actor->id, $body);
             $this->mentionNotifier->recordRoomMentions(
                 $messageId,
                 $roomId,

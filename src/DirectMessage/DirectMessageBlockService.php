@@ -168,7 +168,8 @@ SQL);
             throw new ApiException(400, 'direct_message_self_forbidden', 'You cannot manage direct-message blocking for yourself.');
         }
         $user = $this->users->findAuthenticatedById($otherUserId);
-        if ($user === null) {
+        // Guests take no part in direct messages.
+        if ($user === null || $user->guest) {
             throw new ApiException(404, 'user_not_found', 'User not found.');
         }
         return $user;

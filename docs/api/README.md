@@ -1,6 +1,7 @@
 # API documentation
 
 - [Authentication and sessions](authentication.md)
+- [Guest access](guest-access.md)
 - [Multi-factor authentication (passkeys and recovery codes)](mfa.md)
 - [Account (security, export, closure)](account.md)
 - [Rooms](rooms.md)

@@ -62,6 +62,7 @@ final class RoomService
         int $minimumAge,
         int $inactivityTimeoutSeconds,
         string $ipAddress,
+        string $guestAccess = 'none',
     ): Room {
         RoomAuthorization::requireCreate($actor);
         $key = RoomKey::normalize($keyInput);
@@ -70,6 +71,7 @@ final class RoomService
         $visibility = $this->validateVisibility($visibility);
         $minimumAge = $this->validateMinimumAge($minimumAge);
         $inactivityTimeoutSeconds = $this->validateInactivityTimeout($inactivityTimeoutSeconds);
+        $guestAccess = $this->validateGuestAccess($guestAccess, $visibility, $minimumAge);
 
         $this->pdo->beginTransaction();
         try {
@@ -81,7 +83,8 @@ INSERT INTO rooms (
     visibility,
     minimum_age,
     inactivity_timeout_seconds,
-    created_by
+    created_by,
+    guest_access
 )
 VALUES (
     :room_key,
@@ -90,7 +93,8 @@ VALUES (
     :visibility,
     :minimum_age,
     :inactivity_timeout_seconds,
-    :created_by
+    :created_by,
+    :guest_access
 )
 RETURNING id
 SQL);
@@ -105,6 +109,7 @@ SQL);
                 'minimum_age' => $minimumAge,
                 'inactivity_timeout_seconds' => $inactivityTimeoutSeconds,
                 'created_by' => $actor->id,
+                'guest_access' => $guestAccess,
             ]);
             $roomIdValue = $statement->fetchColumn();
             if ($roomIdValue === false) {
@@ -130,6 +135,7 @@ SQL);
                     'visibility' => $visibility,
                     'minimum_age' => $minimumAge,
                     'inactivity_timeout_seconds' => $inactivityTimeoutSeconds,
+                    'guest_access' => $guestAccess,
                 ],
                 $ipAddress,
             );
@@ -234,6 +240,7 @@ SQL);
         int $minimumAge,
         int $inactivityTimeoutSeconds,
         string $ipAddress,
+        ?string $guestAccess = null,
     ): Room {
         $room = $this->requireRoom($actor, $roomId);
         RoomAuthorization::requireManage($actor, $room);
@@ -242,42 +249,59 @@ SQL);
         $visibility = $this->validateVisibility($visibility);
         $minimumAge = $this->validateMinimumAge($minimumAge);
         $inactivityTimeoutSeconds = $this->validateInactivityTimeout($inactivityTimeoutSeconds);
+        // Left out, guest access stays as it was, unless the room no longer qualifies.
+        $guestAccess = $guestAccess === null
+            ? ($this->guestsQualify($visibility, $minimumAge) ? $room->guestAccess : 'none')
+            : $this->validateGuestAccess($guestAccess, $visibility, $minimumAge);
 
-        $statement = $this->pdo->prepare(<<<'SQL'
+        $this->pdo->beginTransaction();
+        try {
+            $statement = $this->pdo->prepare(<<<'SQL'
 UPDATE rooms
 SET name = :name,
     info_line = :info_line,
     visibility = :visibility,
     minimum_age = :minimum_age,
     inactivity_timeout_seconds = :inactivity_timeout_seconds,
+    guest_access = :guest_access,
     updated_at = NOW()
 WHERE id = :room_id AND deleted_at IS NULL
 SQL);
-        if ($statement === false) {
-            throw new RuntimeException('Unable to prepare room update.');
-        }
-        $statement->execute([
-            'name' => $name,
-            'info_line' => $info,
-            'visibility' => $visibility,
-            'minimum_age' => $minimumAge,
-            'inactivity_timeout_seconds' => $inactivityTimeoutSeconds,
-            'room_id' => $roomId,
-        ]);
-
-        $this->audit->log(
-            $actor->id,
-            'room.update',
-            'room',
-            (string) $roomId,
-            [
+            if ($statement === false) {
+                throw new RuntimeException('Unable to prepare room update.');
+            }
+            $statement->execute([
+                'name' => $name,
+                'info_line' => $info,
                 'visibility' => $visibility,
                 'minimum_age' => $minimumAge,
                 'inactivity_timeout_seconds' => $inactivityTimeoutSeconds,
-            ],
-            $ipAddress,
-        );
-        $this->roomList->room($roomId, $room->visibility === 'public' || $visibility === 'public', $actor->id);
+                'guest_access' => $guestAccess,
+                'room_id' => $roomId,
+            ]);
+            if ($guestAccess === 'none' && $room->guestAccess !== 'none') {
+                $this->removeGuests($roomId, $actor->id);
+            }
+
+            $this->audit->log(
+                $actor->id,
+                'room.update',
+                'room',
+                (string) $roomId,
+                [
+                    'visibility' => $visibility,
+                    'minimum_age' => $minimumAge,
+                    'inactivity_timeout_seconds' => $inactivityTimeoutSeconds,
+                    'guest_access' => $guestAccess,
+                ],
+                $ipAddress,
+            );
+            $this->roomList->room($roomId, $room->visibility === 'public' || $visibility === 'public', $actor->id);
+            $this->pdo->commit();
+        } catch (Throwable $exception) {
+            $this->rollBack();
+            throw $exception;
+        }
 
         return $this->get($actor, $roomId);
     }
@@ -342,6 +366,9 @@ SQL);
         }
         if ($currentRole === 'owner') {
             throw new ApiException(409, 'owner_role_immutable', 'Room ownership cannot be changed by this endpoint.');
+        }
+        if ($role === 'moderator' && !$this->rooms->userExists($targetUserId)) {
+            throw new ApiException(409, 'guest_cannot_moderate', 'Guests cannot become room moderators.');
         }
 
         $statement = $this->pdo->prepare(<<<'SQL'
@@ -482,6 +509,7 @@ JOIN users u ON u.id = rm.user_id
 WHERE rm.room_id = :room_id
   AND rm.user_id <> :actor_user_id
   AND u.account_state = 'active'
+  AND u.account_kind = 'member'
 SQL);
         if ($statement === false) {
             throw new RuntimeException('Unable to prepare room member notification.');
@@ -576,6 +604,62 @@ SQL);
         }
 
         return $minimumAge;
+    }
+
+    private function validateGuestAccess(string $guestAccess, string $visibility, int $minimumAge): string
+    {
+        if (!in_array($guestAccess, ['none', 'read', 'write'], true)) {
+            throw new ApiException(400, 'invalid_guest_access', 'guest_access must be none, read, or write.');
+        }
+        if ($guestAccess !== 'none' && !$this->guestsQualify($visibility, $minimumAge)) {
+            throw new ApiException(400, 'guest_access_scope', 'Only public rooms without a minimum age can let guests in.');
+        }
+
+        return $guestAccess;
+    }
+
+    /** Guests have no birth date and are never invited, so only open, all-ages rooms can take them. */
+    private function guestsQualify(string $visibility, int $minimumAge): bool
+    {
+        return $visibility === 'public' && $minimumAge === 0;
+    }
+
+    /** The room closed to guests: those in it leave at once. */
+    private function removeGuests(int $roomId, int $actorUserId): void
+    {
+        $presence = $this->pdo->prepare(<<<'SQL'
+DELETE FROM room_presence p
+USING users u
+WHERE p.room_id = :room_id
+  AND u.id = p.user_id
+  AND u.account_kind = 'guest'
+RETURNING p.user_id
+SQL);
+        $members = $this->pdo->prepare(<<<'SQL'
+DELETE FROM room_members rm
+USING users u
+WHERE rm.room_id = :room_id
+  AND u.id = rm.user_id
+  AND u.account_kind = 'guest'
+RETURNING rm.user_id
+SQL);
+        if ($presence === false || $members === false) {
+            throw new RuntimeException('Unable to prepare guest removal.');
+        }
+        $presence->execute(['room_id' => $roomId]);
+        $events = new EventRepository($this->pdo);
+        foreach (array_unique(array_map('intval', $presence->fetchAll(PDO::FETCH_COLUMN))) as $userId) {
+            $events->publish(
+                type: 'presence_changed',
+                payload: ['room_id' => $roomId, 'user_id' => $userId],
+                roomId: $roomId,
+                actorUserId: $userId,
+            );
+        }
+        $members->execute(['room_id' => $roomId]);
+        foreach (array_map('intval', $members->fetchAll(PDO::FETCH_COLUMN)) as $userId) {
+            $this->roomList->user($userId, $actorUserId);
+        }
     }
 
     private function validateInactivityTimeout(int $seconds): int

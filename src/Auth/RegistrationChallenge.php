@@ -18,12 +18,13 @@ use ChitChat\Http\ApiException;
  */
 final class RegistrationChallenge
 {
-    private const SESSION_KEY = 'registration_challenge';
     private const TTL_SECONDS = 1800;
 
     public function __construct(
         private readonly int $minimumFillSeconds,
         private readonly int $proofOfWorkBits,
+        // Guest starts keep their own challenge, so they never disturb an open registration form.
+        private readonly string $sessionKey = 'registration_challenge',
     ) {
     }
 
@@ -40,12 +41,12 @@ final class RegistrationChallenge
     public function issue(array &$session, int $now): ?array
     {
         if (!$this->required()) {
-            unset($session[self::SESSION_KEY]);
+            unset($session[$this->sessionKey]);
             return null;
         }
 
         $nonce = bin2hex(random_bytes(16));
-        $session[self::SESSION_KEY] = ['nonce' => $nonce, 'issued_at' => $now];
+        $session[$this->sessionKey] = ['nonce' => $nonce, 'issued_at' => $now];
 
         return ['nonce' => $nonce, 'bits' => $this->proofOfWorkBits];
     }
@@ -53,8 +54,8 @@ final class RegistrationChallenge
     /** @param array<mixed> $session */
     public function verify(array &$session, mixed $decoy, mixed $nonce, mixed $solution, int $now): void
     {
-        $state = $session[self::SESSION_KEY] ?? null;
-        unset($session[self::SESSION_KEY]);
+        $state = $session[$this->sessionKey] ?? null;
+        unset($session[$this->sessionKey]);
 
         if ($decoy !== null && $decoy !== '') {
             throw new ApiException(400, 'registration_rejected', 'Registration could not be completed.');

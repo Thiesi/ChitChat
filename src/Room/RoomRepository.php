@@ -25,7 +25,8 @@ SELECT r.id,
        r.inactivity_timeout_seconds,
        r.created_by,
        rm.role AS member_role,
-       (ri.user_id IS NOT NULL)::int AS invited
+       (ri.user_id IS NOT NULL)::int AS invited,
+       r.guest_access
 FROM rooms r
 LEFT JOIN room_members rm
        ON rm.room_id = r.id AND rm.user_id = :user_id
@@ -33,6 +34,11 @@ LEFT JOIN room_invitations ri
        ON ri.room_id = r.id AND ri.user_id = :user_id
 WHERE r.id = :room_id
   AND r.deleted_at IS NULL
+  -- A guest only ever sees rooms that let guests in.
+  AND NOT EXISTS (
+      SELECT 1 FROM users viewer
+      WHERE viewer.id = :user_id AND viewer.account_kind = 'guest' AND r.guest_access = 'none'
+  )
 SQL);
         if ($statement === false) {
             throw new RuntimeException('Unable to prepare room lookup.');
@@ -60,7 +66,8 @@ SELECT r.id,
        r.inactivity_timeout_seconds,
        r.created_by,
        rm.role AS member_role,
-       (ri.user_id IS NOT NULL)::int AS invited
+       (ri.user_id IS NOT NULL)::int AS invited,
+       r.guest_access
 FROM rooms r
 LEFT JOIN room_members rm
        ON rm.room_id = r.id AND rm.user_id = :user_id
@@ -68,6 +75,11 @@ LEFT JOIN room_invitations ri
        ON ri.room_id = r.id AND ri.user_id = :user_id
 WHERE r.id = :room_id
   AND r.deleted_at IS NOT NULL
+  -- A guest only ever sees rooms that let guests in.
+  AND NOT EXISTS (
+      SELECT 1 FROM users viewer
+      WHERE viewer.id = :user_id AND viewer.account_kind = 'guest' AND r.guest_access = 'none'
+  )
 SQL);
         if ($statement === false) {
             throw new RuntimeException('Unable to prepare deleted-room lookup.');
@@ -92,7 +104,8 @@ SELECT r.id,
        r.inactivity_timeout_seconds,
        r.created_by,
        rm.role AS member_role,
-       (ri.user_id IS NOT NULL)::int AS invited
+       (ri.user_id IS NOT NULL)::int AS invited,
+       r.guest_access
 FROM rooms r
 LEFT JOIN room_members rm
        ON rm.room_id = r.id AND rm.user_id = :user_id
@@ -104,6 +117,11 @@ WHERE r.deleted_at IS NULL
       OR r.visibility = 'public'
       OR rm.user_id IS NOT NULL
       OR ri.user_id IS NOT NULL
+  )
+  -- A guest only ever sees rooms that let guests in.
+  AND NOT EXISTS (
+      SELECT 1 FROM users viewer
+      WHERE viewer.id = :user_id AND viewer.account_kind = 'guest' AND r.guest_access = 'none'
   )
 ORDER BY lower(r.name), r.id
 SQL);
@@ -156,10 +174,11 @@ SQL);
         return $value === false || $value === null ? null : (string) $value;
     }
 
+    /** An active account; guests do not count, so they cannot be invited. */
     public function userExists(int $userId): bool
     {
         $statement = $this->pdo->prepare(
-            "SELECT 1 FROM users WHERE id = :id AND account_state = 'active'",
+            "SELECT 1 FROM users WHERE id = :id AND account_state = 'active' AND account_kind = 'member'",
         );
         if ($statement === false) {
             throw new RuntimeException('Unable to prepare user existence lookup.');
@@ -174,7 +193,11 @@ SQL);
         return $this->membershipRole($roomId, $userId) !== null;
     }
 
-    /** @return list<int> */
+    /**
+     * Members' account IDs; guests in the room are left out.
+     *
+     * @return list<int>
+     */
     public function memberIds(int $roomId): array
     {
         $statement = $this->pdo->prepare(<<<'SQL'
@@ -183,6 +206,7 @@ FROM room_members rm
 JOIN users u ON u.id = rm.user_id
 WHERE rm.room_id = :room_id
   AND u.account_state = 'active'
+  AND u.account_kind = 'member'
 SQL);
         if ($statement === false) {
             throw new RuntimeException('Unable to prepare room member list.');
@@ -209,6 +233,7 @@ FROM room_members rm
 JOIN users u ON u.id = rm.user_id
 WHERE rm.room_id = :room_id
   AND u.account_state = 'active'
+  AND u.account_kind = 'member'
   AND u.id <> :excluded_user_id
   AND lower(u.username) LIKE :pattern
 ORDER BY lower(u.username), u.id
@@ -247,6 +272,7 @@ SQL);
             createdBy: (int) $row['created_by'],
             memberRole: $row['member_role'] === null ? null : (string) $row['member_role'],
             invited: (int) $row['invited'] === 1,
+            guestAccess: (string) $row['guest_access'],
         );
     }
 }

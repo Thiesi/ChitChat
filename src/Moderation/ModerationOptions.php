@@ -25,7 +25,7 @@ final class ModerationOptions
     {
     }
 
-    /** @return ?array{room: ?array<string, mixed>, everywhere: ?array<string, mixed>} */
+    /** @return ?array{room: ?array<string, mixed>, everywhere: ?array<string, mixed>, guest: ?array{can_end:bool, can_block_connection:bool}} */
     public function for(AuthenticatedUser $viewer, int $targetId, ?int $roomId): ?array
     {
         if ($viewer->id === $targetId) {
@@ -55,7 +55,12 @@ final class ModerationOptions
             }
         }
 
-        $manageUsers = ModerationRank::globalRankOf($viewer) >= self::USER_MANAGEMENT_RANK && $ranks->globally($viewer, $targetId);
+        $target = (new UserRepository($this->pdo))->findAuthenticatedById($targetId);
+        $targetIsGuest = $target !== null && $target->guest;
+        // A guest is not signed out or banned but has the session ended, or the connection blocked.
+        $manageUsers = !$targetIsGuest
+            && ModerationRank::globalRankOf($viewer) >= self::USER_MANAGEMENT_RANK
+            && $ranks->globally($viewer, $targetId);
         $muteEverywhere = $mutes->canMuteEverywhere($viewer, $targetId);
         $everywhere = null;
         if ($manageUsers || $muteEverywhere) {
@@ -70,6 +75,12 @@ final class ModerationOptions
             ];
         }
 
-        return $room === null && $everywhere === null ? null : ['room' => $room, 'everywhere' => $everywhere];
+        $guest = $targetIsGuest && RoomAuthorization::canModerateAnyRoom($viewer)
+            ? ['can_end' => true, 'can_block_connection' => true]
+            : null;
+
+        return $room === null && $everywhere === null && $guest === null
+            ? null
+            : ['room' => $room, 'everywhere' => $everywhere, 'guest' => $guest];
     }
 }

@@ -16,6 +16,9 @@ final class RoomAuthorization
 
     public static function canView(AuthenticatedUser $actor, Room $room): bool
     {
+        if ($actor->guest) {
+            return $room->guestAccess !== 'none';
+        }
         return self::canModerateAnyRoom($actor)
             || $room->visibility !== 'private'
             || $room->isMember()
@@ -24,9 +27,18 @@ final class RoomAuthorization
 
     public static function canReadHistory(AuthenticatedUser $actor, Room $room): bool
     {
+        if ($actor->guest) {
+            return $room->guestAccess !== 'none';
+        }
         return self::canModerateAnyRoom($actor)
             || $room->visibility !== 'private'
             || $room->isMember();
+    }
+
+    /** Members post in rooms they joined; a guest only where the room lets guests write. */
+    public static function canPost(AuthenticatedUser $actor, Room $room): bool
+    {
+        return $room->isMember() && (!$actor->guest || $room->guestsMayPost());
     }
 
     public static function canManage(AuthenticatedUser $actor, Room $room): bool
@@ -64,6 +76,16 @@ final class RoomAuthorization
     {
         if (!self::canReadHistory($actor, $room)) {
             throw new ApiException(403, 'room_forbidden', 'Join the private room before reading its history.');
+        }
+    }
+
+    public static function requirePost(AuthenticatedUser $actor, Room $room): void
+    {
+        if (!$room->isMember()) {
+            throw new ApiException(403, 'membership_required', 'Join the room before sending messages.');
+        }
+        if (!self::canPost($actor, $room)) {
+            throw new ApiException(403, 'guest_read_only', 'Guests can read this room. Create an account to join the conversation.');
         }
     }
 
