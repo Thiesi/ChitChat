@@ -104,6 +104,16 @@
   min-width: min(22rem, 55vw);
 }
 
+/* Inside a card the field shares a narrow column with its button, so it shrinks instead. */
+.admin-card .inline-form label {
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-card .inline-form button {
+  flex: none;
+}
+
 .admin-card-list,
 .audit-list {
   display: grid;
