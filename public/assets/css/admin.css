@@ -195,6 +195,10 @@
   min-width: min(24rem, 55vw);
 }
 
+.room-heading-actions .primary-button {
+  white-space: nowrap;
+}
+
 .admin-row-actions {
   flex-wrap: wrap;
 }

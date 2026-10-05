@@ -42,6 +42,18 @@ function bindElements() {
     'user-list',
     'users-more',
     'room-picker',
+    'room-create-open',
+    'room-create-dialog',
+    'room-create-form',
+    'room-create-cancel',
+    'room-create-error',
+    'new-room-key',
+    'new-room-name',
+    'new-room-info',
+    'new-room-visibility',
+    'new-room-age',
+    'new-room-guest-access',
+    'new-room-timeout',
     'room-admin-empty',
     'room-admin-content',
     'room-settings-form',
@@ -101,6 +113,12 @@ function bindEvents() {
     field.addEventListener('input', syncRoomGuestAccess);
   }
   elements['invitation-search-form'].addEventListener('submit', searchInvitableUsers);
+  elements['room-create-open'].addEventListener('click', openCreateRoom);
+  elements['room-create-cancel'].addEventListener('click', () => elements['room-create-dialog'].close());
+  elements['room-create-form'].addEventListener('submit', createRoom);
+  for (const field of [elements['new-room-visibility'], elements['new-room-age']]) {
+    field.addEventListener('input', syncNewRoomGuestAccess);
+  }
   elements['room-delete'].addEventListener('click', () => withButton(elements['room-delete'], deleteSelectedRoom));
   elements['audit-more'].addEventListener('click', () => loadAudit(false));
   elements['user-dialog-close'].addEventListener('click', () => elements['user-dialog'].close());
@@ -127,7 +145,9 @@ async function bootstrap() {
   await loadDeletedRooms();
 
   const userAdmin = canManageUsers();
-  const roomAdmin = state.manageableRooms.length > 0 || state.deletedRooms.length > 0;
+  // Whoever may create rooms gets the tab even before the first room exists.
+  const roomAdmin = canCreateRooms() || state.manageableRooms.length > 0 || state.deletedRooms.length > 0;
+  elements['room-create-open'].classList.toggle('hidden', !canCreateRooms());
   elements['users-tab'].classList.toggle('hidden', !userAdmin);
   elements['audit-tab'].classList.toggle('hidden', !userAdmin);
   elements['rooms-tab'].classList.toggle('hidden', !roomAdmin);
@@ -339,6 +359,9 @@ function populateRoomPicker() {
     elements['room-picker'].append(option);
   }
   const empty = state.manageableRooms.length === 0;
+  elements['room-admin-empty'].textContent = canCreateRooms()
+    ? 'No rooms yet. Create the first one.'
+    : 'No manageable rooms are available.';
   elements['room-admin-empty'].classList.toggle('hidden', !empty);
   elements['room-admin-content'].classList.toggle('hidden', empty);
 }
@@ -369,6 +392,48 @@ function renderDeletedRooms() {
     item.append(header, meta);
     list.append(item);
   }
+}
+
+function openCreateRoom() {
+  elements['room-create-form'].reset();
+  syncNewRoomGuestAccess();
+  elements['room-create-error'].textContent = '';
+  elements['room-create-dialog'].showModal();
+  elements['new-room-key'].focus();
+}
+
+async function createRoom(event) {
+  event.preventDefault();
+  elements['room-create-error'].textContent = '';
+  const submit = event.submitter ?? elements['room-create-form'].querySelector('button[type="submit"]');
+  submit.disabled = true;
+  try {
+    const response = await apiPost('/api/v1/rooms/create.php', {
+      key: elements['new-room-key'].value,
+      name: elements['new-room-name'].value,
+      info_line: elements['new-room-info'].value,
+      visibility: elements['new-room-visibility'].value,
+      minimum_age: Number.parseInt(elements['new-room-age'].value, 10),
+      inactivity_timeout_seconds: Number.parseInt(elements['new-room-timeout'].value, 10),
+      guest_access: elements['new-room-guest-access'].value,
+    });
+    elements['room-create-dialog'].close();
+    // Straight on to its settings, members and invitations.
+    await reloadRooms(response.room.id);
+    toast(`# ${response.room.name} was created.`);
+  } catch (error) {
+    elements['room-create-error'].textContent = error instanceof Error ? error.message : 'The room could not be created.';
+  } finally {
+    submit.disabled = false;
+  }
+}
+
+// Only public rooms without a minimum age can let guests in.
+function syncNewRoomGuestAccess() {
+  const qualifies = elements['new-room-visibility'].value === 'public'
+    && (Number.parseInt(elements['new-room-age'].value, 10) || 0) === 0;
+  elements['new-room-guest-access'].disabled = !qualifies;
+  if (!qualifies) elements['new-room-guest-access'].value = 'none';
 }
 
 async function deleteSelectedRoom() {
@@ -607,6 +672,10 @@ function renderAudit() {
 
 function canManageUsers() {
   return hasRole('super_admin') || hasRole('admin');
+}
+
+function canCreateRooms() {
+  return hasRole('super_admin') || hasRole('admin') || hasRole('chat_admin');
 }
 
 function canManageRoom(room) {
