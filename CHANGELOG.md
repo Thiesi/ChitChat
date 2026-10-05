@@ -6,7 +6,11 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ## [Unreleased]
 
-One forward-only database migration (`0039_guest_access.sql`); back up before upgrading.
+No changes since `v3.2.0`.
+
+## [3.2.0] - 2026-10-05
+
+Guest access and creating rooms from Administration, with one forward-only database migration (`0039_guest_access.sql`); back up before upgrading. See the [`v3.2.0` release notes](docs/releases/v3.2.0.md).
 
 ### Added
 
