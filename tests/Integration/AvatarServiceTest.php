@@ -11,9 +11,18 @@ use ChitChat\Auth\UserRepository;
 use ChitChat\Http\ApiException;
 use ChitChat\Maintenance\CleanupService;
 use ChitChat\Upload\IncomingFile;
+use ChitChat\Tests\Support\TemporaryPaths;
 
 final class AvatarServiceTest extends DatabaseTestCase
 {
+    use TemporaryPaths;
+
+    protected function tearDown(): void
+    {
+        $this->removeTemporaryPaths();
+        parent::tearDown();
+    }
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -85,8 +94,7 @@ final class AvatarServiceTest extends DatabaseTestCase
         self::assertFalse($profile['has_avatar']);
         self::assertNull($avatars->profile($moderator, $member->id)['badge']);
 
-        $svg = tempnam(sys_get_temp_dir(), 'avatar');
-        file_put_contents($svg, '<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8"><script>alert(1)</script></svg>');
+        $svg = $this->temporaryFile('<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8"><script>alert(1)</script></svg>', 'avatar');
         try {
             $avatars->upload($member, IncomingFile::forTesting('avatar.svg', $svg), '127.0.0.1');
             self::fail('Expected SVG to be refused.');
@@ -131,8 +139,7 @@ final class AvatarServiceTest extends DatabaseTestCase
         $image = imagecreatetruecolor($width, $height);
         self::assertNotFalse($image);
         imagefilledrectangle($image, 0, 0, intdiv($width, 2), intdiv($height, 2), (int) imagecolorallocate($image, 200, 80, 40));
-        $path = tempnam(sys_get_temp_dir(), 'avatar');
-        self::assertIsString($path);
+        $path = $this->temporaryFile(label: 'avatar');
         $type === 'png' ? imagepng($image, $path) : imagejpeg($image, $path, 90);
         imagedestroy($image);
 

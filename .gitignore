@@ -10,3 +10,5 @@
 /var/uploads/*
 !/var/uploads/.gitkeep
 /var/phpstan/
+/.claude/
+/.codebase-memory/

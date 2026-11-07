@@ -6,6 +6,7 @@ namespace ChitChat\Tests\Unit;
 
 use ChitChat\Backup\BackupException;
 use ChitChat\Backup\BackupManifest;
+use ChitChat\Tests\Support\TestScratch;
 use PHPUnit\Framework\TestCase;
 
 final class BackupManifestTest extends TestCase
@@ -14,12 +15,12 @@ final class BackupManifestTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->manifestPath = sys_get_temp_dir() . '/chitchat-manifest-' . bin2hex(random_bytes(4)) . '.json';
+        $this->manifestPath = TestScratch::path('manifest') . '.json';
     }
 
     protected function tearDown(): void
     {
-        @unlink($this->manifestPath);
+        TestScratch::remove($this->manifestPath);
     }
 
     public function testRoundTripsValidatedManifest(): void
