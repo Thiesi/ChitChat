@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   static:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -55,7 +55,7 @@ jobs:
           retention-days: 7
 
   integration:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -113,7 +113,7 @@ jobs:
           retention-days: 7
 
   browser:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -214,7 +214,7 @@ jobs:
           retention-days: 7
 
   release-rehearsal:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     services:
       postgres:
@@ -271,7 +271,7 @@ jobs:
           retention-days: 7
 
   reverse-proxy:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     services:
       postgres:
