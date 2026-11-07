@@ -13,23 +13,21 @@ use ChitChat\Room\MessageService;
 use ChitChat\Room\RoomService;
 use ChitChat\Upload\AttachmentService;
 use ChitChat\Upload\IncomingFile;
+use ChitChat\Tests\Support\TemporaryPaths;
 
 final class MaintenanceServiceTest extends DatabaseTestCase
 {
-    /** @var list<string> */
-    private array $temporaryPaths = [];
+    use TemporaryPaths;
 
     protected function tearDown(): void
     {
-        foreach (array_reverse($this->temporaryPaths) as $path) {
-            $this->removePath($path);
-        }
+        $this->removeTemporaryPaths();
         parent::tearDown();
     }
 
     public function testDryRunAndCleanupApplyConfiguredRetention(): void
     {
-        $storage = $this->temporaryDirectory();
+        $storage = $this->temporaryDirectory(create: true);
         $config = $this->configWithStorage($storage);
         $auth = new AuthService($this->pdo, $config);
         $root = $auth->register('Root', 'a very secure password', '127.0.0.1');
@@ -182,25 +180,6 @@ SQL);
         );
     }
 
-    private function temporaryDirectory(): string
-    {
-        $path = sys_get_temp_dir() . '/chitchat-maintenance-' . bin2hex(random_bytes(8));
-        self::assertTrue(mkdir($path, 0700, true));
-        $this->temporaryPaths[] = $path;
-
-        return $path;
-    }
-
-    private function temporaryFile(string $content): string
-    {
-        $path = tempnam(sys_get_temp_dir(), 'chitchat-maintenance-source-');
-        self::assertIsString($path);
-        file_put_contents($path, $content);
-        $this->temporaryPaths[] = $path;
-
-        return $path;
-    }
-
     private function attachmentPath(string $storage, string $key): string
     {
         return $storage . '/' . substr($key, 0, 2) . '/' . substr($key, 2, 2) . '/' . $key;
@@ -224,25 +203,5 @@ SQL);
         return (int) $this->pdo->query(
             sprintf('SELECT COUNT(*) FROM %s WHERE id = %d', $table, $id),
         )->fetchColumn();
-    }
-
-    private function removePath(string $path): void
-    {
-        if (is_file($path) || is_link($path)) {
-            @unlink($path);
-            return;
-        }
-        if (!is_dir($path)) {
-            return;
-        }
-        $entries = scandir($path);
-        if ($entries !== false) {
-            foreach ($entries as $entry) {
-                if ($entry !== '.' && $entry !== '..') {
-                    $this->removePath($path . DIRECTORY_SEPARATOR . $entry);
-                }
-            }
-        }
-        @rmdir($path);
     }
 }

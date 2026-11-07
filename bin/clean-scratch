@@ -1,0 +1,100 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+/*
+ * Remove this checkout's local scratch, or report how much there is.
+ *
+ *   composer clean-scratch                          # remove the checkout's ignored scratch
+ *   composer clean-scratch -- --report              # file counts; deletes nothing
+ *   composer clean-scratch -- --temp                # remove ChitChat's stale entries in the temp folder
+ *   composer clean-scratch -- --temp --older-than 0 # also recent ones; first check no run is active
+ *
+ * The default removes only ignored, reproducible scratch: test-results,
+ * playwright-report, .phpunit.cache, .phpunit.result.cache and var/phpstan.
+ * It never touches vendor, node_modules, var/log, var/uploads or tracked files.
+ * --temp removes only the top-level temp entries listed in
+ * TestScratch::TEMP_PATTERNS that have had nothing written for 24 hours.
+ * Keep any evidence you need on the PR or in docs/ first.
+ * See docs/operations/local-disk-hygiene.md.
+ */
+
+use ChitChat\Tests\Support\TestScratch;
+
+$root = dirname(__DIR__);
+require $root . '/vendor/autoload.php';
+if (!class_exists(TestScratch::class)) {
+    fwrite(STDERR, "bin/clean-scratch is a development tool; run composer install with dev dependencies first.\n");
+    exit(2);
+}
+
+$options = getopt('', ['report', 'temp', 'older-than:', 'help']);
+if (isset($options['help'])) {
+    fwrite(STDOUT, "Usage: bin/clean-scratch [--report | --temp [--older-than HOURS]]\n");
+    exit(0);
+}
+
+function newestWrite(string $path): int
+{
+    $newest = (int) @lstat($path)['mtime'];
+    if (is_dir($path) && !is_link($path)) {
+        $entries = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($path, FilesystemIterator::SKIP_DOTS),
+            RecursiveIteratorIterator::SELF_FIRST,
+        );
+        foreach ($entries as $entry) {
+            $newest = max($newest, (int) @lstat($entry->getPathname())['mtime']);
+        }
+    }
+
+    return $newest;
+}
+
+if (isset($options['report'])) {
+    $limit = TestScratch::limit();
+    $checkout = TestScratch::worktreeFileCount($root);
+    $temp = TestScratch::tempFileCount();
+    $tree = 0;
+    $skip = ['.git', 'vendor', 'node_modules'];
+    foreach (scandir($root) ?: [] as $entry) {
+        if ($entry !== '.' && $entry !== '..' && !in_array($entry, $skip, true)) {
+            $tree += TestScratch::countFiles($root . DIRECTORY_SEPARATOR . $entry);
+        }
+    }
+    $flag = static fn (int $count): string => $count > $limit ? '  OVER ' . number_format($limit) : '';
+    printf("%10s  checkout scratch (%s)%s\n", number_format($checkout), implode(', ', TestScratch::WORKTREE_SCRATCH), $flag($checkout));
+    printf("%10s  whole checkout, without .git, vendor and node_modules\n", number_format($tree));
+    printf("%10s  ChitChat entries in the temp folder (%s)%s\n", number_format($temp), sys_get_temp_dir(), $flag($temp));
+    exit($checkout > $limit || $temp > $limit ? 1 : 0);
+}
+
+if (isset($options['temp'])) {
+    $hours = isset($options['older-than']) ? (float) $options['older-than'] : 24.0;
+    [$removed, $kept, $failed] = [0, 0, []];
+    foreach (TestScratch::tempEntries() as $path) {
+        if (time() - newestWrite($path) < $hours * 3600) {
+            $kept++;
+            continue;
+        }
+        TestScratch::remove($path) ? $removed++ : $failed[] = $path;
+    }
+    printf("Temp folder: %d stale entries removed, %d written to in the last %s h kept, %d could not be deleted.\n", $removed, $kept, $hours, count($failed));
+    foreach (array_slice($failed, 0, 20) as $path) {
+        fwrite(STDOUT, "  {$path}\n");
+    }
+    exit($failed === [] ? 0 : 1);
+}
+
+$failed = [];
+foreach ([...TestScratch::WORKTREE_SCRATCH, '.phpunit.result.cache'] as $name) {
+    $path = $root . DIRECTORY_SEPARATOR . $name;
+    if ((file_exists($path) || is_link($path)) && !TestScratch::remove($path)) {
+        $failed[] = $path;
+    }
+}
+printf("%s: scratch removed; %d files left in it, %d paths could not be deleted.\n", $root, TestScratch::worktreeFileCount($root), count($failed));
+foreach ($failed as $path) {
+    fwrite(STDOUT, "  {$path}\n");
+}
+exit($failed === [] ? 0 : 1);

@@ -12,17 +12,15 @@ use ChitChat\Http\ApiException;
 use ChitChat\Maintenance\CleanupService;
 use ChitChat\Realtime\EventRepository;
 use ChitChat\Upload\IncomingFile;
+use ChitChat\Tests\Support\TemporaryPaths;
 
 final class DirectMessageAttachmentServiceTest extends DatabaseTestCase
 {
-    /** @var list<string> */
-    private array $temporaryPaths = [];
+    use TemporaryPaths;
 
     protected function tearDown(): void
     {
-        foreach (array_reverse($this->temporaryPaths) as $path) {
-            $this->removePath($path);
-        }
+        $this->removeTemporaryPaths();
         parent::tearDown();
     }
 
@@ -242,24 +240,6 @@ final class DirectMessageAttachmentServiceTest extends DatabaseTestCase
         );
     }
 
-    private function temporaryDirectory(): string
-    {
-        $path = sys_get_temp_dir() . '/chitchat-dm-attachments-' . bin2hex(random_bytes(8));
-        $this->temporaryPaths[] = $path;
-
-        return $path;
-    }
-
-    private function temporaryFile(string $content): string
-    {
-        $path = tempnam(sys_get_temp_dir(), 'chitchat-dm-upload-');
-        self::assertIsString($path);
-        file_put_contents($path, $content);
-        $this->temporaryPaths[] = $path;
-
-        return $path;
-    }
-
     /** @return list<string> */
     private function storedFiles(string $root): array
     {
@@ -278,25 +258,5 @@ final class DirectMessageAttachmentServiceTest extends DatabaseTestCase
         }
 
         return $files;
-    }
-
-    private function removePath(string $path): void
-    {
-        if (is_file($path) || is_link($path)) {
-            @unlink($path);
-            return;
-        }
-        if (!is_dir($path)) {
-            return;
-        }
-        $entries = scandir($path);
-        if ($entries !== false) {
-            foreach ($entries as $entry) {
-                if ($entry !== '.' && $entry !== '..') {
-                    $this->removePath($path . DIRECTORY_SEPARATOR . $entry);
-                }
-            }
-        }
-        @rmdir($path);
     }
 }

@@ -11,6 +11,7 @@ use ChitChat\Http\RateLimiter;
 use ChitChat\Maintenance\MaintenanceCoordinator;
 use ChitChat\Observability\SseConnectionTracker;
 use ChitChat\Observability\SystemStatusService;
+use ChitChat\Tests\Support\TestScratch;
 use RuntimeException;
 
 final class OperationalObservabilityTest extends DatabaseTestCase
@@ -20,7 +21,7 @@ final class OperationalObservabilityTest extends DatabaseTestCase
     protected function tearDown(): void
     {
         if ($this->storagePath !== null) {
-            @rmdir($this->storagePath);
+            TestScratch::remove($this->storagePath);
         }
         parent::tearDown();
     }
@@ -123,10 +124,7 @@ SQL);
 
     private function observabilityConfig(): Config
     {
-        $this->storagePath ??= sys_get_temp_dir() . '/chitchat-observability-' . bin2hex(random_bytes(8));
-        if (!is_dir($this->storagePath)) {
-            self::assertTrue(mkdir($this->storagePath, 0700, true));
-        }
+        $this->storagePath ??= TestScratch::directory('observability');
 
         return new Config(
             environment: $this->config->environment,

@@ -6,6 +6,7 @@ namespace ChitChat\Tests\Unit;
 
 use ChitChat\Backup\AttachmentInventory;
 use ChitChat\Backup\BackupException;
+use ChitChat\Tests\Support\TestScratch;
 use PHPUnit\Framework\TestCase;
 
 final class AttachmentInventoryTest extends TestCase
@@ -14,19 +15,13 @@ final class AttachmentInventoryTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->root = sys_get_temp_dir() . '/chitchat-inventory-' . bin2hex(random_bytes(4));
+        $this->root = TestScratch::directory('inventory');
         mkdir($this->root . '/nested', 0700, true);
     }
 
     protected function tearDown(): void
     {
-        if (is_link($this->root . '/link')) {
-            unlink($this->root . '/link');
-        }
-        @unlink($this->root . '/nested/second.bin');
-        @unlink($this->root . '/first.txt');
-        @rmdir($this->root . '/nested');
-        @rmdir($this->root);
+        TestScratch::remove($this->root);
     }
 
     public function testCountsRegularAttachmentTree(): void
