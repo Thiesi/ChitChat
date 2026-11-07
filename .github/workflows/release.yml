@@ -33,7 +33,7 @@ concurrency:
 jobs:
   validate:
     name: Validate release commit
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     outputs:
       resolved_sha: ${{ steps.metadata.outputs.resolved_sha }}
@@ -88,7 +88,7 @@ jobs:
     name: Publish release
     if: ${{ inputs.publication != 'validate-only' }}
     needs: validate
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     environment:
       name: release
