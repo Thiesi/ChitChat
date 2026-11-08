@@ -70,7 +70,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
       <dl id="revision-review-context" class="revision-review-context"></dl>
       <div id="revision-review-list" class="revision-review-list" aria-live="polite"></div>
     </section>
-    <?= \ChitChat\View\PoweredBy::html() ?>
+    <?= \ChitChat\View\PoweredBy::html($config) ?>
   </main>
 
   <div id="toast-region" class="toast-region" aria-live="assertive"></div>

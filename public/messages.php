@@ -22,6 +22,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <link rel="stylesheet" href="/assets/css/messages-blocking.css">
   <link rel="stylesheet" href="/assets/css/messages-attachments.css">
   <link rel="stylesheet" href="/assets/css/message-mutations.css">
+  <link rel="stylesheet" href="/assets/css/rules.css">
 </head>
 <body>
   <div id="messages-loading" class="app-loading" role="status">Loading messages…</div>
@@ -38,6 +39,8 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
         <a class="secondary-button" href="/">Back to chat</a>
       </nav>
     </header>
+
+    <p class="rules-banner hidden" data-rules-gate role="status"><span><strong>The community rules have changed.</strong> Agree to keep writing.</span> <button class="secondary-button" type="button" data-rules-review>Review</button></p>
 
     <section id="dm-privacy-notice" class="privacy-notice" aria-labelledby="dm-privacy-heading">
       <h2 id="dm-privacy-heading">Privacy notice</h2>
@@ -76,6 +79,10 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
           <button id="dm-load-older" class="secondary-button hidden" type="button">Load older messages</button>
         </section>
 
+        <div class="muted-notice rules-notice hidden" data-rules-gate role="status">
+          <div><strong>Agree to the updated community rules to write.</strong><span>You can still read along.</span></div>
+          <button class="primary-button" type="button" data-rules-review>Review rules</button>
+        </div>
         <form id="dm-composer" class="dm-composer hidden">
           <p id="dm-typing-indicator" class="typing-indicator"></p>
           <div id="dm-reply-banner" class="reply-banner hidden">
@@ -108,7 +115,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
         </form>
       </section>
     </section>
-    <?= \ChitChat\View\PoweredBy::html() ?>
+    <?= \ChitChat\View\PoweredBy::html($config) ?>
   </main>
 
   <dialog id="message-report-dialog" class="room-dialog message-report-dialog" aria-labelledby="message-report-title">
