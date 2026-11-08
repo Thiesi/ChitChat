@@ -250,6 +250,18 @@ final class PolicyServiceTest extends DatabaseTestCase
         $this->assertApi(403, 'rules_acceptance_required', fn () => $policies->assertMayWrite($member));
     }
 
+    public function testStaleSessionsCannotRecreateAcceptanceHistoryAfterAccountTombstoning(): void
+    {
+        [$root, $member] = $this->people();
+        $policies = $this->policies();
+        $policies->update($root, 'rules', 'hosted', 'Rules', null, true, null, '127.0.0.1');
+        $policies->accept($member, 1, '127.0.0.2');
+        $this->pdo->exec("UPDATE users SET account_state = 'closed', closure_requested_at = NOW() - INTERVAL '15 days', closure_finalizes_at = NOW() - INTERVAL '1 day', closed_at = NOW(), session_version = session_version + 1 WHERE id = {$member->id}");
+        self::assertSame([], $policies->acceptanceHistory($member->id));
+        $this->assertApi(401, 'authentication_required', fn () => $policies->accept($member, 1, '127.0.0.2'));
+        self::assertSame([], $policies->acceptanceHistory($member->id));
+    }
+
     public function testPreviewUsesPublishedRendererAndAdminUrlsAreValidated(): void
     {
         [$root, $member] = $this->people();
@@ -263,6 +275,9 @@ final class PolicyServiceTest extends DatabaseTestCase
         self::assertSame('https://chat.test/rules.php', $policies->discovery()['rules']['url']);
         $policies->update($root, 'legal_notice', 'none', null, 'https://example.org/legal', false, null, '127.0.0.1');
         self::assertSame(['url' => 'https://example.org/legal'], $policies->discovery()['legal_notice']);
+        self::assertSame('https://example.org/legal', $policies->legalNoticeUrl());
+        $policies->update($root, 'legal_notice', 'none', null, null, false, null, '127.0.0.1');
+        self::assertNull($policies->legalNoticeUrl());
     }
 
     /** @return array{AuthenticatedUser,AuthenticatedUser} */

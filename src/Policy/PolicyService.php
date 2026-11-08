@@ -26,12 +26,18 @@ final readonly class PolicyService
     {
         $rules = $this->discoveryDocument('rules');
         $privacy = $this->discoveryDocument('privacy');
-        $legal = $this->raw('legal_notice');
+        $legal = $this->legalNoticeUrl();
         return [
             'rules' => $rules === null ? null : ['url' => $rules['url'], 'version' => $rules['version'], 'updated_at' => $rules['updated_at']],
             'privacy' => $privacy === null ? null : ['url' => $privacy['url'], 'updated_at' => $privacy['updated_at']],
-            'legal_notice' => $legal['source'] === 'none' ? null : ['url' => (string) $legal['url']],
+            'legal_notice' => $legal === null ? null : ['url' => $legal],
         ];
+    }
+
+    public function legalNoticeUrl(): ?string
+    {
+        $row = $this->raw('legal_notice');
+        return $row['source'] === 'none' ? null : (string) $row['url'];
     }
 
     /** @return ?array{url:string,version:int,updated_at:?string} */
@@ -126,6 +132,15 @@ SQL);
     {
         return $this->transaction(function () use ($actor, $version, $ipAddress): array {
             $rules = $this->lockedRules();
+            // Serialize with password changes and final tombstoning. A stale
+            // session cannot recreate acceptance history after it was erased.
+            $user = $this->prepare('SELECT account_state, session_version FROM users WHERE id = :id FOR SHARE');
+            $user->execute(['id' => $actor->id]);
+            $current = $user->fetch();
+            if (!is_array($current) || $current['account_state'] !== 'active'
+                || (int) $current['session_version'] !== $actor->sessionVersion) {
+                throw new ApiException(401, 'authentication_required', 'Authentication is required.');
+            }
             $this->requireCurrentVersion($version, $rules);
             $this->recordAcceptance($actor->id, (int) $rules['version'], $ipAddress);
             return $this->rulesStatus($actor->id);

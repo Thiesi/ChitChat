@@ -49,7 +49,8 @@ External documents have `source: "external"`, their configured URL, and **null**
 hosted paths. The browser UI's public `/rules.php` and `/privacy.php` templates
 use the same `ChitChat\Policy\PolicyService::publicDocument()` read: hosted data,
 302 to the saved external HTTPS URL, or 404 for None. Those templates and the
-acceptance UI are delivered in the separate web-UI PR; enable hosted policies
+acceptance UI are delivered in the separate web-UI PR; the footer also uses
+`PolicyService::legalNoticeUrl(): ?string` for the optional saved legal URL. Enable hosted policies
 when the matching UI is deployed.
 
 `POST /api/v1/policies/accept.php {"version":1}` requires an authenticated member
