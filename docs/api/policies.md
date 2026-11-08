@@ -23,10 +23,15 @@ These are additive API v1 fields; missing fields on older servers mean unknown.
 ```
 
 Each discovery document is `null` when None. URLs are absolute: an admin-saved
-HTTPS external URL, or the hosted page URL. Hosted origins prefer the configured
-`OIDC_REDIRECT_ORIGIN`; otherwise they use the validated request Host and direct
-HTTPS state. Forwarded host/protocol headers are not trusted. CLI reads without
-an HTTP host use localhost; these are not public deployment URLs.
+HTTPS external URL, or the hosted page URL. Hosted pages and privacy-notification
+links use the first configured origin in this order: `APP_ORIGIN`,
+`OIDC_REDIRECT_ORIGIN`, `WEBAUTHN_ORIGIN`, then the validated request Host and direct
+HTTPS state. Set `APP_ORIGIN` to the canonical public scheme, host and optional
+port (no path), especially behind TLS termination: CCM opens these absolute URLs
+directly, and PHP might otherwise see HTTP. Its scheme/host are normalized and
+default ports removed; HTTPS is required outside loopback development/tests.
+Forwarded host/protocol headers are not trusted. CLI reads without a configured
+origin or HTTP host use localhost; these are not public deployment URLs.
 
 `user` remains `null` while signed out. Signed-in members **and guests** receive
 `user.rules`, including in login, registration and guest-start response users.

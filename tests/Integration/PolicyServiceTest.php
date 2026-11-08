@@ -280,6 +280,46 @@ final class PolicyServiceTest extends DatabaseTestCase
         self::assertNull($policies->legalNoticeUrl());
     }
 
+    public function testHostedDiscoveryAndPrivacyNoticesUseTheCanonicalOriginFallbackChain(): void
+    {
+        [$root, $member] = $this->people();
+        $server = $_SERVER;
+        try {
+            $_SERVER['HTTP_HOST'] = 'request.example:8080';
+            unset($_SERVER['HTTPS']);
+            $_SERVER['HTTP_X_FORWARDED_HOST'] = 'untrusted.example';
+            $_SERVER['HTTP_X_FORWARDED_PROTO'] = 'https';
+            $base = ['applicationOrigin' => '', 'oidcRedirectOrigin' => '', 'webauthnOrigin' => '', 'webauthnRpId' => ''];
+            $configured = new PolicyService($this->pdo, $this->configWith(array_replace($base, [
+                'applicationOrigin' => 'https://canonical.example',
+                'oidcRedirectOrigin' => 'https://provider.example',
+                'webauthnOrigin' => 'https://passkeys.example', 'webauthnRpId' => 'passkeys.example',
+            ])));
+            $configured->update($root, 'rules', 'hosted', 'Rules', null, false, null, '127.0.0.1');
+            $configured->update($root, 'privacy', 'hosted', 'Privacy', null, false, null, '127.0.0.1');
+            self::assertSame('https://canonical.example/rules.php', $configured->discovery()['rules']['url']);
+            self::assertSame('https://canonical.example/privacy.php',
+                (new PrivacyNotificationService($this->pdo))->timeline($member)['notifications'][0]['link']);
+            $oidc = new PolicyService($this->pdo, $this->configWith(array_replace($base, [
+                'oidcRedirectOrigin' => 'https://provider.example',
+                'webauthnOrigin' => 'https://passkeys.example', 'webauthnRpId' => 'passkeys.example',
+            ])));
+            self::assertSame('https://provider.example/rules.php', $oidc->discovery()['rules']['url']);
+            $passkeys = new PolicyService($this->pdo, $this->configWith(array_replace($base, [
+                'webauthnOrigin' => 'https://passkeys.example', 'webauthnRpId' => 'passkeys.example',
+            ])));
+            self::assertSame('https://passkeys.example/rules.php', $passkeys->discovery()['rules']['url']);
+            $request = new PolicyService($this->pdo, $this->configWith($base));
+            self::assertSame('http://request.example:8080/rules.php', $request->discovery()['rules']['url']);
+            $_SERVER['HTTPS'] = 'on';
+            self::assertSame('https://request.example:8080/rules.php', $request->discovery()['rules']['url']);
+            $_SERVER['HTTP_HOST'] = 'invalid host';
+            $this->assertApi(400, 'invalid_host', fn () => $request->discovery());
+        } finally {
+            $_SERVER = $server;
+        }
+    }
+
     /** @return array{AuthenticatedUser,AuthenticatedUser} */
     private function people(): array
     {

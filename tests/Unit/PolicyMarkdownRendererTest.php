@@ -7,6 +7,8 @@ namespace ChitChat\Tests\Unit;
 use ChitChat\Http\ApiException;
 use ChitChat\Policy\PolicyMarkdownRenderer;
 use PHPUnit\Framework\TestCase;
+use League\CommonMark\Extension\CommonMark\Node\Inline\Link;
+use League\CommonMark\Renderer\ChildNodeRendererInterface;
 
 final class PolicyMarkdownRendererTest extends TestCase
 {
@@ -42,6 +44,23 @@ MD);
             self::assertStringNotContainsString('href="' . $url, $html);
         }
         self::assertStringContainsString('href="mailto:help@example.org"', $html);
+    }
+
+    public function testLinkAttributesEscapeQuotesAngleBracketsAndAmpersands(): void
+    {
+        $renderer = new PolicyMarkdownRenderer();
+        $children = $this->createMock(ChildNodeRendererInterface::class);
+        $children->method('renderNodes')->willReturn('x');
+        // Exercise raw node URLs as well as the parser, which can percent-encode them first.
+        self::assertSame(
+            '<a href="https://a.example/?q=&quot;onmouseover=alert(1)&amp;lt=&lt;" rel="noopener noreferrer">x</a>',
+            (string) $renderer->render(new Link('https://a.example/?q="onmouseover=alert(1)&lt=<'), $children),
+        );
+        $html = $renderer->convert('[x](https://a.example/?q="onmouseover=alert(1))' . "\n\n"
+            . '[x](https://a.example/?q=a&other=b)');
+        self::assertSame(2, preg_match_all('/<a href="[^"<>]*" rel="noopener noreferrer">x<\/a>/', $html));
+        self::assertStringNotContainsString('"onmouseover=', $html);
+        self::assertStringContainsString('q=a&amp;other=b', $html);
     }
 
     public function testPreviewAndPublishShareAnExplicitByteLimit(): void

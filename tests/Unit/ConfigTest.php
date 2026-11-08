@@ -13,6 +13,8 @@ final class ConfigTest extends TestCase
     {
         foreach ([
             'APP_VERSION',
+            'APP_ORIGIN',
+            'OIDC_REDIRECT_ORIGIN',
             'APP_DEBUG',
             'APP_ENV',
             'DB_PORT',
@@ -293,6 +295,40 @@ final class ConfigTest extends TestCase
         $config = Config::fromEnvironment();
         self::assertTrue($config->webPushEnabled());
         self::assertSame('public-key-value', $config->webPushVapidPublicKey);
+    }
+
+    public function testApplicationOriginIsOptionalAndNormalizedIndependentlyOfPasskeys(): void
+    {
+        self::assertSame('', Config::fromEnvironment()->applicationOrigin);
+        putenv('APP_ORIGIN=HTTPS://Chat.Example.Com:443');
+        self::assertSame('https://chat.example.com', Config::fromEnvironment()->applicationOrigin);
+        self::assertFalse(Config::fromEnvironment()->webauthnEnabled());
+        putenv('APP_ENV=development');
+        foreach (['http://localhost:8080', 'http://127.0.0.1:8080', 'http://[::1]:8080'] as $origin) {
+            putenv('APP_ORIGIN=' . $origin);
+            self::assertSame($origin, Config::fromEnvironment()->applicationOrigin);
+        }
+    }
+
+    public function testApplicationOriginRejectsNonOriginsAndInsecurePublicAddresses(): void
+    {
+        putenv('APP_ENV=production');
+        foreach (['http://localhost', 'http://chat.example.com', 'ftp://chat.example.com',
+            'https://chat.example.com/path', 'https://chat.example.com/?query', 'https://chat.example.com/#fragment',
+            'https://user:pass@chat.example.com', 'https://chat.example.com:0', 'https://chat.example.com:65536',
+            'https://bad host.example.com', 'https://bad_host.example.com', '/relative'] as $origin) {
+            putenv('APP_ORIGIN=' . $origin);
+            try {
+                Config::fromEnvironment();
+                self::fail('Expected APP_ORIGIN rejection for ' . $origin);
+            } catch (InvalidArgumentException $exception) {
+                self::assertStringContainsString('APP_ORIGIN', $exception->getMessage());
+            }
+        }
+        putenv('APP_ENV=test');
+        putenv('APP_ORIGIN=http://chat.example.com');
+        $this->expectException(InvalidArgumentException::class);
+        Config::fromEnvironment();
     }
 
     public function testWebAuthnOriginIsNormalizedToLowercaseWithoutADefaultPort(): void

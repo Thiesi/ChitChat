@@ -317,9 +317,12 @@ SQL);
 
     private function origin(): string
     {
-        $configured = $this->config === null ? '' : $this->config->oidcRedirectOrigin;
-        if ($configured !== '') {
-            return rtrim($configured, '/');
+        if ($this->config !== null) {
+            foreach ([$this->config->applicationOrigin, $this->config->oidcRedirectOrigin, $this->config->webauthnOrigin] as $configured) {
+                if ($configured !== '') {
+                    return rtrim($configured, '/');
+                }
+            }
         }
         $host = (string) ($_SERVER['HTTP_HOST'] ?? 'localhost');
         if (preg_match('/\A(?:[a-z0-9.-]+|\[[a-f0-9:]+\])(?::[0-9]{1,5})?\z/iD', $host) !== 1) {
