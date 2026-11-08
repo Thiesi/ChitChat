@@ -45,7 +45,7 @@ async function fixture(page, { user = null, overrides = {}, requests = [] } = {}
       'account/mfa/status.php': { mfa: { enabled: false, available: false, credentials: [] } },
       'register.php': { user: { ...viewer, recovery_key: { exists: true, created_at: '2026-11-08T10:00:00Z' } }, csrf_token: 'fixture-2', recovery_key: KEY },
       'password-reset.php': { status: 'complete', user: viewer, csrf_token: 'fixture-3', recovery_key: NEW_KEY },
-      'password-reset/cancel.php': {},
+      'password-reset/cancel.php': { status: 'cancelled', csrf_token: 'fixture-5' },
       'password-reset/mfa-recovery.php': { user: viewer, csrf_token: 'fixture-4', recovery_key: NEW_KEY },
       'account/recovery-key.php': { recovery_key: NEW_KEY, created_at: '2026-11-08T11:00:00Z' },
     };
@@ -186,6 +186,23 @@ test('an account with a second factor confirms it before anything changes, or ca
   await page.getByRole('button', { name: 'Use recovery code' }).click();
   await expect(page.getByRole('region', { name: 'Save your new recovery key' })).toBeVisible();
   await expect(panel).toBeHidden();
+  // The reset's recovery request names its field "code"; sign-in keeps "recovery_code".
+  expect(requests.find((entry) => entry.path === 'password-reset/mfa-recovery.php').body).toEqual({ code: 'ABCD-EF01-2345-6789-ABCD-EF01' });
+});
+
+test('a cancel that finds nothing pending is reported as uncertain, never as "nothing changed"', async ({ page }) => {
+  await fixture(page, {
+    overrides: {
+      'password-reset.php': { status: 'pending_mfa', methods: ['recovery_code'] },
+      'password-reset/cancel.php': { status: 409, json: { error: { code: 'reset_not_pending', message: 'No reset is pending.' } } },
+    },
+  });
+  await page.goto('/?reset=1');
+  await fillReset(page);
+  await page.locator('#mfa-login-panel').getByRole('button', { name: 'Start over' }).click();
+  await expect(page.locator('#auth-error')).toHaveText(/couldn’t tell whether your password changed/);
+  await expect(page.locator('#password-reset-status')).not.toHaveText(/Nothing was changed/);
+  await expect(page.locator('#login-form')).toBeVisible();
 });
 
 test('account: create a key, replace it, or nothing to recover', async ({ page }, testInfo) => {

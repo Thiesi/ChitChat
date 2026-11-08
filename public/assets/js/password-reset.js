@@ -6,7 +6,7 @@ import { ApiError } from './api.js';
 import { buildKeyStep } from './recovery-key-step.js';
 import { continueResetWithMfa, hideMfaPanel } from './mfa-login.js';
 import { createRegistrationChallenge } from './registration-challenge.js';
-import { RESET_CHALLENGE_ENDPOINT, RESET_FAILED, RESET_MFA_ENDPOINTS, cancelReset, issuedKey, resetPassword } from './recovery.js';
+import { RESET_CHALLENGE_ENDPOINT, RESET_FAILED, RESET_MFA_ENDPOINTS, RESET_NOT_PENDING, cancelReset, issuedKey, resetPassword } from './recovery.js';
 
 const challenge = createRegistrationChallenge(RESET_CHALLENGE_ENDPOINT);
 let elements = null;
@@ -131,7 +131,12 @@ async function submit(event) {
           let acknowledged = true;
           try {
             await cancelReset();
-          } catch {
+          } catch (failure) {
+            // Nothing pending any more: it may already have completed. Say so.
+            if (failure instanceof ApiError && failure.code === RESET_NOT_PENDING) {
+              uncertainOutcome();
+              return;
+            }
             acknowledged = false;
           }
           hideMfaPanel();

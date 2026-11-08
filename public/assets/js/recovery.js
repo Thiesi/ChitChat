@@ -12,10 +12,14 @@ export const RESET_MFA_ENDPOINTS = {
   options: '/api/v1/password-reset/mfa-options.php',
   finish: '/api/v1/password-reset/mfa-finish.php',
   recovery: '/api/v1/password-reset/mfa-recovery.php',
+  // The reset's recovery request names its field "code" (#155 decision).
+  recoveryField: 'code',
 };
 const CREATE_KEY_ENDPOINT = '/api/v1/account/recovery-key.php';
 
 export const RESET_FAILED = 'reset_failed';
+// Cancel found nothing pending: the reset may already have completed.
+export const RESET_NOT_PENDING = 'reset_not_pending';
 
 /** A new key handed out once (registration, reset, creation), or null. */
 export function issuedKey(response) {

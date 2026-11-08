@@ -7,6 +7,7 @@ const SIGN_IN_ENDPOINTS = {
   options: '/api/v1/mfa/login-options.php',
   finish: '/api/v1/mfa/login-finish.php',
   recovery: '/api/v1/mfa/login-recovery.php',
+  recoveryField: 'recovery_code',
 };
 let sharedPanel = null;
 // A password reset (#155) finishes through this same panel, but keeps the
@@ -180,8 +181,9 @@ async function completeWithRecovery(event, panel) {
   panel.status.textContent = '';
   setPanelBusy(panel, true);
   try {
-    const response = await apiPost((continuation?.endpoints ?? SIGN_IN_ENDPOINTS).recovery, {
-      recovery_code: panel.input.value,
+    const endpoints = continuation?.endpoints ?? SIGN_IN_ENDPOINTS;
+    const response = await apiPost(endpoints.recovery, {
+      [endpoints.recoveryField ?? 'recovery_code']: panel.input.value,
     });
     panel.recovery.reset();
     await finish(response);
