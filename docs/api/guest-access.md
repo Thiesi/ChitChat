@@ -18,7 +18,7 @@ Guests see only rooms whose `guest_access` is `read` or `write` (see [Rooms](roo
 
 - open profile cards;
 - ignore people;
-- report room messages;
+- report room messages and people linked to a readable room (room context is required for person reports);
 - read their notifications.
 
 Everything else answers HTTP 403 with `guest_not_allowed`. That includes direct messages, pings, attachment uploads, search, room management, and every account and administration endpoint. Endpoints opt in to guests explicitly, so a new endpoint is closed to them by default.
@@ -74,3 +74,10 @@ Ends the guest's session at once. The guest is signed out (a `forced_logout` eve
 ```
 
 Blocks new guest sessions from the guest's connection (IP address) for one hour, one day or one week (`3600`, `86400` or `604800`). Every guest from that connection ends now. The moderator never sees the address. Members using the same connection are not affected and can still sign in or register. Audited as `guest.connection_blocked`.
+
+## Community rules
+
+Guest start sends `accepted_rules_version` after solving the guest challenge.
+The response includes `user.rules`; material updates pause new content until the
+guest accepts. Reading and safety controls stay available. See
+[policy contract](policies.md).

@@ -187,9 +187,15 @@ final readonly class RateLimitPolicySet
             'admin_direct_message_inspection' => self::definition(60, 3_600, 1, 1_000, 60, 86_400),
             'message_revision_review' => self::definition(60, 3_600, 1, 1_000, 60, 86_400),
             'message_report' => self::definition(10, 3_600, 1, 100, 60, 86_400),
+            'user_report' => self::definition(10, 3_600, 1, 100, 60, 86_400),
             'moderation_queue' => self::definition(120, 60, 1, 5_000, 1, 3_600),
             'moderation_action' => self::definition(60, 3_600, 1, 1_000, 60, 86_400),
             'push_subscription_management' => self::definition(20, 3_600, 1, 100, 60, 86_400),
+            'policy_preview' => self::definition(30, 60, 1, 1_000, 1, 3_600),
+            'password_reset' => self::definition(10, 900, 1, 100, 60, 86_400),
+            'password_reset_ip' => self::definition(30, 900, 1, 1_000, 60, 86_400),
+            'password_reset_challenge' => self::definition(60, 60, 1, 1_000, 1, 3_600),
+            'recovery_key_management' => self::definition(10, 3_600, 1, 100, 60, 86_400),
         ];
     }
 

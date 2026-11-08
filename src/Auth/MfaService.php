@@ -101,6 +101,7 @@ final class MfaService
 
     /**
      * @param array<string, mixed> $credential
+     *
      * @return array{mfa:array<string,mixed>,recovery_codes:list<string>}
      */
     public function finishRegistration(AuthenticatedUser $actor, array $credential, string $labelInput, string $ipAddress): array
@@ -162,7 +163,7 @@ final class MfaService
     public function beginAssertion(AuthenticatedUser $user, string $purpose, string $ipAddress): array
     {
         $this->requireAvailable();
-        $this->assertPurpose($purpose);
+        $this->assertPurpose($purpose, true);
         $this->rateLimiter->consume('mfa_assertion', $user->id . '|' . $ipAddress);
         $credentials = $this->mfa->credentialsForUser($user->id);
         if ($credentials === []) {
@@ -180,6 +181,7 @@ final class MfaService
 
     /**
      * @param array<string, mixed> $credential
+     *
      * @return array{credential_record_id:int}
      */
     public function finishAssertion(AuthenticatedUser $user, string $purpose, array $credential, string $ipAddress): array
@@ -196,40 +198,9 @@ final class MfaService
 
         $this->pdo->beginTransaction();
         try {
-            $stored = $this->mfa->credentialForAssertion($user->id, $credentialBytes);
-            if ($stored === null) {
-                throw new ApiException(403, 'unknown_passkey', 'That passkey is not registered for this account.');
-            }
-            $handle = $this->mfa->userHandle($user->id);
-            if ($handle === null) {
-                throw new RuntimeException('MFA-enabled account is missing its WebAuthn user handle.');
-            }
-            $verified = $this->webauthn->verifyAssertion(
-                $credential,
-                $challenge,
-                $stored['public_key_cose'],
-                $stored['sign_count'],
-                $handle,
-            );
-            if (!hash_equals($stored['credential_id'], $verified['credential_id'])) {
-                throw new ApiException(403, 'unknown_passkey', 'That passkey is not registered for this account.');
-            }
-            $this->mfa->updateAssertionState(
-                $stored['id'],
-                max($stored['sign_count'], $verified['sign_count']),
-                $verified['backup_eligible'],
-                $verified['backup_state'],
-            );
-            $this->audit->log(
-                $user->id,
-                $purpose === 'mfa_login' ? 'auth.mfa_login_succeeded' : 'auth.passkey_step_up_succeeded',
-                'webauthn_credential',
-                (string) $stored['id'],
-                ['method' => 'passkey'],
-                $ipAddress,
-            );
+            $result = $this->verifyAssertionInTransaction($user, $purpose, $credential, $credentialBytes, $challenge, $ipAddress);
             $this->pdo->commit();
-            return ['credential_record_id' => $stored['id']];
+            return $result;
         } catch (Throwable $exception) {
             $this->rollBack();
             if ($exception instanceof ApiException) {
@@ -239,7 +210,7 @@ final class MfaService
         }
     }
 
-    public function consumeRecoveryCode(AuthenticatedUser $user, string $codeInput, string $purpose, string $ipAddress): int
+    public function consumeRecoveryCode(AuthenticatedUser $user, #[\SensitiveParameter] string $codeInput, string $purpose, string $ipAddress): int
     {
         $this->assertPurpose($purpose);
         $this->rateLimiter->consume('mfa_recovery', $user->id . '|' . $ipAddress);
@@ -250,18 +221,7 @@ final class MfaService
         }
         $this->pdo->beginTransaction();
         try {
-            if (!$this->mfa->consumeRecoveryCode($user->id, hash('sha256', $normalized))) {
-                throw new ApiException(403, 'invalid_recovery_code', 'The recovery code is invalid or has already been used.');
-            }
-            $remaining = $this->mfa->recoveryCodesRemaining($user->id);
-            $this->audit->log(
-                $user->id,
-                $purpose === 'mfa_login' ? 'auth.mfa_login_succeeded' : 'auth.recovery_step_up_succeeded',
-                'user',
-                (string) $user->id,
-                ['method' => 'recovery_code', 'remaining_codes' => $remaining],
-                $ipAddress,
-            );
+            $remaining = $this->verifyRecoveryCodeInTransaction($user, $normalized, $purpose, $ipAddress);
             $this->pdo->commit();
             return $remaining;
         } catch (Throwable $exception) {
@@ -271,6 +231,154 @@ final class MfaService
             }
             throw $exception;
         }
+    }
+
+    /**
+     * @param array<string,mixed> $credential
+     * @param callable(callable():void):array{user:AuthenticatedUser,recovery_key:string} $complete
+     *
+     * @return array{user:AuthenticatedUser,recovery_key:string}
+     */
+    public function completeResetWithAssertion(AuthenticatedUser $user, array $credential, string $ipAddress, callable $complete): array
+    {
+        $this->requireAvailable();
+        $this->rateLimiter->consume('mfa_assertion', $user->id . '|' . $ipAddress);
+        $challenge = SessionManager::consumeWebAuthnChallenge('mfa_password_reset', $user->id);
+        $rawId = $credential['rawId'] ?? null;
+        if (!is_string($rawId)) {
+            throw new ApiException(400, 'invalid_webauthn_payload', 'rawId must be a string.');
+        }
+        $credentialBytes = Base64Url::decode($rawId, 'rawId');
+        return $this->completeResetTransaction($user, 'passkey', $ipAddress, $complete,
+            function () use ($user, $credential, $credentialBytes, $challenge, $ipAddress): void {
+                $this->verifyAssertionInTransaction($user, 'mfa_password_reset', $credential, $credentialBytes, $challenge, $ipAddress);
+            });
+    }
+
+    /**
+     * @param callable(callable():void):array{user:AuthenticatedUser,recovery_key:string} $complete
+     *
+     * @return array{user:AuthenticatedUser,recovery_key:string}
+     */
+    public function completeResetWithRecoveryCode(AuthenticatedUser $user, #[\SensitiveParameter] string $code, string $ipAddress, callable $complete): array
+    {
+        $this->rateLimiter->consume('mfa_recovery', $user->id . '|' . $ipAddress);
+        $normalized = $this->normalizeRecoveryCode($code);
+        if ($normalized === null) {
+            $this->auditFailure($user, 'mfa_password_reset', 'recovery_code', $ipAddress, 'invalid_format');
+            throw new ApiException(403, 'invalid_recovery_code', 'The recovery code is invalid or has already been used.');
+        }
+        return $this->completeResetTransaction($user, 'recovery_code', $ipAddress, $complete,
+            function () use ($user, $normalized, $ipAddress): void {
+                $this->verifyRecoveryCodeInTransaction($user, $normalized, 'mfa_password_reset', $ipAddress);
+            });
+    }
+
+    /**
+     * The callback validates and locks the reset primary proof before invoking the factor verifier.
+     * Rate-limit consumption above is intentionally outside this rollback boundary.
+     *
+     * @param callable(callable():void):array{user:AuthenticatedUser,recovery_key:string} $complete
+     * @param callable():void $verify
+     *
+     * @return array{user:AuthenticatedUser,recovery_key:string}
+     */
+    private function completeResetTransaction(AuthenticatedUser $user, string $method, string $ipAddress, callable $complete, callable $verify): array
+    {
+        if ($this->pdo->inTransaction()) {
+            throw new RuntimeException('Reset MFA completion must own its transaction.');
+        }
+        $this->pdo->beginTransaction();
+        try {
+            $result = $complete($verify);
+            $this->pdo->commit();
+            return $result;
+        } catch (Throwable $exception) {
+            $this->rollBack();
+            if ($exception instanceof ApiException) {
+                $this->auditFailure($user, 'mfa_password_reset', $method, $ipAddress, $exception->errorCode);
+            }
+            throw $exception;
+        }
+    }
+
+    /**
+     * @param array<string,mixed> $credential
+     * @return array{credential_record_id:int}
+     */
+    private function verifyAssertionInTransaction(
+        AuthenticatedUser $user,
+        string $purpose,
+        array $credential,
+        string $credentialBytes,
+        string $challenge,
+        string $ipAddress,
+    ): array {
+        if (!$this->pdo->inTransaction()) {
+            throw new RuntimeException('Passkey verification requires a transaction.');
+        }
+        $stored = $this->mfa->credentialForAssertion($user->id, $credentialBytes);
+        if ($stored === null) {
+            throw new ApiException(403, 'unknown_passkey', 'That passkey is not registered for this account.');
+        }
+        $handle = $this->mfa->userHandle($user->id);
+        if ($handle === null) {
+            throw new RuntimeException('MFA-enabled account is missing its WebAuthn user handle.');
+        }
+        $verified = $this->webauthn->verifyAssertion(
+            $credential,
+            $challenge,
+            $stored['public_key_cose'],
+            $stored['sign_count'],
+            $handle,
+        );
+        if (!hash_equals($stored['credential_id'], $verified['credential_id'])) {
+            throw new ApiException(403, 'unknown_passkey', 'That passkey is not registered for this account.');
+        }
+        $this->mfa->updateAssertionState(
+            $stored['id'],
+            max($stored['sign_count'], $verified['sign_count']),
+            $verified['backup_eligible'],
+            $verified['backup_state'],
+        );
+        $this->audit->log(
+            $user->id,
+            $this->successAction($purpose, 'passkey'),
+            'webauthn_credential',
+            (string) $stored['id'],
+            ['method' => 'passkey'],
+            $ipAddress,
+        );
+        return ['credential_record_id' => $stored['id']];
+    }
+
+    private function verifyRecoveryCodeInTransaction(AuthenticatedUser $user, #[\SensitiveParameter] string $normalized, string $purpose, string $ipAddress): int
+    {
+        if (!$this->pdo->inTransaction()) {
+            throw new RuntimeException('Recovery-code consumption requires a transaction.');
+        }
+        if (!$this->mfa->consumeRecoveryCode($user->id, hash('sha256', $normalized))) {
+            throw new ApiException(403, 'invalid_recovery_code', 'The recovery code is invalid or has already been used.');
+        }
+        $remaining = $this->mfa->recoveryCodesRemaining($user->id);
+        $this->audit->log(
+            $user->id,
+            $this->successAction($purpose, 'recovery_code'),
+            'user',
+            (string) $user->id,
+            ['method' => 'recovery_code', 'remaining_codes' => $remaining],
+            $ipAddress,
+        );
+        return $remaining;
+    }
+
+    private function successAction(string $purpose, string $method): string
+    {
+        return match ($purpose) {
+            'mfa_password_reset' => 'auth.password_reset_mfa_succeeded',
+            'mfa_login' => 'auth.mfa_login_succeeded',
+            default => $method === 'passkey' ? 'auth.passkey_step_up_succeeded' : 'auth.recovery_step_up_succeeded',
+        };
     }
 
     /** @return list<string> */
@@ -397,6 +505,7 @@ final class MfaService
 
     /**
      * @param list<array{id:int,credential_id:string,label:string,transports:list<string>,algorithm:int,sign_count:int,backup_eligible:bool,backup_state:bool,created_at:string,last_used_at:?string}> $credentials
+     *
      * @return list<array{id:string,transports:list<string>}>
      */
     private function credentialDescriptors(array $credentials): array
@@ -412,6 +521,7 @@ final class MfaService
 
     /**
      * @param array{id:int,credential_id:string,label:string,transports:list<string>,algorithm:int,sign_count:int,backup_eligible:bool,backup_state:bool,created_at:string,last_used_at:?string} $credential
+     *
      * @return array{id:int,label:string,transports:list<string>,algorithm:string,backup_eligible:bool,backup_state:bool,created_at:string,last_used_at:?string}
      */
     private function publicCredential(array $credential): array
@@ -458,9 +568,10 @@ final class MfaService
         return $label;
     }
 
-    private function assertPurpose(string $purpose): void
+    private function assertPurpose(string $purpose, bool $allowPasswordReset = false): void
     {
-        if (!in_array($purpose, ['mfa_login', 'mfa_step_up'], true)) {
+        if (!in_array($purpose, ['mfa_login', 'mfa_step_up'], true)
+            && !($allowPasswordReset && $purpose === 'mfa_password_reset')) {
             throw new ApiException(400, 'invalid_mfa_purpose', 'Unsupported MFA operation.');
         }
     }
@@ -472,7 +583,11 @@ final class MfaService
         }
         $this->audit->log(
             $user->id,
-            $purpose === 'mfa_login' ? 'auth.mfa_login_failed' : 'auth.mfa_step_up_failed',
+            match ($purpose) {
+                'mfa_password_reset' => 'auth.password_reset_mfa_failed',
+                'mfa_login' => 'auth.mfa_login_failed',
+                default => 'auth.mfa_step_up_failed',
+            },
             'user',
             (string) $user->id,
             ['method' => $method, 'reason' => $reason],

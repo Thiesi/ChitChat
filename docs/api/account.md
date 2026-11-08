@@ -32,6 +32,14 @@ The picture as `image/webp`, for signed-in users only, or `404` while the accoun
 
 The small profile card behind every name: `id`, `username`, `member_since`, `badge` (the most senior staff role, such as `Administrator`, or `null`), `has_avatar`, `avatar_version`, and `can_remove_avatar` for the viewer, plus `avatars_available` for the installation. Closed and closing accounts return `404`.
 
+The profile also adds `can_report` (advisory) and `reported_by_me` for any
+retained person case in this context, including resolved/dismissed cases. Pass `room_id` when the card is opened in a room;
+without it the context is global. Members may report active profiles; guests
+must have a readable linked room context. Submission checks permission again,
+so a previously true flag can still lead to `403 report_not_allowed`. A missing
+flag means the server does not advertise person reporting. See the
+[person-report contract](moderation-reports.md#post-apiv1reportsuserphp).
+
 When an account is permanently closed, its picture is deleted along with the tombstone. The personal data export contains the stored picture itself (`account.avatar`, base64-encoded WebP).
 
 ## Date and time display
@@ -197,3 +205,5 @@ Ordinary maintenance finalizes pending closures whose deadline has passed. Final
 - releases the original username for reuse.
 
 Shared room and direct-message history, message revisions, attachment evidence, open moderation evidence, room membership and ownership attribution, bans, and audit records remain subject to their existing retention policies. Reporter and subject references resolve to the tombstoned `Closed account #<id>` label after finalization rather than preserving the original username in moderation-specific storage. This preserves conversation integrity and pending security evidence rather than rewriting other participants' retained history. Once the deadline has passed, restoration is refused even if maintenance has not yet run.
+
+See [password recovery](password-recovery.md) for the private `user.recovery_key` status, once-only key disclosure, dedicated reset MFA flow, and password-change/admin-reset rotation policy.

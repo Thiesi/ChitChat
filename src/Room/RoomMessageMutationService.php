@@ -10,6 +10,7 @@ use ChitChat\Http\ApiException;
 use ChitChat\Moderation\MuteService;
 use ChitChat\Reactions\ReactionHydrator;
 use ChitChat\Realtime\EventRepository;
+use ChitChat\Policy\PolicyService;
 use PDO;
 use RuntimeException;
 use Throwable;
@@ -144,6 +145,7 @@ SQL);
 
         $this->pdo->beginTransaction();
         try {
+            (new PolicyService($this->pdo))->assertMayWrite($actor);
             $row = $this->lockedMessage($messageId);
             $room = $this->requireMutableRoom($actor, (int) $row['room_id']);
             $this->requireAuthorMutation($actor, $row);

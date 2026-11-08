@@ -36,16 +36,19 @@ Endpoint::run($config, static function () use ($config): ApiResult {
         time(),
     );
     $auth = new AuthService($pdo, $config);
-    $user = $auth->register(
+    $registration = $auth->registerWithRecoveryKey(
         Request::string($payload, 'username'),
         Request::string($payload, 'password'),
         $ipAddress,
         $birthDate,
+        $payload['accepted_rules_version'] ?? null,
     );
+    $user = $registration['user'];
     SessionManager::login($user);
 
     return ApiResult::created([
         'csrf_token' => SessionManager::csrfToken(),
         'user' => $user->toSessionArray(),
+        'recovery_key' => $registration['recovery_key'],
     ]);
 });

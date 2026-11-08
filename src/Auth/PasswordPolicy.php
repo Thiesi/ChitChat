@@ -16,7 +16,7 @@ final class PasswordPolicy
      */
     public const DUMMY_PASSWORD_HASH = '$2y$12$0GZxNt3X00ml05PSIYqCNOZucqTykUWDc1Jt2etQIcicXnuBfXriW';
 
-    public static function validate(string $password, string $username): void
+    public static function validate(#[\SensitiveParameter] string $password, string $username): void
     {
         $length = mb_strlen($password, 'UTF-8');
         if ($length < 12) {

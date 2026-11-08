@@ -61,3 +61,11 @@ notifications. Push delivery and notification read state remain separate.
 configuration. `reason_required` and `audit_each_review` stay true. This correction
 neither enables review nor expands who may inspect revisions, and it does not
 change the non-E2EE and retention disclosures for direct messages.
+
+## Installation policies
+
+Public `policies` and authenticated `user.rules` are documented in
+[installation policies and rules acceptance](policies.md). Missing fields mean
+unknown on older servers; None defaults preserve existing behavior.
+
+See [password recovery](password-recovery.md) for the private `user.recovery_key` status, once-only key disclosure, dedicated reset MFA flow, and password-change/admin-reset rotation policy.

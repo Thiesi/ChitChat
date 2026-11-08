@@ -20,6 +20,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <link rel="stylesheet" href="/assets/css/components.css">
   <link rel="stylesheet" href="/assets/css/accessibility.css">
   <link rel="stylesheet" href="/assets/css/account.css">
+  <link rel="stylesheet" href="/assets/css/rules.css">
   <link rel="stylesheet" href="/assets/css/recovery.css">
   <link rel="stylesheet" href="/assets/css/step-up.css" data-step-up-styles="true">
 </head>
@@ -81,6 +82,16 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
           <label class="scheme-option" title="High contrast"><input type="radio" name="account-scheme" value="contrast" data-scheme-radio><span class="scheme-swatch" data-swatch="contrast" aria-hidden="true"></span><span class="scheme-name">High contrast</span></label>
         </div>
       </fieldset>
+    </section>
+
+    <section id="rules-card" class="account-card hidden" aria-labelledby="rules-heading">
+      <p class="account-eyebrow">Community</p>
+      <h2 id="rules-heading">Rules and privacy</h2>
+      <p id="rules-status"></p>
+      <p id="rules-pending" class="hidden"><button class="primary-button" type="button" data-rules-review>Review and agree</button></p>
+      <p class="account-links">
+        <a id="rules-card-rules" class="hidden" href="#">Read the community rules</a><span id="rules-card-separator" class="hidden" aria-hidden="true"> · </span><a id="rules-card-privacy" class="hidden" href="#">Privacy policy</a>
+      </p>
     </section>
 
     <section class="account-card" aria-labelledby="date-time-heading">
@@ -227,7 +238,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
     </section>
 
     <p id="account-error" class="error-text" role="alert"></p>
-    <?= \ChitChat\View\PoweredBy::html() ?>
+    <?= \ChitChat\View\PoweredBy::html($config) ?>
   </main>
 
   <dialog id="avatar-crop-dialog" class="room-dialog avatar-crop-dialog" aria-labelledby="avatar-crop-title">
@@ -259,5 +270,6 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <script type="module" src="/assets/js/password-settings.js"></script>
   <script type="module" src="/assets/js/account-recovery.js"></script>
   <script type="module" src="/assets/js/typing-settings.js"></script>
+  <script type="module" src="/assets/js/account-rules.js"></script>
 </body>
 </html>

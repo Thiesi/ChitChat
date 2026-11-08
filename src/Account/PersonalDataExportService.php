@@ -7,6 +7,7 @@ use ChitChat\Admin\ApplicationNameService;
 use ChitChat\Audit\AuditLogger;
 use ChitChat\Auth\AuthenticatedUser;
 use ChitChat\Config;
+use ChitChat\Policy\PolicyService;
 use PDO;
 use RuntimeException;
 use Throwable;
@@ -61,6 +62,7 @@ final class PersonalDataExportService
                     'description' => 'Retained personal data currently associated with the authenticated account.',
                     'includes' => [
                         'account profile, profile picture, connected sign-in providers (provider and its account identifier only), people ignored in rooms, roles and ban history',
+                        'community rules acceptance versions and timestamps',
                         'rooms created by the account, memberships and pending invitations',
                         'retained room messages authored by the account and their retained revisions',
                         'retained direct messages visible to the account and attachment metadata',
@@ -74,7 +76,7 @@ final class PersonalDataExportService
                         'audit entries where the account is the recorded actor',
                     ],
                     'excludes' => [
-                        'password hashes, session state, CSRF tokens and privileged-step-up state',
+                        'password hashes, password-recovery keys/hashes/generation identifiers, staged reset state, CSRF tokens and privileged-step-up state',
                         'attachment file bytes and internal attachment storage keys',
                         'direct-message blocks created by other users',
                         'revision history for messages authored by other users',
@@ -89,6 +91,7 @@ final class PersonalDataExportService
                     'avatar' => (new AvatarService($this->pdo, $this->config))->exportFor($actor->id),
                     'sign_in_providers' => $this->signInProviders($actor->id),
                     'ignored_people' => $this->ignoredPeople($actor->id),
+                    'rules_acceptances' => (new PolicyService($this->pdo, $this->config))->acceptanceHistory($actor->id),
                 ]),
                 'rooms' => [
                     'created' => $createdRooms,
@@ -538,6 +541,7 @@ SELECT report.id,
        report.evidence_body,
        report.evidence_json,
        report.created_at,
+       moderation_case.subject_kind,
        moderation_case.message_kind,
        moderation_case.message_id,
        moderation_case.status,
@@ -557,8 +561,9 @@ ORDER BY report.id
 SQL, ['user_id' => $userId], 'personal-data submitted moderation reports', fn (array $row): array => [
             'id' => (int) $row['id'],
             'case_id' => (int) $row['case_id'],
-            'message_kind' => (string) $row['message_kind'],
-            'message_id' => (int) $row['message_id'],
+            'subject_kind' => (string) $row['subject_kind'],
+            'message_kind' => $row['message_kind'] === null ? null : (string) $row['message_kind'],
+            'message_id' => $row['message_id'] === null ? null : (int) $row['message_id'],
             'room' => $row['room_id'] === null ? null : [
                 'id' => (int) $row['room_id'],
                 'key' => (string) $row['room_key'],

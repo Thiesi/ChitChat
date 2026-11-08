@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace ChitChat\Auth;
 
+use ChitChat\Policy\PolicyService;
 use PDO;
 use RuntimeException;
 
@@ -87,10 +88,12 @@ SQL);
     public function findAuthenticatedById(int $userId): ?AuthenticatedUser
     {
         $statement = $this->pdo->prepare(<<<'SQL'
-SELECT id, username, session_version, account_kind, guest_expires_at
-FROM users
-WHERE id = :id
-  AND account_state = 'active'
+SELECT u.id, u.username, u.session_version, u.account_kind, u.guest_expires_at,
+       u.has_password::int AS has_password, recovery.created_at AS recovery_created_at
+FROM users u
+LEFT JOIN password_recovery_keys recovery ON recovery.user_id = u.id
+WHERE u.id = :id
+  AND u.account_state = 'active'
 SQL);
         if ($statement === false) {
             throw new RuntimeException('Unable to prepare authenticated user lookup.');
@@ -111,6 +114,12 @@ SQL);
             sessionVersion: (int) $row['session_version'],
             guest: $guest,
             guestExpiresAt: $guest && $row['guest_expires_at'] !== null ? (string) $row['guest_expires_at'] : null,
+            rules: (new PolicyService($this->pdo))->rulesStatus((int) $row['id']),
+            recoveryKey: !$guest && (int) $row['has_password'] === 1 ? [
+                'exists' => $row['recovery_created_at'] !== null,
+                'created_at' => $row['recovery_created_at'] === null
+                    ? null : RecoveryKeyService::timestamp((string) $row['recovery_created_at']),
+            ] : null,
         );
     }
 

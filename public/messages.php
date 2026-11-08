@@ -18,10 +18,12 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <link rel="stylesheet" href="/assets/css/app.css">
   <link rel="stylesheet" href="/assets/css/components.css">
   <link rel="stylesheet" href="/assets/css/accessibility.css">
+  <link rel="stylesheet" href="/assets/css/person-reports.css">
   <link rel="stylesheet" href="/assets/css/messages.css">
   <link rel="stylesheet" href="/assets/css/messages-blocking.css">
   <link rel="stylesheet" href="/assets/css/messages-attachments.css">
   <link rel="stylesheet" href="/assets/css/message-mutations.css">
+  <link rel="stylesheet" href="/assets/css/rules.css">
 </head>
 <body>
   <div id="messages-loading" class="app-loading" role="status">Loading messages…</div>
@@ -38,6 +40,8 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
         <a class="secondary-button" href="/">Back to chat</a>
       </nav>
     </header>
+
+    <p class="rules-banner hidden" data-rules-gate role="status"><span><strong>The community rules have changed.</strong> Agree to keep writing.</span> <button class="secondary-button" type="button" data-rules-review>Review</button></p>
 
     <section id="dm-privacy-notice" class="privacy-notice" aria-labelledby="dm-privacy-heading">
       <h2 id="dm-privacy-heading">Privacy notice</h2>
@@ -68,7 +72,10 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
             <h2 id="dm-peer-name">Choose a conversation</h2>
             <p id="dm-peer-status" class="messages-muted">Search for a user or choose an existing conversation.</p>
           </div>
-          <button id="dm-block-toggle" class="secondary-button dm-block-toggle hidden" type="button">Block user</button>
+          <div class="conversation-actions">
+            <button id="dm-report-person" class="secondary-button hidden" type="button">Report</button>
+            <button id="dm-block-toggle" class="secondary-button dm-block-toggle hidden" type="button">Block user</button>
+          </div>
         </header>
 
         <div id="dm-empty-state" class="dm-empty-state">No conversation selected.</div>
@@ -76,6 +83,10 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
           <button id="dm-load-older" class="secondary-button hidden" type="button">Load older messages</button>
         </section>
 
+        <div class="muted-notice rules-notice hidden" data-rules-gate role="status">
+          <div><strong>Agree to the updated community rules to write.</strong><span>You can still read along.</span></div>
+          <button class="primary-button" type="button" data-rules-review>Review rules</button>
+        </div>
         <form id="dm-composer" class="dm-composer hidden">
           <p id="dm-typing-indicator" class="typing-indicator"></p>
           <div id="dm-reply-banner" class="reply-banner hidden">
@@ -108,39 +119,10 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
         </form>
       </section>
     </section>
-    <?= \ChitChat\View\PoweredBy::html() ?>
+    <?= \ChitChat\View\PoweredBy::html($config) ?>
   </main>
 
-  <dialog id="message-report-dialog" class="room-dialog message-report-dialog" aria-labelledby="message-report-title">
-    <form id="message-report-form" class="form-stack">
-      <header class="dialog-header">
-        <div>
-          <h2 id="message-report-title">Report direct message</h2>
-          <p>Moderators receive an immutable snapshot of this reported message only. The report does not expose the rest of your conversation.</p>
-        </div>
-      </header>
-      <label>Reason
-        <select id="message-report-category" required>
-          <option value="spam">Spam</option>
-          <option value="harassment">Harassment</option>
-          <option value="hate">Hate speech</option>
-          <option value="threats">Threats or violence</option>
-          <option value="sexual_content">Sexual content</option>
-          <option value="privacy">Privacy violation</option>
-          <option value="impersonation">Impersonation</option>
-          <option value="other">Other</option>
-        </select>
-      </label>
-      <label>Additional details <span class="optional-label">optional</span>
-        <textarea id="message-report-details" maxlength="1000" rows="5"></textarea>
-      </label>
-      <p id="message-report-error" class="error-text" role="alert"></p>
-      <div class="action-row">
-        <button id="message-report-cancel" class="secondary-button" type="button">Cancel</button>
-        <button id="message-report-submit" class="danger-button" type="submit">Submit report</button>
-      </div>
-    </form>
-  </dialog>
+  <?= \ChitChat\View\ReportDialog::html() ?>
 
   <div id="toast-region" class="toast-region" aria-live="assertive"></div>
   <script type="module" src="/assets/js/messages.js"></script>

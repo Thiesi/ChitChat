@@ -197,7 +197,7 @@ final class OidcService
      * chosen a username. The caller applies registration protection first and
      * signs the new account in.
      */
-    public function completeSignUp(string $username, ?string $birthDate, string $ipAddress): AuthenticatedUser
+    public function completeSignUp(string $username, ?string $birthDate, string $ipAddress, mixed $acceptedRulesVersion = null): AuthenticatedUser
     {
         $pending = $this->signUpStash();
         if ($pending === null) {
@@ -209,6 +209,7 @@ final class OidcService
             $pending['subject'],
             $ipAddress,
             $birthDate,
+            $acceptedRulesVersion,
         );
         unset($_SESSION['oidc_sign_up']);
 

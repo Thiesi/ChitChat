@@ -18,10 +18,12 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <link rel="stylesheet" href="/assets/css/app.css">
   <link rel="stylesheet" href="/assets/css/components.css">
   <link rel="stylesheet" href="/assets/css/accessibility.css">
+  <link rel="stylesheet" href="/assets/css/person-reports.css">
   <link rel="stylesheet" href="/assets/css/recovery.css">
   <link rel="stylesheet" href="/assets/css/message-mutations.css">
   <link rel="stylesheet" href="/assets/css/privacy-notifications.css">
   <link rel="stylesheet" href="/assets/css/guest.css">
+  <link rel="stylesheet" href="/assets/css/rules.css">
 </head>
 <body>
   <div id="app-loading" class="app-loading" role="status">Loading <?= $appName ?>…</div>
@@ -35,6 +37,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
         <div class="guest-intro-cta hidden" data-guest-entry>
           <button class="secondary-button" type="button" data-guest-start>Look around as a guest →</button>
           <span>No account needed.</span>
+          <p class="guest-rules-note hidden" data-guest-rules>By looking around, you agree to the <a href="#" target="_blank" rel="noopener">community rules<span class="visually-hidden"> (opens in a new tab)</span></a>.</p>
         </div>
         <svg class="welcome-art" viewBox="0 0 400 220" fill="none" aria-hidden="true" focusable="false">
           <circle cx="196" cy="108" r="96" class="art-orbit"/>
@@ -96,6 +99,18 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
               <input id="register-website" name="website" type="text" tabindex="-1" autocomplete="off">
             </label>
           </div>
+          <div id="register-agreement" class="register-agreement hidden">
+            <div id="register-rules-field" class="hidden">
+              <label class="checkbox-label">
+                <input id="register-rules-accept" name="accept_rules" type="checkbox">
+                <span>I agree to the community rules of <?= $appName ?>.</span>
+              </label>
+            </div>
+            <p class="register-agreement-links">
+              <a id="register-rules-link" class="hidden" href="#" target="_blank" rel="noopener">Read the community rules<span class="visually-hidden"> (opens in a new tab)</span></a><span id="register-links-separator" class="hidden" aria-hidden="true"> · </span><a id="register-privacy-link" class="hidden" href="#" target="_blank" rel="noopener">How your data is handled<span class="visually-hidden"> (opens in a new tab)</span></a>
+            </p>
+            <p id="register-privacy-only" class="register-agreement-links hidden">See how your data is handled in the <a id="register-privacy-only-link" href="#" target="_blank" rel="noopener">privacy policy<span class="visually-hidden"> (opens in a new tab)</span></a>.</p>
+          </div>
           <button class="primary-button" type="submit">Create account</button>
         </form>
 
@@ -103,6 +118,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
           <p>Just curious?</p>
           <button class="secondary-button" type="button" data-guest-start>Look around as a guest</button>
           <p>No account needed. Read open rooms and chat where guests are welcome.</p>
+          <p class="guest-rules-note hidden" data-guest-rules>By looking around, you agree to the <a href="#" target="_blank" rel="noopener">community rules<span class="visually-hidden"> (opens in a new tab)</span></a>.</p>
         </div>
 
         <section id="password-reset" class="password-reset form-stack hidden" aria-labelledby="password-reset-title">
@@ -137,11 +153,12 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
         <p id="auth-error" class="error-text" role="alert"></p>
       </section>
     </div>
-    <?= \ChitChat\View\PoweredBy::html() ?>
+    <?= \ChitChat\View\PoweredBy::html($config) ?>
   </main>
 
   <main id="chat-shell" class="chat-shell hidden">
     <p id="chat-lockdown" class="lockdown-notice lockdown-banner hidden" role="status"><strong>Maintenance lockdown.</strong> <span data-lockdown-text></span> New sign-ins are paused; you can keep chatting.</p>
+    <p class="rules-banner hidden" data-rules-gate role="status"><span><strong>The community rules have changed.</strong> Agree to keep writing.</span> <button class="secondary-button" type="button" data-rules-review>Review</button></p>
     <p id="recovery-nudge" class="recovery-nudge hidden" role="status"><span><strong>Forgot your password one day?</strong> Create a recovery key so you can reset it yourself.</span> <a class="secondary-button" href="/account.php?recovery=create">Create key</a> <button id="recovery-nudge-dismiss" class="icon-button close-button" type="button" aria-label="Dismiss">×</button></p>
     <div id="guest-banner" class="guest-banner hidden" role="status">
       <span><strong>You are visiting as <span data-guest-name></span>.</strong><span class="guest-banner-more"> Look around and join in where guests can write. Nothing is kept after you leave.</span></span>
@@ -260,7 +277,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
               <button id="logout-button" class="menu-item danger-item" type="button">
                 <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg><span class="member-only">Sign out</span><span class="guest-only">Leave</span>
               </button>
-              <?= \ChitChat\View\PoweredBy::html() ?>
+              <?= \ChitChat\View\PoweredBy::html($config) ?>
             </section>
           </div>
         </div>
@@ -275,6 +292,10 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
         <button id="jump-latest" class="jump-latest hidden" type="button">Jump to latest</button>
         <p id="typing-indicator" class="typing-indicator"></p>
         <div id="muted-notice" class="muted-notice hidden" role="status"></div>
+        <div class="muted-notice rules-notice hidden" data-rules-gate role="status">
+          <div><strong>Agree to the updated community rules to write.</strong><span>You can still read along.</span></div>
+          <button class="primary-button" type="button" data-rules-review>Review rules</button>
+        </div>
         <div id="guest-readonly-notice" class="muted-notice guest-readonly hidden" role="status">
           <div><strong>Guests can read this room.</strong><span>Create an account to join the conversation.</span></div>
           <a class="primary-button" href="/?register=1">Create an account</a>
@@ -372,36 +393,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
     </form>
   </dialog>
 
-  <dialog id="message-report-dialog" class="room-dialog message-report-dialog" aria-labelledby="message-report-title">
-    <form id="message-report-form" class="form-stack">
-      <header class="dialog-header">
-        <div>
-          <h2 id="message-report-title">Report message</h2>
-          <p>Moderators receive an immutable snapshot of this message only. A report does not grant access to unrelated private history.</p>
-        </div>
-      </header>
-      <label>Reason
-        <select id="message-report-category" required>
-          <option value="spam">Spam</option>
-          <option value="harassment">Harassment</option>
-          <option value="hate">Hate speech</option>
-          <option value="threats">Threats or violence</option>
-          <option value="sexual_content">Sexual content</option>
-          <option value="privacy">Privacy violation</option>
-          <option value="impersonation">Impersonation</option>
-          <option value="other">Other</option>
-        </select>
-      </label>
-      <label>Additional details <span class="optional-label">optional</span>
-        <textarea id="message-report-details" maxlength="1000" rows="5"></textarea>
-      </label>
-      <p id="message-report-error" class="error-text" role="alert"></p>
-      <div class="action-row">
-        <button id="message-report-cancel" class="secondary-button" type="button">Cancel</button>
-        <button id="message-report-submit" class="danger-button" type="submit">Submit report</button>
-      </div>
-    </form>
-  </dialog>
+  <?= \ChitChat\View\ReportDialog::html() ?>
 
   <div id="toast-region" class="toast-region" aria-live="assertive"></div>
 
