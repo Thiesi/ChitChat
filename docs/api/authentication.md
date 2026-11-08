@@ -60,6 +60,11 @@ Public `application`, `capabilities`, and revision-notification policy metadata
 are documented in [session bootstrap](session.md). These additions are available
 before sign-in and do not change the cookie/CSRF contract.
 
+The top-level `attachments` block describes effective upload limits, MIME lists
+and separate room/direct upload quotas for signed-in members; it is `null` for
+anonymous and guest sessions. Missing means unknown on older servers. See
+[upload policy discovery](attachments.md#upload-policy-discovery).
+
 Send the token in the `X-CSRF-Token` header for every POST endpoint below.
 
 ## User authentication
