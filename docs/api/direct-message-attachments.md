@@ -21,7 +21,7 @@ If the caption is empty, the normalized original filename becomes the direct-mes
 
 The service writes the file under a random 64-character storage key outside `public/`, verifies its actual size and SHA-256 digest, and then serializes on the same unordered user-pair advisory lock used by text sends and block operations. If either participant has blocked the other, the upload returns HTTP 403 with `direct_message_unavailable` and the stored file is removed.
 
-The direct-message row, attachment metadata, upload audit entry, and perspective-correct sender and recipient realtime events commit in one database transaction. Any failure removes the file again.
+The direct-message row, attachment metadata, upload audit entry, and perspective-correct sender and recipient realtime events commit in one database transaction. Any database failure removes the original and any generated rendition.
 
 ## Visible-message metadata
 
@@ -41,7 +41,10 @@ The direct-message row, attachment metadata, upload audit entry, and perspective
       "mime_type": "application/pdf",
       "size_bytes": 48231,
       "sha256": "…",
-      "previewable": false
+      "previewable": false,
+      "width": null,
+      "height": null,
+      "preview": null
     }
   ]
 }
@@ -55,13 +58,13 @@ The normal direct-message history and SSE payload remain backward-compatible. Br
 
 The server rechecks that the authenticated account is the direct-message sender or recipient on every request. Unauthorized callers receive the same HTTP 404 response as an unknown attachment.
 
-`inline=1` is honored only for the existing raster-image preview allowlist. Other MIME types always use attachment disposition. Responses use `no-store`, `nosniff`, same-origin resource policy, and a sandboxed attachment CSP.
+`inline=1` is honored only for the existing raster-image preview allowlist. Other MIME types always use attachment disposition. Original responses use `no-store`, `nosniff`, same-origin resource policy, and a sandboxed attachment CSP.
 
 Blocking affects only future sends. It does not revoke either participant's access to attachments already retained in their shared history.
 
 ## Storage and retention
 
-Metadata is stored in `direct_message_attachments`, one file per direct message. Storage keys share the same physical attachment namespace as room files.
+Metadata is stored in `direct_message_attachments`, one attachment per direct message, with an original and an optional private rendition. Storage keys share the same physical attachment namespace as room files.
 
 Maintenance treats keys from both tables as tracked files. When direct-message retention deletes a message, its metadata cascades and the corresponding file is removed in the same maintenance run. Orphan detection excludes live room and direct-message attachment keys.
 
@@ -70,3 +73,7 @@ Back up PostgreSQL and the attachment storage directory together.
 ## Administrative inspection
 
 The audited administrative inspection endpoint continues to return retained message rows and captions. It does not grant participant download authorization for attachment binaries. This avoids turning general inspection access into an unaudited file-download bypass. A future administrative binary-inspection workflow must require its own explicit reason and audit event.
+
+## Image dimensions and preview renditions
+
+Attachment metadata also carries nullable `width`, `height` and `preview`. See [image previews](image-previews.md) for the oriented geometry, generation bounds, optional legacy backfill, feature detection, and `variant=preview` download. Original downloads keep private/no-store; preview downloads use private/no-cache with an authenticated ETag revalidation before reuse. Missing renditions return an explicit error and never fall back to original bytes. Both stored files follow the original lifecycle and failed upload transactions remove both.

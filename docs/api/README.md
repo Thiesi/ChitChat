@@ -10,6 +10,7 @@
 - [Realtime events](realtime.md)
 - [Presence](presence.md)
 - [Attachments](attachments.md)
+- [Image dimensions and preview renditions](image-previews.md)
 - [Direct messages](direct-messages.md)
 - [Direct-message attachments](direct-message-attachments.md)
 - [Message editing and author deletion](message-mutations.md)

@@ -44,20 +44,6 @@ final class AttachmentImageMetadata
             ]];
     }
 
-    /** Trusted identifiers only; central projection prevents read-path drift. */
-    public static function selectColumns(string $alias, string $prefix = ''): string
-    {
-        foreach ([$alias, $prefix] as $identifier) {
-            if (preg_match('/\A[a-z_]*\z/D', $identifier) !== 1) {
-                throw new RuntimeException('Invalid attachment image column qualifier.');
-            }
-        }
-        return implode(",\n       ", array_map(
-            static fn (string $column): string => $alias . '.' . $column . ' AS ' . $prefix . $column,
-            self::COLUMNS,
-        ));
-    }
-
     /** @param array<string,mixed> $stored */
     public static function save(PDO $pdo, string $table, int $id, array $stored): void
     {

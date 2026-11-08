@@ -11,8 +11,6 @@ use ChitChat\Http\Request;
 use ChitChat\Upload\AttachmentDownloadResponse;
 use ChitChat\Upload\AttachmentVariant;
 use ChitChat\Upload\AttachmentService;
-use JsonException;
-use Throwable;
 
 /** @var ChitChat\Config $config */
 $config = require dirname(__DIR__, 4) . '/bootstrap/http.php';

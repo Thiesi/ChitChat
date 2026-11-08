@@ -136,6 +136,30 @@ final class ImagePreviewTest extends TestCase
         }
     }
 
+    public function testUntrustworthyAndOverlongExifHeadersDoNotInventDisplayGeometry(): void
+    {
+        $this->requireGd();
+        $six = TestImages::jpeg(6);
+        $one = TestImages::jpeg(1);
+        $length = (ord($one[4]) << 8) | ord($one[5]);
+        $conflicting = "\xff\xd8" . substr($one, 2, $length + 2) . substr($six, 2);
+        $comment = "\xff\xfe" . pack('n', 65535) . str_repeat('x', 65533);
+        $overlong = "\xff\xd8" . str_repeat($comment, 17) . substr($six, 2);
+        foreach ([TestImages::jpeg(0), TestImages::jpeg(9), $conflicting, $overlong,
+            "\xff\xd8\xff\xe1\0\x10Exif\0\0II"] as $bytes) {
+            $path = $this->source($bytes);
+            try {
+                self::assertNull(JpegOrientation::read($path));
+                $result = (new ImagePreview())->create($path, 'image/jpeg');
+                self::assertNull($result['width']);
+                self::assertNull($result['height']);
+                self::assertNull($result['bytes']);
+                self::assertSame($bytes, file_get_contents($path));
+            } finally {
+                TestScratch::remove($path);
+            }
+        }
+    }
     private function requireGd(): void
     {
         if (!function_exists('imagewebp') || !function_exists('imagecreatefromjpeg')) {

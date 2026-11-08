@@ -16,7 +16,7 @@ final class AttachmentDownloadResponse
      */
     public static function send(array $attachment, bool $inlineRequested, bool $preview): never
     {
-        $stream = fopen($attachment['path'], 'rb');
+        $stream = @fopen($attachment['path'], 'rb');
         if ($stream === false) {
             throw new ApiException(410, 'attachment_storage_missing', 'The attachment file is unavailable.');
         }
