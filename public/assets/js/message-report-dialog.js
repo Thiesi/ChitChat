@@ -183,7 +183,7 @@ function showDone(reported, already) {
   elements.done.classList.remove('hidden');
   elements.doneTitle.textContent = already ? `You've already reported ${reported.username}` : 'Thanks, your report is in';
   elements.doneText.textContent = already
-    ? 'Moderators have it.'
+    ? 'Your earlier report is kept with its case, so there’s no need to send another.'
     : 'Moderators will take a look. You won’t get a message about the outcome.';
   const offerIgnore = !reported.ignored && !isGuestName(reported.username);
   const offerBlock = !reported.blocked && !reported.reporterIsGuest && !isGuestName(reported.username);

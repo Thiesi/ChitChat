@@ -151,7 +151,14 @@ test('without a picture the dialog says so, and an earlier report is acknowledge
   await expect(dialog).toContainText('Moderators see Rowan\'s name. Nothing from your conversations is shared.');
   await expect(dialog.locator('option[value="offensive_profile_picture"]')).toHaveCount(0);
   await dialog.getByRole('button', { name: 'Report', exact: true }).click();
-  await expect(page.getByRole('dialog', { name: 'You\'ve already reported Rowan' })).toContainText('Moderators have it.');
+  await expect(page.getByRole('dialog', { name: 'You\'ve already reported Rowan' })).toContainText('Your earlier report is kept with its case, so there’s no need to send another.');
+});
+
+test('a person you already reported (even on a closed case) shows a neutral note instead of Report', async ({ page }) => {
+  await fixture(page, { profile: { ...peerProfile, reported_by_me: true } });
+  await openRowansCard(page);
+  await expect(page.locator('#name-menu')).toContainText('You’ve already reported Rowan from here.');
+  await expect(page.locator('#name-menu').getByRole('button', { name: /Report/ })).toHaveCount(0);
 });
 
 test('the card offers no report when the server says no, and refusals are explained', async ({ page }) => {

@@ -236,7 +236,7 @@ function showProfile(label, actions, profile, self) {
 // "Report {name}": last, after a divider, in the ordinary menu colour.
 // Reporting is legitimate, not destructive (#159).
 function reportItem(profile) {
-  if (reportedByMe(profile)) return statusText(`You reported ${profile.username}. Moderators have it.`);
+  if (reportedByMe(profile)) return statusText(`You’ve already reported ${profile.username} from here.`);
   const button = document.createElement('button');
   button.type = 'button';
   button.className = 'menu-item';
