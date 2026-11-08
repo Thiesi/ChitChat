@@ -7,6 +7,8 @@ const REPORT_USER_ENDPOINT = '/api/v1/reports/user.php';
 
 export const ALREADY_REPORTED = 'already_reported';
 export const REPORT_NOT_ALLOWED = 'report_not_allowed';
+// The person's stored picture couldn't be kept as evidence; nothing was saved.
+export const SNAPSHOT_UNAVAILABLE = 'report_snapshot_unavailable';
 
 /** Categories only a person can be reported for, shown first in the dialog. */
 export const PERSON_CATEGORIES = [

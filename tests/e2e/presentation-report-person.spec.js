@@ -173,6 +173,12 @@ test('the card offers no report when the server says no, and refusals are explai
   await page.locator('#name-menu').getByRole('button', { name: 'Report Rowan' }).click();
   await page.getByRole('dialog', { name: 'Report Rowan' }).getByRole('button', { name: 'Report', exact: true }).click();
   await expect(page.locator('#message-report-error')).toHaveText('You’ve sent several reports quickly. Try again in 5 minutes.');
+  await page.unroute('**/api/v1/**');
+  await fixture(page, { overrides: { 'reports/user.php': { status: 409, json: { error: { code: 'report_snapshot_unavailable', message: 'Snapshot unavailable.' } } } } });
+  await openRowansCard(page);
+  await page.locator('#name-menu').getByRole('button', { name: 'Report Rowan' }).click();
+  await page.getByRole('dialog', { name: 'Report Rowan' }).getByRole('button', { name: 'Report', exact: true }).click();
+  await expect(page.locator('#message-report-error')).toHaveText('The report couldn’t be saved just now, so nothing was sent. Try again in a moment.');
 });
 
 test('message reports keep their own wording', async ({ page }) => {

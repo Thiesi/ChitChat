@@ -5,7 +5,7 @@
 import { ApiError, apiPost } from './api.js';
 import { miniAvatar } from './avatar.js';
 import { isGuestName, markGuestAvatar } from './guest.js';
-import { ALREADY_REPORTED, PERSON_CATEGORIES, REPORT_NOT_ALLOWED, reportPerson } from './person-reports.js';
+import { ALREADY_REPORTED, PERSON_CATEGORIES, REPORT_NOT_ALLOWED, SNAPSHOT_UNAVAILABLE, reportPerson } from './person-reports.js';
 
 const MESSAGE_TITLES = { room: 'Report message', direct: 'Report direct message' };
 const MESSAGE_EXPLANATION = 'Moderators see a copy of this message only, not the rest of the conversation.';
@@ -271,6 +271,7 @@ function waitText(seconds) {
 function errorMessage(error, reported) {
   if (error instanceof ApiError) {
     if (error.code === REPORT_NOT_ALLOWED) return 'You can’t report this person from here.';
+    if (error.code === SNAPSHOT_UNAVAILABLE) return 'The report couldn’t be saved just now, so nothing was sent. Try again in a moment.';
     if (error.status === 404 && reported.kind === 'person') return 'This account is no longer available.';
     if (error.status === 429) return `You’ve sent several reports quickly. Try again ${waitText(error.retryAfterSeconds)}.`;
     return error.message;
