@@ -11,7 +11,6 @@ use ChitChat\Http\ApiException;
 use ChitChat\Http\ApiResult;
 use ChitChat\Http\Endpoint;
 use ChitChat\Http\Request;
-use PDOException;
 
 /** @var ChitChat\Config $config */
 $config = require dirname(__DIR__, 4) . '/bootstrap/http.php';

@@ -18,6 +18,7 @@ metadata endpoint.
   "width": 2048,
   "height": 1024,
   "preview": {
+    "url": "/api/v1/attachments/download.php?id=12&variant=preview",
     "width": 1024,
     "height": 512,
     "mime_type": "image/webp",
@@ -70,7 +71,8 @@ database and complete attachment storage directory together.
 
 ## Download variants
 
-Use the existing authenticated routes:
+Use the returned `preview.url` directly. It is a same-origin relative path
+computed for that attachment; clients do not need to construct routes. Examples:
 
 - `GET /api/v1/attachments/download.php?id=12&variant=preview`
 - `GET /api/v1/direct-messages/attachments/download.php?id=14&variant=preview`

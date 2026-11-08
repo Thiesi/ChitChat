@@ -30,7 +30,7 @@ final class DirectMessageAttachmentAccessService
      *   mime_type:string,
      *   size_bytes:int,
      *   sha256:string,
-     *   previewable:bool, width:?int, height:?int, preview:?array{width:int,height:int,mime_type:string,size_bytes:int,sha256:string}
+     *   previewable:bool, width:?int, height:?int, preview:?array{url:string,width:int,height:int,mime_type:string,size_bytes:int,sha256:string}
      * }>
      */
     public function metadata(AuthenticatedUser $actor, array $messageIds): array
@@ -71,7 +71,7 @@ final class DirectMessageAttachmentAccessService
         ));
     }
 
-    /** @return array{path:string, name:string, mime_type:string, size_bytes:int, sha256:string, previewable:bool, width:?int, height:?int, preview:?array{width:int,height:int,mime_type:string,size_bytes:int,sha256:string}} */
+    /** @return array{path:string, name:string, mime_type:string, size_bytes:int, sha256:string, previewable:bool, width:?int, height:?int, preview:?array{url:string,width:int,height:int,mime_type:string,size_bytes:int,sha256:string}} */
     public function authorizeDownload(AuthenticatedUser $actor, int $attachmentId, string $variant = 'original'): array
     {
         if ($attachmentId < 1) {

@@ -51,21 +51,27 @@ final class AttachmentImageServiceTest extends DatabaseTestCase
     public function testRoomUploadHistoryMetadataEventsAndExportAgreeAndKeepStorageKeysPrivate(): void
     {
         [$root, $member, $room] = $this->people();
+        (new MessageService($this->pdo))->send($root, $room->id, 'A preceding text message');
         $bytes = TestImages::jpeg(6);
         $message = (new AttachmentService($this->pdo, $this->config))->upload(
             $member, $room->id, IncomingFile::forTesting('portrait.jpg', $this->temporaryFile($bytes)), '', '127.0.0.2');
         $attachment = $message['attachment'];
         self::assertNotNull($attachment);
+        self::assertNotSame($message['id'], $attachment['id']);
         self::assertSame([60, 100], [$attachment['width'], $attachment['height']]);
         self::assertSame([60, 100], [$attachment['preview']['width'], $attachment['preview']['height']]);
         self::assertSame('image/webp', $attachment['preview']['mime_type']);
         $history = (new MessageService($this->pdo))->history($root, $room->id);
-        self::assertSame($attachment, $history[0]['attachment']);
+        $historyMessage = array_values(array_filter($history, static fn (array $item): bool => $item['id'] === $message['id']));
+        self::assertCount(1, $historyMessage);
+        self::assertSame($attachment, $historyMessage[0]['attachment']);
         $metadata = (new AttachmentMetadataService($this->pdo))->forMessages($root, $room->id, [$message['id']])[0];
         unset($metadata['message_id']);
         self::assertSame($attachment, $metadata);
         $events = self::withoutRoomListSignals((new EventRepository($this->pdo))->visibleAfter($root, 0));
-        self::assertSame($this->canonical($attachment), $this->canonical($events[0]->payload['message']['attachment']));
+        $matching = array_values(array_filter($events, static fn ($event): bool => ($event->payload['message']['id'] ?? null) === $message['id']));
+        self::assertCount(1, $matching);
+        self::assertSame($this->canonical($attachment), $this->canonical($matching[0]->payload['message']['attachment']));
         $service = new AttachmentService($this->pdo, $this->config);
         $original = $service->authorizeDownload($root, $attachment['id']);
         self::assertSame($bytes, file_get_contents($original['path']));

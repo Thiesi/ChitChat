@@ -202,7 +202,7 @@ SQL);
      *   mime_type:string,
      *   size_bytes:int,
      *   sha256:string,
-     *   previewable:bool, width:?int, height:?int, preview:?array{width:int,height:int,mime_type:string,size_bytes:int,sha256:string}
+     *   previewable:bool, width:?int, height:?int, preview:?array{url:string,width:int,height:int,mime_type:string,size_bytes:int,sha256:string}
      * }>
      */
     public function metadata(AuthenticatedUser $actor, array $messageIds): array
@@ -274,14 +274,14 @@ SQL;
                 'size_bytes' => (int) $row['size_bytes'],
                 'sha256' => (string) $row['sha256'],
                 'previewable' => AttachmentPolicy::isPreviewable($mimeType),
-                ...AttachmentImageMetadata::publicFields($row),
+                ...AttachmentImageMetadata::publicFields($row, 'direct', (int) $row['id']),
             ];
         }
         return $result;
     }
 
     /**
-     * @return array{path:string, name:string, mime_type:string, size_bytes:int, sha256:string, previewable:bool, width:?int, height:?int, preview:?array{width:int,height:int,mime_type:string,size_bytes:int,sha256:string}}
+     * @return array{path:string, name:string, mime_type:string, size_bytes:int, sha256:string, previewable:bool, width:?int, height:?int, preview:?array{url:string,width:int,height:int,mime_type:string,size_bytes:int,sha256:string}}
      */
     public function authorizeDownload(AuthenticatedUser $actor, int $attachmentId, string $variant = 'original'): array
     {
@@ -327,7 +327,7 @@ SQL);
         }
         $path = $this->files->resolve((string) $row['storage_key'], (int) $row['size_bytes']);
         if ($variant === 'preview') {
-            return AttachmentVariant::preview($this->files, $row);
+            return AttachmentVariant::preview($this->files, $row, 'direct', $attachmentId);
         }
         $mimeType = (string) $row['mime_type'];
         return [
@@ -337,7 +337,7 @@ SQL);
             'size_bytes' => (int) $row['size_bytes'],
             'sha256' => (string) $row['sha256'],
             'previewable' => AttachmentPolicy::isPreviewable($mimeType),
-            ...AttachmentImageMetadata::publicFields($row),
+            ...AttachmentImageMetadata::publicFields($row, 'direct', $attachmentId),
         ];
     }
 

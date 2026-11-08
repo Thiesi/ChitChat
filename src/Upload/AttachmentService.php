@@ -50,7 +50,7 @@ final class AttachmentService
      *   username:?string,
      *   type:string,
      *   body:?string,
-     *   attachment:?array{id:int, name:string, mime_type:string, size_bytes:int, sha256:string, previewable:bool, width:?int, height:?int, preview:?array{width:int,height:int,mime_type:string,size_bytes:int,sha256:string}},
+     *   attachment:?array{id:int, name:string, mime_type:string, size_bytes:int, sha256:string, previewable:bool, width:?int, height:?int, preview:?array{url:string,width:int,height:int,mime_type:string,size_bytes:int,sha256:string}},
      *   deleted:bool,
      *   created_at:string,
      *   reply_to:?array{kind:string, message_id:int, available:bool, message:?array<string, mixed>},
@@ -267,7 +267,7 @@ SQL);
      *   mime_type:string,
      *   size_bytes:int,
      *   sha256:string,
-     *   previewable:bool, width:?int, height:?int, preview:?array{width:int,height:int,mime_type:string,size_bytes:int,sha256:string}
+     *   previewable:bool, width:?int, height:?int, preview:?array{url:string,width:int,height:int,mime_type:string,size_bytes:int,sha256:string}
      * }
      */
     public function authorizeDownload(AuthenticatedUser $actor, int $attachmentId, string $variant = 'original'): array
@@ -328,7 +328,7 @@ SQL);
         }
 
         if ($variant === 'preview') {
-            return AttachmentVariant::preview(new AttachmentFileStore($this->config), $row);
+            return AttachmentVariant::preview(new AttachmentFileStore($this->config), $row, 'room', $attachmentId);
         }
         $mimeType = (string) $row['mime_type'];
         return [
@@ -338,7 +338,7 @@ SQL);
             'size_bytes' => (int) $row['size_bytes'],
             'sha256' => (string) $row['sha256'],
             'previewable' => AttachmentPolicy::isPreviewable($mimeType),
-            ...AttachmentImageMetadata::publicFields($row),
+            ...AttachmentImageMetadata::publicFields($row, 'room', $attachmentId),
         ];
     }
 

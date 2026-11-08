@@ -72,7 +72,7 @@ Room history and `room_message` realtime events include an `attachment` field on
     "previewable": true,
     "width": 1280,
     "height": 720,
-    "preview": {"width":1024,"height":576,"mime_type":"image/webp","size_bytes":24000,"sha256":"rendition SHA-256"}
+    "preview": {"url":"/api/v1/attachments/download.php?id=12&variant=preview","width":1024,"height":576,"mime_type":"image/webp","size_bytes":24000,"sha256":"rendition SHA-256"}
   },
   "deleted": false,
   "created_at": "2026-07-17T00:00:00+00:00",
@@ -113,7 +113,7 @@ Example response, HTTP 201:
       "previewable": true,
       "width": 1280,
       "height": 720,
-      "preview": {"width":1024,"height":576,"mime_type":"image/webp","size_bytes":24000,"sha256":"rendition SHA-256"}
+      "preview": {"url":"/api/v1/attachments/download.php?id=12&variant=preview","width":1024,"height":576,"mime_type":"image/webp","size_bytes":24000,"sha256":"rendition SHA-256"}
     },
     "deleted": false,
     "reply_to": null,
@@ -174,7 +174,7 @@ The endpoint applies room-history and age authorization, excludes deleted messag
       "previewable": true,
       "width": 1280,
       "height": 720,
-      "preview": {"width":1024,"height":576,"mime_type":"image/webp","size_bytes":24000,"sha256":"rendition SHA-256"}
+      "preview": {"url":"/api/v1/attachments/download.php?id=12&variant=preview","width":1024,"height":576,"mime_type":"image/webp","size_bytes":24000,"sha256":"rendition SHA-256"}
     }
   ]
 }

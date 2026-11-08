@@ -10,7 +10,6 @@ use ChitChat\Http\Request;
 use ChitChat\Observability\SseConnectionTracker;
 use ChitChat\Realtime\EventRepository;
 use ChitChat\Realtime\SseEncoder;
-use Throwable;
 
 /** @var ChitChat\Config $config */
 $config = require dirname(__DIR__, 4) . '/bootstrap/http.php';

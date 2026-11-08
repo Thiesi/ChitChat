@@ -64,7 +64,8 @@ final class AttachmentImageHttpTest extends DatabaseTestCase
             $attachment = $message['attachment'];
             self::assertSame([60, 100], [$attachment['width'], $attachment['height']]);
             self::assertNotNull($attachment['preview']);
-            $path = '/api/v1/attachments/download.php?id=' . $attachment['id'] . '&variant=preview';
+            $path = $attachment['preview']['url'];
+            self::assertSame('/api/v1/attachments/download.php?id=' . $attachment['id'] . '&variant=preview', $path);
             $preview = $this->request('root', $path);
             $this->assertPreview($preview, $attachment['preview']['sha256']);
             $etag = $preview['headers']['etag'];
@@ -101,7 +102,8 @@ final class AttachmentImageHttpTest extends DatabaseTestCase
             self::assertSame(200, $directMetadata['status']);
             $direct = $this->json($directMetadata)['attachments'][0];
             self::assertSame([60, 100], [$direct['width'], $direct['height']]);
-            $directPath = '/api/v1/direct-messages/attachments/download.php?id=' . $direct['id'] . '&variant=preview';
+            $directPath = $direct['preview']['url'];
+            self::assertSame('/api/v1/direct-messages/attachments/download.php?id=' . $direct['id'] . '&variant=preview', $directPath);
             $directPreview = $this->request('member', $directPath);
             $this->assertPreview($directPreview, $direct['preview']['sha256']);
             $directEtag = $directPreview['headers']['etag'];

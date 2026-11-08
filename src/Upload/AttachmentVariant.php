@@ -21,9 +21,9 @@ final class AttachmentVariant
 
     /**
      * @param array<string,mixed> $row
-     * @return array{path:string,name:string,mime_type:string,size_bytes:int,sha256:string,previewable:bool,width:?int,height:?int,preview:?array{width:int,height:int,mime_type:string,size_bytes:int,sha256:string}}
+     * @return array{path:string,name:string,mime_type:string,size_bytes:int,sha256:string,previewable:bool,width:?int,height:?int,preview:?array{url:string,width:int,height:int,mime_type:string,size_bytes:int,sha256:string}}
      */
-    public static function preview(AttachmentFileStore $files, array $row): array
+    public static function preview(AttachmentFileStore $files, array $row, string $kind, int $attachmentId): array
     {
         if (!is_string($row['preview_storage_key'] ?? null)) {
             throw new ApiException(404, 'attachment_preview_unavailable', 'No preview rendition is available for this attachment.');
@@ -32,6 +32,6 @@ final class AttachmentVariant
             'name' => (string) $row['original_name'] . '.preview.webp',
             'mime_type' => 'image/webp', 'size_bytes' => (int) $row['preview_size_bytes'],
             'sha256' => (string) $row['preview_sha256'], 'previewable' => true,
-            ...AttachmentImageMetadata::publicFields($row)];
+            ...AttachmentImageMetadata::publicFields($row, $kind, $attachmentId)];
     }
 }

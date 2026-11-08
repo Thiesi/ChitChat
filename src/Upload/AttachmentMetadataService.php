@@ -29,7 +29,7 @@ final class AttachmentMetadataService
      *   mime_type:string,
      *   size_bytes:int,
      *   sha256:string,
-     *   previewable:bool, width:?int, height:?int, preview:?array{width:int,height:int,mime_type:string,size_bytes:int,sha256:string}
+     *   previewable:bool, width:?int, height:?int, preview:?array{url:string,width:int,height:int,mime_type:string,size_bytes:int,sha256:string}
      * }>
      */
     public function forMessages(AuthenticatedUser $actor, int $roomId, array $messageIds): array
@@ -104,7 +104,7 @@ SQL;
                 'size_bytes' => (int) $row['size_bytes'],
                 'sha256' => (string) $row['sha256'],
                 'previewable' => AttachmentPolicy::isPreviewable($mimeType),
-                ...AttachmentImageMetadata::publicFields($row),
+                ...AttachmentImageMetadata::publicFields($row, 'room', (int) $row['id']),
             ];
         }
 

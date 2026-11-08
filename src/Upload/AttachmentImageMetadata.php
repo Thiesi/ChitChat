@@ -8,7 +8,7 @@ use PDO;
 use RuntimeException;
 
 /**
- * @phpstan-type Preview array{width:int,height:int,mime_type:string,size_bytes:int,sha256:string}
+ * @phpstan-type Preview array{url:string,width:int,height:int,mime_type:string,size_bytes:int,sha256:string}
  * @phpstan-type ImageFields array{width:?int,height:?int,preview:?Preview}
  * @phpstan-type StoredImage array{image_width:?int,image_height:?int,preview_storage_key:?string,preview_width:?int,preview_height:?int,preview_size_bytes:?int,preview_sha256:?string}
  */
@@ -28,14 +28,23 @@ final class AttachmentImageMetadata
      * @param array<string,mixed> $row
      * @return ImageFields
      */
-    public static function publicFields(array $row, string $prefix = ''): array
+    public static function publicFields(array $row, string $kind, int $attachmentId, string $prefix = ''): array
     {
+        $path = match ($kind) {
+            'room' => '/api/v1/attachments/download.php',
+            'direct' => '/api/v1/direct-messages/attachments/download.php',
+            default => throw new RuntimeException('Unknown attachment metadata kind.'),
+        };
+        if ($attachmentId < 1) {
+            throw new RuntimeException('Attachment metadata requires a positive ID.');
+        }
         $width = $row[$prefix . 'image_width'] ?? null;
         $height = $row[$prefix . 'image_height'] ?? null;
         $sha = $row[$prefix . 'preview_sha256'] ?? null;
         return ['width' => $width === null ? null : (int) $width,
             'height' => $height === null ? null : (int) $height,
             'preview' => !is_string($sha) ? null : [
+                'url' => $path . '?id=' . $attachmentId . '&variant=preview',
                 'width' => (int) $row[$prefix . 'preview_width'],
                 'height' => (int) $row[$prefix . 'preview_height'],
                 'mime_type' => 'image/webp',
