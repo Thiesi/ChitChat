@@ -9,6 +9,8 @@ use ChitChat\Http\ApiException;
 
 final readonly class AttachmentUploadLimits
 {
+    private const MULTIPART_HEADROOM_BYTES = 65_536;
+
     private function __construct(public int $maxBytes, private int $postMaxBytes)
     {
     }
@@ -25,11 +27,15 @@ final readonly class AttachmentUploadLimits
     public static function fromIni(int $applicationMaxBytes, string $uploadMaxSize, string $postMaxSize): self
     {
         $uploadMaxBytes = ini_parse_quantity($uploadMaxSize);
+        $postMaxBytes = ini_parse_quantity($postMaxSize);
         // PHP enforces these bounds only when positive; 0/-1 are unlimited.
-        return new self(
-            $uploadMaxBytes > 0 ? min($applicationMaxBytes, $uploadMaxBytes) : $applicationMaxBytes,
-            ini_parse_quantity($postMaxSize),
-        );
+        $maxBytes = $uploadMaxBytes > 0 ? min($applicationMaxBytes, $uploadMaxBytes) : $applicationMaxBytes;
+        if ($postMaxBytes > 0) {
+            // Reserve bounded multipart/caption overhead. Never advertise a
+            // positive file allowance when this installation cannot fit it.
+            $maxBytes = min($maxBytes, max(0, $postMaxBytes - self::MULTIPART_HEADROOM_BYTES));
+        }
+        return new self($maxBytes, $postMaxBytes);
     }
 
     public function requireBodyFits(mixed $contentLength): void

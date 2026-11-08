@@ -22,9 +22,14 @@ servers means unknown; clients must not assume a default size or MIME policy.
 }
 ```
 
-The values above are examples. `max_bytes` is the smaller positive bound from
-`ATTACHMENT_MAX_BYTES` (10 MiB by default) and PHP's `upload_max_filesize`.
-Nonpositive PHP size limits mean unlimited. MIME lists come from the same policy
+The values above are examples. `max_bytes` is the minimum of
+`ATTACHMENT_MAX_BYTES` (10 MiB by default), positive PHP `upload_max_filesize`,
+and positive `post_max_size` minus 64 KiB reserved for multipart framing, caption
+and fields. Nonpositive PHP size limits mean unlimited. The result may be below
+1 KiB; zero means the installation has no safe file allowance with this reserve.
+Clients must treat uploads as unavailable when it is zero; operators should
+correct their PHP limits. The same effective limit
+is enforced by room and direct-message uploads and returned on every size 413. MIME lists come from the same policy
 used to accept and preview files. Room and direct upload quotas are independently
 configurable; each authenticated, CSRF-valid upload attempt consumes its quota
 before form/file validation, including rejected uploads. The default is 10 attempts
@@ -32,10 +37,11 @@ per hour for each route, not 10 successful uploads.
 
 Clients can reject known oversized or unsupported files before sending them, but
 the server still verifies actual size, detected MIME and current authorization.
-A file within `max_bytes` can still exceed PHP's whole-body `post_max_size` once
-multipart framing, caption and fields are included. Operators should configure
-`post_max_size` above `upload_max_filesize`, and their proxy request limit at least
-as high as PHP's whole-body limit.
+The advertised limit already accounts for the whole-body PHP bound using the
+64 KiB reserve. Requests with unusually large extra fields or framing can still
+exceed that reserve. Operators should configure `post_max_size` above the desired
+file limit plus this reserve, and their proxy request limit at least as high as
+PHP's whole-body limit.
 
 Both upload routes check `CONTENT_LENGTH` against the parsed positive
 `post_max_size` before looking for discarded form fields. An exceeded limit returns

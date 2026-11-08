@@ -22,6 +22,7 @@ use Throwable;
 
 final class AttachmentService
 {
+    private readonly int $maxBytes;
     private readonly RoomRepository $rooms;
     private readonly AuditLogger $audit;
     private readonly EventRepository $events;
@@ -32,6 +33,7 @@ final class AttachmentService
         private readonly PDO $pdo,
         private readonly Config $config,
     ) {
+        $this->maxBytes = AttachmentUploadLimits::fromConfig($config)->maxBytes;
         $this->rooms = new RoomRepository($pdo);
         $this->audit = new AuditLogger($pdo);
         $this->events = new EventRepository($pdo);
@@ -90,12 +92,12 @@ final class AttachmentService
         if ($file->reportedSize < 1) {
             throw new ApiException(400, 'attachment_empty', 'Empty files cannot be uploaded.');
         }
-        if ($file->reportedSize > $this->config->attachmentMaxBytes) {
+        if ($file->reportedSize > $this->maxBytes) {
             throw new ApiException(
                 413,
                 'attachment_too_large',
                 'The attachment exceeds the configured size limit.',
-                maxBytes: $this->config->attachmentMaxBytes,
+                maxBytes: $this->maxBytes,
             );
         }
 
@@ -121,12 +123,12 @@ final class AttachmentService
             if ($actualSize === false || $actualSize < 1) {
                 throw new RuntimeException('Unable to determine stored attachment size.');
             }
-            if ($actualSize > $this->config->attachmentMaxBytes) {
+            if ($actualSize > $this->maxBytes) {
                 throw new ApiException(
                     413,
                     'attachment_too_large',
                     'The attachment exceeds the configured size limit.',
-                    maxBytes: $this->config->attachmentMaxBytes,
+                    maxBytes: $this->maxBytes,
                 );
             }
 

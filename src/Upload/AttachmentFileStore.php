@@ -10,8 +10,10 @@ use RuntimeException;
 
 final class AttachmentFileStore
 {
+    private readonly int $maxBytes;
     public function __construct(private readonly Config $config)
     {
+        $this->maxBytes = AttachmentUploadLimits::fromConfig($config)->maxBytes;
     }
 
     /**
@@ -31,12 +33,12 @@ final class AttachmentFileStore
         if ($file->reportedSize < 1) {
             throw new ApiException(400, 'attachment_empty', 'Empty files cannot be uploaded.');
         }
-        if ($file->reportedSize > $this->config->attachmentMaxBytes) {
+        if ($file->reportedSize > $this->maxBytes) {
             throw new ApiException(
                 413,
                 'attachment_too_large',
                 'The attachment exceeds the configured size limit.',
-                maxBytes: $this->config->attachmentMaxBytes,
+                maxBytes: $this->maxBytes,
             );
         }
 
@@ -59,12 +61,12 @@ final class AttachmentFileStore
             if ($actualSize === false || $actualSize < 1) {
                 throw new RuntimeException('Unable to determine stored attachment size.');
             }
-            if ($actualSize > $this->config->attachmentMaxBytes) {
+            if ($actualSize > $this->maxBytes) {
                 throw new ApiException(
                     413,
                     'attachment_too_large',
                     'The attachment exceeds the configured size limit.',
-                    maxBytes: $this->config->attachmentMaxBytes,
+                    maxBytes: $this->maxBytes,
                 );
             }
             $sha256 = hash_file('sha256', $path);

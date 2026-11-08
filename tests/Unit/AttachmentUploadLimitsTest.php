@@ -24,7 +24,23 @@ final class AttachmentUploadLimitsTest extends TestCase
             [10_485_760, '0', 10_485_760],
             [10_485_760, '-1', 10_485_760],
         ] as [$applicationMaxBytes, $phpLimit, $expected]) {
-            self::assertSame($expected, AttachmentUploadLimits::fromIni($applicationMaxBytes, $phpLimit, '8M')->maxBytes);
+            self::assertSame($expected, AttachmentUploadLimits::fromIni($applicationMaxBytes, $phpLimit, '0')->maxBytes);
+        }
+    }
+
+    public function testWholeBodyHeadroomIsIncludedWithoutOverstatingTinyLimits(): void
+    {
+        foreach ([
+            [10_485_760, '10M', '8M', 8_323_072],
+            [10_485_760, '2M', '8M', 2_097_152],
+            [1024, '2M', '8M', 1024],
+            [10_485_760, '512', '8M', 512],
+            [10_485_760, '10M', '1K', 0],
+            [10_485_760, '10M', '64K', 0],
+            [10_485_760, '10M', '65K', 1024],
+            [10_485_760, '10M', '66048', 512],
+        ] as [$applicationMaxBytes, $uploadLimit, $postLimit, $expected]) {
+            self::assertSame($expected, AttachmentUploadLimits::fromIni($applicationMaxBytes, $uploadLimit, $postLimit)->maxBytes);
         }
     }
 
@@ -43,7 +59,7 @@ final class AttachmentUploadLimitsTest extends TestCase
         } catch (ApiException $exception) {
             self::assertSame(413, $exception->status);
             self::assertSame('attachment_too_large', $exception->errorCode);
-            self::assertSame(2048, $exception->maxBytes);
+            self::assertSame(0, $exception->maxBytes);
         }
     }
 
