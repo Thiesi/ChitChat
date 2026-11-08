@@ -1,6 +1,7 @@
 # API documentation
 
 - [Authentication and sessions](authentication.md)
+- [Password recovery keys and reset](password-recovery.md)
 - [Session bootstrap and public installation metadata](session.md)
 - [Guest access](guest-access.md)
 - [Multi-factor authentication (passkeys and recovery codes)](mfa.md)

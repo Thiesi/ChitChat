@@ -43,6 +43,10 @@ The `registration` policy's environment values are server defaults: a Super-Admi
 | --- | ---: | --- |
 | `login` | 10 / 900 s | Login requests, counted by canonical username |
 | `login_ip` | 30 / 900 s | Login requests, independently counted by source IP so username-targeted failures cannot exhaust a shared IP's budget |
+| `password_reset` | 10 / 900 s | Password-recovery attempts by canonical username, independent of login |
+| `password_reset_ip` | 30 / 900 s | Password-recovery attempts independently by source IP |
+| `password_reset_challenge` | 60 / 60 s | One-use recovery challenge issuance by source IP |
+| `recovery_key_management` | 10 / 3600 s | Authenticated recovery-key generation/replacement by account |
 | `registration` | 5 / 3600 s | Account registration by source IP |
 | `guest_start` | 5 / 3600 s | Starting a guest session by source IP |
 | `privileged_step_up` | 10 / 900 s | Current-password step-up by account and IP |
@@ -114,3 +118,5 @@ Policy Markdown preview has a dedicated `policy_preview` throttle: 30 attempts
 per 60 seconds by default, configurable with `RATE_LIMIT_POLICY_PREVIEW_MAX_ATTEMPTS`
 and `RATE_LIMIT_POLICY_PREVIEW_WINDOW_SECONDS`. It is checked after CSRF and
 Super-Administrator authorization; preview does not require privileged step-up.
+
+Password reset consumes its one-use challenge even on rejection or throttling. Its username/IP budgets and MFA assertion/recovery budgets are counted outside the password transaction, so failed completions cannot roll back abuse protection. Recovery challenge difficulty follows the effective registration proof-of-work setting, but recovery remains available when registration is disabled. Password-recovery keys are separate from MFA recovery codes.

@@ -7,6 +7,7 @@ namespace ChitChat\Moderation;
 use ChitChat\Audit\AuditLogger;
 use ChitChat\Auth\AuthenticatedUser;
 use ChitChat\Auth\PasswordPolicy;
+use ChitChat\Auth\RecoveryKeyService;
 use ChitChat\Auth\UserRepository;
 use ChitChat\Http\ApiException;
 use ChitChat\Realtime\EventRepository;
@@ -140,7 +141,7 @@ SQL);
     public function resetPassword(
         AuthenticatedUser $actor,
         int $targetUserId,
-        string $newPassword,
+        #[\SensitiveParameter] string $newPassword,
         string $ipAddress,
     ): void {
         $target = $this->assertCanManageTarget($actor, $targetUserId);
@@ -152,6 +153,7 @@ SQL);
                 $targetUserId,
                 password_hash($newPassword, PASSWORD_DEFAULT),
             );
+            RecoveryKeyService::invalidateInTransaction($this->pdo, $actor->id, $targetUserId, $ipAddress);
             $this->audit->log(
                 actorUserId: $actor->id,
                 action: 'auth.password_reset_by_admin',
