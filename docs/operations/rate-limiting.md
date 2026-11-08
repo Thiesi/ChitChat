@@ -15,6 +15,15 @@ The separate `rate_limit_counters` table stores only aggregate policy outcomes. 
 
 A request that exceeds a policy receives HTTP 429 with `rate_limited`, except for the established login path, which continues to return `login_throttled`.
 
+Both errors include `Retry-After: <seconds>` and the identical positive integer
+`error.retry_after_seconds` in the JSON error. The remaining delay is rounded up
+using database time: the fixed-window expiry for ordinary policies, or the longer
+remaining blocking username/IP window for login. Existing error codes and message
+wording are retained. A delay is a hint, not a reservation or permission to replay
+a write automatically; later attempts may extend a rolling login block. Older
+servers omit these additions. The separate `guest_limit_reached` concurrency cap
+has no time-based retry estimate and does not return these fields.
+
 ## Configuration
 
 Every policy is configured by two environment variables:

@@ -21,8 +21,11 @@ final class Endpoint
                 'error' => [
                     'code' => $exception->errorCode,
                     'message' => $exception->getMessage(),
+                    ...($exception->status === 429 && $exception->retryAfterSeconds !== null
+                        ? ['retry_after_seconds' => $exception->retryAfterSeconds]
+                        : []),
                 ],
-            ], $exception->status);
+            ], $exception->status, $exception->retryAfterSeconds);
         } catch (JsonException $exception) {
             error_log($exception->getMessage());
             JsonResponse::send([

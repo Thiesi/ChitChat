@@ -6,6 +6,7 @@ namespace ChitChat\Tests\Integration;
 
 use ChitChat\Auth\AuthService;
 use ChitChat\Http\ApiException;
+use ChitChat\Http\RateLimitPolicySet;
 
 final class AuthServiceTest extends DatabaseTestCase
 {
@@ -93,6 +94,54 @@ final class AuthServiceTest extends DatabaseTestCase
         } catch (ApiException $exception) {
             self::assertSame(429, $exception->status);
             self::assertSame('login_throttled', $exception->errorCode);
+            self::assertGreaterThan(0, $exception->retryAfterSeconds);
+            self::assertLessThanOrEqual(900, $exception->retryAfterSeconds);
+        }
+    }
+
+    public function testLoginRetryDelayUsesTheLastBlockingScopeAndThresholdFailure(): void
+    {
+        $policies = RateLimitPolicySet::defaults()->with('login', 2, 60)->with('login_ip', 3, 120);
+        $auth = new AuthService($this->pdo, $this->configWith(['rateLimits' => $policies]));
+        $this->pdo->beginTransaction();
+        try {
+            $this->pdo->exec(<<<'SQL'
+INSERT INTO login_attempts (username_canonical, ip_address, successful, reason, created_at)
+SELECT 'alice', '127.0.0.1', FALSE, 'invalid_credentials', NOW() - age * INTERVAL '1 second'
+FROM (VALUES (10), (20), (30), (40), (50)) AS failures(age)
+SQL);
+            try {
+                $auth->authenticatePassword('Alice', 'irrelevant password', '127.0.0.1');
+                self::fail('Expected throttled login.');
+            } catch (ApiException $exception) {
+                self::assertSame('login_throttled', $exception->errorCode);
+                self::assertSame('Too many failed login attempts. Try again in up to 1 minutes.', $exception->getMessage());
+                self::assertSame(90, $exception->retryAfterSeconds);
+            }
+        } finally {
+            $this->pdo->rollBack();
+        }
+    }
+
+    public function testLoginRetryDelayRoundsUpAnIpOnlyBlock(): void
+    {
+        $policies = RateLimitPolicySet::defaults()->with('login', 2, 60)->with('login_ip', 1, 120);
+        $auth = new AuthService($this->pdo, $this->configWith(['rateLimits' => $policies]));
+        $this->pdo->beginTransaction();
+        try {
+            $this->pdo->exec(<<<'SQL'
+INSERT INTO login_attempts (username_canonical, ip_address, successful, reason, created_at)
+VALUES ('another', '127.0.0.1', FALSE, 'invalid_credentials', NOW() - INTERVAL '118.2 seconds')
+SQL);
+            try {
+                $auth->authenticatePassword('Alice', 'irrelevant password', '127.0.0.1');
+                self::fail('Expected IP-throttled login.');
+            } catch (ApiException $exception) {
+                self::assertSame('login_throttled', $exception->errorCode);
+                self::assertSame(2, $exception->retryAfterSeconds);
+            }
+        } finally {
+            $this->pdo->rollBack();
         }
     }
 
