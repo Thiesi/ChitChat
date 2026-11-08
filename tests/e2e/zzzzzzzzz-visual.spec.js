@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { completeRecoveryKeyStep } from './support/recovery.js';
 
 const visualAccount = {
   username: 'VisualE2E',
@@ -23,7 +24,7 @@ async function loginOrRegister(page) {
   await page.locator('#register-username').fill(visualAccount.username);
   await page.locator('#register-password').fill(visualAccount.password);
   await page.getByRole('button', { name: 'Create account' }).click();
-  await expect(page.locator('#chat-shell')).toBeVisible();
+  await completeRecoveryKeyStep(page);
 }
 
 // Soft assertions, so a run reports (and captures) every changed layout at once.

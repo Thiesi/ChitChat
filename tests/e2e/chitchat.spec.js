@@ -4,6 +4,7 @@ import {
   attemptText,
   registerOrSignIn,
 } from './support/attempt.js';
+import { completeRecoveryKeyStep } from './support/recovery.js';
 
 const baseURL = process.env.CHITCHAT_BASE_URL ?? 'http://127.0.0.1:8080';
 const admin = {
@@ -23,7 +24,7 @@ async function register(page, account) {
   await page.locator('#register-username').fill(account.username);
   await page.locator('#register-password').fill(account.password);
   await page.getByRole('button', { name: 'Create account' }).click();
-  await expect(page.locator('#chat-shell')).toBeVisible();
+  await completeRecoveryKeyStep(page);
   await expect(page.locator('#current-user')).toHaveText(account.username);
   await expect(page.locator('#connection-status')).toHaveText('Live', { timeout: 20_000 });
 }
