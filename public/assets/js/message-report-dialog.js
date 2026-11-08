@@ -261,11 +261,18 @@ function toast(message) {
   window.setTimeout(() => node.remove(), 5000);
 }
 
+function waitText(seconds) {
+  if (!seconds) return 'in a few minutes';
+  if (seconds < 60) return 'in a minute';
+  const minutes = Math.ceil(seconds / 60);
+  return `in ${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`;
+}
+
 function errorMessage(error, reported) {
   if (error instanceof ApiError) {
     if (error.code === REPORT_NOT_ALLOWED) return 'You can’t report this person from here.';
     if (error.status === 404 && reported.kind === 'person') return 'This account is no longer available.';
-    if (error.status === 429) return 'You’ve sent several reports quickly. Try again in a few minutes.';
+    if (error.status === 429) return `You’ve sent several reports quickly. Try again ${waitText(error.retryAfterSeconds)}.`;
     return error.message;
   }
   if (error instanceof TypeError) return 'The report couldn’t be sent. Check your connection and try again.';

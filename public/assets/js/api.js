@@ -16,11 +16,13 @@ const SESSION_CHANGE_ENDPOINTS = new Set([
 ]);
 
 export class ApiError extends Error {
-  constructor(status, code, message) {
+  constructor(status, code, message, retryAfterSeconds = null) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
     this.code = code;
+    // How long a throttled request (429) should wait, when the server says.
+    this.retryAfterSeconds = Number.isInteger(retryAfterSeconds) && retryAfterSeconds > 0 ? retryAfterSeconds : null;
   }
 }
 
@@ -97,10 +99,12 @@ async function request(path, options) {
     if (error.code === 'guest_not_allowed' && window.location.pathname !== '/') {
       window.location.assign('/');
     }
+    const headerRetry = Number.parseInt(response.headers.get('retry-after') ?? '', 10);
     throw new ApiError(
       response.status,
       typeof error.code === 'string' ? error.code : 'request_failed',
       typeof error.message === 'string' ? error.message : `Request failed with HTTP ${response.status}.`,
+      Number.isInteger(error.retry_after_seconds) ? error.retry_after_seconds : (Number.isInteger(headerRetry) ? headerRetry : null),
     );
   }
 

@@ -166,6 +166,13 @@ test('the card offers no report when the server says no, and refusals are explai
   const dialog = page.getByRole('dialog', { name: 'Report Rowan' });
   await dialog.getByRole('button', { name: 'Report', exact: true }).click();
   await expect(dialog.locator('#message-report-error')).toHaveText('You can’t report this person from here.');
+
+  await page.unroute('**/api/v1/**');
+  await fixture(page, { overrides: { 'reports/user.php': { status: 429, json: { error: { code: 'rate_limited', message: 'Too many requests.', retry_after_seconds: 300 } } } } });
+  await openRowansCard(page);
+  await page.locator('#name-menu').getByRole('button', { name: 'Report Rowan' }).click();
+  await page.getByRole('dialog', { name: 'Report Rowan' }).getByRole('button', { name: 'Report', exact: true }).click();
+  await expect(page.locator('#message-report-error')).toHaveText('You’ve sent several reports quickly. Try again in 5 minutes.');
 });
 
 test('message reports keep their own wording', async ({ page }) => {
