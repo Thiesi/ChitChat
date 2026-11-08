@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace ChitChat\Room;
 
+use ChitChat\Database\LikePattern;
 use PDO;
 use RuntimeException;
 
@@ -235,7 +236,7 @@ WHERE rm.room_id = :room_id
   AND u.account_state = 'active'
   AND u.account_kind = 'member'
   AND u.id <> :excluded_user_id
-  AND lower(u.username) LIKE :pattern
+  AND lower(u.username) LIKE :pattern ESCAPE '\'
 ORDER BY lower(u.username), u.id
 LIMIT :limit
 SQL);
@@ -244,7 +245,7 @@ SQL);
         }
         $statement->bindValue(':room_id', $roomId, PDO::PARAM_INT);
         $statement->bindValue(':excluded_user_id', $excludeUserId, PDO::PARAM_INT);
-        $statement->bindValue(':pattern', strtolower($prefix) . '%');
+        $statement->bindValue(':pattern', LikePattern::prefix($prefix));
         $statement->bindValue(':limit', $limit, PDO::PARAM_INT);
         $statement->execute();
 

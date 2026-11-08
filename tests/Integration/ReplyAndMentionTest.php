@@ -12,9 +12,36 @@ use ChitChat\Http\ApiException;
 use ChitChat\Room\MessageService;
 use ChitChat\Room\RoomMessageMutationService;
 use ChitChat\Room\RoomService;
+use ChitChat\Room\RoomRepository;
 
 final class ReplyAndMentionTest extends DatabaseTestCase
 {
+    public function testMentionSuggestionsTreatUsernamePrefixCharactersLiterally(): void
+    {
+        $auth = new AuthService($this->pdo, $this->config);
+        $viewer = $auth->register('ann_viewer', 'a very secure password', '127.0.0.1');
+        $literal = $auth->register('ann_member', 'another secure password', '127.0.0.2');
+        $wildcard = $auth->register('annxmember', 'different secure password', '127.0.0.3');
+        $auth->register('ann_outsider', 'further secure password', '127.0.0.4');
+        $rooms = new RoomService($this->pdo);
+        $room = $rooms->create($viewer, 'mentions', 'Mentions', '', 'public', 0, 0, '127.0.0.1');
+        $rooms->join($literal, $room->id, '127.0.0.2');
+        $rooms->join($wildcard, $room->id, '127.0.0.3');
+        $messages = new MessageService($this->pdo);
+        $expected = [['id' => $literal->id, 'username' => 'ann_member']];
+        self::assertSame($expected, $messages->searchMentionableUsers($viewer, $room->id, 'ann_'));
+        self::assertSame($expected, $messages->searchMentionableUsers($viewer, $room->id, 'ANN_'));
+        self::assertSame($expected, $messages->searchMentionableUsers($viewer, $room->id, 'ann', 1));
+        self::assertSame([
+            ...$expected, ['id' => $wildcard->id, 'username' => 'annxmember'],
+        ], $messages->searchMentionableUsers($viewer, $room->id, 'ann'));
+        // The API rejects these characters today; the repository still escapes
+        // every SQL LIKE metacharacter, including its own escape character.
+        $repository = new RoomRepository($this->pdo);
+        self::assertSame([], $repository->searchMembers($room->id, 'ann%', $viewer->id, 8));
+        self::assertSame([], $repository->searchMembers($room->id, 'ann\\', $viewer->id, 8));
+    }
+
     public function testRoomMentionResolvesOnlyAuthorizedNonSelfAccountsAndNotifiesThem(): void
     {
         $auth = new AuthService($this->pdo, $this->config);

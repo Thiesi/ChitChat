@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace ChitChat\Tests\Unit;
 
 use ChitChat\Tests\Support\TestScratch;
+use ChitChat\Tests\Support\PhpHttpFixture;
 use PHPUnit\Framework\TestCase;
 
 final class RetryAfterResponseTest extends TestCase
@@ -46,18 +47,7 @@ PHP, '.php');
         self::assertIsResource($process);
         fclose($pipes[0]);
         try {
-            $deadline = microtime(true) + 10;
-            $ready = false;
-            do {
-                $connection = @stream_socket_client('tcp://' . $address, $errorCode, $errorMessage, 0.1);
-                if (is_resource($connection)) {
-                    fclose($connection);
-                    $ready = true;
-                    break;
-                }
-                usleep(50_000);
-            } while (microtime(true) < $deadline);
-            self::assertTrue($ready, (string) file_get_contents($log));
+            PhpHttpFixture::waitUntilReady($process, $address, $log);
 
             foreach (['rate_limited', 'login_throttled', 'guest_limit_reached', 'invalid_credentials', 'ok'] as $code) {
                 $context = stream_context_create(['http' => ['ignore_errors' => true, 'timeout' => 5]]);
@@ -89,7 +79,9 @@ PHP, '.php');
                 }
             }
         } finally {
-            proc_terminate($process);
+            if (proc_get_status($process)['running']) {
+                proc_terminate($process);
+            }
             proc_close($process);
             TestScratch::remove($router);
             TestScratch::remove($log);

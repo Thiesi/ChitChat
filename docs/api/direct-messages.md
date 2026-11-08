@@ -32,7 +32,7 @@ Query parameters:
 - `search`: 2-32 supported username characters;
 - `limit`: optional, 1-50, default 20.
 
-Returns prefix matches excluding the current account. This endpoint is for starting a conversation and is not an unrestricted export. Blocking does not remove an account from search, so a user can reopen the conversation header and reverse their own block.
+Returns case-insensitive literal prefix matches excluding the current account. An underscore in `ann_` matches only a literal underscore, never an arbitrary character. This endpoint is for starting a conversation and is not an unrestricted export. Blocking does not remove an account from search, so a user can reopen the conversation header and reverse their own block.
 
 ## `GET /api/v1/direct-messages/conversations.php`
 
