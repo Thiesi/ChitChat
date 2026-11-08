@@ -1,5 +1,16 @@
 import { defineConfig, devices } from '@playwright/test';
 
+// Opt-in local dev server for the mocked presentation specs. With
+// CHITCHAT_PHP_SERVER_PORT set, Playwright starts `php -S` on that port (or
+// reuses one already answering there) and stops what it started when the run
+// ends, so no server is left behind. Unset, nothing changes: CI and the
+// real-server journeys use their own server at CHITCHAT_BASE_URL.
+const phpServerPort = process.env.CHITCHAT_PHP_SERVER_PORT;
+if (phpServerPort !== undefined && !/^[0-9]{4,5}$/.test(phpServerPort)) {
+  throw new Error('CHITCHAT_PHP_SERVER_PORT must be a port number, for example 8091.');
+}
+const phpServerUrl = phpServerPort ? `http://127.0.0.1:${phpServerPort}` : null;
+
 export default defineConfig({
   testDir: './tests/e2e',
   fullyParallel: false,
@@ -13,7 +24,7 @@ export default defineConfig({
     ? [['list'], ['html', { outputFolder: 'playwright-report', open: 'never' }]]
     : [['list']],
   use: {
-    baseURL: process.env.CHITCHAT_BASE_URL ?? 'http://127.0.0.1:8080',
+    baseURL: process.env.CHITCHAT_BASE_URL ?? phpServerUrl ?? 'http://127.0.0.1:8080',
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
@@ -39,4 +50,14 @@ export default defineConfig({
     },
   ],
   outputDir: 'test-results',
+  webServer: phpServerUrl
+    ? {
+        command: `php -S 127.0.0.1:${phpServerPort} -t public`,
+        url: `${phpServerUrl}/`,
+        reuseExistingServer: true,
+        timeout: 30_000,
+        stdout: 'ignore',
+        stderr: 'pipe',
+      }
+    : undefined,
 });
