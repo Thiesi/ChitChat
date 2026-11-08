@@ -1,0 +1,63 @@
+# Session bootstrap and public installation metadata
+
+`GET /api/v1/session.php` returns the ordinary PHP session/CSRF bootstrap. The
+[authentication API](authentication.md#csrf-bootstrap) describes cookies, CSRF,
+user and privileged step-up state. The additions below are available before
+sign-in and remain present for members and guests; every existing v1 field stays.
+
+## Application and capabilities
+
+```json
+{
+  "application": {"name": "The Common Room", "version": "3.3.0"},
+  "capabilities": {
+    "schema_version": 1,
+    "native_passkey_origins": false,
+    "native_auth_handoff": false
+  }
+}
+```
+
+- `application.name` is the same effective public name the browser displays,
+  including a database override and falling back to `APP_NAME`. No admin role or
+  HTML scraping is required. The browser health endpoint keeps its existing
+  environment-default branding contract.
+- `application.version` is `Config.applicationVersion` / `APP_VERSION`, with no
+  independent API version constant. Published release values use SemVer, which
+  clients compare semantically rather than lexicographically. A custom operator
+  value that cannot be parsed means unknown for version comparisons; capability
+  presence is the safer feature check. The `3.3.0` above is an example, not a
+  forced override of the configured version during development.
+- `capabilities.schema_version` identifies this additive discovery schema.
+  Clients ignore unknown capability keys and continue to accept additive fields.
+- `native_passkey_origins` and `native_auth_handoff` are currently **false**:
+  those native-authentication contracts have not shipped. Future true values must
+  reflect both implemented and configured support for the installation. A source
+  version alone is not evidence of a trusted Android client or redirect.
+
+On older servers, missing `application` or `capabilities` means unknown, never
+confirmed support. Clients fall back to host/default branding and disable new
+unadvertised native-authentication flows; CCM can explain that the server needs
+an update. False means this installation does not currently offer the feature.
+Feature discovery guides presentation and never replaces server authorization.
+No private settings, credentials, credential IDs, user handles, device identifiers
+or other-user state are included. Existing `web_push.enabled` and
+`web_push.vapid_public_key` remain the shared Web Push discovery contract.
+
+The independent top-level `attachments` policy is documented in
+[upload policy discovery](attachments.md#upload-policy-discovery), when present.
+
+## Revision-review privacy disclosure
+
+`privacy.message_revisions` retains its existing fields but corrects
+`participant_notification` to **true**, matching the successful-review audit
+trigger. An authorized successful review creates a durable `revision_review`
+notification for the room message's author, or for both direct-message
+participants. Accounts already closed are excluded. This does not notify every
+member of a room. Failed or unauthorized reviews do not create successful-access
+notifications. Push delivery and notification read state remain separate.
+
+`admin_review_enabled` and `admin_review_role` still reflect installation
+configuration. `reason_required` and `audit_each_review` stay true. This correction
+neither enables review nor expands who may inspect revisions, and it does not
+change the non-E2EE and retention disclosures for direct messages.

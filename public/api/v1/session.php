@@ -13,6 +13,7 @@ use ChitChat\Database;
 use ChitChat\Http\ApiResult;
 use ChitChat\Http\Endpoint;
 use ChitChat\Http\Request;
+use ChitChat\Http\PublicSessionMetadata;
 use ChitChat\Moderation\MuteService;
 use ChitChat\Realtime\TypingService;
 
@@ -37,8 +38,11 @@ SQL);
         throw new RuntimeException('Public system policy is missing.');
     }
     $dmRetentionDays = (int) $policy['direct_message_retention_days'];
+    $metadata = new PublicSessionMetadata($pdo, $config);
 
     return ApiResult::ok([
+        'application' => $metadata->application(),
+        'capabilities' => $metadata->capabilities(),
         'csrf_token' => SessionManager::csrfToken(),
         'user' => $user?->toSessionArray(),
         // Date and time display; null while signed out (the client then follows the browser).
@@ -86,13 +90,7 @@ SQL);
                     : sprintf('for up to %d days', $dmRetentionDays),
                 'retention_days' => $dmRetentionDays,
             ],
-            'message_revisions' => [
-                'admin_review_enabled' => $config->messageRevisionReviewEnabled,
-                'admin_review_role' => $config->messageRevisionReviewRole,
-                'reason_required' => true,
-                'audit_each_review' => true,
-                'participant_notification' => false,
-            ],
+            'message_revisions' => $metadata->messageRevisionPolicy(),
         ],
     ]);
 });

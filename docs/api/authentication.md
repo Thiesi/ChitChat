@@ -56,6 +56,10 @@ Returns the current authenticated user or `null`, plus a CSRF token and current 
 
 For an anonymous session, `user` is `null` and step-up is inactive.
 
+Public `application`, `capabilities`, and revision-notification policy metadata
+are documented in [session bootstrap](session.md). These additions are available
+before sign-in and do not change the cookie/CSRF contract.
+
 Send the token in the `X-CSRF-Token` header for every POST endpoint below.
 
 ## User authentication
