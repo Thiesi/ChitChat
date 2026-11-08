@@ -6,7 +6,27 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ## [Unreleased]
 
-No changes since `v3.2.1`.
+No changes since `v3.3.0`.
+
+## [3.3.0] - 2026-11-08
+
+The first native-client readiness release, additive to API v1, with one forward-only database migration (`0040_room_activity_index.sql`, an index); back up before upgrading. See the [`v3.3.0` release notes](docs/releases/v3.3.0.md).
+
+### Added
+
+- HTTP 429 `rate_limited` and `login_throttled` responses include `error.retry_after_seconds` and a `Retry-After` header.
+- `session.php` exposes the upload policy (`attachments`) to members, and public installation metadata (`application`, `capabilities`) to everyone.
+- Joined rooms in `rooms/list.php` report `active_count` (other people present now) and `last_activity_at` (newest visible message).
+
+### Fixed
+
+- Uploads larger than PHP's whole-request limit return `413 attachment_too_large` with `error.max_bytes` instead of a field error, and every size rejection reports the effective limit.
+- Username prefix searches (mentions, direct-message recipients, administration, inspection) treat `_`, `%` and `\` literally.
+- `privacy.message_revisions.participant_notification` reports `true`, matching the review notification the server sends.
+
+### Changed
+
+- Upload quotas are documented as counting attempts, rejected ones included (unchanged behaviour).
 
 ## [3.2.1] - 2026-10-05
 

@@ -70,7 +70,8 @@ The `registration` policy's environment values are server defaults: a Super-Admi
 | `admin_direct_message_inspection` | 60 / 3600 s | Audited DM inspection pages |
 | `message_revision_review` | 60 / 3600 s | Audited exact-message revision review |
 | `message_report` | 10 / 3600 s | Participant submission of a room or direct-message report |
-| `moderation_queue` | 120 / 60 s | Authorization-scoped moderation queue and case reads |
+| `user_report` | 10 / 3600 s | Person-report attempts, per member or guest identity, independently of message reports |
+| `moderation_queue` | 120 / 60 s | Authorization-scoped moderation queue, case and copied-avatar reads |
 | `moderation_action` | 60 / 3600 s | Case assignment, release, dismissal, and resolution |
 | `push_subscription_management` | 20 / 3600 s | Web Push subscribe, unsubscribe, preference updates, and device revocation |
 
@@ -108,3 +109,8 @@ The `policy` label has a fixed application-defined vocabulary, so it does not cr
 - Do not disable a policy by setting zero; zero is rejected at startup.
 
 Rate limiting is defense in depth. It does not replace authorization, CSRF validation, block relationships, upload validation, privileged step-up, required reasons, search authorization, moderation evidence boundaries, or audit logging.
+
+Policy Markdown preview has a dedicated `policy_preview` throttle: 30 attempts
+per 60 seconds by default, configurable with `RATE_LIMIT_POLICY_PREVIEW_MAX_ATTEMPTS`
+and `RATE_LIMIT_POLICY_PREVIEW_WINDOW_SECONDS`. It is checked after CSRF and
+Super-Administrator authorization; preview does not require privileged step-up.

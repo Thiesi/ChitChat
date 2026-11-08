@@ -10,6 +10,7 @@ use ChitChat\Config;
 use ChitChat\Http\ApiException;
 use ChitChat\Upload\AttachmentFileStore;
 use ChitChat\Upload\IncomingFile;
+use ChitChat\Policy\PolicyService;
 use PDO;
 use RuntimeException;
 use Throwable;
@@ -116,6 +117,7 @@ SQL);
     /** @return array{has_avatar:bool, avatar_version:?int} */
     public function upload(AuthenticatedUser $actor, IncomingFile $file, string $ipAddress): array
     {
+        (new PolicyService($this->pdo))->assertMayWrite($actor);
         if (!self::available()) {
             throw new ApiException(503, 'avatars_unavailable', 'Profile pictures need the PHP GD extension with WebP support on this server.');
         }
@@ -142,6 +144,7 @@ SQL);
         $previous = null;
         $this->pdo->beginTransaction();
         try {
+            (new PolicyService($this->pdo))->assertMayWrite($actor);
             $previous = $this->lockAvatarKey($actor->id);
             $statement = $this->pdo->prepare(
                 'UPDATE users SET avatar_key = :key, avatar_updated_at = NOW(), updated_at = NOW() WHERE id = :id',

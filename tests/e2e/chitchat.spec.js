@@ -107,6 +107,8 @@ test.describe.serial('ChitChat browser release checks', () => {
 
     const protectedResponse = await request.get('/api/v1/direct-messages/conversations.php');
     expect(protectedResponse.status()).toBe(401);
+    const bootstrap = await (await request.get('/api/v1/session.php')).json();
+    expect(bootstrap.attachments).toBeNull();
   });
 
   test('supports rooms, realtime chat, attachments, DMs and operational settings', async ({ browser }) => {
@@ -147,6 +149,14 @@ test.describe.serial('ChitChat browser release checks', () => {
 
       const memberPage = await memberContext.newPage();
       await registerOrSignIn(memberPage, member, register);
+      const { attachments: policy } = await (await memberContext.request.get('/api/v1/session.php')).json();
+      expect(policy.max_bytes).toBeGreaterThan(0);
+      expect(policy.max_bytes).toBeLessThanOrEqual(10_485_760);
+      expect(policy.allowed_mime_types).toContain('text/plain');
+      expect(policy.previewable_mime_types).toContain('image/png');
+      expect(policy.allowed_mime_types).not.toContain('image/svg+xml');
+      expect(policy.rate_limits.room.maximum_attempts).toBeGreaterThan(0);
+      expect(policy.rate_limits.direct_message.window_seconds).toBeGreaterThan(0);
       const publicRoom = memberPage.locator('.room-button', { hasText: '# General E2E' });
       await expect(publicRoom).toBeVisible();
       await publicRoom.click();

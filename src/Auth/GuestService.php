@@ -10,6 +10,7 @@ use ChitChat\Http\ApiException;
 use ChitChat\Realtime\EventRepository;
 use ChitChat\Room\RoomAuthorization;
 use DateTimeImmutable;
+use ChitChat\Policy\PolicyService;
 use PDO;
 use RuntimeException;
 use Throwable;
@@ -58,7 +59,7 @@ final class GuestService
         return $this->enabled() && !(new LockdownService($this->pdo))->status()['enabled'];
     }
 
-    public function start(string $ipAddress): AuthenticatedUser
+    public function start(string $ipAddress, mixed $acceptedRulesVersion = null): AuthenticatedUser
     {
         if (!$this->enabled()) {
             throw new ApiException(403, 'guest_access_disabled', 'Guest access is not available.');
@@ -66,11 +67,12 @@ final class GuestService
         if ((new LockdownService($this->pdo))->status()['enabled']) {
             throw new ApiException(403, 'guest_access_paused', 'Guest access is paused during maintenance.');
         }
-        // Tidy up first, so ended guests do not count against the connection.
-        $this->endExpired();
-
         $this->pdo->beginTransaction();
         try {
+            $policies = new PolicyService($this->pdo);
+            $rulesVersion = $policies->registrationVersion($acceptedRulesVersion);
+            // The existing transaction helper joins this transaction, preserving check order.
+            $this->endExpired();
             // One guest start per connection at a time keeps the cap exact.
             $lock = $this->pdo->prepare('SELECT pg_advisory_xact_lock(hashtext(:key))');
             if ($lock === false) {
@@ -129,6 +131,7 @@ SQL);
                 'ip_address' => $ipAddress,
             ]);
             $userId = (int) $insert->fetchColumn();
+            $policies->recordAcceptance($userId, $rulesVersion, $ipAddress);
 
             $welcome = $this->pdo->prepare(
                 "INSERT INTO account_notifications (user_id, kind, context_json) VALUES (:user_id, 'guest_welcome', CAST(:context AS jsonb))",

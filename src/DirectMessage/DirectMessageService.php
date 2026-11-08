@@ -11,6 +11,8 @@ use ChitChat\Mentions\MentionNotifier;
 use ChitChat\Moderation\MuteService;
 use ChitChat\Reactions\ReactionHydrator;
 use ChitChat\Realtime\EventRepository;
+use ChitChat\Database\LikePattern;
+use ChitChat\Policy\PolicyService;
 use PDO;
 use RuntimeException;
 use Throwable;
@@ -49,7 +51,7 @@ SELECT id, username
 FROM users
 WHERE id <> :actor_id
   AND account_kind = 'member'
-  AND lower(username) LIKE :pattern
+  AND lower(username) LIKE :pattern ESCAPE '\'
 ORDER BY lower(username), id
 LIMIT :limit
 SQL);
@@ -57,7 +59,7 @@ SQL);
             throw new RuntimeException('Unable to prepare direct-message user search.');
         }
         $statement->bindValue(':actor_id', $actor->id, PDO::PARAM_INT);
-        $statement->bindValue(':pattern', strtolower($search) . '%');
+        $statement->bindValue(':pattern', LikePattern::prefix($search));
         $statement->bindValue(':limit', $limit, PDO::PARAM_INT);
         $statement->execute();
 
@@ -296,6 +298,7 @@ SQL;
 
         $this->pdo->beginTransaction();
         try {
+            (new PolicyService($this->pdo))->assertMayWrite($actor);
             $this->blocks->lockPair($actor->id, $recipientUserId);
             $this->blocks->requireMessagingAvailable($actor, $recipientUserId);
             (new MuteService($this->pdo))->assertMaySendDirect($actor->id);

@@ -13,8 +13,11 @@ use ChitChat\Database;
 use ChitChat\Http\ApiResult;
 use ChitChat\Http\Endpoint;
 use ChitChat\Http\Request;
+use ChitChat\Http\PublicSessionMetadata;
 use ChitChat\Moderation\MuteService;
 use ChitChat\Realtime\TypingService;
+use ChitChat\Upload\AttachmentPolicy;
+use ChitChat\Policy\PolicyService;
 
 /** @var ChitChat\Config $config */
 $config = require dirname(__DIR__, 3) . '/bootstrap/http.php';
@@ -37,10 +40,15 @@ SQL);
         throw new RuntimeException('Public system policy is missing.');
     }
     $dmRetentionDays = (int) $policy['direct_message_retention_days'];
+    $metadata = new PublicSessionMetadata($pdo, $config);
 
     return ApiResult::ok([
+        'application' => $metadata->application(),
+        'capabilities' => $metadata->capabilities(),
+        'policies' => (new PolicyService($pdo, $config))->discovery(),
         'csrf_token' => SessionManager::csrfToken(),
         'user' => $user?->toSessionArray(),
+        'attachments' => AttachmentPolicy::forSession($config, $user),
         // Date and time display; null while signed out (the client then follows the browser).
         'preferences' => $user === null ? null : (new DisplayPreferenceService($pdo))->get($user->id),
         // People this account ignores in rooms; their messages are collapsed.
@@ -86,13 +94,7 @@ SQL);
                     : sprintf('for up to %d days', $dmRetentionDays),
                 'retention_days' => $dmRetentionDays,
             ],
-            'message_revisions' => [
-                'admin_review_enabled' => $config->messageRevisionReviewEnabled,
-                'admin_review_role' => $config->messageRevisionReviewRole,
-                'reason_required' => true,
-                'audit_each_review' => true,
-                'participant_notification' => false,
-            ],
+            'message_revisions' => $metadata->messageRevisionPolicy(),
         ],
     ]);
 });

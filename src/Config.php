@@ -59,6 +59,8 @@ final readonly class Config
         public array $oidcProviders = [],
         /** Public origin the providers redirect back to, e.g. https://chat.example.org. */
         public string $oidcRedirectOrigin = '',
+        /** Canonical public installation origin, independent of enabled auth providers. */
+        public string $applicationOrigin = '',
     ) {
         if ($this->databasePort < 1 || $this->databasePort > 65535) {
             throw new InvalidArgumentException('DB_PORT must be between 1 and 65535.');
@@ -124,6 +126,7 @@ final readonly class Config
                 throw new InvalidArgumentException('Required application configuration is missing.');
             }
         }
+        $this->validateApplicationOrigin();
         $this->validateWebAuthnConfiguration();
         $this->validateWebPushConfiguration();
         $this->rateLimits = $rateLimits ?? RateLimitPolicySet::defaults(
@@ -140,7 +143,7 @@ final readonly class Config
             environment: self::env('APP_ENV', 'production'),
             debug: self::envBool('APP_DEBUG', false),
             applicationName: self::env('APP_NAME', 'ChitChat'),
-            applicationVersion: self::env('APP_VERSION', '3.2.1'),
+            applicationVersion: self::env('APP_VERSION', '3.3.0'),
             databaseHost: self::env('DB_HOST', '127.0.0.1'),
             databasePort: self::envInt('DB_PORT', 5432),
             databaseName: self::env('DB_NAME', 'chitchat'),
@@ -179,6 +182,7 @@ final readonly class Config
             registrationProofOfWorkBits: self::envInt('REGISTRATION_PROOF_OF_WORK_BITS', 16),
             oidcProviders: self::oidcProviders(self::env('APP_ENV', 'production')),
             oidcRedirectOrigin: self::normalizeOrigin(self::env('OIDC_REDIRECT_ORIGIN', self::env('WEBAUTHN_ORIGIN', ''))),
+            applicationOrigin: self::normalizeOrigin(self::env('APP_ORIGIN', '')),
         );
     }
 
@@ -263,6 +267,34 @@ final readonly class Config
             putenv($key . '=' . $value);
             $_ENV[$key] = $value;
             $_SERVER[$key] = $value;
+        }
+    }
+
+    private function validateApplicationOrigin(): void
+    {
+        if ($this->applicationOrigin === '') {
+            return;
+        }
+        $parts = parse_url($this->applicationOrigin);
+        if (!is_array($parts) || !isset($parts['scheme'], $parts['host'])
+            || preg_match('/[\x00-\x20\x7f]/', $this->applicationOrigin) === 1) {
+            throw new InvalidArgumentException('APP_ORIGIN must be an absolute origin without whitespace.');
+        }
+        $scheme = strtolower($parts['scheme']);
+        $host = strtolower($parts['host']);
+        $localDevelopment = in_array($this->environment, ['development', 'test'], true)
+            && in_array($host, ['localhost', '127.0.0.1', '[::1]'], true);
+        if ($scheme !== 'https' && !($scheme === 'http' && $localDevelopment)) {
+            throw new InvalidArgumentException('APP_ORIGIN must use HTTPS except for local development or tests.');
+        }
+        if (isset($parts['user']) || isset($parts['pass']) || isset($parts['query']) || isset($parts['fragment'])
+            || (isset($parts['path']) && $parts['path'] !== '' && $parts['path'] !== '/')
+            || (isset($parts['port']) && $parts['port'] < 1)) {
+            throw new InvalidArgumentException('APP_ORIGIN must contain only scheme, host, and optional port.');
+        }
+        if (filter_var(trim($host, '[]'), FILTER_VALIDATE_IP) === false
+            && preg_match('/\A(?=.{1,253}\z)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)*[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\z/D', $host) !== 1) {
+            throw new InvalidArgumentException('APP_ORIGIN must have a valid DNS host or IP address.');
         }
     }
 

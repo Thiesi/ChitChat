@@ -15,6 +15,7 @@ use ChitChat\Room\Room;
 use ChitChat\Room\RoomAuthorization;
 use ChitChat\Room\RoomListSignal;
 use ChitChat\Room\RoomRepository;
+use ChitChat\Database\LikePattern;
 use PDO;
 use RuntimeException;
 use Throwable;
@@ -137,7 +138,7 @@ SQL);
         $statement = $this->pdo->prepare(<<<'SQL'
 SELECT u.id, u.username
 FROM users u
-WHERE lower(u.username) LIKE :pattern
+WHERE lower(u.username) LIKE :pattern ESCAPE '\'
   AND u.account_kind = 'member'
   AND NOT EXISTS (
       SELECT 1 FROM room_members rm
@@ -153,7 +154,7 @@ SQL);
         if ($statement === false) {
             throw new RuntimeException('Unable to prepare room invitation search.');
         }
-        $statement->bindValue(':pattern', strtolower($search) . '%');
+        $statement->bindValue(':pattern', LikePattern::prefix($search));
         $statement->bindValue(':member_room_id', $roomId, PDO::PARAM_INT);
         $statement->bindValue(':invitation_room_id', $roomId, PDO::PARAM_INT);
         $statement->bindValue(':limit', $limit, PDO::PARAM_INT);

@@ -18,6 +18,33 @@ Returns rooms visible in the user's room list. Global room moderators receive al
 
 For rooms the account has joined, each entry also carries `unread_count` (messages from others, not deleted, after the read position; counting stops at 100, shown as "99+") and `last_read_message_id` (`null` until the account first reads there). Other rooms report `0` and `null`.
 
+Joined-room list entries additionally contain:
+
+```json
+{"active_count": 4, "last_activity_at": "2026-11-08T10:00:00+00:00"}
+```
+
+- `active_count` counts distinct accounts and guests with an unexpired room
+  presence lease and an unexpired interaction window, exactly as the presence
+  list. Multiple tabs/devices count once. The viewer is excluded; `0` means
+  nobody else is active. A zero room inactivity timeout disables only the
+  interaction-window check, never lease expiry.
+- `last_activity_at` is the newest creation timestamp among current messages
+  visible in room history, formatted as ISO-8601 UTC. Deleted-for-everyone and
+  retention-removed messages do not count. Private pings never count. Messages
+  from ignored accounts do count: ignore is a display filter. No message text
+  or sender identity is disclosed. An empty visible history gives `null`.
+- Both values are `null` outside joined rooms, including rooms a global
+  moderator can inspect without joining. Joined accounts that can no longer
+  read history (for example after a minimum-age change) also receive `null`;
+  global moderators keep their existing age bypass. Missing fields on older
+  servers, or `null`, mean unknown/unavailable, never zero.
+
+These are snapshots, not a new live-presence feed. Clients can refresh the list
+on entry, foreground, and existing invalidations. No new SSE event is added;
+room ordering and unread/read-position behavior stay unchanged. All room activity
+is fetched in one batch query, in addition to the existing list/read/mute queries.
+
 ### `POST /api/v1/rooms/read.php`
 
 Requires authentication, CSRF and membership of the room.
@@ -53,6 +80,18 @@ Room objects contain:
 `inactivity_timeout_seconds` is 0 when disabled. Otherwise it is 120-86400 seconds and applies only to active presence, not persistent membership.
 
 `guest_access` is `none`, `read` (guests may read) or `write` (guests may also post and react). Only public rooms without a minimum age can let guests in. A guest sees only rooms whose `guest_access` is not `none`; see [Guest access](guest-access.md).
+
+### `GET /api/v1/rooms/mentionable-users.php?room_id=42&search=ann_&limit=8`
+
+Returns `{"users":[{"id":7,"username":"ann_member"}]}` for current active member
+accounts whose usernames start with the literal, case-insensitive prefix.
+An underscore in `ann_` matches an underscore, so it does not match `annxmember`.
+Only the trailing prefix wildcard is added by the server; callers cannot supply
+SQL patterns. Search is optional (empty lists starting suggestions), at most 32
+characters, and permits letters, digits, underscore, dot and hyphen. `limit`
+defaults to 8 and must be 1–25. Results exclude the viewer and guests, are ordered
+by lowercased username then ID, and require the existing room-history permission.
+The server independently authorizes mentions when sending a message.
 
 ## Room management
 

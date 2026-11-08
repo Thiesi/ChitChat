@@ -1,6 +1,7 @@
 # API documentation
 
 - [Authentication and sessions](authentication.md)
+- [Session bootstrap and public installation metadata](session.md)
 - [Guest access](guest-access.md)
 - [Multi-factor authentication (passkeys and recovery codes)](mfa.md)
 - [Account (security, export, closure)](account.md)
@@ -18,3 +19,5 @@
 - [Web Push subscriptions and preferences](web-push.md)
 - [Administration](admin.md)
 - [System settings](system-settings.md)
+
+- [Installation policies and rules acceptance](policies.md)

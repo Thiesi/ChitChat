@@ -44,7 +44,7 @@ final class MessageMutationServiceTest extends DatabaseTestCase
         $messages = new MessageService($this->pdo);
         $message = $messages->send($author, $room->id, 'Original room message');
         $this->pdo->exec(
-            'TRUNCATE moderation_reports, moderation_cases, account_notifications, realtime_events, audit_log RESTART IDENTITY',
+            'TRUNCATE moderation_user_snapshots, moderation_reports, moderation_cases, account_notifications, realtime_events, audit_log RESTART IDENTITY',
         );
         $mutations = new RoomMessageMutationService($this->pdo);
 
@@ -134,7 +134,7 @@ SQL)->fetchAll();
         $messages = new DirectMessageService($this->pdo);
         $message = $messages->send($alice, $bob->id, 'Original private message');
         $this->pdo->exec(
-            'TRUNCATE moderation_reports, moderation_cases, account_notifications, realtime_events, audit_log RESTART IDENTITY',
+            'TRUNCATE moderation_user_snapshots, moderation_reports, moderation_cases, account_notifications, realtime_events, audit_log RESTART IDENTITY',
         );
         $mutations = new DirectMessageMutationService($this->pdo);
 

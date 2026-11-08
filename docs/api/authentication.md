@@ -56,6 +56,15 @@ Returns the current authenticated user or `null`, plus a CSRF token and current 
 
 For an anonymous session, `user` is `null` and step-up is inactive.
 
+Public `application`, `capabilities`, and revision-notification policy metadata
+are documented in [session bootstrap](session.md). These additions are available
+before sign-in and do not change the cookie/CSRF contract.
+
+The top-level `attachments` block describes effective upload limits, MIME lists
+and separate room/direct upload quotas for signed-in members; it is `null` for
+anonymous and guest sessions. Missing means unknown on older servers. See
+[upload policy discovery](attachments.md#upload-policy-discovery).
+
 Send the token in the `X-CSRF-Token` header for every POST endpoint below.
 
 ## User authentication
@@ -288,3 +297,10 @@ Each authenticated session stores the user's current `session_version`. Every au
 ## Auditing
 
 Registration, first-user promotion, password changes, administrator resets, kicks, bans, unbans, and both successful and failed privileged step-up attempts create records in `audit_log`. The log stores the actor, action, subject, metadata, remote IP, and timestamp, but never receives password values.
+
+## Community rules at account creation
+
+Password registration and provider completion at `oidc/register.php` send
+`accepted_rules_version` when discovery publishes community rules. The abuse
+challenge is checked before rules acceptance and account mutation. Login remains
+available while rules acceptance is pending. See [policy contract](policies.md).

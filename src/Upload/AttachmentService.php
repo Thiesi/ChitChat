@@ -16,12 +16,14 @@ use ChitChat\Room\RoomAuthorization;
 use ChitChat\Room\RoomEligibility;
 use ChitChat\Room\RoomRepository;
 use finfo;
+use ChitChat\Policy\PolicyService;
 use PDO;
 use RuntimeException;
 use Throwable;
 
 final class AttachmentService
 {
+    private readonly int $maxBytes;
     private readonly RoomRepository $rooms;
     private readonly AuditLogger $audit;
     private readonly EventRepository $events;
@@ -32,6 +34,7 @@ final class AttachmentService
         private readonly PDO $pdo,
         private readonly Config $config,
     ) {
+        $this->maxBytes = AttachmentUploadLimits::fromConfig($config)->maxBytes;
         $this->rooms = new RoomRepository($pdo);
         $this->audit = new AuditLogger($pdo);
         $this->events = new EventRepository($pdo);
@@ -63,6 +66,7 @@ final class AttachmentService
         string $ipAddress,
         ?int $replyToMessageId = null,
     ): array {
+        (new PolicyService($this->pdo))->assertMayWrite($actor);
         if ($roomId < 1) {
             throw new ApiException(400, 'validation_error', 'room_id must be positive.');
         }
@@ -90,8 +94,13 @@ final class AttachmentService
         if ($file->reportedSize < 1) {
             throw new ApiException(400, 'attachment_empty', 'Empty files cannot be uploaded.');
         }
-        if ($file->reportedSize > $this->config->attachmentMaxBytes) {
-            throw new ApiException(413, 'attachment_too_large', 'The attachment exceeds the configured size limit.');
+        if ($file->reportedSize > $this->maxBytes) {
+            throw new ApiException(
+                413,
+                'attachment_too_large',
+                'The attachment exceeds the configured size limit.',
+                maxBytes: $this->maxBytes,
+            );
         }
 
         $mimeType = $this->detectMimeType($file->temporaryPath);
@@ -116,8 +125,13 @@ final class AttachmentService
             if ($actualSize === false || $actualSize < 1) {
                 throw new RuntimeException('Unable to determine stored attachment size.');
             }
-            if ($actualSize > $this->config->attachmentMaxBytes) {
-                throw new ApiException(413, 'attachment_too_large', 'The attachment exceeds the configured size limit.');
+            if ($actualSize > $this->maxBytes) {
+                throw new ApiException(
+                    413,
+                    'attachment_too_large',
+                    'The attachment exceeds the configured size limit.',
+                    maxBytes: $this->maxBytes,
+                );
             }
 
             $sha256 = hash_file('sha256', $storagePath);
@@ -126,6 +140,7 @@ final class AttachmentService
             }
 
             $this->pdo->beginTransaction();
+            (new PolicyService($this->pdo))->assertMayWrite($actor);
             $messageStatement = $this->pdo->prepare(<<<'SQL'
 INSERT INTO room_messages (room_id, sender_id, message_type, body, reply_to_message_kind, reply_to_message_id)
 VALUES (:room_id, :sender_id, 'attachment', :body, :reply_to_message_kind, :reply_to_message_id)

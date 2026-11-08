@@ -8,6 +8,7 @@ use ChitChat\Auth\AuthenticatedUser;
 use ChitChat\Http\ApiException;
 use ChitChat\Moderation\MuteService;
 use ChitChat\Realtime\EventRepository;
+use ChitChat\Policy\PolicyService;
 use PDO;
 use RuntimeException;
 
@@ -30,17 +31,19 @@ final class DirectMessageReactionService
         }
         (new MuteService($this->pdo))->assertMaySendDirect($actor->id);
 
-        $statement = $this->pdo->prepare(<<<'SQL'
-INSERT INTO direct_message_reactions (message_id, user_id, emoji)
-VALUES (:message_id, :user_id, :emoji)
-ON CONFLICT (message_id, user_id, emoji) DO NOTHING
-SQL);
-        if ($statement === false) {
-            throw new RuntimeException('Unable to prepare direct-message reaction add.');
-        }
-        $statement->execute(['message_id' => $messageId, 'user_id' => $actor->id, 'emoji' => $emoji]);
+        return (new PolicyService($this->pdo))->write($actor, function () use ($actor, $messageId, $emoji, $otherUserId): array {
+            $statement = $this->pdo->prepare(<<<'SQL'
+    INSERT INTO direct_message_reactions (message_id, user_id, emoji)
+    VALUES (:message_id, :user_id, :emoji)
+    ON CONFLICT (message_id, user_id, emoji) DO NOTHING
+    SQL);
+            if ($statement === false) {
+                throw new RuntimeException('Unable to prepare direct-message reaction add.');
+            }
+            $statement->execute(['message_id' => $messageId, 'user_id' => $actor->id, 'emoji' => $emoji]);
 
-        return $this->publishAndReturn($messageId, $actor->id, $otherUserId);
+            return $this->publishAndReturn($messageId, $actor->id, $otherUserId);
+        });
     }
 
     /** @return list<array{emoji:string, users:list<array{id:int, username:string}>, reacted_by_me:bool}> */

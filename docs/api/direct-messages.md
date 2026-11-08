@@ -32,7 +32,7 @@ Query parameters:
 - `search`: 2-32 supported username characters;
 - `limit`: optional, 1-50, default 20.
 
-Returns prefix matches excluding the current account. This endpoint is for starting a conversation and is not an unrestricted export. Blocking does not remove an account from search, so a user can reopen the conversation header and reverse their own block.
+Returns case-insensitive literal prefix matches excluding the current account. An underscore in `ann_` matches only a literal underscore, never an arbitrary character. This endpoint is for starting a conversation and is not an unrestricted export. Blocking does not remove an account from search, so a user can reopen the conversation header and reverse their own block.
 
 ## `GET /api/v1/direct-messages/conversations.php`
 
@@ -174,13 +174,17 @@ No direct-message event is created for a blocked send.
       "admin_review_role": "super_admin",
       "reason_required": true,
       "audit_each_review": true,
-      "participant_notification": false
+      "participant_notification": true
     }
   }
 }
 ```
 
 The bundled inbox separately states that edited and deleted bodies remain in the revision ledger until direct-message retention removes the canonical message.
+
+An authorized successful revision review notifies the room author or both DM
+participants, excluding accounts already closed; see the exact
+[session disclosure](session.md#revision-review-privacy-disclosure).
 
 ## Administrative inspection
 

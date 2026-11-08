@@ -9,6 +9,7 @@ const root = {
 
 test('Super-Administrator renames the installation and every page presents the new name', async ({ browser }) => {
   const context = await browser.newContext({ baseURL });
+  const anonymousContext = await browser.newContext({ baseURL });
   const page = await context.newPage();
   const name = attemptText('Harbor Chat');
   try {
@@ -37,6 +38,19 @@ test('Super-Administrator renames the installation and every page presents the n
     await expect(page.locator('.sidebar-header h1')).toHaveText(name);
     await expect(page.locator('meta[name="application-name"]')).toHaveAttribute('content', name);
 
+    const publicSession = await (await anonymousContext.request.get('/api/v1/session.php')).json();
+    expect(publicSession.user).toBeNull();
+    expect(publicSession.application.name).toBe(name);
+    expect(typeof publicSession.application.version).toBe('string');
+    expect(publicSession.application.version.length).toBeGreaterThan(0);
+    expect(publicSession.capabilities).toEqual({
+      schema_version: 1, native_passkey_origins: false, native_auth_handoff: false,
+    });
+    expect(publicSession.privacy.message_revisions.participant_notification).toBe(true);
+    const memberSession = await (await context.request.get('/api/v1/session.php')).json();
+    expect(memberSession.application).toEqual(publicSession.application);
+    expect(memberSession.capabilities).toEqual(publicSession.capabilities);
+
     await page.goto('/notifications.php');
     await expect(page.locator('meta[name="application-name"]')).toHaveAttribute('content', name);
 
@@ -56,6 +70,7 @@ test('Super-Administrator renames the installation and every page presents the n
       headers,
       data: { application_name: null },
     }).catch(() => {});
+    await anonymousContext.close();
     await context.close();
   }
 });
