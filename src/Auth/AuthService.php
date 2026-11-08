@@ -212,6 +212,7 @@ SQL);
                     'Too many failed login attempts. Try again in up to %d minutes.',
                     max(1, (int) ceil($windowSeconds / 60)),
                 ),
+                retryAfterSeconds: $this->loginRetryAfterSeconds($canonical, $ipAddress),
             );
         }
         $this->rateLimiter->recordDecision('login', true);
@@ -335,6 +336,52 @@ SQL);
         }
 
         return $user;
+    }
+
+    /** Remaining delay until both rolling login limits allow another attempt. */
+    private function loginRetryAfterSeconds(string $canonical, string $ipAddress): int
+    {
+        $usernamePolicy = $this->config->rateLimitPolicy('login');
+        $ipPolicy = $this->config->rateLimitPolicy('login_ip');
+        // The Nth newest failure must expire for a limit of N, even when
+        // concurrent requests recorded more than N failures. Use database time
+        // for both scopes and round their longest remaining delay upwards.
+        $statement = $this->pdo->prepare(<<<'SQL'
+WITH limits AS (
+    SELECT CAST(:username_seconds AS integer) AS username_seconds,
+           CAST(:ip_seconds AS integer) AS ip_seconds
+), blocked AS (
+    (SELECT created_at, limits.username_seconds AS window_seconds
+     FROM login_attempts CROSS JOIN limits
+     WHERE successful = FALSE
+       AND username_canonical = :username
+       AND created_at >= NOW() - make_interval(secs => limits.username_seconds)
+     ORDER BY created_at DESC
+     OFFSET :username_offset LIMIT 1)
+    UNION ALL
+    (SELECT created_at, limits.ip_seconds AS window_seconds
+     FROM login_attempts CROSS JOIN limits
+     WHERE successful = FALSE
+       AND ip_address = :ip
+       AND created_at >= NOW() - make_interval(secs => limits.ip_seconds)
+     ORDER BY created_at DESC
+     OFFSET :ip_offset LIMIT 1)
+)
+SELECT GREATEST(1, CEIL(MAX(EXTRACT(EPOCH FROM created_at - NOW()) + window_seconds)))
+FROM blocked
+SQL);
+        if ($statement === false) {
+            throw new RuntimeException('Unable to prepare login retry delay lookup.');
+        }
+        $statement->bindValue(':username_seconds', $usernamePolicy->windowSeconds, PDO::PARAM_INT);
+        $statement->bindValue(':ip_seconds', $ipPolicy->windowSeconds, PDO::PARAM_INT);
+        $statement->bindValue(':username', $canonical);
+        $statement->bindValue(':ip', $ipAddress);
+        $statement->bindValue(':username_offset', $usernamePolicy->maximumAttempts - 1, PDO::PARAM_INT);
+        $statement->bindValue(':ip_offset', $ipPolicy->maximumAttempts - 1, PDO::PARAM_INT);
+        $statement->execute();
+
+        return max(1, (int) $statement->fetchColumn());
     }
 
     private function failedAttemptCountByUsername(string $canonical, int $windowSeconds): int

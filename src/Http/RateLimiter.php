@@ -76,7 +76,8 @@ WITH updated_limit AS (
         last_rejected_at = COALESCE(EXCLUDED.last_rejected_at, rate_limit_counters.last_rejected_at),
         updated_at = NOW()
 )
-SELECT attempt_count, window_started_at
+SELECT attempt_count,
+       CEIL(EXTRACT(EPOCH FROM window_started_at - NOW()) + CAST(:window_seconds AS integer)) AS retry_after_seconds
 FROM updated_limit
 SQL);
         if ($statement === false) {
@@ -92,6 +93,7 @@ SQL);
             'maximum_rejected' => $policy->maximumAttempts,
             'maximum_allowed_at' => $policy->maximumAttempts,
             'maximum_rejected_at' => $policy->maximumAttempts,
+            'window_seconds' => $policy->windowSeconds,
         ]);
         $row = $statement->fetch();
         if (!is_array($row)) {
@@ -103,12 +105,12 @@ SQL);
             return;
         }
 
-        $startedAt = new DateTimeImmutable((string) $row['window_started_at']);
-        $retryAfter = max(1, $startedAt->getTimestamp() + $policy->windowSeconds - $now->getTimestamp());
+        $retryAfter = max(1, (int) $row['retry_after_seconds']);
         throw new ApiException(
             429,
             'rate_limited',
             sprintf('Too many requests. Try again in approximately %d seconds.', $retryAfter),
+            retryAfterSeconds: $retryAfter,
         );
     }
 
