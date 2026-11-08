@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace ChitChat\Tests\Unit;
 
 use ChitChat\Tests\Support\TestScratch;
+use ChitChat\Tests\Support\PhpHttpFixture;
 use PHPUnit\Framework\TestCase;
 
 final class AttachmentUploadHttpTest extends TestCase
@@ -25,6 +26,7 @@ use ChitChat\Upload\AttachmentUploadLimits;
 use ChitChat\Upload\AttachmentFileStore;
 use ChitChat\Upload\IncomingFile;
 use ChitChat\Tests\Support\TestScratch;
+use ChitChat\Tests\Support\PhpHttpFixture;
 putenv('ATTACHMENT_STORAGE_PATH=' . TestScratch::directory('upload-limit-storage'));
 $config = Config::fromEnvironment();
 Endpoint::run($config, static function () use ($config): ApiResult {
@@ -52,27 +54,8 @@ PHP, '.php');
         self::assertIsResource($process);
         fclose($pipes[0]);
         try {
-            $ready = false;
-            $deadline = hrtime(true) + 30_000_000_000;
-            $serverStatus = proc_get_status($process);
-            do {
-                $connection = @stream_socket_client('tcp://' . $address, $errorCode, $errorMessage, 0.1);
-                if (is_resource($connection)) {
-                    fclose($connection);
-                    $ready = true;
-                    break;
-                }
-                $serverStatus = proc_get_status($process);
-                if (!$serverStatus['running']) {
-                    break;
-                }
-                usleep(50_000);
-            } while (hrtime(true) < $deadline);
-            self::assertTrue($ready, sprintf(
-                'PHP fixture not ready at %s; process=%s; log=%s',
-                $address, json_encode($serverStatus, JSON_THROW_ON_ERROR),
-                file_get_contents($log) ?: '(empty)',
-            ));
+            PhpHttpFixture::waitUntilReady($process, $address, $log);
+
             $field = "--upload-test\r\nContent-Disposition: form-data; name=\"room_id\"\r\n\r\n1\r\n";
             $fileHeader = "--upload-test\r\nContent-Disposition: form-data; name=\"file\"; filename=\"sample.txt\"\r\nContent-Type: text/plain\r\n\r\n";
             $fileContent = str_repeat("ChitChat upload fixture.\n", 6000);

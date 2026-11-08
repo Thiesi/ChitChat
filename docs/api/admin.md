@@ -1,5 +1,10 @@
 # Administration API and browser console
 
+Username prefix searches in user administration, room-invitation administration,
+and direct-message inspection are case-insensitive and literal. For example,
+`ann_` matches `ann_member`, not `annxmember`; input cannot supply SQL wildcards.
+Existing role, visibility, pagination and result-limit rules still apply.
+
 The browser administration console is served at `/admin.php`. It is an ordinary client of the versioned JSON API and does not bypass server-side authorization.
 
 ## Privilege boundaries

@@ -8,6 +8,7 @@ use ChitChat\Auth\AuthenticatedUser;
 use ChitChat\Auth\UserRepository;
 use ChitChat\Config;
 use ChitChat\Http\ApiException;
+use ChitChat\Database\LikePattern;
 use PDO;
 use RuntimeException;
 use Throwable;
@@ -43,14 +44,14 @@ final class DirectMessageInspectionService
         $statement = $this->pdo->prepare(<<<'SQL'
 SELECT id, username
 FROM users
-WHERE lower(username) LIKE :pattern
+WHERE lower(username) LIKE :pattern ESCAPE '\'
 ORDER BY lower(username), id
 LIMIT :limit
 SQL);
         if ($statement === false) {
             throw new RuntimeException('Unable to prepare inspection user search.');
         }
-        $statement->bindValue(':pattern', strtolower($search) . '%');
+        $statement->bindValue(':pattern', LikePattern::prefix($search));
         $statement->bindValue(':limit', $limit, PDO::PARAM_INT);
         $statement->execute();
 

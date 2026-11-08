@@ -54,6 +54,18 @@ Room objects contain:
 
 `guest_access` is `none`, `read` (guests may read) or `write` (guests may also post and react). Only public rooms without a minimum age can let guests in. A guest sees only rooms whose `guest_access` is not `none`; see [Guest access](guest-access.md).
 
+### `GET /api/v1/rooms/mentionable-users.php?room_id=42&search=ann_&limit=8`
+
+Returns `{"users":[{"id":7,"username":"ann_member"}]}` for current active member
+accounts whose usernames start with the literal, case-insensitive prefix.
+An underscore in `ann_` matches an underscore, so it does not match `annxmember`.
+Only the trailing prefix wildcard is added by the server; callers cannot supply
+SQL patterns. Search is optional (empty lists starting suggestions), at most 32
+characters, and permits letters, digits, underscore, dot and hyphen. `limit`
+defaults to 8 and must be 1–25. Results exclude the viewer and guests, are ordered
+by lowercased username then ID, and require the existing room-history permission.
+The server independently authorizes mentions when sending a message.
+
 ## Room management
 
 ### `POST /api/v1/rooms/create.php`
