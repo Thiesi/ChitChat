@@ -18,7 +18,7 @@ Guests see only rooms whose `guest_access` is `read` or `write` (see [Rooms](roo
 
 - open profile cards;
 - ignore people;
-- report room messages;
+- report room messages and people linked to a readable room (room context is required for person reports);
 - read their notifications.
 
 Everything else answers HTTP 403 with `guest_not_allowed`. That includes direct messages, pings, attachment uploads, search, room management, and every account and administration endpoint. Endpoints opt in to guests explicitly, so a new endpoint is closed to them by default.

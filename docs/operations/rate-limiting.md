@@ -70,7 +70,8 @@ The `registration` policy's environment values are server defaults: a Super-Admi
 | `admin_direct_message_inspection` | 60 / 3600 s | Audited DM inspection pages |
 | `message_revision_review` | 60 / 3600 s | Audited exact-message revision review |
 | `message_report` | 10 / 3600 s | Participant submission of a room or direct-message report |
-| `moderation_queue` | 120 / 60 s | Authorization-scoped moderation queue and case reads |
+| `user_report` | 10 / 3600 s | Person-report attempts, per member or guest identity, independently of message reports |
+| `moderation_queue` | 120 / 60 s | Authorization-scoped moderation queue, case and copied-avatar reads |
 | `moderation_action` | 60 / 3600 s | Case assignment, release, dismissal, and resolution |
 | `push_subscription_management` | 20 / 3600 s | Web Push subscribe, unsubscribe, preference updates, and device revocation |
 

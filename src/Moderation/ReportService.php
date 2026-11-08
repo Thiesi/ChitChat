@@ -31,6 +31,7 @@ final class ReportService
     private const RESOLUTION_CODES = [
         'no_violation',
         'content_removed',
+        'profile_picture_removed',
         'user_warned',
         'account_restricted',
         'other',
@@ -127,10 +128,14 @@ final class ReportService
         string $status = 'open',
         ?int $beforeId = null,
         int $limit = 50,
+        ?string $subjectKind = null,
     ): array {
         $this->requireQueueAccess($actor);
         if (!in_array($status, ['open', 'in_review', 'resolved', 'dismissed', 'all'], true)) {
             throw new ApiException(400, 'validation_error', 'status is invalid.');
+        }
+        if ($subjectKind !== null && !in_array($subjectKind, ['message', 'user'], true)) {
+            throw new ApiException(400, 'validation_error', 'subject_kind must be message or user.');
         }
         if ($beforeId !== null && $beforeId < 1) {
             throw new ApiException(400, 'validation_error', 'before_id must be positive.');
@@ -141,6 +146,13 @@ final class ReportService
 
         $sql = <<<'SQL'
 SELECT c.id,
+       c.subject_kind,
+       person.username AS snapshot_username,
+       person.room_id AS snapshot_room_id,
+       person.room_name AS snapshot_room_name,
+       (person.avatar_image IS NOT NULL)::int AS snapshot_has_avatar,
+       (person.avatar_key IS DISTINCT FROM subject.avatar_key
+           OR person.avatar_updated_at IS DISTINCT FROM subject.avatar_updated_at)::int AS avatar_changed,
        c.message_kind,
        c.message_id,
        c.room_id,
@@ -157,12 +169,13 @@ SELECT c.id,
        (SELECT COUNT(*) FROM moderation_reports report WHERE report.case_id = c.id)::integer AS report_count
 FROM moderation_cases c
 JOIN users subject ON subject.id = c.subject_user_id
+LEFT JOIN moderation_user_snapshots person ON person.case_id = c.id
 LEFT JOIN users assigned ON assigned.id = c.assigned_user_id
 LEFT JOIN rooms room ON room.id = c.room_id
 WHERE (
     CAST(:review_all AS integer) = 1
     OR (
-        c.message_kind = 'room'
+        (c.message_kind = 'room' OR c.subject_kind = 'user')
         AND EXISTS (
             SELECT 1
             FROM room_members membership
@@ -176,6 +189,9 @@ SQL;
         if ($status !== 'all') {
             $sql .= "\n  AND c.status = :status";
         }
+        if ($subjectKind !== null) {
+            $sql .= "\n  AND c.subject_kind = :subject_kind";
+        }
         if ($beforeId !== null) {
             $sql .= "\n  AND c.id < :before_id";
         }
@@ -186,6 +202,9 @@ SQL;
         $statement->bindValue(':actor_id', $actor->id, PDO::PARAM_INT);
         if ($status !== 'all') {
             $statement->bindValue(':status', $status);
+        }
+        if ($subjectKind !== null) {
+            $statement->bindValue(':subject_kind', $subjectKind);
         }
         if ($beforeId !== null) {
             $statement->bindValue(':before_id', $beforeId, PDO::PARAM_INT);
@@ -249,14 +268,24 @@ SQL, 'moderation report detail');
                 ],
                 'category' => (string) $row['category'],
                 'details' => $row['details'] === null ? null : (string) $row['details'],
-                'evidence_body' => $row['evidence_body'] === null ? null : (string) $row['evidence_body'],
-                'evidence' => $this->decodeEvidence((string) $row['evidence_json']),
+                ...($case['subject_kind'] === 'message' ? [
+                    'evidence_body' => $row['evidence_body'] === null ? null : (string) $row['evidence_body'],
+                    'evidence' => $this->decodeEvidence((string) $row['evidence_json']),
+                ] : []),
                 'created_at' => (string) $row['created_at'],
             ];
         }
 
         return [
             ...$this->caseSummary($case),
+            ...($case['subject_kind'] === 'user' ? [
+                'snapshot' => [
+                    'username' => (string) $case['snapshot_username'],
+                    'avatar_url' => (int) $case['snapshot_has_avatar'] === 1
+                        ? '/api/v1/moderation/case-avatar.php?case_id=' . $caseId : null,
+                ],
+                'avatar_changed_since_report' => (int) $case['avatar_changed'] === 1,
+            ] : []),
             'resolution_note' => $case['resolution_note'] === null ? null : (string) $case['resolution_note'],
             'resolved_by' => $case['resolved_by_user_id'] === null ? null : [
                 'id' => (int) $case['resolved_by_user_id'],
@@ -264,6 +293,25 @@ SQL, 'moderation report detail');
             ],
             'reports' => $reports,
         ];
+    }
+
+    /** The caller must be able to review the exact case before any bytes are loaded. */
+    public function snapshotAvatar(AuthenticatedUser $actor, int $caseId): string
+    {
+        $case = $this->caseRow($caseId, false);
+        $this->requireCaseAccess($actor, $case);
+        if ($case['subject_kind'] !== 'user' || (int) $case['snapshot_has_avatar'] !== 1) {
+            throw new ApiException(404, 'moderation_avatar_not_found', 'This case has no profile picture snapshot.');
+        }
+        $statement = $this->prepare('SELECT avatar_image FROM moderation_user_snapshots WHERE case_id = :case_id', 'case-avatar read');
+        $statement->execute(['case_id' => $caseId]);
+        $row = $statement->fetch();
+        $value = is_array($row) ? $row['avatar_image'] : null;
+        $bytes = is_resource($value) ? stream_get_contents($value, UserReportService::MAX_SNAPSHOT_BYTES + 1) : $value;
+        if (!is_string($bytes) || $bytes === '' || strlen($bytes) > UserReportService::MAX_SNAPSHOT_BYTES) {
+            throw new ApiException(404, 'moderation_avatar_not_found', 'This case has no profile picture snapshot.');
+        }
+        return $bytes;
     }
 
     /** @return array<string, mixed> */
@@ -360,6 +408,9 @@ SQL, 'moderation assignment update');
         try {
             $case = $this->caseRow($caseId, true);
             $this->requireCaseAccess($actor, $case);
+            if ($resolutionCode === 'profile_picture_removed' && $case['subject_kind'] !== 'user') {
+                throw new ApiException(400, 'validation_error', 'This outcome is only valid for person cases.');
+            }
             if (in_array((string) $case['status'], ['resolved', 'dismissed'], true)) {
                 throw new ApiException(409, 'moderation_case_closed', 'This moderation case is already closed.');
             }
@@ -702,7 +753,8 @@ SQL, 'moderation queue authorization');
         if ($this->canReviewAll($actor)) {
             return;
         }
-        if ((string) $case['message_kind'] !== 'room' || $case['room_id'] === null) {
+        if ($case['room_id'] === null
+            || ($case['subject_kind'] === 'message' && $case['message_kind'] !== 'room')) {
             throw new ApiException(403, 'forbidden', 'You do not have access to this moderation case.');
         }
         $statement = $this->prepare(<<<'SQL'
@@ -739,6 +791,13 @@ SQL, 'moderation case authorization');
         $locking = $forUpdate ? ' FOR UPDATE OF c' : '';
         $statement = $this->prepare(<<<SQL
 SELECT c.id,
+       c.subject_kind,
+       person.username AS snapshot_username,
+       person.room_id AS snapshot_room_id,
+       person.room_name AS snapshot_room_name,
+       (person.avatar_image IS NOT NULL)::int AS snapshot_has_avatar,
+       (person.avatar_key IS DISTINCT FROM subject.avatar_key
+           OR person.avatar_updated_at IS DISTINCT FROM subject.avatar_updated_at)::int AS avatar_changed,
        c.message_kind,
        c.message_id,
        c.room_id,
@@ -758,6 +817,7 @@ SELECT c.id,
        (SELECT COUNT(*) FROM moderation_reports report WHERE report.case_id = c.id)::integer AS report_count
 FROM moderation_cases c
 JOIN users subject ON subject.id = c.subject_user_id
+LEFT JOIN moderation_user_snapshots person ON person.case_id = c.id
 LEFT JOIN users assigned ON assigned.id = c.assigned_user_id
 LEFT JOIN users resolved_by ON resolved_by.id = c.resolved_by_user_id
 LEFT JOIN rooms room ON room.id = c.room_id
@@ -778,13 +838,17 @@ SQL, 'moderation-case lookup');
      */
     private function caseSummary(array $row): array
     {
+        $person = $row['subject_kind'] === 'user';
+        $roomId = $row['room_id'] ?? ($person ? $row['snapshot_room_id'] : null);
         return [
             'id' => (int) $row['id'],
-            'message_kind' => (string) $row['message_kind'],
-            'message_id' => (int) $row['message_id'],
-            'room' => $row['room_id'] === null ? null : [
-                'id' => (int) $row['room_id'],
-                'name' => (string) $row['room_name'],
+            'subject_kind' => (string) $row['subject_kind'],
+            'message_kind' => $row['message_kind'] === null ? null : (string) $row['message_kind'],
+            'message_id' => $row['message_id'] === null ? null : (int) $row['message_id'],
+            'room' => $roomId === null ? null : [
+                'id' => (int) $roomId,
+                'name' => (string) ($row['room_name'] ?? $row['snapshot_room_name']),
+                ...($person ? ['available' => $row['room_id'] !== null] : []),
             ],
             'subject' => [
                 'id' => (int) $row['subject_user_id'],
@@ -811,8 +875,9 @@ SQL, 'moderation-case lookup');
     {
         return [
             'case_id' => (int) $case['id'],
-            'message_kind' => (string) $case['message_kind'],
-            'message_id' => (int) $case['message_id'],
+            'subject_kind' => (string) $case['subject_kind'],
+            'message_kind' => $case['message_kind'] === null ? null : (string) $case['message_kind'],
+            'message_id' => $case['message_id'] === null ? null : (int) $case['message_id'],
             'room_id' => $case['room_id'] === null ? null : (int) $case['room_id'],
             'subject_user_id' => (int) $case['subject_user_id'],
         ];
