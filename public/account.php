@@ -16,7 +16,9 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <script type="module" src="/assets/js/theme-toggle.js"></script>
   <meta name="description" content="<?= $appName ?> account and personal data">
   <title>Account · <?= $appName ?></title>
+  <link rel="stylesheet" href="/assets/css/tokens.css">
   <link rel="stylesheet" href="/assets/css/app.css">
+<?= \ChitChat\View\HeadAssets::html() ?>
   <link rel="stylesheet" href="/assets/css/components.css">
   <link rel="stylesheet" href="/assets/css/accessibility.css">
   <link rel="stylesheet" href="/assets/css/account.css">
@@ -73,6 +75,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
       <fieldset class="scheme-fieldset">
         <legend>Colour scheme</legend>
         <div class="scheme-picker" role="radiogroup" aria-label="Colour scheme">
+          <label class="scheme-option" title="Lantern"><input type="radio" name="account-scheme" value="lantern" data-scheme-radio><span class="scheme-swatch" data-swatch="lantern" aria-hidden="true"></span><span class="scheme-name">Lantern</span></label>
           <label class="scheme-option" title="Lounge"><input type="radio" name="account-scheme" value="lounge" data-scheme-radio><span class="scheme-swatch" data-swatch="lounge" aria-hidden="true"></span><span class="scheme-name">Lounge</span></label>
           <label class="scheme-option" title="Dusk"><input type="radio" name="account-scheme" value="dusk" data-scheme-radio><span class="scheme-swatch" data-swatch="dusk" aria-hidden="true"></span><span class="scheme-name">Dusk</span></label>
           <label class="scheme-option" title="Ember"><input type="radio" name="account-scheme" value="ember" data-scheme-radio><span class="scheme-swatch" data-swatch="ember" aria-hidden="true"></span><span class="scheme-name">Ember</span></label>

@@ -6,10 +6,10 @@
 .register-agreement { display: grid; gap: 0.35rem; }
 .register-agreement .checkbox-label { display: flex; align-items: flex-start; gap: 0.55rem; font-weight: 600; }
 .register-agreement .checkbox-label input { margin-top: 0.2rem; flex: none; }
-.register-agreement-links { margin: 0; color: var(--muted); font-size: 0.85rem; }
+.register-agreement-links { margin: 0; color: var(--text-muted); font-size: 0.85rem; }
 .register-agreement-links a,
 .guest-rules-note a { color: inherit; font-weight: 600; text-underline-offset: 0.15em; }
-.guest-rules-note { flex-basis: 100%; margin: 0.35rem 0 0; color: var(--muted); font-size: 0.85rem; }
+.guest-rules-note { flex-basis: 100%; margin: 0.35rem 0 0; color: var(--text-muted); font-size: 0.85rem; }
 
 /* ---- Writing paused until the person agrees ---- */
 .rules-banner {
@@ -19,9 +19,9 @@
   gap: 0.5rem 0.75rem;
   margin: 0;
   padding: 0.6rem 0.9rem;
-  border: 1px solid color-mix(in srgb, var(--warning) 55%, var(--border));
+  border: 1px solid color-mix(in srgb, var(--unsure-line) 55%, var(--line));
   border-radius: 0.8rem;
-  background: color-mix(in srgb, var(--warning) 12%, var(--surface));
+  background: color-mix(in srgb, var(--unsure-line) 12%, var(--surface));
   color: var(--text);
   font-size: 0.9rem;
 }
@@ -49,17 +49,17 @@
 .rules-dialog h2 { margin: 0; }
 .rules-dialog h2:focus { outline: none; }
 .rules-change-summary { margin: 0; font-weight: 600; }
-.rules-note { margin: 0; color: var(--muted); }
+.rules-note { margin: 0; color: var(--text-muted); }
 .rules-body {
   max-height: 50vh;
   overflow: auto;
   padding: 0.25rem 1rem;
-  border: 1px solid var(--border);
+  border: 1px solid var(--line);
   border-radius: 0.8rem;
-  background: var(--surface-2);
+  background: var(--raised);
 }
-.rules-body:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.rules-explanation { margin: 0; color: var(--muted); }
+.rules-body:focus-visible { outline: 2px solid var(--signature-text); outline-offset: 2px; }
+.rules-explanation { margin: 0; color: var(--text-muted); }
 .rules-external a { font-weight: 700; }
 .rules-leave { margin: 0; font-size: 0.85rem; }
 .rules-dialog .error-text:empty { display: none; }
@@ -76,8 +76,8 @@
 .policy-content ul,
 .policy-content ol { padding-left: 1.4rem; }
 .policy-content li + li { margin-top: 0.25em; }
-.policy-content hr { border: 0; border-top: 1px solid var(--border); margin: 1.5em 0; }
-.policy-content a { color: var(--accent-strong); text-underline-offset: 0.15em; }
+.policy-content hr { border: 0; border-top: 1px solid var(--line); margin: 1.5em 0; }
+.policy-content a { color: var(--signature-text); text-underline-offset: 0.15em; }
 .policy-content > :first-child { margin-top: 0.6em; }
 
 /* ---- Public pages: /rules.php and /privacy.php ---- */
@@ -87,10 +87,10 @@
   padding: 2.5rem 1rem 2rem;
   font-size: 1.0625rem;
 }
-.policy-header { padding-bottom: 1rem; border-bottom: 1px solid var(--border); }
-.policy-eyebrow { margin: 0 0 0.4rem; color: var(--muted); font-size: 0.78rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+.policy-header { padding-bottom: 1rem; border-bottom: 1px solid var(--line); }
+.policy-eyebrow { margin: 0 0 0.4rem; color: var(--text-muted); font-size: 0.78rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
 .policy-header h1 { margin: 0; font-family: var(--display-font); font-size: clamp(2rem, 6vw, 2.75rem); font-weight: 400; line-height: 1.1; }
-.policy-updated { margin: 0.5rem 0 0; color: var(--muted); font-size: 0.9rem; }
+.policy-updated { margin: 0.5rem 0 0; color: var(--text-muted); font-size: 0.9rem; }
 .policy-back { margin: 2rem 0 0; }
 
 /* ---- Account ---- */
@@ -98,22 +98,22 @@
 
 /* ---- Administration ---- */
 .policies-card { display: grid; gap: 1.25rem; }
-.policies-card .policy-form { padding-top: 1.25rem; border-top: 1px solid var(--border); }
+.policies-card .policy-form { padding-top: 1.25rem; border-top: 1px solid var(--line); }
 .policy-source { margin: 0; padding: 0; border: 0; display: grid; gap: 0.4rem; }
 .policy-title { padding: 0; font-size: 1.05rem; font-weight: 700; }
 .policy-source-options,
 .policy-change { display: flex; flex-wrap: wrap; gap: 0.4rem 1.25rem; }
-.policy-change { margin: 0; padding: 0.75rem 0.9rem; border: 1px solid var(--border); border-radius: 0.8rem; flex-direction: column; }
+.policy-change { margin: 0; padding: 0.75rem 0.9rem; border: 1px solid var(--line); border-radius: 0.8rem; flex-direction: column; }
 .policy-change legend { padding: 0 0.3rem; font-weight: 600; }
 .policy-summary { display: grid; gap: 0.3rem; }
 .policies-card label:has(> input[type="radio"]) { display: flex; flex-direction: row; align-items: center; gap: 0.5rem; min-height: 2.75rem; font-weight: 400; }
-.policies-card label:has(> input[type="radio"]) input { width: auto; margin: 0; padding: 0; flex: none; accent-color: var(--accent); }
+.policies-card label:has(> input[type="radio"]) input { width: auto; margin: 0; padding: 0; flex: none; accent-color: var(--signature-text); }
 .policy-markdown { width: 100%; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.9rem; line-height: 1.5; }
 .policy-preview-row { display: flex; gap: 0.5rem; }
 .policy-size { margin: 0; font-size: 0.85rem; }
-.policy-size-over { color: var(--danger); font-weight: 600; }
-.policy-preview { max-height: 24rem; overflow: auto; padding: 0.25rem 1rem; border: 1px dashed var(--border); border-radius: 0.8rem; }
-.policy-none-warning { margin: 0; padding: 0.55rem 0.8rem; border-radius: 0.6rem; background: color-mix(in srgb, var(--warning) 12%, var(--surface)); }
+.policy-size-over { color: var(--error); font-weight: 600; }
+.policy-preview { max-height: 24rem; overflow: auto; padding: 0.25rem 1rem; border: 1px dashed var(--line); border-radius: 0.8rem; }
+.policy-none-warning { margin: 0; padding: 0.55rem 0.8rem; border-radius: 0.6rem; background: color-mix(in srgb, var(--unsure-line) 12%, var(--surface)); }
 
 @media (max-width: 760px) {
   .chat-shell > .rules-banner { border-radius: 0; border-width: 0 0 1px; font-size: 0.8rem; }

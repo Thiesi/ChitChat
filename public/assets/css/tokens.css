@@ -1,0 +1,332 @@
+/*
+ * Colour, shadow and type tokens: the only place colour values live (S0, #167).
+ * A source scan (tests/js/css-literals.test.js) fails on colour literals in any
+ * other stylesheet, and tests/js/design-contrast.test.js checks every scheme.
+ *
+ * Lantern is the default (no data-scheme). Its values come from
+ * Thiesi/ChitChat-Mobile @ e9eb5b452ba23c316e1962e7993fe09010ff9933,
+ * docs/design/visual-vocabulary.md; shared values change only through paired
+ * PRs. The other schemes are opt-in variants that re-tint the same roles;
+ * semantic roles keep their meaning in all of them (honey = people, the unsure
+ * line = uncertainty, rose = error, Dusk = stewardship). Dark is the base, as
+ * before; theme.js sets data-theme and data-scheme before paint.
+ */
+
+@font-face {
+  font-family: "Bricolage Grotesque";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/assets/fonts/bricolage-grotesque-700.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Bricolage Grotesque";
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url("/assets/fonts/bricolage-grotesque-800.woff2") format("woff2");
+}
+
+/* Lantern, dark: Persimmon on Night ink. */
+:root {
+  color-scheme: dark;
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --display-font: "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
+  /* Bricolage is set tighter than body text, but less than the former serif needed. */
+  --display-tracking: -0.02em;
+  --ground: #14111C;
+  --surface: #1C1826;
+  --raised: #272233;
+  --line: #3A3347;
+  --field-line: #7D7490;
+  --text: #F2EDF7;
+  --text-muted: #A79FB4;
+  --signature: #F06A3B;
+  --on-signature: #14111C;
+  --signature-text: #F06A3B;
+  --outgoing: #8A3A1E;
+  --on-outgoing: #F2EDF7;
+  --presence: #FFB547;
+  --presence-text: #FFB547;
+  --unsure-line: #FFB547;
+  --presence-wash: #4A3A1C;
+  --steward: #A9B6FF;
+  --error: #FF8A9B;
+  --shadow: 0 12px 36px rgb(0 0 0 / 0.24);
+  --shadow-soft: rgb(0 0 0 / 0.12);
+  --shadow-strong: rgb(0 0 0 / 0.35);
+  --scrim: rgb(0 0 0 / 0.55);
+  --scrim-strong: rgb(0 0 0 / 0.68);
+}
+
+/* Lantern, light: Persimmon on Paper. */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --ground: #FBF7F1;
+  --surface: #FFFFFF;
+  --raised: #F3ECE2;
+  --line: #E6DCCF;
+  --field-line: #8C8299;
+  --text: #14111C;
+  --text-muted: #5E566B;
+  --signature: #F06A3B;
+  --on-signature: #14111C;
+  --signature-text: #B5401A;
+  --outgoing: #FFD9C4;
+  --on-outgoing: #14111C;
+  --presence: #FFB547;
+  --presence-text: #8F5B00;
+  --unsure-line: #8F5B00;
+  --presence-wash: #FFF0D2;
+  --steward: #3D52C4;
+  --error: #C4314B;
+  --shadow: 0 12px 36px rgb(60 40 20 / 0.08);
+  --shadow-soft: rgb(60 40 20 / 0.06);
+  --shadow-strong: rgb(20 17 28 / 0.22);
+  --scrim: rgb(20 17 28 / 0.45);
+  --scrim-strong: rgb(20 17 28 / 0.62);
+}
+
+/* Lounge (the previous default), dark. */
+:root[data-scheme="lounge"]:not([data-theme="light"]) {
+  --ground: #111E22;
+  --surface: #192B2F;
+  --raised: #23383C;
+  --line: #385054;
+  --field-line: #677979;
+  --text: #F2F3E9;
+  --text-muted: #AFC1BD;
+  --signature: #A8DBC5;
+  --on-signature: #142F28;
+  --signature-text: #C5EFDC;
+  --outgoing: #2E5047;
+  --on-outgoing: #F2F3E9;
+  --presence: #FFB547;
+  --presence-text: #FFB547;
+  --unsure-line: #FFB547;
+  --presence-wash: #2E5047;
+  --steward: #A9B6FF;
+  --error: #FF8F8F;
+}
+
+/* Lounge (the previous default), light. */
+:root[data-scheme="lounge"][data-theme="light"] {
+  --ground: #F1EEE5;
+  --surface: #FFFDF7;
+  --raised: #E9EEE5;
+  --line: #CCD5C9;
+  --field-line: #79877F;
+  --text: #213D38;
+  --text-muted: #4F6259;
+  --signature: #286454;
+  --on-signature: #FFFFFF;
+  --signature-text: #1B5344;
+  --outgoing: #DBEADE;
+  --on-outgoing: #213D38;
+  --presence: #FFB547;
+  --presence-text: #8F5B00;
+  --unsure-line: #8F5B00;
+  --presence-wash: #DBEADE;
+  --steward: #3D52C4;
+  --error: #C0392B;
+}
+
+/* Dusk, dark. */
+:root[data-scheme="dusk"]:not([data-theme="light"]) {
+  --ground: #141729;
+  --surface: #1C2038;
+  --raised: #262B48;
+  --line: #3A4066;
+  --field-line: #6B6F8A;
+  --text: #EEF0FB;
+  --text-muted: #B3B8D6;
+  --signature: #A9B4FF;
+  --on-signature: #161A3A;
+  --signature-text: #C9D0FF;
+  --outgoing: #333B6E;
+  --on-outgoing: #EEF0FB;
+  --presence: #FFB547;
+  --presence-text: #FFB547;
+  --unsure-line: #FFB547;
+  --presence-wash: #333B6E;
+  --steward: #A9B6FF;
+  --error: #FF8F9A;
+}
+
+/* Dusk, light. */
+:root[data-scheme="dusk"][data-theme="light"] {
+  --ground: #EEF0F8;
+  --surface: #FBFBFF;
+  --raised: #E6E9F6;
+  --line: #C9CDE4;
+  --field-line: #80849F;
+  --text: #22274A;
+  --text-muted: #50567A;
+  --signature: #3D4AA8;
+  --on-signature: #FFFFFF;
+  --signature-text: #2F3A8F;
+  --outgoing: #E1E5FB;
+  --on-outgoing: #22274A;
+  --presence: #FFB547;
+  --presence-text: #8F5B00;
+  --unsure-line: #8F5B00;
+  --presence-wash: #E1E5FB;
+  --steward: #3D52C4;
+  --error: #C0392B;
+}
+
+/* Ember, dark. */
+:root[data-scheme="ember"]:not([data-theme="light"]) {
+  --ground: #1D1612;
+  --surface: #271E18;
+  --raised: #33281F;
+  --line: #4D3D30;
+  --field-line: #7A6D61;
+  --text: #F6EDE4;
+  --text-muted: #C9B8A8;
+  --signature: #F0A868;
+  --on-signature: #2B1608;
+  --signature-text: #FFC896;
+  --outgoing: #4A3322;
+  --on-outgoing: #F6EDE4;
+  --presence: #FFB547;
+  --presence-text: #FFB547;
+  --unsure-line: #FFB547;
+  --presence-wash: #4A3322;
+  --steward: #A9B6FF;
+  --error: #FF8F8F;
+}
+
+/* Ember, light. */
+:root[data-scheme="ember"][data-theme="light"] {
+  --ground: #F6EFE6;
+  --surface: #FFFAF4;
+  --raised: #F1E6D8;
+  --line: #DFCDB9;
+  --field-line: #948173;
+  --text: #3A2618;
+  --text-muted: #6B5241;
+  --signature: #A8521C;
+  --on-signature: #FFFFFF;
+  --signature-text: #8A4214;
+  --outgoing: #F6DFC8;
+  --on-outgoing: #3A2618;
+  --presence: #FFB547;
+  --presence-text: #8F5B00;
+  --unsure-line: #8F5B00;
+  --presence-wash: #F6DFC8;
+  --steward: #3D52C4;
+  --error: #B42318;
+}
+
+/* Rosé, dark. */
+:root[data-scheme="rose"]:not([data-theme="light"]) {
+  --ground: #1D1419;
+  --surface: #281B22;
+  --raised: #34242D;
+  --line: #503745;
+  --field-line: #7C6A73;
+  --text: #F8EEF2;
+  --text-muted: #CDB5C1;
+  --signature: #F0A6C4;
+  --on-signature: #3A1226;
+  --signature-text: #FFC9DE;
+  --outgoing: #4D2C3C;
+  --on-outgoing: #F8EEF2;
+  --presence: #FFB547;
+  --presence-text: #FFB547;
+  --unsure-line: #FFB547;
+  --presence-wash: #4D2C3C;
+  --steward: #A9B6FF;
+  --error: #FF9A8F;
+}
+
+/* Rosé, light. */
+:root[data-scheme="rose"][data-theme="light"] {
+  --ground: #F7EEF1;
+  --surface: #FFFAFB;
+  --raised: #F2E4EA;
+  --line: #E0C9D3;
+  --field-line: #977E89;
+  --text: #3B1F2C;
+  --text-muted: #6C4C5B;
+  --signature: #A23B6A;
+  --on-signature: #FFFFFF;
+  --signature-text: #852D56;
+  --outgoing: #F7DBE7;
+  --on-outgoing: #3B1F2C;
+  --presence: #FFB547;
+  --presence-text: #8F5B00;
+  --unsure-line: #8F5B00;
+  --presence-wash: #F7DBE7;
+  --steward: #3D52C4;
+  --error: #B42318;
+}
+
+/* High contrast, dark: the accessibility palette. */
+:root[data-scheme="contrast"]:not([data-theme="light"]) {
+  --ground: #000000;
+  --surface: #0A0A0A;
+  --raised: #1C1C1C;
+  --line: #FFFFFF;
+  --field-line: #FFFFFF;
+  --text: #FFFFFF;
+  --text-muted: #E6E6E6;
+  --signature: #FFD60A;
+  --on-signature: #000000;
+  --signature-text: #FFE45C;
+  --outgoing: #1C1C1C;
+  --on-outgoing: #FFFFFF;
+  --presence: #FFD60A;
+  --presence-text: #FFD60A;
+  --unsure-line: #FFD60A;
+  --presence-wash: #333300;
+  --steward: #9CB4FF;
+  --error: #FF7B7B;
+  --shadow: none;
+}
+
+/* High contrast, light. */
+:root[data-scheme="contrast"][data-theme="light"] {
+  --ground: #FFFFFF;
+  --surface: #FFFFFF;
+  --raised: #EEEEEE;
+  --line: #000000;
+  --field-line: #000000;
+  --text: #000000;
+  --text-muted: #1F1F1F;
+  --signature: #0033CC;
+  --on-signature: #FFFFFF;
+  --signature-text: #002299;
+  --outgoing: #DFE6FF;
+  --on-outgoing: #000000;
+  --presence: #6B4E00;
+  --presence-text: #6B4E00;
+  --unsure-line: #6B4E00;
+  --presence-wash: #FFF3B0;
+  --steward: #0033CC;
+  --error: #B00000;
+  --shadow: none;
+}
+
+:root[data-scheme="contrast"] a:not([class]) { text-decoration: underline; }
+
+/* Midnight, dark only: CC's own true-black scheme on CCM's AMOLED values.
+   Never presented as Lantern's dark mode or as "Pure black". Light mode is Lantern light. */
+:root[data-scheme="midnight"]:not([data-theme="light"]) {
+  --ground: #000000;
+  --surface: #110E17;
+  --raised: #1F1B29;
+  --line: #2E2938;
+  --shadow: none;
+}
+
+/* Scheme picker swatches: each shows its scheme's action colour on its dark ground. */
+.scheme-swatch[data-swatch="lantern"] { background: linear-gradient(135deg, #F06A3B 50%, #14111C 50%); }
+.scheme-swatch[data-swatch="lounge"] { background: linear-gradient(135deg, #A8DBC5 50%, #111E22 50%); }
+.scheme-swatch[data-swatch="dusk"] { background: linear-gradient(135deg, #A9B4FF 50%, #141729 50%); }
+.scheme-swatch[data-swatch="ember"] { background: linear-gradient(135deg, #F0A868 50%, #1D1612 50%); }
+.scheme-swatch[data-swatch="rose"] { background: linear-gradient(135deg, #F0A6C4 50%, #1D1419 50%); }
+.scheme-swatch[data-swatch="midnight"] { background: linear-gradient(135deg, #F06A3B 50%, #000000 50%); }
+.scheme-swatch[data-swatch="contrast"] { background: linear-gradient(135deg, #FFD60A 50%, #000000 50%); }

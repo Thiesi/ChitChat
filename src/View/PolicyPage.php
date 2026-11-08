@@ -52,6 +52,7 @@ final class PolicyPage
             . self::escape((string) $document['updated_at']) . '">' . $updated . '</time></p>';
         $back = $embedded ? '' : '<p class="policy-back"><a class="secondary-button" href="/">← Back to ' . $appName . '</a></p>';
         $footer = PoweredBy::html($config);
+        $headAssets = HeadAssets::html();
 
         return <<<HTML
 <!doctype html>
@@ -62,7 +63,9 @@ final class PolicyPage
   <meta name="color-scheme" content="light dark">
   <script src="/assets/js/theme.js"></script>
   <title>{$title} · {$appName}</title>
+  <link rel="stylesheet" href="/assets/css/tokens.css">
   <link rel="stylesheet" href="/assets/css/app.css">
+{$headAssets}
   <link rel="stylesheet" href="/assets/css/components.css">
   <link rel="stylesheet" href="/assets/css/accessibility.css">
   <link rel="stylesheet" href="/assets/css/rules.css">
@@ -89,6 +92,7 @@ HTML;
     {
         $appName = self::escape(ApplicationNameService::resolve($config));
         $title = self::TITLES[$kind] ?? 'Document';
+        $headAssets = HeadAssets::html();
 
         return <<<HTML
 <!doctype html>
@@ -99,7 +103,9 @@ HTML;
   <meta name="color-scheme" content="light dark">
   <script src="/assets/js/theme.js"></script>
   <title>Not published · {$appName}</title>
+  <link rel="stylesheet" href="/assets/css/tokens.css">
   <link rel="stylesheet" href="/assets/css/app.css">
+{$headAssets}
   <link rel="stylesheet" href="/assets/css/rules.css">
 </head>
 <body>

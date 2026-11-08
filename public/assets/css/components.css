@@ -1,19 +1,19 @@
 select {
   width: 100%;
-  border: 1px solid var(--border);
+  border: 1px solid var(--field-line);
   border-radius: 0.75rem;
-  background: var(--bg);
+  background: var(--ground);
   color: var(--text);
   padding: 0.8rem 0.9rem;
 }
 
 select:focus {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--signature-text);
   outline-offset: 2px;
 }
 
 .optional-label {
-  color: var(--muted);
+  color: var(--text-muted);
   font-size: 0.78rem;
   font-weight: 400;
 }
@@ -42,9 +42,9 @@ select:focus {
   width: 2rem;
   height: 2rem;
   padding: 0;
-  border: 1px solid var(--border);
+  border: 1px solid var(--field-line);
   border-radius: 0.6rem;
-  background: var(--surface-2);
+  background: var(--raised);
   color: var(--text);
   place-items: center;
   font-size: 1.25rem;
@@ -70,7 +70,7 @@ select:focus {
 .room-dialog {
   width: min(32rem, calc(100vw - 2rem));
   padding: 0;
-  border: 1px solid var(--border);
+  border: 1px solid var(--line);
   border-radius: 1.5rem;
   background: var(--surface);
   color: var(--text);
@@ -78,7 +78,7 @@ select:focus {
 }
 
 .room-dialog::backdrop {
-  background: rgb(0 0 0 / 0.68);
+  background: var(--scrim-strong);
   backdrop-filter: blur(3px);
 }
 
@@ -102,17 +102,17 @@ select:focus {
 .moderation-quote {
   margin: 0;
   padding: 0.55rem 0.8rem;
-  border-left: 3px solid var(--accent);
+  border-left: 3px solid var(--signature-text);
   border-radius: 0 0.5rem 0.5rem 0;
-  background: var(--surface-2);
-  color: var(--muted);
+  background: var(--raised);
+  color: var(--text-muted);
   overflow-wrap: anywhere;
 }
 .moderation-quote strong { color: var(--text); }
 
 code {
   border-radius: 0.25rem;
-  background: var(--surface-2);
+  background: var(--raised);
   padding: 0.08rem 0.3rem;
 }
 
@@ -144,13 +144,13 @@ code {
   border: 0;
   border-radius: 0.55rem;
   background: transparent;
-  color: var(--muted);
+  color: var(--text-muted);
   place-items: center;
 }
 
 .emoji-button:hover,
 .emoji-button[aria-expanded="true"] {
-  background: var(--surface-2);
+  background: var(--raised);
   color: var(--text);
 }
 
@@ -163,7 +163,7 @@ code {
   width: min(22rem, calc(100vw - 2rem));
   gap: 0.5rem;
   padding: 0.6rem;
-  border: 1px solid var(--border);
+  border: 1px solid var(--line);
   border-radius: 1.1rem;
   background: var(--surface);
   box-shadow: var(--shadow);
@@ -184,7 +184,7 @@ code {
 
 .emoji-section h3 {
   margin: 0.4rem 0 0.25rem;
-  color: var(--muted);
+  color: var(--text-muted);
   font-size: 0.72rem;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -206,12 +206,12 @@ code {
 
 .emoji-option:hover,
 .emoji-option:focus-visible {
-  background: var(--surface-2);
+  background: var(--raised);
 }
 
 .emoji-empty {
   margin: 0.5rem 0;
-  color: var(--muted);
+  color: var(--text-muted);
   text-align: center;
 }
 
@@ -223,19 +223,19 @@ code {
   width: 2.25rem;
   height: 2.25rem;
   border-radius: 0.55rem;
-  color: var(--muted);
+  color: var(--text-muted);
   cursor: pointer;
   place-items: center;
 }
 
 .attachment-button:hover,
 .composer-field:has(input[type="file"]:focus-visible) .attachment-button {
-  background: var(--surface-2);
+  background: var(--raised);
   color: var(--text);
 }
 
 .composer-field:has(input[type="file"]:focus-visible) .attachment-button {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--signature-text);
   outline-offset: 2px;
 }
 
@@ -246,7 +246,7 @@ code {
 
 /* A selected file is shown below the field; the row takes no space otherwise. */
 form:has(.attachment-selection > button:not(.hidden)) .attachment-button {
-  color: var(--accent);
+  color: var(--signature-text);
 }
 
 .attachment-selection {
@@ -265,7 +265,7 @@ form:has(.attachment-selection > button:not(.hidden)) .attachment-button {
   min-width: 0;
   flex: 1;
   overflow: hidden;
-  color: var(--muted);
+  color: var(--text-muted);
   font-size: 0.82rem;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -277,9 +277,9 @@ form:has(.attachment-selection > button:not(.hidden)) .attachment-button {
   gap: 0.65rem;
   margin-top: 0.35rem;
   padding: 0.75rem;
-  border: 1px solid var(--border);
+  border: 1px solid var(--line);
   border-radius: 0.8rem;
-  background: var(--surface-2);
+  background: var(--raised);
 }
 
 .attachment-preview {
@@ -299,14 +299,14 @@ form:has(.attachment-selection > button:not(.hidden)) .attachment-button {
 
 .attachment-download {
   overflow: hidden;
-  color: var(--accent-strong);
+  color: var(--signature-text);
   font-weight: 700;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .attachment-metadata {
-  color: var(--muted);
+  color: var(--text-muted);
   font-size: 0.76rem;
   overflow-wrap: anywhere;
 }
@@ -321,16 +321,16 @@ form:has(.attachment-selection > button:not(.hidden)) .attachment-button {
 
 .danger-button {
   padding: 0.7rem 0.9rem;
-  border: 1px solid var(--danger);
+  border: 1px solid var(--error);
   border-radius: 0.75rem;
   background: transparent;
-  color: var(--danger);
+  color: var(--error);
   font: inherit;
   cursor: pointer;
 }
 
 .danger-button:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--danger) 10%, transparent);
+  background: color-mix(in srgb, var(--error) 10%, transparent);
 }
 
 .danger-button:disabled {
@@ -368,17 +368,17 @@ form:has(.attachment-selection > button:not(.hidden)) .attachment-button {
   align-items: center;
   gap: 0.35rem;
   padding: 0.35rem 0.75rem;
-  border: 1px solid var(--border);
+  border: 1px solid var(--field-line);
   border-radius: 999px;
   font-size: 0.9rem;
   cursor: pointer;
 }
-.duration-chip:has(input:checked) { border-color: var(--accent); background: var(--surface-2); font-weight: 700; }
-.duration-chip input { margin: 0; accent-color: var(--accent); }
+.duration-chip:has(input:checked) { border-color: var(--signature-text); background: var(--raised); font-weight: 700; }
+.duration-chip input { margin: 0; accent-color: var(--signature-text); }
 .duration-custom { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
 .duration-custom.hidden { display: none; }
 .duration-custom input,
 .duration-custom select { width: auto; flex: none; }
 .duration-custom input { width: 6rem; }
 .moderation-dialog .check-row { display: flex; align-items: flex-start; gap: 0.55rem; font-weight: 400; }
-.check-row input { margin-top: 0.25rem; accent-color: var(--accent); }
+.check-row input { margin-top: 0.25rem; accent-color: var(--signature-text); }

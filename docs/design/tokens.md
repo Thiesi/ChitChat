@@ -1,6 +1,6 @@
 # Lantern tokens for the web: mapping from today's CSS
 
-Status: S0 preparation (#167). Nothing here is loaded by a page yet. S0 applies it to the shipped CSS in one PR, after the #160 and #159 web UI PRs merge. Direction and decisions: #163 (phase-2 direction, revision 1, owner approval).
+Status: applied by S0 (#167). `public/assets/css/tokens.css` is now the only place colour values live. Direction and decisions: #163 (phase-2 direction, revision 1, owner approval).
 
 **Provenance.** Colour values come from Thiesi/ChitChat-Mobile @ `e9eb5b452ba23c316e1962e7993fe09010ff9933`, `docs/design/visual-vocabulary.md`. The CCM icon set comes from the same commit, `docs/design/assets/icons/`, and the identity-hue hash from its "Identity hues" section. Shared values, the mark, the icons and the hash change only through paired PRs in both repositories.
 
@@ -8,8 +8,9 @@ Status: S0 preparation (#167). Nothing here is loaded by a page yet. S0 applies 
 
 | File | What it is |
 |---|---|
-| `docs/design/lantern-tokens.css` | The design source: Lantern light and dark, plus Midnight. S0 moves these blocks into the shipped token file. |
-| `tests/js/design-contrast.test.js` | Checks every scheme against the contrast floors (text 4.5:1, boundaries 3:1, ink on identity hues 8.4:1). In S0 it switches to the shipped token file. |
+| `public/assets/css/tokens.css` | Every scheme's colour, shadow and type tokens, the fonts and the picker swatches. Lantern is the `:root` default. |
+| `tests/js/css-literals.test.js` | Fails on any colour literal outside `tokens.css`. |
+| `tests/js/design-contrast.test.js` | Checks every scheme in `tokens.css` against the contrast floors (text 4.5:1, boundaries 3:1, ink on identity hues 8.4:1). |
 | `public/assets/js/identity-hue.js` | The shared identity-hue hash. |
 | `tests/js/identity-hue.test.js` | Pins CCM's seven test vectors. |
 
@@ -48,7 +49,7 @@ Status: S0 preparation (#167). Nothing here is loaded by a page yet. S0 applies 
 | *(new)* `--radius-bubble`, `--radius-sheet`, `--radius-field`, `--radius-pill` | literals | 20px, 28px, 16px, 999px (CCM shape table). |
 | *(new)* `--target-min` | — | 44px, or 48px under `(any-pointer: coarse)` (decision #2). |
 
-**Literal colours outside the token blocks:** none in hex. Every one of the 240 hex values in the CSS sits in one of today's eleven scheme blocks. The only literals are 13 `rgb()` shadows and backdrops (`app.css`, `account.css`, `components.css`, `step-up.css`), which the two token families above replace. S0's source scan then fails on any colour literal outside the token file.
+**Literal colours outside the token blocks** (before S0): 12 hex values in the scheme-picker swatches (now in `tokens.css`) and the rest in today's eleven scheme blocks. The only literals are 13 `rgb()` shadows and backdrops (`app.css`, `account.css`, `components.css`, `step-up.css`), which the two token families above replace. S0's source scan then fails on any colour literal outside the token file.
 
 *(This corrects the phase-2 direction's estimate of "about 150 literal colours outside the token blocks". The clean-up is mostly sorting `--border` and `--accent` uses into their new roles, not chasing stray literals.)*
 

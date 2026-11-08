@@ -12,7 +12,7 @@
   gap: 1rem;
   margin-bottom: 1rem;
   padding: 1.25rem;
-  border: 1px solid var(--border);
+  border: 1px solid var(--line);
   border-radius: 1rem;
   background: var(--surface);
   box-shadow: var(--shadow);
@@ -31,11 +31,11 @@
   font-family: var(--display-font);
   font-size: clamp(2rem, 4vw, 2.75rem);
   font-weight: 400;
-  letter-spacing: -0.045em;
+  letter-spacing: var(--display-tracking);
 }
 
 .message-search-eyebrow {
-  color: var(--accent-strong);
+  color: var(--signature-text);
   font-size: 0.8rem;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -46,7 +46,7 @@
 .message-search-meta,
 .message-search-status,
 .message-search-context {
-  color: var(--muted);
+  color: var(--text-muted);
 }
 
 .message-search-actions {
@@ -60,9 +60,9 @@
   gap: 0.45rem;
   margin-bottom: 1rem;
   padding: 1rem 1.2rem;
-  border: 1px solid var(--border);
+  border: 1px solid var(--line);
   border-radius: 1rem;
-  background: var(--surface-2);
+  background: var(--raised);
 }
 
 .message-search-notice p {
@@ -76,7 +76,7 @@
   gap: 1rem;
   margin-bottom: 1rem;
   padding: 1.2rem;
-  border: 1px solid var(--border);
+  border: 1px solid var(--line);
   border-radius: 1rem;
   background: var(--surface);
   box-shadow: var(--shadow);
@@ -104,7 +104,7 @@
   display: grid;
   gap: 0.75rem;
   padding: 1rem 1.2rem;
-  border: 1px solid var(--border);
+  border: 1px solid var(--line);
   border-radius: 1rem;
   background: var(--surface);
   box-shadow: var(--shadow);
@@ -122,7 +122,7 @@
 }
 
 .message-search-result-link {
-  color: var(--accent-strong);
+  color: var(--signature-text);
   text-decoration-thickness: 0.12em;
   text-underline-offset: 0.18em;
 }
