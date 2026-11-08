@@ -24,8 +24,11 @@ final class Endpoint
                     ...($exception->status === 413 && $exception->maxBytes !== null
                         ? ['max_bytes' => $exception->maxBytes]
                         : []),
+                    ...($exception->status === 429 && $exception->retryAfterSeconds !== null
+                        ? ['retry_after_seconds' => $exception->retryAfterSeconds]
+                        : []),
                 ],
-            ], $exception->status);
+            ], $exception->status, $exception->retryAfterSeconds);
         } catch (JsonException $exception) {
             error_log($exception->getMessage());
             JsonResponse::send([

@@ -11,6 +11,21 @@ All responses are JSON. Error responses use this shape:
 }
 ```
 
+HTTP 429 errors with `rate_limited` or `login_throttled` additionally include a
+positive integer `error.retry_after_seconds` and the same value in the standard
+`Retry-After` response header (seconds, rounded up). For example:
+
+```json
+{"error":{"code":"rate_limited","message":"Too many requests. Try again in approximately 60 seconds.","retry_after_seconds":60}}
+```
+
+The delay estimates when the blocking window expires. For login it covers both
+the canonical-username and source-IP rolling limits. Concurrent attempts can
+change it; it does not guarantee the next request will succeed or authorize
+automatic replay of an operation. Older servers may omit both values; clients
+must treat an absent delay as unknown rather than parse the English message.
+Other errors, including the guest concurrency cap, do not invent a retry delay.
+
 PHP session cookies are HTTP-only. In production they must also be secure.
 
 ## CSRF bootstrap

@@ -25,6 +25,8 @@ final class RateLimiterTest extends DatabaseTestCase
         } catch (ApiException $exception) {
             self::assertSame(429, $exception->status);
             self::assertSame('rate_limited', $exception->errorCode);
+            self::assertGreaterThan(0, $exception->retryAfterSeconds);
+            self::assertLessThanOrEqual(60, $exception->retryAfterSeconds);
         }
 
         self::assertSame(
@@ -41,6 +43,24 @@ final class RateLimiterTest extends DatabaseTestCase
             ['allowed_count' => 1, 'rejected_count' => 0],
             $this->decisionCounts('room_ping'),
         );
+    }
+
+    public function testRetryDelayRoundsUpTheRemainingFixedWindow(): void
+    {
+        $limiter = new RateLimiter($this->pdo, RateLimitPolicySet::defaults()->with('room_send', 1, 60));
+        $this->pdo->beginTransaction();
+        try {
+            $limiter->consume('room_send', 'user:1');
+            $this->pdo->exec("UPDATE request_rate_limits SET window_started_at = NOW() - INTERVAL '58.2 seconds'");
+            try {
+                $limiter->consume('room_send', 'user:1');
+                self::fail('Expected rate-limit rejection.');
+            } catch (ApiException $exception) {
+                self::assertSame(2, $exception->retryAfterSeconds);
+            }
+        } finally {
+            $this->pdo->rollBack();
+        }
     }
 
     public function testExpiredWindowResetsCounter(): void
