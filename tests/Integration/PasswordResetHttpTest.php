@@ -56,6 +56,16 @@ final class PasswordResetHttpTest extends DatabaseTestCase
             self::assertNull($session['user']);
             self::assertSame(200, $this->request('old', '/api/v1/login.php',
                 ['username' => 'Root', 'password' => 'initial strong secret'])[0]);
+            $this->request('registration', '/api/v1/session.php');
+            [$status, $registered] = $this->request('registration', '/api/v1/register.php',
+                ['username' => 'NewPerson', 'password' => 'new registration secret']);
+            self::assertSame(201, $status);
+            self::assertMatchesRegularExpression('/\A[0-9A-HJKMNP-TV-Z]{4}(?:-[0-9A-HJKMNP-TV-Z]{4}){5}\z/', $registered['recovery_key']);
+            self::assertTrue($registered['user']['recovery_key']['exists']);
+            [$status, $rediscovery] = $this->request('registration', '/api/v1/session.php');
+            self::assertSame(200, $status);
+            self::assertArrayNotHasKey('recovery_key', $rediscovery);
+            self::assertSame($registered['user']['recovery_key'], $rediscovery['user']['recovery_key']);
             $proof = $this->challenge('reset');
             self::assertSame(0, $proof['bits']);
             $payload = ['username' => 'Root', 'recovery_key' => $account['recovery_key'],
@@ -140,7 +150,7 @@ final class PasswordResetHttpTest extends DatabaseTestCase
             self::assertSame((string) $error['error']['retry_after_seconds'], $this->headers['retry-after']);
             $contents = file_get_contents($log);
             self::assertIsString($contents);
-            foreach ([$account['recovery_key'], $mfaAccount['recovery_key'], $replacement, $generated,
+            foreach ([$account['recovery_key'], $mfaAccount['recovery_key'], $replacement, $generated, $registered['recovery_key'],
                 $passkey->recoveryCode, 'replacement strong secret'] as $secret) {
                 self::assertStringNotContainsString($secret, $contents);
             }
