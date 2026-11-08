@@ -99,6 +99,11 @@ async function request(path, options) {
     if (error.code === 'guest_not_allowed' && window.location.pathname !== '/') {
       window.location.assign('/');
     }
+    // A write paused until the person agrees to changed community rules:
+    // one page-wide signal, so no feature needs its own handling (rules.js).
+    if (response.status === 403 && error.code === 'rules_acceptance_required') {
+      window.dispatchEvent(new CustomEvent('chitchat:rules-required'));
+    }
     const headerRetry = Number.parseInt(response.headers.get('retry-after') ?? '', 10);
     throw new ApiError(
       response.status,

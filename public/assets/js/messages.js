@@ -8,6 +8,7 @@ import { formatDateTime } from './datetime.js';
 import { createTypingIndicator, createTypingSignal } from './typing.js';
 import { openPersonReportDialog } from './message-report-dialog.js';
 import { canReport } from './person-reports.js';
+import { startRulesGate } from './rules.js';
 
 const state = {
   user: null,
@@ -85,6 +86,7 @@ async function bootstrap() {
   state.privacy = session.privacy?.direct_messages ?? null;
   elements['messages-identity'].textContent = `Signed in as ${state.user.username}`;
   renderPrivacyNotice();
+  startRulesGate(state.user);
   elements['messages-loading'].classList.add('hidden');
   elements['messages-shell'].classList.remove('hidden');
   startEventStream();

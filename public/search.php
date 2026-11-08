@@ -66,7 +66,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
       <ol id="message-search-results" class="message-search-results"></ol>
       <button id="message-search-more" class="secondary-button message-search-more hidden" type="button">Load more results</button>
     </section>
-    <?= \ChitChat\View\PoweredBy::html() ?>
+    <?= \ChitChat\View\PoweredBy::html($config) ?>
   </main>
 
   <script type="module" src="/assets/js/message-search.js"></script>

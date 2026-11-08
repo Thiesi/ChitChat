@@ -134,7 +134,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
         </div>
       </section>
     </section>
-    <?= \ChitChat\View\PoweredBy::html() ?>
+    <?= \ChitChat\View\PoweredBy::html($config) ?>
   </main>
 
   <div id="toast-region" class="toast-region" aria-live="assertive"></div>
