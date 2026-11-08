@@ -4,6 +4,8 @@ declare(strict_types=1);
 namespace ChitChat\View;
 
 use ChitChat\Config;
+use ChitChat\Database;
+use ChitChat\Policy\PolicyService;
 use Throwable;
 
 /**
@@ -75,17 +77,21 @@ final class PolicyLinks
     }
 
     /**
-     * Reads the documents from the policy service.
+     * Reads the documents from the policy service: rules and privacy as
+     * published documents, the legal notice as an external link only.
      *
      * @return array<string, array<string, mixed>|null>
      */
     private static function read(Config $config): array
     {
-        // Rebase checkpoint: read PolicyService::publicDocument() for each kind
-        // once the #160 backend lands. Until then nothing is configured.
-        unset($config);
+        $service = new PolicyService(Database::connect($config), $config);
+        $legalNotice = $service->legalNoticeUrl();
 
-        return [];
+        return [
+            self::RULES => $service->publicDocument(self::RULES),
+            self::PRIVACY => $service->publicDocument(self::PRIVACY),
+            self::LEGAL_NOTICE => $legalNotice === null ? null : ['source' => 'external', 'url' => $legalNotice],
+        ];
     }
 
     private static function link(string $url, string $label, bool $external): string
