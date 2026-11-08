@@ -52,6 +52,8 @@ Material Symbols copy, and they are covered by this repository's BSD 2-Clause li
 | `sign-out` | Sign out | You |
 | `appearance` | Theme and appearance | You |
 | `qr` | Invite code | invite-codes.md |
+| `document` | A policy document (rules, privacy policy) | play-readiness.md §1, Activity |
+| `open-external` | Opens outside the app (browser) | play-readiness.md §1 |
 
 ## Notes
 
