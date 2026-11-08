@@ -6,6 +6,8 @@ import { attachNameCompletion } from './name-completion.js';
 import { alertUser } from './attention.js';
 import { formatDateTime } from './datetime.js';
 import { createTypingIndicator, createTypingSignal } from './typing.js';
+import { openPersonReportDialog } from './message-report-dialog.js';
+import { canReport } from './person-reports.js';
 import { startRulesGate } from './rules.js';
 
 const state = {
@@ -35,7 +37,7 @@ function bindElements() {
   for (const id of [
     'messages-loading', 'messages-shell', 'messages-identity', 'dm-privacy-text',
     'messages-error', 'dm-user-search-form', 'dm-user-search', 'dm-user-results',
-    'dm-conversation-list', 'dm-peer-name', 'dm-peer-status', 'dm-block-toggle',
+    'dm-conversation-list', 'dm-peer-name', 'dm-peer-status', 'dm-block-toggle', 'dm-report-person',
     'dm-empty-state', 'dm-message-list', 'dm-load-older', 'dm-composer', 'dm-emoji-button',
     'dm-message-input', 'dm-send', 'toast-region',
     'dm-reply-banner', 'dm-reply-banner-text', 'dm-reply-banner-cancel', 'dm-typing-indicator',
@@ -51,6 +53,7 @@ function bindEvents() {
   elements['dm-load-older'].addEventListener('click', loadOlder);
   elements['dm-composer'].addEventListener('submit', sendMessage);
   elements['dm-block-toggle'].addEventListener('click', toggleBlock);
+  elements['dm-report-person'].addEventListener('click', reportPeer);
   elements['dm-reply-banner-cancel'].addEventListener('click', clearReplyTo);
   elements['dm-message-input'].addEventListener('keydown', (event) => {
     if (event.key === 'Enter' && !event.shiftKey) {
@@ -232,6 +235,7 @@ async function selectUser(user) {
   elements['dm-peer-status'].textContent = 'Loading conversation…';
   elements['dm-composer'].classList.add('hidden');
   elements['dm-block-toggle'].classList.add('hidden');
+  elements['dm-report-person'].classList.add('hidden');
   renderConversations();
   renderMessages();
   await Promise.all([
@@ -257,6 +261,8 @@ async function loadRelationship(user = state.selectedUser) {
 function renderRelationship() {
   const user = state.selectedUser;
   const relationship = state.relationship;
+  elements['dm-report-person'].classList.toggle('hidden', !user || !relationship);
+  if (user) elements['dm-report-person'].setAttribute('aria-label', `Report ${user.username}`);
   if (!user || !relationship) {
     elements['dm-block-toggle'].classList.add('hidden');
     elements['dm-composer'].classList.add('hidden');
@@ -286,6 +292,37 @@ function renderRelationship() {
       ? 'You blocked this user. Existing history remains available.'
       : 'Direct messaging is unavailable. Existing history remains available.';
     elements['dm-composer'].classList.add('hidden');
+  }
+}
+
+// Report the person on the other side (#159). The profile says what
+// moderators would see and whether the server allows it; it decides again
+// on submit.
+async function reportPeer() {
+  const user = state.selectedUser;
+  if (!user) return;
+  const button = elements['dm-report-person'];
+  button.disabled = true;
+  clearError();
+  try {
+    const response = await apiGet(`/api/v1/users/profile.php?user_id=${encodeURIComponent(user.id)}`);
+    const profile = response.profile ?? {};
+    if (!canReport(profile)) {
+      toast('You can’t report this person from here.');
+      return;
+    }
+    openPersonReportDialog({
+      userId: user.id,
+      username: user.username,
+      hasAvatar: Boolean(profile.has_avatar),
+      roomId: null,
+      ignored: Boolean(profile.ignored),
+      blocked: Boolean(state.relationship?.blocked_by_me),
+    });
+  } catch (error) {
+    handleApiFailure(error);
+  } finally {
+    button.disabled = false;
   }
 }
 
@@ -594,3 +631,8 @@ function handleApiFailure(error) {
 function handleFatal(error) {
   elements['messages-loading'].textContent = error instanceof Error ? error.message : 'Unable to load direct messages.';
 }
+
+// "Block direct messages" after a report updates the open conversation.
+window.addEventListener('chitchat:block-changed', (event) => {
+  if (state.selectedUser?.id === event.detail?.userId) void loadRelationship(state.selectedUser);
+});
