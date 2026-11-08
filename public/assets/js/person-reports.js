@@ -63,6 +63,26 @@ export function isPersonCase(item) {
 }
 
 /**
+ * The room a person case was reported from, as the case remembers it, or
+ * null for global scope. A purged room keeps its name with available: false.
+ */
+export function caseRoom(item) {
+  const room = item?.room;
+  if (!room) return null;
+  return {
+    id: Number.isInteger(room.id) ? room.id : null,
+    name: typeof room.name === 'string' && room.name !== '' ? room.name : null,
+    available: room.available !== false,
+  };
+}
+
+/** "# The living room", or "# Old room · removed" for a purged room. */
+export function caseRoomLabel(room) {
+  const name = `# ${room.name ?? 'Unnamed room'}`;
+  return room.available ? name : `${name} · removed`;
+}
+
+/**
  * What a person case shows as evidence: the name and picture as they were at
  * the first report, and whether either has changed since.
  */

@@ -7,6 +7,8 @@ import {
   CATEGORY_LABELS,
   PROFILE_PICTURE_REMOVED,
   SUBJECT_KIND_PARAMETER,
+  caseRoom,
+  caseRoomLabel,
   isPersonCase,
   personEvidence,
   subjectKindFilter,
@@ -204,8 +206,9 @@ function renderDetail() {
   elements['moderation-case'].classList.remove('hidden');
   const person = isPersonCase(item);
   if (person) {
-    elements['moderation-case-context'].textContent = item.room
-      ? `Reported person · from # ${item.room.name ?? 'Deleted room'}`
+    const room = caseRoom(item);
+    elements['moderation-case-context'].textContent = room
+      ? `Reported person · from ${caseRoomLabel(room)}`
       : 'Reported person';
   } else {
     elements['moderation-case-context'].textContent = item.message_kind === 'room'
@@ -249,7 +252,11 @@ async function renderCaseActions(item, closed) {
   if (closed || !item.subject) return;
   const person = isPersonCase(item);
   const query = new URLSearchParams({ user_id: String(item.subject.id) });
-  if ((person || item.message_kind === 'room') && item.room?.id) query.set('room_id', String(item.room.id));
+  // A removed room scopes nothing any more: only global actions remain.
+  const scopeRoom = person ? caseRoom(item) : item.room;
+  if ((person || item.message_kind === 'room') && scopeRoom?.id && scopeRoom.available !== false) {
+    query.set('room_id', String(scopeRoom.id));
+  }
   let profile = null;
   try {
     profile = (await apiGet(`/api/v1/users/profile.php?${query.toString()}`)).profile ?? null;
@@ -340,7 +347,7 @@ function renderPersonCaseActions(item, profile) {
   const row = elements['moderation-case-action-row'];
   const name = item.subject.username;
   const options = profile?.moderation ?? null;
-  const room = item.room && options?.room ? options.room : null;
+  const room = caseRoom(item)?.available && options?.room ? options.room : null;
   const everywhere = options?.everywhere ?? null;
   const guest = options?.guest ?? null;
   const buttons = [];
@@ -607,7 +614,8 @@ async function withButton(button, callback) {
 
 function caseTitle(item) {
   if (isPersonCase(item)) {
-    const where = item.room ? `# ${item.room.name ?? 'Deleted room'}` : 'Global';
+    const room = caseRoom(item);
+    const where = room ? caseRoomLabel(room) : 'Global';
     return `Person: ${item.subject.username} · ${where}`;
   }
   const location = item.message_kind === 'room'

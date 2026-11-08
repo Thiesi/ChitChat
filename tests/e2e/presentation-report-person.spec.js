@@ -216,6 +216,28 @@ test('phones get the dialog as a bottom sheet', async ({ page }, testInfo) => {
   await page.screenshot({ path: testInfo.outputPath('report-person-phone.png') });
 });
 
+test('a person case from a removed room keeps its name, marked as removed', async ({ page }) => {
+  const removedCase = { ...personCase, id: 43, room: { id: 9, name: 'Old room', available: false } };
+  const requests = [];
+  await fixture(page, {
+    user: moderator,
+    requests,
+    profile: { ...peerProfile, moderation: { room: null, everywhere: { can_mute: true, mute: null, can_ban: false, ban: null } } },
+    overrides: {
+      'moderation/cases.php': { cases: [removedCase], has_more: false, next_before_id: null },
+      'moderation/case.php': { case: { ...removedCase, snapshot: { username: 'Rowan', avatar_url: null }, avatar_changed_since_report: false, reports: [] } },
+    },
+  });
+  const profileRequests = [];
+  page.on('request', (request) => { if (request.url().includes('/users/profile.php')) profileRequests.push(new URL(request.url())); });
+  await page.goto('/moderation.php');
+  await expect(page.locator('.moderation-case-button').first()).toContainText('Person: Rowan · # Old room · removed');
+  await expect(page.locator('#moderation-case-context')).toHaveText('Reported person · from # Old room · removed');
+  await expect(page.locator('#moderation-detail a', { hasText: 'Old room' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Mute…' })).toBeVisible();
+  expect(profileRequests.every((url) => !url.searchParams.has('room_id'))).toBe(true);
+});
+
 test('moderators review person cases with a blurred picture and person actions', async ({ page }, testInfo) => {
   const requests = [];
   await fixture(page, {
