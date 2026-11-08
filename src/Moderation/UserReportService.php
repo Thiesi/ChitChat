@@ -142,8 +142,9 @@ SQL);
     /** @return array<string,mixed> */
     private function subject(int $userId, bool $lock): array
     {
+        // Keep copied data stable while permitting FK checks by other reports/review actions.
         $statement = $this->prepare("SELECT id, username, avatar_key, avatar_updated_at FROM users WHERE id = :id AND account_state = 'active'"
-            . ($lock ? ' FOR UPDATE' : ''));
+            . ($lock ? ' FOR SHARE' : ''));
         $statement->execute(['id' => $userId]);
         $subject = $statement->fetch();
         if (!is_array($subject)) {

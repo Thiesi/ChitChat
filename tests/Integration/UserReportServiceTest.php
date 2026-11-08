@@ -270,6 +270,25 @@ final class UserReportServiceTest extends DatabaseTestCase
         self::assertGreaterThan(0, (new UserReportService($this->pdo, $this->config))->report($reporter, $subject->id, 'spam', null, null, '127.0.0.1')['id']);
     }
 
+    public function testSnapshotLockAllowsConcurrentForeignKeyChecks(): void
+    {
+        [, $subject, $reporter] = $this->people(3);
+        $other = Database::connect($this->config);
+        $other->beginTransaction();
+        // Simulates another report/audit FK check on this user while its transaction stays open.
+        $other->query('SELECT id FROM users WHERE id = ' . $subject->id . ' FOR KEY SHARE');
+        try {
+            $this->pdo->exec("SET lock_timeout = '100ms'");
+            $case = (new UserReportService($this->pdo, $this->config))->report(
+                $reporter, $subject->id, 'spam', null, null, '127.0.0.1',
+            );
+            self::assertGreaterThan(0, $case['id']);
+        } finally {
+            $other->rollBack();
+            $this->pdo->exec('SET lock_timeout = 0');
+        }
+    }
+
     public function testReportsRemainAvailableWhileRulesAcceptanceIsRequired(): void
     {
         [$root, $subject, $reporter] = $this->people(3);
