@@ -48,6 +48,14 @@ test('critical authentication and account layouts remain visually stable', async
   await loginOrRegister(page);
   // The Account page previews the date format with the current time, so pin the clock.
   await page.clock.setFixedTime(new Date('2026-10-04T12:00:00Z'));
+  // The recovery key's creation date is the real registration time; pin it too,
+  // so the line (and its wrapping at narrow widths) is the same on every day.
+  await page.route('**/api/v1/session.php', async (route) => {
+    const response = await route.fetch();
+    const body = await response.json();
+    if (body?.user?.recovery_key?.created_at) body.user.recovery_key.created_at = '2026-10-04T12:00:00Z';
+    await route.fulfill({ response, json: body });
+  });
   await page.goto('/account.php');
   await expect(page.locator('#account-shell')).toBeVisible();
   await expect(page.locator('#account-loading')).toBeHidden();
