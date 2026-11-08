@@ -12,6 +12,7 @@ use ChitChat\DirectMessage\DirectMessageInspectionService;
 use ChitChat\DirectMessage\DirectMessageMutationService;
 use ChitChat\DirectMessage\DirectMessageService;
 use ChitChat\Http\ApiException;
+use ChitChat\Http\PublicSessionMetadata;
 use ChitChat\Room\MessageService;
 use ChitChat\Room\RoomMessageMutationService;
 use ChitChat\Room\RoomService;
@@ -75,6 +76,8 @@ SQL)->fetch();
         self::assertSame(['edit', 'delete'], $metadata['revision_actions']);
         self::assertStringNotContainsString('Original room evidence', (string) $audit['metadata']);
         self::assertStringNotContainsString('Edited room evidence', (string) $audit['metadata']);
+        self::assertTrue((new PublicSessionMetadata($this->pdo, $this->config))->messageRevisionPolicy()['participant_notification']);
+        self::assertSame([$author->id], $this->revisionNotificationRecipients());
     }
 
     public function testDirectMessageInspectionPermissionDoesNotGrantRevisionReview(): void
@@ -138,6 +141,8 @@ SQL)->fetch();
         self::assertSame('Original private evidence', $review['revisions'][0]['body_before']);
         self::assertSame('Edited private evidence', $review['revisions'][0]['body_after']);
         self::assertTrue($root->hasRole('super_admin'));
+        self::assertTrue((new PublicSessionMetadata($this->pdo, $adminPolicy))->messageRevisionPolicy()['participant_notification']);
+        self::assertSame([$alice->id, $bob->id], $this->revisionNotificationRecipients());
     }
 
     public function testDisabledPolicyMissingHistoryAndShortReasonDoNotWriteReviewAudit(): void
@@ -190,6 +195,31 @@ SQL)->fetch();
         }
 
         self::assertSame($before, $this->reviewAuditCount());
+    }
+
+    public function testRevisionPolicyMatchesClosedParticipantFilteringInTheRealReviewTrigger(): void
+    {
+        $auth = new AuthService($this->pdo, $this->config);
+        $root = $auth->register('Root', 'a very secure password', '127.0.0.1');
+        $alice = $auth->register('Alice', 'another secure password', '127.0.0.2');
+        $bob = $auth->register('Bob', 'different secure password', '127.0.0.3');
+        $message = (new DirectMessageService($this->pdo))->send($alice, $bob->id, 'Original private evidence');
+        (new DirectMessageMutationService($this->pdo))->edit($alice, $message['id'], 'Edited private evidence', '127.0.0.2');
+        $this->pdo->exec("UPDATE users SET account_state = 'closed', closure_requested_at = NOW() - INTERVAL '15 days', "
+            . "closure_finalizes_at = NOW() - INTERVAL '1 day', closed_at = NOW() WHERE id = {$bob->id}");
+        $config = $this->reviewConfig(enabled: true, role: 'super_admin');
+        (new MessageRevisionReviewService($this->pdo, $config))->review(
+            $root, 'direct', $message['id'], 'Reviewing the retained historical edit', '127.0.0.1',
+        );
+        self::assertTrue((new PublicSessionMetadata($this->pdo, $config))->messageRevisionPolicy()['participant_notification']);
+        self::assertSame([$alice->id], $this->revisionNotificationRecipients());
+    }
+
+    /** @return list<int> */
+    private function revisionNotificationRecipients(): array
+    {
+        $ids = $this->pdo->query("SELECT user_id FROM account_notifications WHERE kind = 'revision_review' ORDER BY user_id")->fetchAll(\PDO::FETCH_COLUMN);
+        return array_map('intval', $ids);
     }
 
     private function reviewAuditCount(): int

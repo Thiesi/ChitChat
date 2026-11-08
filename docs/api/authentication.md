@@ -56,6 +56,10 @@ Returns the current authenticated user or `null`, plus a CSRF token and current 
 
 For an anonymous session, `user` is `null` and step-up is inactive.
 
+Public `application`, `capabilities`, and revision-notification policy metadata
+are documented in [session bootstrap](session.md). These additions are available
+before sign-in and do not change the cookie/CSRF contract.
+
 The top-level `attachments` block describes effective upload limits, MIME lists
 and separate room/direct upload quotas for signed-in members; it is `null` for
 anonymous and guest sessions. Missing means unknown on older servers. See
