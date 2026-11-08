@@ -4,7 +4,14 @@
 // for the first time, or again after it was removed, always counts as such.
 import { ApiError } from './api.js';
 import { formatDateTime } from './datetime.js';
-import { fetchAdminPolicies, previewMarkdown, saveAdminPolicy, saveLegalNoticeUrl } from './policies.js';
+import {
+  MARKDOWN_MAX_BYTES,
+  fetchAdminPolicies,
+  markdownBytes,
+  previewMarkdown,
+  saveAdminPolicy,
+  saveLegalNoticeUrl,
+} from './policies.js';
 
 const saved = {};
 
@@ -39,6 +46,7 @@ function parts(form) {
     kind: form.dataset.policy,
     source: () => form.querySelector('input[type="radio"][name$="-source"]:checked')?.value ?? 'none',
     markdown: form.querySelector('.policy-markdown'),
+    size: form.querySelector('.policy-size'),
     url: form.querySelector('.policy-url'),
     hosted: form.querySelector('.policy-hosted'),
     external: form.querySelector('.policy-external'),
@@ -51,7 +59,7 @@ function parts(form) {
     noneWarning: form.querySelector('.policy-none-warning'),
     preview: form.querySelector('.policy-preview'),
     previewButton: form.querySelector('[data-policy-preview]'),
-    error: form.querySelector('.error-text'),
+    error: form.querySelector('.error-text[role="alert"]'),
     submit: form.querySelector('button[type="submit"]'),
   };
 }
@@ -100,6 +108,8 @@ function sync(form) {
   p.first.classList.toggle('hidden', !alwaysMaterial);
   p.noneWarning.classList.toggle('hidden', publishing || !wasPublished);
 
+  renderSize(p);
+
   const path = p.meta.dataset.path;
   if (!wasPublished) {
     p.meta.textContent = 'Not published.';
@@ -114,6 +124,10 @@ async function togglePreview(form) {
   const p = parts(form);
   if (!p.preview.classList.contains('hidden')) {
     closePreview(form);
+    return;
+  }
+  if (markdownBytes(p.markdown.value) > MARKDOWN_MAX_BYTES) {
+    p.error.textContent = `The text is too long to preview: ${kilobytes(markdownBytes(p.markdown.value))} of at most ${kilobytes(MARKDOWN_MAX_BYTES)}.`;
     return;
   }
   p.previewButton.setAttribute('aria-expanded', 'true');
@@ -136,9 +150,25 @@ function closePreview(form) {
   p.previewButton.textContent = 'Preview';
 }
 
+// Shown once the text is past three quarters of the limit, so it stays quiet normally.
+function renderSize(p) {
+  const bytes = markdownBytes(p.markdown.value);
+  const near = bytes >= MARKDOWN_MAX_BYTES * 0.75;
+  p.size.classList.toggle('hidden', !near);
+  p.size.textContent = near ? `${kilobytes(bytes)} of ${kilobytes(MARKDOWN_MAX_BYTES)} used.` : '';
+  p.size.classList.toggle('policy-size-over', bytes > MARKDOWN_MAX_BYTES);
+}
+
+function kilobytes(bytes) {
+  return `${Math.ceil(bytes / 1024)} KB`;
+}
+
 function validationError(p, source) {
   if (source === 'hosted' && p.markdown.value.trim() === '') {
     return { message: 'Write the text first, or choose None.', focus: p.markdown };
+  }
+  if (source === 'hosted' && markdownBytes(p.markdown.value) > MARKDOWN_MAX_BYTES) {
+    return { message: `The text is too long: ${kilobytes(markdownBytes(p.markdown.value))} of at most ${kilobytes(MARKDOWN_MAX_BYTES)}. Shorten it, or link to a page you host elsewhere.`, focus: p.markdown };
   }
   if (source === 'external') {
     let url = null;

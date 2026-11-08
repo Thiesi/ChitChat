@@ -13,6 +13,14 @@ const ADMIN_UPDATE_ENDPOINT = '/api/v1/admin/policies/update.php';
 const ADMIN_PREVIEW_ENDPOINT = '/api/v1/admin/policies/preview.php';
 const ACCEPTED_VERSION_FIELD = 'accepted_rules_version';
 
+/** The server's limit for a hosted document, in UTF-8 bytes (not characters). */
+export const MARKDOWN_MAX_BYTES = 65536;
+export const CHANGE_SUMMARY_MAX_CHARS = 200;
+
+export function markdownBytes(text) {
+  return new TextEncoder().encode(text).length;
+}
+
 function positiveInteger(value) {
   return Number.isInteger(value) && value > 0 ? value : null;
 }

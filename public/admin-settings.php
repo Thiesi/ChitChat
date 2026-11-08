@@ -198,7 +198,8 @@ foreach ($policyForms as $kind => $form):
         </fieldset>
         <div class="policy-hosted hidden">
           <label for="<?= $kind ?>-markdown">Text <span class="optional-label">Markdown: headings, lists, links, bold and italic</span></label>
-          <textarea id="<?= $kind ?>-markdown" class="policy-markdown" rows="14" maxlength="50000" spellcheck="true"></textarea>
+          <textarea id="<?= $kind ?>-markdown" class="policy-markdown" rows="14" spellcheck="true" aria-describedby="<?= $kind ?>-size"></textarea>
+          <p id="<?= $kind ?>-size" class="policy-size admin-muted"></p>
           <div class="policy-preview-row">
             <button class="secondary-button" type="button" data-policy-preview aria-expanded="false" aria-controls="<?= $kind ?>-preview">Preview</button>
           </div>

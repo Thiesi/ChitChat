@@ -327,6 +327,14 @@ test('administrators publish rules and choose whether members agree again', asyn
   await privacy.getByRole('button', { name: 'Save privacy policy' }).click();
   await expect(privacy.locator('.error-text')).toHaveText(/starting with https:\/\//);
 
+  // The limit is in UTF-8 bytes: 30,000 "ä" are 60,000 bytes (near), 33,000 are too many.
+  await rules.getByRole('textbox', { name: /Text/ }).fill('ä'.repeat(30000));
+  await expect(rules.locator('.policy-size')).toHaveText('59 KB of 64 KB used.');
+  await rules.getByRole('textbox', { name: /Text/ }).fill('ä'.repeat(33000));
+  await rules.getByRole('button', { name: 'Save community rules' }).click();
+  await expect(rules.locator('.error-text[role="alert"]')).toHaveText(/The text is too long: 65 KB of at most 64 KB/);
+  await rules.getByRole('textbox', { name: /Text/ }).fill('## Be kind');
+
   await rules.getByRole('radio', { name: 'None' }).check();
   await expect(rules.locator('.policy-none-warning')).toBeVisible();
   await page.setViewportSize({ width: 320, height: 740 });

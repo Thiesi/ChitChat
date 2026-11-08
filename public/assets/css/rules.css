@@ -110,6 +110,8 @@
 .policies-card label:has(> input[type="radio"]) input { width: auto; margin: 0; padding: 0; flex: none; accent-color: var(--accent); }
 .policy-markdown { width: 100%; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.9rem; line-height: 1.5; }
 .policy-preview-row { display: flex; gap: 0.5rem; }
+.policy-size { margin: 0; font-size: 0.85rem; }
+.policy-size-over { color: var(--danger); font-weight: 600; }
 .policy-preview { max-height: 24rem; overflow: auto; padding: 0.25rem 1rem; border: 1px dashed var(--border); border-radius: 0.8rem; }
 .policy-none-warning { margin: 0; padding: 0.55rem 0.8rem; border-radius: 0.6rem; background: color-mix(in srgb, var(--warning) 12%, var(--surface)); }
 
