@@ -73,8 +73,9 @@ async function fillReset(page, { username = 'Jamie', key = 'k7qf 3mzd-9xhv 2trp 
 }
 
 for (const theme of ['dark', 'light']) {
-  test(`${theme}: registration shows the recovery key once, before the chat`, async ({ page, context }, testInfo) => {
-    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  test(`${theme}: registration shows the recovery key once, before the chat`, async ({ page, context, browserName }, testInfo) => {
+    // Only Chromium lets a test grant clipboard access; the other engines check the visible outcome.
+    if (browserName === 'chromium') await context.grantPermissions(['clipboard-read', 'clipboard-write']);
     await page.addInitScript((choice) => localStorage.setItem('chitchat-theme', choice), theme);
     await page.emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' });
     await page.setViewportSize({ width: 1440, height: 1000 });
@@ -96,8 +97,12 @@ for (const theme of ['dark', 'light']) {
     await page.screenshot({ path: testInfo.outputPath(`recovery-key-${theme}.png`), fullPage: true });
 
     await step.getByRole('button', { name: 'Copy' }).click();
-    await expect(step.locator('.recovery-key-status')).toHaveText('Copied.');
-    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe('K7QF-3MZD-9XHV-2TRP-W8BN-6CJA');
+    if (browserName === 'chromium') {
+      await expect(step.locator('.recovery-key-status')).toHaveText('Copied.');
+      expect(await page.evaluate(() => navigator.clipboard.readText())).toBe('K7QF-3MZD-9XHV-2TRP-W8BN-6CJA');
+    } else {
+      await expect(step.locator('.recovery-key-status')).toHaveText(/^(Copied\.|Copy didn’t work\. Select the key and copy it yourself\.)$/);
+    }
     const download = page.waitForEvent('download');
     await step.getByRole('button', { name: 'Download as text file' }).click();
     expect((await download).suggestedFilename()).toBe('chitchat-recovery-key.txt');
