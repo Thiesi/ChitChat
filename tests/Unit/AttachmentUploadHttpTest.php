@@ -53,7 +53,8 @@ PHP, '.php');
         fclose($pipes[0]);
         try {
             $ready = false;
-            $deadline = microtime(true) + 10;
+            $deadline = hrtime(true) + 30_000_000_000;
+            $serverStatus = proc_get_status($process);
             do {
                 $connection = @stream_socket_client('tcp://' . $address, $errorCode, $errorMessage, 0.1);
                 if (is_resource($connection)) {
@@ -61,16 +62,25 @@ PHP, '.php');
                     $ready = true;
                     break;
                 }
+                $serverStatus = proc_get_status($process);
+                if (!$serverStatus['running']) {
+                    break;
+                }
                 usleep(50_000);
-            } while (microtime(true) < $deadline);
-            self::assertTrue($ready, (string) file_get_contents($log));
+            } while (hrtime(true) < $deadline);
+            self::assertTrue($ready, sprintf(
+                'PHP fixture not ready at %s; process=%s; log=%s',
+                $address, json_encode($serverStatus, JSON_THROW_ON_ERROR),
+                file_get_contents($log) ?: '(empty)',
+            ));
             $field = "--upload-test\r\nContent-Disposition: form-data; name=\"room_id\"\r\n\r\n1\r\n";
             $fileHeader = "--upload-test\r\nContent-Disposition: form-data; name=\"file\"; filename=\"sample.txt\"\r\nContent-Type: text/plain\r\n\r\n";
+            $fileContent = str_repeat("ChitChat upload fixture.\n", 6000);
             foreach ([
                 [$field . "--upload-test--\r\n", 200, 0],
-                [$field . $fileHeader . str_repeat('a', 65_536) . "\r\n--upload-test--\r\n", 200, 65_536],
-                [$field . $fileHeader . str_repeat('a', 70_000) . "\r\n--upload-test--\r\n", 413, null],
-                [$field . $fileHeader . str_repeat('a', 131_072) . "\r\n--upload-test--\r\n", 413, null],
+                [$field . $fileHeader . substr($fileContent, 0, 65_536) . "\r\n--upload-test--\r\n", 200, 65_536],
+                [$field . $fileHeader . substr($fileContent, 0, 70_000) . "\r\n--upload-test--\r\n", 413, null],
+                [$field . $fileHeader . substr($fileContent, 0, 131_072) . "\r\n--upload-test--\r\n", 413, null],
             ] as [$body, $status, $fileBytes]) {
                 $context = stream_context_create(['http' => [
                     'method' => 'POST',
@@ -83,7 +93,7 @@ PHP, '.php');
                 self::assertIsString($response);
                 self::assertNotEmpty($http_response_header);
                 $payload = json_decode($response, true, 512, JSON_THROW_ON_ERROR);
-                self::assertStringContainsString((string) $status, $http_response_header[0]);
+                self::assertStringContainsString((string) $status, $http_response_header[0], $response);
                 if ($status === 200) {
                     self::assertSame([
                         'fields' => 1, 'files' => $fileBytes === 0 ? 0 : 1,
@@ -95,7 +105,9 @@ PHP, '.php');
                 }
             }
         } finally {
-            proc_terminate($process);
+            if (proc_get_status($process)['running']) {
+                proc_terminate($process);
+            }
             proc_close($process);
             TestScratch::remove($router);
             TestScratch::remove($log);
