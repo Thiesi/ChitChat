@@ -130,6 +130,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <main id="chat-shell" class="chat-shell hidden">
     <p id="chat-lockdown" class="lockdown-notice lockdown-banner hidden" role="status"><strong>Maintenance lockdown.</strong> <span data-lockdown-text></span> New sign-ins are paused; you can keep chatting.</p>
     <p class="rules-banner hidden" data-rules-gate role="status"><span><strong>The community rules have changed.</strong> Agree to keep writing.</span> <button class="secondary-button" type="button" data-rules-review>Review</button></p>
+    <p id="new-look-note" class="new-look-note hidden" role="status"><span><strong><?= $appName ?> has a new look.</strong> Prefer the previous one? Choose Lounge in <a href="/account.php#appearance-heading">Appearance</a>.</span> <button id="new-look-dismiss" class="icon-button close-button" type="button" aria-label="Dismiss">×</button></p>
     <div id="guest-banner" class="guest-banner hidden" role="status">
       <span><strong>You are visiting as <span data-guest-name></span>.</strong><span class="guest-banner-more"> Look around and join in where guests can write. Nothing is kept after you leave.</span></span>
       <a href="/?register=1">Create an account</a>

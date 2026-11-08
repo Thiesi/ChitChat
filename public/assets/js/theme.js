@@ -80,9 +80,19 @@
     }
   });
 
+  /** Whether this device (or guest visit) stores an explicit scheme choice. */
+  function hasStoredScheme() {
+    try {
+      return schemes.includes(stored(schemeKey));
+    } catch {
+      return false;
+    }
+  }
+
   window.chitchatTheme = {
     preference,
     scheme,
+    hasStoredScheme,
     schemes: [...schemes],
     set(value) {
       try {
@@ -113,6 +123,7 @@
         // Storage can be unavailable; the scheme then lasts for this page only.
       }
       applyScheme(chosen);
+      window.dispatchEvent(new CustomEvent('chitchat:scheme-chosen', { detail: { scheme: chosen } }));
     },
     /** Starts or ends a guest visit; ending it forgets the guest's choices. */
     setGuest(on) {

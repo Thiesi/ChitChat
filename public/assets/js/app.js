@@ -13,6 +13,7 @@ import { COMMANDS, SHRUG, attachCommandSuggestions, parseSlashCommand, showComma
 import { alertUser } from './attention.js';
 import { formatDateTime } from './datetime.js';
 import { guestBadge, isGuestName, markGuestAvatar } from './guest.js';
+import { renderNewLook } from './new-look.js';
 import { agreementErrorMessage, guestAgreement, registrationAgreement, renderSignedOutAgreements, startRulesGate } from './rules.js';
 
 const registrationChallenge = createRegistrationChallenge();
@@ -252,6 +253,7 @@ async function enterApplication(user) {
     }
   }
   renderGuestBanner();
+  renderNewLook(user);
   startRulesGate(user);
   elements['new-room-button'].classList.toggle('hidden', !canCreateRooms(user));
   clearAuthError();

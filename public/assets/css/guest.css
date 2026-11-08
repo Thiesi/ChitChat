@@ -33,7 +33,8 @@
 .user-button.guest-avatar svg { width: 1.2rem; height: 1.2rem; }
 
 /* The strip across the top, like the maintenance one. */
-.guest-banner {
+.guest-banner,
+.new-look-note {
   display: flex;
   align-items: center;
   gap: 0.75rem;
@@ -45,12 +46,12 @@
   color: var(--text);
   font-size: 0.9rem;
 }
-.chat-shell > .guest-banner { grid-column: 1 / -1; }
-.chat-shell:has(> .guest-banner:not(.hidden)) { grid-template-rows: auto minmax(0, 1fr); }
-.chat-shell:has(> .lockdown-banner:not(.hidden)):has(> .guest-banner:not(.hidden)) { grid-template-rows: auto auto minmax(0, 1fr); }
-.guest-banner > span { flex: 1; min-width: 0; }
-.guest-banner a { color: var(--signature-text); font-weight: 700; white-space: nowrap; }
-.guest-banner .icon-button { flex: none; }
+.chat-shell > :is(.guest-banner, .new-look-note) { grid-column: 1 / -1; }
+.chat-shell:has(> :is(.guest-banner, .new-look-note):not(.hidden)) { grid-template-rows: auto minmax(0, 1fr); }
+.chat-shell:has(> .lockdown-banner:not(.hidden)):has(> :is(.guest-banner, .new-look-note):not(.hidden)) { grid-template-rows: auto auto minmax(0, 1fr); }
+:is(.guest-banner, .new-look-note) > span { flex: 1; min-width: 0; }
+:is(.guest-banner, .new-look-note) a { color: var(--signature-text); font-weight: 700; white-space: nowrap; }
+:is(.guest-banner, .new-look-note) .icon-button { flex: none; }
 
 .guest-dm-card {
   display: grid;
@@ -97,7 +98,7 @@
 
 @media (max-width: 34rem) {
   .guest-banner-more { display: none; }
-  .chat-shell > .guest-banner { padding: 0.45rem 0.75rem; border-radius: 0; border-width: 0 0 1px; font-size: 0.8rem; }
+  .chat-shell > :is(.guest-banner, .new-look-note) { padding: 0.45rem 0.75rem; border-radius: 0; border-width: 0 0 1px; font-size: 0.8rem; }
   .guest-readonly { grid-template-columns: 1fr; }
   .guest-readonly .primary-button { justify-self: start; }
 }
