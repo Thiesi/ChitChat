@@ -1,0 +1,40 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use ChitChat\Database;
+use ChitChat\Upload\AttachmentImageBackfill;
+
+if (PHP_SAPI !== 'cli') {
+    exit(1);
+}
+
+/** @var ChitChat\Config $config */
+$config = require dirname(__DIR__) . '/bootstrap/app.php';
+$kind = 'room';
+$limit = 25;
+$after = 0;
+$dryRun = false;
+foreach (array_slice($argv, 1) as $argument) {
+    if ($argument === '--dry-run') {
+        $dryRun = true;
+    } elseif (preg_match('/\A--kind=(room|direct)\z/', $argument, $match) === 1) {
+        $kind = $match[1];
+    } elseif (preg_match('/\A--limit=([0-9]{1,3})\z/', $argument, $match) === 1 && (int) $match[1] >= 1 && (int) $match[1] <= 100) {
+        $limit = (int) $match[1];
+    } elseif (preg_match('/\A--after-id=([0-9]{1,18})\z/', $argument, $match) === 1) {
+        $after = (int) $match[1];
+    } else {
+        fwrite(STDERR, "Usage: php bin/backfill-attachment-images [--kind=room|direct] [--limit=1..100] [--after-id=N] [--dry-run]\n");
+        exit(2);
+    }
+}
+try {
+    $result = (new AttachmentImageBackfill(Database::connect($config), $config))->run($kind, $limit, $after, $dryRun);
+    fwrite(STDOUT, json_encode($result, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT) . "\n");
+    exit(0);
+} catch (Throwable $exception) {
+    fwrite(STDERR, $exception->getMessage() . "\n");
+    exit(1);
+}

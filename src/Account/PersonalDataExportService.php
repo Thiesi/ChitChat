@@ -7,6 +7,7 @@ use ChitChat\Admin\ApplicationNameService;
 use ChitChat\Audit\AuditLogger;
 use ChitChat\Auth\AuthenticatedUser;
 use ChitChat\Config;
+use ChitChat\Upload\AttachmentImageMetadata;
 use ChitChat\Policy\PolicyService;
 use PDO;
 use RuntimeException;
@@ -310,6 +311,13 @@ SELECT message.id,
        attachment.mime_type,
        attachment.size_bytes,
        attachment.sha256,
+       attachment.image_width AS image_width,
+       attachment.image_height AS image_height,
+       attachment.preview_storage_key AS preview_storage_key,
+       attachment.preview_width AS preview_width,
+       attachment.preview_height AS preview_height,
+       attachment.preview_size_bytes AS preview_size_bytes,
+       attachment.preview_sha256 AS preview_sha256,
        attachment.created_at AS attachment_created_at,
        attachment.deleted_at AS attachment_deleted_at
 FROM room_messages message
@@ -335,6 +343,7 @@ SQL, ['user_id' => $userId], 'personal-data authored room messages', fn (array $
                 'mime_type' => (string) $row['mime_type'],
                 'size_bytes' => (int) $row['size_bytes'],
                 'sha256' => (string) $row['sha256'],
+                ...AttachmentImageMetadata::publicFields($row),
                 'created_at' => (string) $row['attachment_created_at'],
                 'deleted_at' => $this->nullableString($row['attachment_deleted_at']),
             ],
@@ -456,6 +465,13 @@ SELECT message.id,
        attachment.mime_type,
        attachment.size_bytes,
        attachment.sha256,
+       attachment.image_width AS image_width,
+       attachment.image_height AS image_height,
+       attachment.preview_storage_key AS preview_storage_key,
+       attachment.preview_width AS preview_width,
+       attachment.preview_height AS preview_height,
+       attachment.preview_size_bytes AS preview_size_bytes,
+       attachment.preview_sha256 AS preview_sha256,
        attachment.created_at AS attachment_created_at,
        attachment.deleted_at AS attachment_deleted_at
 FROM direct_messages message
@@ -479,6 +495,7 @@ SQL, ['sender_id' => $userId, 'recipient_id' => $userId], 'personal-data direct 
                 'mime_type' => (string) $row['mime_type'],
                 'size_bytes' => (int) $row['size_bytes'],
                 'sha256' => (string) $row['sha256'],
+                ...AttachmentImageMetadata::publicFields($row),
                 'created_at' => (string) $row['attachment_created_at'],
                 'deleted_at' => $this->nullableString($row['attachment_deleted_at']),
             ],

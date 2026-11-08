@@ -50,7 +50,7 @@ final class AttachmentService
      *   username:?string,
      *   type:string,
      *   body:?string,
-     *   attachment:?array{id:int, name:string, mime_type:string, size_bytes:int, sha256:string, previewable:bool},
+     *   attachment:?array{id:int, name:string, mime_type:string, size_bytes:int, sha256:string, previewable:bool, width:?int, height:?int, preview:?array{width:int,height:int,mime_type:string,size_bytes:int,sha256:string}},
      *   deleted:bool,
      *   created_at:string,
      *   reply_to:?array{kind:string, message_id:int, available:bool, message:?array<string, mixed>},
@@ -116,6 +116,8 @@ final class AttachmentService
         $storagePath = $this->storagePath($storageKey);
         $this->prepareStorageDirectory($storagePath);
 
+        $imageMetadata = AttachmentImageMetadata::emptyStored();
+        $files = new AttachmentFileStore($this->config);
         $fileMoved = false;
         try {
             $file->moveTo($storagePath);
@@ -138,6 +140,8 @@ final class AttachmentService
             if ($sha256 === false) {
                 throw new RuntimeException('Unable to hash the stored attachment.');
             }
+
+            $imageMetadata = $files->imageMetadata($storagePath, $mimeType);
 
             $this->pdo->beginTransaction();
             (new PolicyService($this->pdo))->assertMayWrite($actor);
@@ -215,6 +219,7 @@ SQL);
                 throw new RuntimeException('Attachment metadata creation did not return an ID.');
             }
             $attachmentId = (int) $attachmentIdValue;
+            AttachmentImageMetadata::save($this->pdo, 'attachments', $attachmentId, $imageMetadata);
 
             $message = (new MessageService($this->pdo))->storedMessage($messageId, $actor->id);
             $this->audit->log(
@@ -248,6 +253,9 @@ SQL);
             if ($fileMoved && is_file($storagePath)) {
                 @unlink($storagePath);
             }
+            if (is_string($imageMetadata['preview_storage_key'])) {
+                $files->remove($imageMetadata['preview_storage_key']);
+            }
             throw $exception;
         }
     }
@@ -259,11 +267,12 @@ SQL);
      *   mime_type:string,
      *   size_bytes:int,
      *   sha256:string,
-     *   previewable:bool
+     *   previewable:bool, width:?int, height:?int, preview:?array{width:int,height:int,mime_type:string,size_bytes:int,sha256:string}
      * }
      */
-    public function authorizeDownload(AuthenticatedUser $actor, int $attachmentId): array
+    public function authorizeDownload(AuthenticatedUser $actor, int $attachmentId, string $variant = 'original'): array
     {
+        $variant = AttachmentVariant::normalize($variant);
         if ($attachmentId < 1) {
             throw new ApiException(400, 'validation_error', 'id must be positive.');
         }
@@ -275,6 +284,13 @@ SELECT a.room_id,
        a.mime_type,
        a.size_bytes,
        a.sha256,
+       a.image_width AS image_width,
+       a.image_height AS image_height,
+       a.preview_storage_key AS preview_storage_key,
+       a.preview_width AS preview_width,
+       a.preview_height AS preview_height,
+       a.preview_size_bytes AS preview_size_bytes,
+       a.preview_sha256 AS preview_sha256,
        a.deleted_at,
        m.deleted_at AS message_deleted_at
 FROM attachments a
@@ -311,6 +327,9 @@ SQL);
             throw new ApiException(410, 'attachment_storage_invalid', 'The attachment file failed an integrity check.');
         }
 
+        if ($variant === 'preview') {
+            return AttachmentVariant::preview(new AttachmentFileStore($this->config), $row);
+        }
         $mimeType = (string) $row['mime_type'];
         return [
             'path' => $path,
@@ -319,6 +338,7 @@ SQL);
             'size_bytes' => (int) $row['size_bytes'],
             'sha256' => (string) $row['sha256'],
             'previewable' => AttachmentPolicy::isPreviewable($mimeType),
+            ...AttachmentImageMetadata::publicFields($row),
         ];
     }
 

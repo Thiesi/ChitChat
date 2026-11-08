@@ -12,6 +12,7 @@ use ChitChat\Moderation\MuteService;
 use ChitChat\Reactions\ReactionHydrator;
 use ChitChat\Realtime\EventRepository;
 use ChitChat\Upload\AttachmentPolicy;
+use ChitChat\Upload\AttachmentImageMetadata;
 use ChitChat\Policy\PolicyService;
 use PDO;
 use RuntimeException;
@@ -42,7 +43,7 @@ final class MessageService
      *   username:?string,
      *   type:string,
      *   body:?string,
-     *   attachment:?array{id:int, name:string, mime_type:string, size_bytes:int, sha256:string, previewable:bool},
+     *   attachment:?array{id:int, name:string, mime_type:string, size_bytes:int, sha256:string, previewable:bool, width:?int, height:?int, preview:?array{width:int,height:int,mime_type:string,size_bytes:int,sha256:string}},
      *   deleted:bool,
      *   created_at:string,
      *   reply_to:?array{kind:string, message_id:int, available:bool, message:?array<string, mixed>},
@@ -102,6 +103,13 @@ SELECT m.id,
        a.mime_type AS attachment_mime_type,
        a.size_bytes AS attachment_size_bytes,
        a.sha256 AS attachment_sha256,
+       a.image_width AS attachment_image_width,
+       a.image_height AS attachment_image_height,
+       a.preview_storage_key AS attachment_preview_storage_key,
+       a.preview_width AS attachment_preview_width,
+       a.preview_height AS attachment_preview_height,
+       a.preview_size_bytes AS attachment_preview_size_bytes,
+       a.preview_sha256 AS attachment_preview_sha256,
        a.deleted_at AS attachment_deleted_at
 FROM room_messages m
 LEFT JOIN users u ON u.id = m.sender_id
@@ -182,7 +190,7 @@ SQL;
      *   username:?string,
      *   type:string,
      *   body:?string,
-     *   attachment:?array{id:int, name:string, mime_type:string, size_bytes:int, sha256:string, previewable:bool},
+     *   attachment:?array{id:int, name:string, mime_type:string, size_bytes:int, sha256:string, previewable:bool, width:?int, height:?int, preview:?array{width:int,height:int,mime_type:string,size_bytes:int,sha256:string}},
      *   deleted:bool,
      *   created_at:string,
      *   reply_to:?array{kind:string, message_id:int, available:bool, message:?array<string, mixed>},
@@ -376,7 +384,7 @@ SQL);
      *   username:?string,
      *   type:string,
      *   body:?string,
-     *   attachment:?array{id:int, name:string, mime_type:string, size_bytes:int, sha256:string, previewable:bool},
+     *   attachment:?array{id:int, name:string, mime_type:string, size_bytes:int, sha256:string, previewable:bool, width:?int, height:?int, preview:?array{width:int,height:int,mime_type:string,size_bytes:int,sha256:string}},
      *   deleted:bool,
      *   created_at:string,
      *   reply_to:?array{kind:string, message_id:int, available:bool, message:?array<string, mixed>},
@@ -402,7 +410,7 @@ SQL);
      *   username:?string,
      *   type:string,
      *   body:?string,
-     *   attachment:?array{id:int, name:string, mime_type:string, size_bytes:int, sha256:string, previewable:bool},
+     *   attachment:?array{id:int, name:string, mime_type:string, size_bytes:int, sha256:string, previewable:bool, width:?int, height:?int, preview:?array{width:int,height:int,mime_type:string,size_bytes:int,sha256:string}},
      *   deleted:bool,
      *   created_at:string,
      *   reply_to:?array{kind:string, message_id:int, available:bool, message:?array<string, mixed>},
@@ -448,6 +456,13 @@ SELECT m.id,
        a.mime_type AS attachment_mime_type,
        a.size_bytes AS attachment_size_bytes,
        a.sha256 AS attachment_sha256,
+       a.image_width AS attachment_image_width,
+       a.image_height AS attachment_image_height,
+       a.preview_storage_key AS attachment_preview_storage_key,
+       a.preview_width AS attachment_preview_width,
+       a.preview_height AS attachment_preview_height,
+       a.preview_size_bytes AS attachment_preview_size_bytes,
+       a.preview_sha256 AS attachment_preview_sha256,
        a.deleted_at AS attachment_deleted_at
 FROM room_messages m
 LEFT JOIN users u ON u.id = m.sender_id
@@ -540,7 +555,7 @@ SQL;
      *   username:?string,
      *   type:string,
      *   body:?string,
-     *   attachment:?array{id:int, name:string, mime_type:string, size_bytes:int, sha256:string, previewable:bool},
+     *   attachment:?array{id:int, name:string, mime_type:string, size_bytes:int, sha256:string, previewable:bool, width:?int, height:?int, preview:?array{width:int,height:int,mime_type:string,size_bytes:int,sha256:string}},
      *   deleted:bool,
      *   created_at:string,
      *   reply_to:?array{kind:string, message_id:int, available:bool, message:?array<string, mixed>},
@@ -565,6 +580,7 @@ SQL;
                 'size_bytes' => (int) $row['attachment_size_bytes'],
                 'sha256' => (string) $row['attachment_sha256'],
                 'previewable' => AttachmentPolicy::isPreviewable($mimeType),
+                ...AttachmentImageMetadata::publicFields($row, 'attachment_'),
             ];
         }
 

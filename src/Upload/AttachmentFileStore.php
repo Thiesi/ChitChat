@@ -8,6 +8,7 @@ use ChitChat\Http\ApiException;
 use finfo;
 use RuntimeException;
 
+/** @phpstan-import-type StoredImage from AttachmentImageMetadata */
 final class AttachmentFileStore
 {
     private readonly int $maxBytes;
@@ -24,7 +25,8 @@ final class AttachmentFileStore
      *   mime_type:string,
      *   size_bytes:int,
      *   sha256:string,
-     *   previewable:bool
+     *   previewable:bool,
+     *   image:StoredImage
      * }
      */
     public function store(IncomingFile $file): array
@@ -82,6 +84,7 @@ final class AttachmentFileStore
                 'size_bytes' => $actualSize,
                 'sha256' => $sha256,
                 'previewable' => AttachmentPolicy::isPreviewable($mimeType),
+                'image' => $this->imageMetadata($path, $mimeType),
             ];
         } catch (\Throwable $exception) {
             @unlink($path);
@@ -107,6 +110,38 @@ final class AttachmentFileStore
         return $storageKey;
     }
 
+    /** @return StoredImage */
+    public function imageMetadata(string $path, string $mimeType): array
+    {
+        $rendered = (new ImagePreview())->create($path, $mimeType);
+        $metadata = AttachmentImageMetadata::emptyStored();
+        $metadata['image_width'] = $rendered['width'];
+        $metadata['image_height'] = $rendered['height'];
+        if ($rendered['bytes'] === null) {
+            return $metadata;
+        }
+        try {
+            $key = $this->storeBytes($rendered['bytes']);
+        } catch (\Throwable) {
+            return $metadata; // Optional rendition failure never rejects an accepted original.
+        }
+        $metadata['preview_storage_key'] = $key;
+        $metadata['preview_width'] = $rendered['preview_width'];
+        $metadata['preview_height'] = $rendered['preview_height'];
+        $metadata['preview_size_bytes'] = strlen($rendered['bytes']);
+        $metadata['preview_sha256'] = hash('sha256', $rendered['bytes']);
+        return $metadata;
+    }
+
+    /** @param array<string,mixed> $stored */
+    public function removeStored(array $stored): void
+    {
+        $this->remove((string) $stored['storage_key']);
+        $image = $stored['image'] ?? null;
+        if (is_array($image) && is_string($image['preview_storage_key'] ?? null)) {
+            $this->remove($image['preview_storage_key']);
+        }
+    }
     public function resolve(string $storageKey, int $expectedSize): string
     {
         $path = $this->pathForKey($storageKey);
