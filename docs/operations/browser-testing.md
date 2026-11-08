@@ -54,6 +54,8 @@ Emulation cannot prove behavior with real browser zoom, Windows contrast themes,
 
 `presentation.spec.js` exercises the actual PHP templates and JavaScript with intercepted API responses. It checks both themes with axe-core, desktop and narrow layouts down to 320 CSS pixels, keyboard authentication tabs, replies, emoji, the mobile menu, empty conversations, long installation names, reduced motion, and forced-color focus. It writes review screenshots into the Playwright output directory and makes no database writes. These checks complement the real-backend journeys; they do not verify authentication, persistence, or realtime delivery.
 
+`presentation-rules.spec.js` does the same for community rules and the privacy policy: agreeing at registration and guest start, the stale-version message, the dialog, banner and paused composer after a change (rooms and direct messages), external rules, the Account card, the administration card, and the page shown for an unpublished document. With nothing configured, it checks that registration and the footer stay exactly as before.
+
 With the application server running, use:
 
 ```sh

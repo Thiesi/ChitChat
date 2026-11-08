@@ -127,7 +127,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
     </section>
 
     <p id="privacy-notifications-error" class="error-text" role="alert"></p>
-    <?= \ChitChat\View\PoweredBy::html() ?>
+    <?= \ChitChat\View\PoweredBy::html($config) ?>
   </main>
 
   <script type="module" src="/assets/js/push-notifications.js"></script>

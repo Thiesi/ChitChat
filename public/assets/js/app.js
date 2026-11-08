@@ -13,6 +13,7 @@ import { COMMANDS, SHRUG, attachCommandSuggestions, parseSlashCommand, showComma
 import { alertUser } from './attention.js';
 import { formatDateTime } from './datetime.js';
 import { guestBadge, isGuestName, markGuestAvatar } from './guest.js';
+import { agreementErrorMessage, guestAgreement, registrationAgreement, renderSignedOutAgreements, startRulesGate } from './rules.js';
 
 const registrationChallenge = createRegistrationChallenge();
 const guestChallenge = createRegistrationChallenge('/api/v1/guest/challenge.php');
@@ -200,6 +201,7 @@ async function bootstrap() {
   state.shareTyping = session.share_typing !== false;
   renderLockdown(session.lockdown);
   renderSignInProviders(session.sign_in_providers);
+  renderSignedOutAgreements(session);
   state.guestAccess = session.guest_access === true;
   elements['app-loading'].classList.add('hidden');
 
@@ -250,6 +252,7 @@ async function enterApplication(user) {
     }
   }
   renderGuestBanner();
+  startRulesGate(user);
   elements['new-room-button'].classList.toggle('hidden', !canCreateRooms(user));
   clearAuthError();
   presence.start();
@@ -292,8 +295,10 @@ async function submitRegistration(event) {
   clearAuthError();
 
   try {
+    const agreement = registrationAgreement();
     const proof = await registrationChallenge.solution();
     const details = {
+      ...agreement,
       username: elements['register-username'].value,
       birth_date: elements['register-birth-date'].value || null,
       website: elements['register-website'].value,
@@ -312,7 +317,9 @@ async function submitRegistration(event) {
     // Every submission consumes the challenge, so prepare a fresh one.
     registrationChallenge.reset();
     registrationChallenge.prepare().catch(() => {});
-    showAuthError(error);
+    const rulesMessage = await agreementErrorMessage(error);
+    if (rulesMessage) elements['auth-error'].textContent = rulesMessage;
+    else showAuthError(error);
   } finally {
     setFormBusy(elements['register-form'], false);
   }
@@ -328,12 +335,15 @@ async function startGuest(event) {
   try {
     const proof = await guestChallenge.solution();
     const response = await apiPost('/api/v1/guest/start.php', {
+      ...guestAgreement(),
       challenge_nonce: proof?.nonce ?? null,
       challenge_solution: proof?.solution ?? null,
     });
     await enterApplication(response.user);
   } catch (error) {
-    showAuthError(error);
+    const rulesMessage = await agreementErrorMessage(error, { guest: true });
+    if (rulesMessage) elements['auth-error'].textContent = rulesMessage;
+    else showAuthError(error);
     event?.target?.focus?.();
   } finally {
     // Each attempt uses up its puzzle.
@@ -375,6 +385,7 @@ async function leaveGuestVisit() {
   const session = await apiGet('/api/v1/session.php');
   setCsrfToken(session.csrf_token);
   state.guestAccess = session.guest_access === true;
+  renderSignedOutAgreements(session);
 }
 
 function consumeRegisterParameter() {

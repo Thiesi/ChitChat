@@ -18,6 +18,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <link rel="stylesheet" href="/assets/css/app.css">
   <link rel="stylesheet" href="/assets/css/components.css">
   <link rel="stylesheet" href="/assets/css/admin.css">
+  <link rel="stylesheet" href="/assets/css/rules.css">
 </head>
 <body>
   <div id="settings-loading" class="app-loading" role="status">Loading operational settings…</div>
@@ -155,6 +156,81 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
       </section>
     </form>
 
+    <section class="admin-card settings-wide policies-card" aria-labelledby="policies-heading">
+      <h2 id="policies-heading">Rules and privacy</h2>
+      <p class="admin-muted">
+        Publish this installation's community rules and privacy policy. Write them here in Markdown, or link to a page you
+        host elsewhere. Members agree to the rules when they register; the privacy policy is linked, never ticked.
+      </p>
+      <p id="policies-unavailable" class="admin-muted hidden">Rules and privacy settings aren't available on this server yet.</p>
+<?php
+$policyForms = [
+    'rules' => [
+        'title' => 'Community rules',
+        'help' => 'Members agree to these when they register, and again when you mark a change as one they must agree to. Guests agree when they start a visit.',
+        'path' => '/rules.php',
+        'small' => 'Small fix (typo, wording): don’t ask anyone again',
+        'material' => 'Members must agree again',
+        'first' => 'Publishing asks every member to agree once.',
+        'none' => 'Members will no longer be asked to agree to any rules.',
+    ],
+    'privacy' => [
+        'title' => 'Privacy policy',
+        'help' => 'Linked on the sign-in page, at registration and in every page footer.',
+        'path' => '/privacy.php',
+        'small' => 'Small fix (typo, wording): don’t tell anyone',
+        'material' => 'Tell members about the change (a notification, nothing to agree to)',
+        'first' => 'Publishing tells every member that a privacy policy is now available.',
+        'none' => 'The privacy policy will no longer be linked anywhere.',
+    ],
+];
+foreach ($policyForms as $kind => $form):
+?>
+      <form class="policy-form form-stack" data-policy="<?= $kind ?>" novalidate>
+        <fieldset class="policy-source">
+          <legend class="policy-title"><?= $form['title'] ?></legend>
+          <p class="admin-muted"><?= $form['help'] ?></p>
+          <div class="policy-source-options">
+            <label><input type="radio" name="<?= $kind ?>-source" value="none"> None</label>
+            <label><input type="radio" name="<?= $kind ?>-source" value="hosted"> Write it here</label>
+            <label><input type="radio" name="<?= $kind ?>-source" value="external"> Link to another site</label>
+          </div>
+        </fieldset>
+        <div class="policy-hosted hidden">
+          <label for="<?= $kind ?>-markdown">Text <span class="optional-label">Markdown: headings, lists, links, bold and italic</span></label>
+          <textarea id="<?= $kind ?>-markdown" class="policy-markdown" rows="14" maxlength="50000" spellcheck="true"></textarea>
+          <div class="policy-preview-row">
+            <button class="secondary-button" type="button" data-policy-preview aria-expanded="false" aria-controls="<?= $kind ?>-preview">Preview</button>
+          </div>
+          <div id="<?= $kind ?>-preview" class="policy-preview policy-content hidden" aria-live="polite" tabindex="0" aria-label="Preview of the <?= strtolower($form['title']) ?>"></div>
+        </div>
+        <div class="policy-external hidden">
+          <label for="<?= $kind ?>-url">Address of the page</label>
+          <input id="<?= $kind ?>-url" class="policy-url" type="url" inputmode="url" placeholder="https://example.org/<?= $kind ?>" autocomplete="off">
+        </div>
+        <p class="policy-meta admin-muted" data-path="<?= $form['path'] ?>"></p>
+        <fieldset class="policy-change hidden">
+          <legend>When you save a change</legend>
+          <label><input type="radio" name="<?= $kind ?>-material" value="0" checked> <?= $form['small'] ?></label>
+          <label><input type="radio" name="<?= $kind ?>-material" value="1"> <?= $form['material'] ?></label>
+          <label class="policy-summary hidden">What changed <span class="optional-label">optional, shown to members</span>
+            <input class="policy-summary-input" type="text" maxlength="200" autocomplete="off">
+          </label>
+        </fieldset>
+        <p class="policy-first admin-muted hidden"><?= $form['first'] ?></p>
+        <p class="policy-none-warning hidden" role="status"><?= $form['none'] ?></p>
+        <p class="error-text" role="alert"></p>
+        <button class="secondary-button" type="submit">Save <?= strtolower($form['title']) ?></button>
+      </form>
+<?php endforeach; ?>
+      <form id="legal-notice-form" class="policy-form form-stack" novalidate>
+        <label for="legal-notice-url" class="policy-title">Legal notice <span class="optional-label">optional link, for example an imprint</span></label>
+        <input id="legal-notice-url" type="url" inputmode="url" placeholder="https://example.org/imprint" autocomplete="off">
+        <p class="error-text" role="alert"></p>
+        <button class="secondary-button" type="submit">Save legal notice link</button>
+      </form>
+    </section>
+
     <form id="registration-protection-form">
       <section class="admin-card form-stack settings-wide">
         <h2>Registration protection</h2>
@@ -183,10 +259,11 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
       </section>
     </form>
     </div>
-    <?= \ChitChat\View\PoweredBy::html() ?>
+    <?= \ChitChat\View\PoweredBy::html($config) ?>
   </main>
 
   <div id="toast-region" class="toast-region" aria-live="assertive"></div>
   <script type="module" src="/assets/js/admin-settings.js"></script>
+  <script type="module" src="/assets/js/admin-policies.js"></script>
 </body>
 </html>
