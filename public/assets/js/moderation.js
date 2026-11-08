@@ -1,7 +1,16 @@
 import { ApiError, apiGet, apiPost, setCsrfToken } from './api.js';
 import { nameButton } from './name-menu.js';
 import { formatDateTime } from './datetime.js';
-import { chooseRestriction, confirmAction } from './moderation-tools.js';
+import { chooseGuestBlock, chooseRestriction, confirmAction } from './moderation-tools.js';
+import { refreshPhoto } from './avatar.js';
+import {
+  CATEGORY_LABELS,
+  PROFILE_PICTURE_REMOVED,
+  SUBJECT_KIND_PARAMETER,
+  isPersonCase,
+  personEvidence,
+  subjectKindFilter,
+} from './person-reports.js';
 
 const state = {
   user: null,
@@ -46,6 +55,11 @@ function bindElements() {
     'moderation-resolve',
     'moderation-closed',
     'moderation-closed-summary',
+    'moderation-person-evidence',
+    'person-evidence-picture',
+    'person-evidence-then',
+    'person-evidence-now',
+    'person-evidence-changed',
     'toast-region',
   ]) {
     const element = document.getElementById(id);
@@ -56,6 +70,9 @@ function bindElements() {
 
 function bindEvents() {
   elements['moderation-filter'].addEventListener('change', () => loadCases(true));
+  for (const radio of document.querySelectorAll('input[name="moderation-kind"]')) {
+    radio.addEventListener('change', () => loadCases(true));
+  }
   elements['moderation-more'].addEventListener('click', () => loadCases(false));
   elements['moderation-claim'].addEventListener('click', () => updateAssignment(true));
   elements['moderation-release'].addEventListener('click', () => updateAssignment(false));
@@ -89,6 +106,8 @@ async function loadCases(reset) {
       status: elements['moderation-filter'].value,
       limit: '50',
     });
+    const kind = subjectKindFilter(document.querySelector('input[name="moderation-kind"]:checked')?.value);
+    if (kind) parameters.set(SUBJECT_KIND_PARAMETER, kind);
     if (!reset && state.beforeId !== null) parameters.set('before_id', String(state.beforeId));
     const response = await apiGet(`/api/v1/moderation/cases.php?${parameters.toString()}`);
     const incoming = Array.isArray(response.cases) ? response.cases : [];
@@ -131,7 +150,13 @@ function renderCases() {
 
     const title = document.createElement('span');
     title.className = 'moderation-case-title';
-    title.textContent = caseTitle(item);
+    if (isPersonCase(item)) {
+      const glyph = document.createElement('span');
+      glyph.className = 'person-case-glyph';
+      glyph.setAttribute('aria-hidden', 'true');
+      title.append(glyph);
+    }
+    title.append(caseTitle(item));
 
     const meta = document.createElement('span');
     meta.className = 'moderation-case-meta';
@@ -177,11 +202,21 @@ function renderDetail() {
 
   elements['moderation-empty'].classList.add('hidden');
   elements['moderation-case'].classList.remove('hidden');
-  elements['moderation-case-context'].textContent = item.message_kind === 'room'
-    ? `Room message · # ${item.room?.name ?? 'Deleted room'}`
-    : 'Participant-submitted direct message';
+  const person = isPersonCase(item);
+  if (person) {
+    elements['moderation-case-context'].textContent = item.room
+      ? `Reported person · from # ${item.room.name ?? 'Deleted room'}`
+      : 'Reported person';
+  } else {
+    elements['moderation-case-context'].textContent = item.message_kind === 'room'
+      ? `Room message · # ${item.room?.name ?? 'Deleted room'}`
+      : 'Participant-submitted direct message';
+  }
   elements['moderation-detail-title'].replaceChildren(`Case #${item.id}: `, nameButton(item.subject));
-  elements['moderation-case-meta'].textContent = `${formatStatus(item.status)} · message #${item.message_id} · first reported ${formatDateTime(item.first_reported_at)}`;
+  elements['moderation-case-meta'].textContent = person
+    ? `${formatStatus(item.status)} · first reported ${formatDateTime(item.first_reported_at)}`
+    : `${formatStatus(item.status)} · message #${item.message_id} · first reported ${formatDateTime(item.first_reported_at)}`;
+  renderPersonEvidence(item);
 
   const closed = ['resolved', 'dismissed'].includes(item.status);
   const assignedToMe = item.assigned_to?.id === state.user?.id;
@@ -190,7 +225,9 @@ function renderDetail() {
   elements['moderation-resolution-form'].classList.toggle('hidden', closed);
   elements['moderation-closed'].classList.toggle('hidden', !closed);
   elements['moderation-resolution-note'].value = '';
-  elements['moderation-resolution-code'].value = 'content_removed';
+  elements['moderation-resolution-code'].value = person ? 'user_warned' : 'content_removed';
+  elements['moderation-resolution-code'].querySelector(`option[value="${PROFILE_PICTURE_REMOVED}"]`).hidden = !person;
+  elements['moderation-resolution-code'].querySelector('option[value="content_removed"]').hidden = person;
 
   if (closed) {
     const resolver = item.resolved_by?.username ? ` by ${item.resolved_by.username}` : '';
@@ -210,15 +247,21 @@ async function renderCaseActions(item, closed) {
   section.classList.add('hidden');
   row.replaceChildren();
   if (closed || !item.subject) return;
+  const person = isPersonCase(item);
   const query = new URLSearchParams({ user_id: String(item.subject.id) });
-  if (item.message_kind === 'room' && item.room?.id) query.set('room_id', String(item.room.id));
-  let options = null;
+  if ((person || item.message_kind === 'room') && item.room?.id) query.set('room_id', String(item.room.id));
+  let profile = null;
   try {
-    options = (await apiGet(`/api/v1/users/profile.php?${query.toString()}`)).profile?.moderation ?? null;
+    profile = (await apiGet(`/api/v1/users/profile.php?${query.toString()}`)).profile ?? null;
   } catch {
     return;
   }
   if (state.selectedCase?.id !== item.id) return;
+  if (person) {
+    renderPersonCaseActions(item, profile);
+    return;
+  }
+  const options = profile?.moderation ?? null;
   const name = item.subject.username;
   const room = options?.room ?? null;
   const everywhere = options?.everywhere ?? null;
@@ -290,6 +333,148 @@ async function renderCaseActions(item, closed) {
   section.classList.toggle('hidden', buttons.length === 0);
 }
 
+// Person cases (#159): each action appears only where its own authorization
+// allows it; seeing the evidence never implies any of them.
+function renderPersonCaseActions(item, profile) {
+  const section = elements['moderation-case-actions'];
+  const row = elements['moderation-case-action-row'];
+  const name = item.subject.username;
+  const options = profile?.moderation ?? null;
+  const room = item.room && options?.room ? options.room : null;
+  const everywhere = options?.everywhere ?? null;
+  const guest = options?.guest ?? null;
+  const buttons = [];
+
+  if (profile?.can_remove_avatar && profile?.has_avatar) {
+    buttons.push(caseActionButton('Remove profile picture', async () => {
+      const choice = await confirmAction({
+        title: `Remove ${name}'s profile picture?`,
+        text: `${name} is told, it is recorded in the audit log, and the case closes as profile picture removed.`,
+        confirmLabel: 'Remove picture',
+        announce: null,
+      });
+      if (!choice) return;
+      await apiPost('/api/v1/account/avatar/remove.php', { user_id: item.subject.id });
+      refreshPhoto(item.subject.id);
+      await closeCaseAs(item, PROFILE_PICTURE_REMOVED, 'Profile picture removed.');
+    }));
+  }
+  const muteRoom = room?.can_mute && !room.mute ? room : null;
+  if (!guest && (muteRoom || (everywhere?.can_mute && !everywhere.mute))) {
+    buttons.push(caseActionButton('Mute…', async () => {
+      const choice = await chooseRestriction({
+        kind: 'mute',
+        title: muteRoom ? `Mute ${name} in #${muteRoom.name}?` : `Mute ${name} everywhere?`,
+        confirmLabel: `Mute ${name}`,
+        reasonHint: `optional, shown to ${name} and kept in the audit log`,
+        effect: (span) => muteRoom
+          ? `${name} can still read #${muteRoom.name} but cannot post there ${span}. ${name} is told.`
+          : `${name} cannot post in any room or send direct messages ${span}. ${name} is told.`,
+        announce: muteRoom ? (span) => `${name} was muted in this room ${span}.` : null,
+        formatUntil: (date) => formatDateTime(date),
+      });
+      if (!choice) return false;
+      await apiPost('/api/v1/moderation/mute.php', {
+        user_id: item.subject.id,
+        room_id: muteRoom ? muteRoom.id : null,
+        expires_at: choice.expiresAt,
+        reason: choice.reason || `Report case #${item.id}`,
+        announce: choice.announce,
+      });
+      await closeCaseAs(item, 'account_restricted', `${name} muted.`);
+      return true;
+    }));
+  }
+  if (!guest && everywhere?.can_ban && !everywhere.ban) {
+    buttons.push(caseActionButton('Ban…', async () => {
+      const choice = await chooseRestriction({
+        kind: 'ban',
+        title: `Ban ${name}?`,
+        confirmLabel: `Ban ${name}`,
+        reasonHint: 'optional, kept with the ban and in the audit log',
+        effect: (span) => `${name} is signed out at once and cannot sign in ${span}.`,
+        announce: null,
+        formatUntil: (date) => formatDateTime(date),
+      });
+      if (!choice) return false;
+      await apiPost('/api/v1/admin/ban.php', {
+        target_user_id: item.subject.id,
+        reason: choice.reason || `Report case #${item.id}`,
+        expires_at: choice.expiresAt,
+        room_id: null,
+        announce: false,
+      });
+      await closeCaseAs(item, 'account_restricted', `${name} banned.`);
+      return true;
+    }));
+  }
+  if (guest?.can_end) {
+    buttons.push(caseActionButton('End guest session', async () => {
+      const choice = await confirmAction({
+        title: `End ${name}'s visit?`,
+        text: `${name} is signed out at once and leaves every room. Their messages stay. The case closes as account restricted.`,
+        confirmLabel: 'End session',
+        announce: null,
+      });
+      if (!choice) return;
+      await apiPost('/api/v1/moderation/guest-end.php', { user_id: item.subject.id });
+      await closeCaseAs(item, 'account_restricted', `${name}'s visit has ended.`);
+    }));
+  }
+  if (guest?.can_block_connection) {
+    buttons.push(caseActionButton('Block guests from this connection…', async () => {
+      const choice = await chooseGuestBlock({ name });
+      if (!choice) return;
+      await apiPost('/api/v1/moderation/guest-block.php', { user_id: item.subject.id, duration_seconds: choice.seconds, reason: choice.reason });
+      await closeCaseAs(item, 'account_restricted', `Guests from ${name}'s connection are blocked.`);
+    }));
+  }
+  row.replaceChildren(...buttons);
+  section.classList.toggle('hidden', buttons.length === 0);
+}
+
+// The name and picture as they were at the first report. The picture stays
+// blurred until a moderator chooses to look, and only for this case.
+function renderPersonEvidence(item) {
+  const section = elements['moderation-person-evidence'];
+  const person = isPersonCase(item);
+  section.classList.toggle('hidden', !person);
+  if (!person) return;
+  const evidence = personEvidence(item);
+  elements['person-evidence-then'].textContent = evidence.usernameThen;
+  elements['person-evidence-now'].textContent = evidence.usernameNow;
+  for (const node of section.querySelectorAll('.person-evidence-renamed')) node.classList.toggle('hidden', !evidence.renamed);
+  elements['person-evidence-changed'].classList.toggle('hidden', !evidence.avatarChanged);
+  const frame = elements['person-evidence-picture'];
+  frame.replaceChildren();
+  frame.classList.remove('revealed');
+  if (!evidence.avatarUrl) {
+    const none = document.createElement('p');
+    none.className = 'moderation-muted';
+    none.textContent = 'No profile picture at the time of the report.';
+    frame.append(none);
+    return;
+  }
+  const image = document.createElement('img');
+  image.src = evidence.avatarUrl;
+  image.alt = `Profile picture of ${evidence.usernameThen} when first reported`;
+  image.width = 128;
+  image.height = 128;
+  image.setAttribute('aria-hidden', 'true');
+  const reveal = document.createElement('button');
+  reveal.type = 'button';
+  reveal.className = 'secondary-button person-evidence-reveal';
+  reveal.textContent = 'Show picture';
+  reveal.addEventListener('click', () => {
+    frame.classList.add('revealed');
+    reveal.remove();
+    image.removeAttribute('aria-hidden');
+    image.tabIndex = -1;
+    image.focus();
+  });
+  frame.append(image, reveal);
+}
+
 function caseActionButton(label, action) {
   const button = document.createElement('button');
   button.type = 'button';
@@ -328,15 +513,17 @@ function renderReports(reports) {
     time.textContent = formatDateTime(report.created_at);
     header.append(title, time);
 
-    const evidence = document.createElement('blockquote');
-    evidence.className = 'moderation-evidence';
-    evidence.textContent = report.evidence_body || '[Attachment without a text caption]';
+    article.append(header);
+    if (!isPersonCase(state.selectedCase)) {
+      const evidence = document.createElement('blockquote');
+      evidence.className = 'moderation-evidence';
+      evidence.textContent = report.evidence_body || '[Attachment without a text caption]';
 
-    const evidenceMeta = document.createElement('p');
-    evidenceMeta.className = 'moderation-evidence-meta';
-    evidenceMeta.textContent = evidenceDescription(report.evidence ?? {});
-
-    article.append(header, evidence, evidenceMeta);
+      const evidenceMeta = document.createElement('p');
+      evidenceMeta.className = 'moderation-evidence-meta';
+      evidenceMeta.textContent = evidenceDescription(report.evidence ?? {});
+      article.append(evidence, evidenceMeta);
+    }
     if (report.details) {
       const details = document.createElement('p');
       details.textContent = `Reporter details: ${report.details}`;
@@ -419,6 +606,10 @@ async function withButton(button, callback) {
 }
 
 function caseTitle(item) {
+  if (isPersonCase(item)) {
+    const where = item.room ? `# ${item.room.name ?? 'Deleted room'}` : 'Global';
+    return `Person: ${item.subject.username} · ${where}`;
+  }
   const location = item.message_kind === 'room'
     ? `# ${item.room?.name ?? 'Deleted room'}`
     : 'Direct message';
@@ -442,23 +633,14 @@ function formatStatus(value) {
 }
 
 function formatCategory(value) {
-  const labels = {
-    spam: 'Spam',
-    harassment: 'Harassment',
-    hate: 'Hate speech',
-    threats: 'Threats or violence',
-    sexual_content: 'Sexual content',
-    privacy: 'Privacy violation',
-    impersonation: 'Impersonation',
-    other: 'Other',
-  };
-  return labels[value] ?? formatStatus(value);
+  return CATEGORY_LABELS[value] ?? formatStatus(value);
 }
 
 function formatResolution(value) {
   const labels = {
     no_violation: 'no violation',
     content_removed: 'content removed',
+    profile_picture_removed: 'profile picture removed',
     user_warned: 'user warned',
     account_restricted: 'account restricted',
     other: 'other action',

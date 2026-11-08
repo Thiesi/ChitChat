@@ -8,11 +8,14 @@ import { miniAvatar, refreshPhoto } from './avatar.js';
 import { formatDateTime } from './datetime.js';
 import { moderationSection } from './moderation-card.js';
 import { REGISTER_URL, guestBadge, isGuestName, markGuestAvatar } from './guest.js';
+import { openPersonReportDialog, reportDialogAvailable } from './message-report-dialog.js';
+import { canReport, reportedByMe } from './person-reports.js';
 
 const phone = window.matchMedia('(max-width: 34rem)');
 const ICON_MESSAGE = ['M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'];
 const ICON_PERSON = ['M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2', 'M12 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8z'];
 const ICON_EYE = ['M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z', 'M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z'];
+const ICON_FLAG = ['M4 22V4', 'M4 4h12l-2 4 2 4H4'];
 const ICON_EYE_OFF = [
   'M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94',
   'M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19',
@@ -28,12 +31,14 @@ let currentUserIsGuest = false;
 let sequence = 0;
 // The room the chat shows, so the card can offer moderation there.
 let moderationRoomId = null;
+let moderationRoomName = null;
 // A confirmation to show once the card reopens after a moderation action.
 let pendingReport = null;
 
 /** The chat page tells the card which room is open (null on other pages). */
-export function setModerationRoom(roomId) {
+export function setModerationRoom(roomId, roomName = null) {
   moderationRoomId = Number.isInteger(roomId) ? roomId : null;
+  moderationRoomName = moderationRoomId === null ? null : roomName;
 }
 
 /** A username rendered as a button that opens the name menu. */
@@ -222,6 +227,36 @@ function showProfile(label, actions, profile, self) {
     });
     actions.append(document.createElement('hr'), remove);
   }
+
+  if (!self && canReport(profile) && reportDialogAvailable()) actions.append(document.createElement('hr'), reportItem(profile));
+}
+
+// "Report {name}": last, after a divider, in the ordinary menu colour.
+// Reporting is legitimate, not destructive (#159).
+function reportItem(profile) {
+  if (reportedByMe(profile)) return statusText(`You reported ${profile.username}. Moderators have it.`);
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'menu-item';
+  const label = document.createElement('span');
+  label.textContent = `Report ${profile.username}`;
+  button.append(menuIcon(ICON_FLAG), label);
+  button.addEventListener('click', () => {
+    const details = {
+      userId: profile.id,
+      username: profile.username,
+      hasAvatar: Boolean(profile.has_avatar),
+      roomId: moderationRoomId,
+      roomName: moderationRoomName,
+      ignored: Boolean(profile.ignored),
+      reporterIsGuest: currentUserIsGuest,
+    };
+    const returnTo = currentOpener();
+    close();
+    returnTo?.focus();
+    openPersonReportDialog(details);
+  });
+  return button;
 }
 
 // Ignoring hides someone's room messages and silences their mentions and

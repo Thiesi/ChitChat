@@ -54,6 +54,8 @@ Emulation cannot prove behavior with real browser zoom, Windows contrast themes,
 
 `presentation.spec.js` exercises the actual PHP templates and JavaScript with intercepted API responses. It checks both themes with axe-core, desktop and narrow layouts down to 320 CSS pixels, keyboard authentication tabs, replies, emoji, the mobile menu, empty conversations, long installation names, reduced motion, and forced-color focus. It writes review screenshots into the Playwright output directory and makes no database writes. These checks complement the real-backend journeys; they do not verify authentication, persistence, or realtime delivery.
 
+`presentation-report-person.spec.js` covers reporting a person: the profile card and direct-message header entries, room versus global context, the success step with ignore and block, already-reported and refused reports, message reports keeping their own wording, the phone bottom sheet, and person cases in the moderation queue with the blurred picture and person actions.
+
 With the application server running, use:
 
 ```sh
