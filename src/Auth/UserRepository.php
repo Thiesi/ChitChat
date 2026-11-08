@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace ChitChat\Auth;
 
+use ChitChat\Policy\PolicyService;
 use PDO;
 use RuntimeException;
 
@@ -111,6 +112,7 @@ SQL);
             sessionVersion: (int) $row['session_version'],
             guest: $guest,
             guestExpiresAt: $guest && $row['guest_expires_at'] !== null ? (string) $row['guest_expires_at'] : null,
+            rules: (new PolicyService($this->pdo))->rulesStatus((int) $row['id']),
         );
     }
 

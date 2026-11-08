@@ -297,3 +297,10 @@ Each authenticated session stores the user's current `session_version`. Every au
 ## Auditing
 
 Registration, first-user promotion, password changes, administrator resets, kicks, bans, unbans, and both successful and failed privileged step-up attempts create records in `audit_log`. The log stores the actor, action, subject, metadata, remote IP, and timestamp, but never receives password values.
+
+## Community rules at account creation
+
+Password registration and provider completion at `oidc/register.php` send
+`accepted_rules_version` when discovery publishes community rules. The abuse
+challenge is checked before rules acceptance and account mutation. Login remains
+available while rules acceptance is pending. See [policy contract](policies.md).

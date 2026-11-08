@@ -181,6 +181,16 @@ final class WebPushTest extends DatabaseTestCase
         self::assertSame(0, $pending, 'Skipped notifications must still be marked dispatched, not retried.');
     }
 
+    public function testPrivacyPolicyUpdatesAreNeverDispatchedEvenWhenThePendingMarkerIsNull(): void
+    {
+        $member = (new AuthService($this->pdo, $this->config))->register('Member', 'a very secure password', '127.0.0.1');
+        $statement = $this->pdo->prepare("INSERT INTO account_notifications (user_id, kind) VALUES (:id, 'privacy_policy_updated')");
+        $statement->execute(['id' => $member->id]);
+        $summary = (new WebPushDispatcher($this->pdo, $this->webPushConfig()))->dispatch();
+        self::assertSame(0, $summary['processed']);
+        self::assertSame(0, $summary['sent']);
+    }
+
     private function insertMentionedNotification(int $userId): void
     {
         $statement = $this->pdo->prepare(<<<'SQL'

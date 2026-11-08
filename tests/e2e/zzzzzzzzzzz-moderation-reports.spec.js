@@ -49,7 +49,7 @@ async function submitReport(page, article, category, details) {
   await expect(dialog).toBeVisible();
   await dialog.locator('#message-report-category').selectOption(category);
   await dialog.locator('#message-report-details').fill(details);
-  await dialog.getByRole('button', { name: 'Submit report' }).click();
+  await dialog.getByRole('button', { name: 'Report', exact: true }).click();
   await expect(dialog).toBeHidden();
   await expect(page.locator('#toast-region')).toContainText('Report submitted');
 }

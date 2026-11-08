@@ -16,6 +16,7 @@ use ChitChat\Room\RoomAuthorization;
 use ChitChat\Room\RoomEligibility;
 use ChitChat\Room\RoomRepository;
 use finfo;
+use ChitChat\Policy\PolicyService;
 use PDO;
 use RuntimeException;
 use Throwable;
@@ -65,6 +66,7 @@ final class AttachmentService
         string $ipAddress,
         ?int $replyToMessageId = null,
     ): array {
+        (new PolicyService($this->pdo))->assertMayWrite($actor);
         if ($roomId < 1) {
             throw new ApiException(400, 'validation_error', 'room_id must be positive.');
         }
@@ -138,6 +140,7 @@ final class AttachmentService
             }
 
             $this->pdo->beginTransaction();
+            (new PolicyService($this->pdo))->assertMayWrite($actor);
             $messageStatement = $this->pdo->prepare(<<<'SQL'
 INSERT INTO room_messages (room_id, sender_id, message_type, body, reply_to_message_kind, reply_to_message_id)
 VALUES (:room_id, :sender_id, 'attachment', :body, :reply_to_message_kind, :reply_to_message_id)

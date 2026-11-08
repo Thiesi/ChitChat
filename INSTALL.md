@@ -11,7 +11,7 @@ This document applies to stable `v2.0.0`, the final release of the clean reconst
 - Recommended: `gd` with WebP support, for profile pictures (Debian/Ubuntu: `php8.x-gd`). Without it ChitChat works normally, shows initials instead of pictures, and the Account page explains that uploads are unavailable. ChitChat re-encodes every uploaded picture with GD, so it never serves an uploaded file as-is.
 - Node.js 24 or newer only for CI-equivalent JavaScript and browser tests
 
-The deployed browser client has no Node.js runtime dependency and uses no npm packages. `minishlink/web-push` (a Composer dependency, pulled in for Web Push's VAPID signing and payload encryption) is the only production dependency beyond PHP itself; see [ADR 0006](docs/architecture/0006-web-push.md).
+The deployed browser client has no Node.js runtime dependency and uses no npm packages. Composer installs the Web Push dependencies (`minishlink/web-push`, its HTTP client and PSR-7 implementation) and `league/commonmark` for bounded, sanitized policy Markdown rendering; see [ADR 0006](docs/architecture/0006-web-push.md) and the [policy API](docs/api/policies.md).
 
 ## Setup
 
@@ -24,6 +24,12 @@ The deployed browser client has no Node.js runtime dependency and uses no npm pa
 
 3. Adjust the database values in `.env`.
 4. For plain HTTP local development, keep `SESSION_COOKIE_SECURE=0`. Production HTTPS deployments must use `SESSION_COOKIE_SECURE=1`.
+   Set `APP_ORIGIN=https://chat.example.org` to the canonical public scheme, host and optional port (no path).
+   This is especially important behind a TLS-terminating proxy: policy discovery and privacy-notification links
+   use this origin, and clients such as CCM open the absolute URL directly. Without it, a proxy that does not
+   pass `HTTPS=on` to PHP can produce HTTP links. The fallbacks are `OIDC_REDIRECT_ORIGIN`, `WEBAUTHN_ORIGIN`,
+   then the validated request Host and direct HTTPS state; forwarded headers are not trusted. HTTP is allowed
+   for `APP_ORIGIN` only on localhost/loopback in development or test environments.
 5. To enable passkeys, configure a durable relying-party ID and exact browser origin. Production must use HTTPS:
 
    ```text

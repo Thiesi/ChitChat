@@ -95,6 +95,7 @@ final class WebPushDispatcher
 SELECT id, user_id, kind, context_json::text AS context
 FROM account_notifications
 WHERE push_dispatched_at IS NULL
+  AND kind <> 'privacy_policy_updated'
 ORDER BY id
 LIMIT :limit
 SQL);

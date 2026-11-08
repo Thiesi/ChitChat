@@ -8,6 +8,7 @@ use ChitChat\Audit\AuditLogger;
 use ChitChat\Config;
 use ChitChat\Http\ApiException;
 use ChitChat\Http\RateLimiter;
+use ChitChat\Policy\PolicyService;
 use PDO;
 use PDOException;
 use RuntimeException;
@@ -33,8 +34,9 @@ final class AuthService
         string $password,
         string $ipAddress,
         ?string $birthDate = null,
+        mixed $acceptedRulesVersion = null,
     ): AuthenticatedUser {
-        return $this->createAccount($usernameInput, $password, $ipAddress, $birthDate, null);
+        return $this->createAccount($usernameInput, $password, $ipAddress, $birthDate, null, $acceptedRulesVersion);
     }
 
     /**
@@ -47,11 +49,12 @@ final class AuthService
         string $subject,
         string $ipAddress,
         ?string $birthDate = null,
+        mixed $acceptedRulesVersion = null,
     ): AuthenticatedUser {
         return $this->createAccount($usernameInput, null, $ipAddress, $birthDate, [
             'provider' => $provider,
             'subject' => $subject,
-        ]);
+        ], $acceptedRulesVersion);
     }
 
     /** @param ?array{provider:string, subject:string} $identity */
@@ -61,6 +64,7 @@ final class AuthService
         string $ipAddress,
         ?string $birthDate,
         ?array $identity,
+        mixed $acceptedRulesVersion,
     ): AuthenticatedUser {
         (new LockdownService($this->pdo))->assertOpen();
         $username = Username::display($usernameInput);
@@ -74,6 +78,8 @@ final class AuthService
         $this->pdo->beginTransaction();
 
         try {
+            $policies = new PolicyService($this->pdo, $this->config);
+            $rulesVersion = $policies->registrationVersion($acceptedRulesVersion);
             $settings = $this->pdo->query(
                 'SELECT registration_enabled::int FROM system_settings WHERE id = 1 FOR UPDATE',
             );
@@ -119,6 +125,7 @@ SQL);
                 throw new RuntimeException('Registration did not return a user ID.');
             }
             $userId = (int) $insertedId;
+            $policies->recordAcceptance($userId, $rulesVersion, $ipAddress);
 
             if ($isFirstUser) {
                 $roleStatement = $this->pdo->prepare(

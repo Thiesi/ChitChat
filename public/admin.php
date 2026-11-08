@@ -145,7 +145,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
       <div id="audit-list" class="audit-list"></div>
       <button id="audit-more" class="secondary-button hidden" type="button">Load older entries</button>
     </section>
-    <?= \ChitChat\View\PoweredBy::html() ?>
+    <?= \ChitChat\View\PoweredBy::html($config) ?>
   </main>
 
   <dialog id="room-create-dialog" class="room-dialog" aria-labelledby="room-create-title">

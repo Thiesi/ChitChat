@@ -4,6 +4,14 @@ This configuration is the reference single-server deployment for ChitChat. CI st
 
 Use HTTPS in production. The example listens on plain HTTP only to show the application and SSE-specific directives.
 
+Set `APP_ORIGIN=https://chat.example.org` in the protected application environment to the installation's
+canonical public origin (scheme, host and optional port only). Behind TLS termination this keeps hosted
+policy discovery and privacy-notification links on the correct public HTTPS origin, even when PHP does
+not see `HTTPS=on`. Native clients such as CCM open these absolute links directly. An unset `APP_ORIGIN`
+falls back to `OIDC_REDIRECT_ORIGIN`, then `WEBAUTHN_ORIGIN`, then the validated request Host and direct
+HTTPS state. `X-Forwarded-*` headers never select the origin. This setting does not change the client-IP
+architecture below. Production requires HTTPS; HTTP loopback is allowed only for development/tests.
+
 ## Do not add another proxy or CDN in front of this Nginx
 
 ChitChat derives the client IP address from the TCP connection's `REMOTE_ADDR` only (`src/Http/Request.php::clientIp()`). It does not read or trust `X-Forwarded-For` or similar headers from any upstream, by design, since a client-supplied forwarding header cannot be trusted without an explicit, configured allowlist of trusted proxies, which ChitChat does not currently implement.

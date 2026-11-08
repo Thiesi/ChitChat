@@ -158,6 +158,26 @@ final class OidcServiceTest extends DatabaseTestCase
         $this->oidc->completeSignUp('Latecomer', null, '127.0.0.3');
     }
 
+    public function testProviderSignUpPreservesItsVerifiedIdentityUntilTheCurrentRulesAreAccepted(): void
+    {
+        [$root] = $this->users();
+        $this->provider->subject = 'policy-newcomer';
+        $state = $this->authorize('login', null)['state'];
+        self::assertSame('/?sign_up=continue', $this->oidc->complete(['state' => $state, 'code' => 'c'], '127.0.0.3'));
+        $policies = new \ChitChat\Policy\PolicyService($this->pdo, $this->config);
+        $policies->update($root, 'rules', 'hosted', 'Rules', null, true, null, '127.0.0.1');
+        try {
+            $this->oidc->completeSignUp('PolicyNewcomer', null, '127.0.0.3');
+            self::fail('A verified provider identity alone does not accept the rules.');
+        } catch (ApiException $exception) {
+            self::assertSame('rules_acceptance_required', $exception->errorCode);
+        }
+        self::assertNotNull($this->oidc->pendingSignUp());
+        $user = $this->oidc->completeSignUp('PolicyNewcomer', null, '127.0.0.3', 1);
+        self::assertSame(1, $user->toSessionArray()['rules']['accepted_version']);
+        self::assertNull($this->oidc->pendingSignUp());
+    }
+
     public function testStepUpNeedsAFreshSignInWithTheConnectedProviderAccount(): void
     {
         [, $member] = $this->users();
