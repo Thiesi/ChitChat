@@ -41,6 +41,11 @@ Returns the current authenticated user or `null`, plus a CSRF token and current 
 
 For an anonymous session, `user` is `null` and step-up is inactive.
 
+The top-level `attachments` block describes effective upload limits, MIME lists
+and separate room/direct upload quotas for signed-in members; it is `null` for
+anonymous and guest sessions. Missing means unknown on older servers. See
+[upload policy discovery](attachments.md#upload-policy-discovery).
+
 Send the token in the `X-CSRF-Token` header for every POST endpoint below.
 
 ## User authentication

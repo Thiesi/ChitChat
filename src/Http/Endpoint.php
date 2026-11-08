@@ -21,6 +21,9 @@ final class Endpoint
                 'error' => [
                     'code' => $exception->errorCode,
                     'message' => $exception->getMessage(),
+                    ...($exception->status === 413 && $exception->maxBytes !== null
+                        ? ['max_bytes' => $exception->maxBytes]
+                        : []),
                 ],
             ], $exception->status);
         } catch (JsonException $exception) {

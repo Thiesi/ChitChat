@@ -12,6 +12,7 @@ final class ApiException extends RuntimeException
         public readonly int $status,
         public readonly string $errorCode,
         string $message,
+        public readonly ?int $maxBytes = null,
     ) {
         parent::__construct($message);
     }

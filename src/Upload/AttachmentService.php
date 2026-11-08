@@ -91,7 +91,12 @@ final class AttachmentService
             throw new ApiException(400, 'attachment_empty', 'Empty files cannot be uploaded.');
         }
         if ($file->reportedSize > $this->config->attachmentMaxBytes) {
-            throw new ApiException(413, 'attachment_too_large', 'The attachment exceeds the configured size limit.');
+            throw new ApiException(
+                413,
+                'attachment_too_large',
+                'The attachment exceeds the configured size limit.',
+                maxBytes: $this->config->attachmentMaxBytes,
+            );
         }
 
         $mimeType = $this->detectMimeType($file->temporaryPath);
@@ -117,7 +122,12 @@ final class AttachmentService
                 throw new RuntimeException('Unable to determine stored attachment size.');
             }
             if ($actualSize > $this->config->attachmentMaxBytes) {
-                throw new ApiException(413, 'attachment_too_large', 'The attachment exceeds the configured size limit.');
+                throw new ApiException(
+                    413,
+                    'attachment_too_large',
+                    'The attachment exceeds the configured size limit.',
+                    maxBytes: $this->config->attachmentMaxBytes,
+                );
             }
 
             $sha256 = hash_file('sha256', $storagePath);

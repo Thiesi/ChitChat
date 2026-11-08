@@ -2,6 +2,49 @@
 
 Attachments are room messages backed by opaque files outside the public web root. Every endpoint requires an authenticated session. Uploads also require the current CSRF token.
 
+## Upload policy discovery
+
+`GET /api/v1/session.php` includes a top-level `attachments` block for signed-in
+members. It is `null` while signed out and for guests. A missing block on older
+servers means unknown; clients must not assume a default size or MIME policy.
+
+```json
+{
+  "attachments": {
+    "max_bytes": 2097152,
+    "allowed_mime_types": ["application/json", "application/pdf", "application/zip", "image/gif", "image/jpeg", "image/png", "image/webp", "text/csv", "text/plain"],
+    "previewable_mime_types": ["image/gif", "image/jpeg", "image/png", "image/webp"],
+    "rate_limits": {
+      "room": {"maximum_attempts": 10, "window_seconds": 3600},
+      "direct_message": {"maximum_attempts": 10, "window_seconds": 3600}
+    }
+  }
+}
+```
+
+The values above are examples. `max_bytes` is the smaller positive bound from
+`ATTACHMENT_MAX_BYTES` (10 MiB by default) and PHP's `upload_max_filesize`.
+Nonpositive PHP size limits mean unlimited. MIME lists come from the same policy
+used to accept and preview files. Room and direct upload quotas are independently
+configurable; each authenticated, CSRF-valid upload attempt consumes its quota
+before form/file validation, including rejected uploads. The default is 10 attempts
+per hour for each route, not 10 successful uploads.
+
+Clients can reject known oversized or unsupported files before sending them, but
+the server still verifies actual size, detected MIME and current authorization.
+A file within `max_bytes` can still exceed PHP's whole-body `post_max_size` once
+multipart framing, caption and fields are included. Operators should configure
+`post_max_size` above `upload_max_filesize`, and their proxy request limit at least
+as high as PHP's whole-body limit.
+
+Both upload routes check `CONTENT_LENGTH` against the parsed positive
+`post_max_size` before looking for discarded form fields. An exceeded limit returns
+HTTP 413 `attachment_too_large` with the effective file limit in `error.max_bytes`.
+PHP per-file size failures and application size failures also include this field.
+An empty file set alone is not evidence of an oversized request and retains the
+existing missing-file/field errors. A reverse proxy may reject a body before PHP
+with its own (possibly HTML) 413 response, outside this JSON contract.
+
 ## Message representation
 
 Room history and `room_message` realtime events include an `attachment` field on every message. It is `null` for ordinary or deleted messages.
