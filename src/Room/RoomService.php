@@ -40,8 +40,8 @@ final class RoomService
             static fn (Room $room): array => $room->toArray() + [
                 'unread_count' => $room->isMember() ? ($reads[$room->id]['unread_count'] ?? 0) : 0,
                 'last_read_message_id' => $room->isMember() ? ($reads[$room->id]['last_read_message_id'] ?? null) : null,
-                'active_count' => $activity[$room->id]['active_count'] ?? null,
-                'last_activity_at' => $activity[$room->id]['last_activity_at'] ?? null,
+                'active_count' => $room->isMember() ? ($activity[$room->id]['active_count'] ?? null) : null,
+                'last_activity_at' => $room->isMember() ? ($activity[$room->id]['last_activity_at'] ?? null) : null,
                 // Muted everywhere counts in every room.
                 'muted' => $mutes['everywhere'] ?? $mutes['rooms'][$room->id] ?? null,
             ],

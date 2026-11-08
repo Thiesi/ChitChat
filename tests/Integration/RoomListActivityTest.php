@@ -130,6 +130,31 @@ final class RoomListActivityTest extends DatabaseTestCase
         self::assertNotNull($this->listed($viewer, $room->id)['last_activity_at']);
     }
 
+    public function testLeavingBetweenTheActivityAndListQueriesCannotExposeJoinedOnlyFields(): void
+    {
+        [$root, $viewer] = $this->people();
+        $rooms = new RoomService($this->pdo);
+        $room = $rooms->create($root, 'changing', 'Changing', '', 'public', 0, 0, '127.0.0.1');
+        $rooms->join($viewer, $room->id, '127.0.0.2');
+        (new MessageService($this->pdo))->send($root, $room->id, 'Earlier joined history');
+        $this->pdo->setAttribute(PDO::ATTR_STATEMENT_CLASS, [RoomActivityCountingStatement::class]);
+        RoomActivityCountingStatement::$beforeExecute = function (string $sql) use ($viewer, $room): void {
+            if (str_contains($sql, 'ORDER BY lower(r.name), r.id')) {
+                // Simulate another tab leaving after aggregates were fetched.
+                $this->pdo->exec("DELETE FROM room_members WHERE room_id = {$room->id} AND user_id = {$viewer->id}");
+            }
+        };
+        try {
+            $listed = $this->listed($viewer, $room->id);
+            self::assertNull($listed['member_role']);
+            self::assertNull($listed['active_count']);
+            self::assertNull($listed['last_activity_at']);
+        } finally {
+            RoomActivityCountingStatement::$beforeExecute = null;
+            $this->pdo->setAttribute(PDO::ATTR_STATEMENT_CLASS, [PDOStatement::class]);
+        }
+    }
+
     public function testListingManyJoinedRoomsExecutesAConstantNumberOfQueries(): void
     {
         [$root, $viewer] = $this->people();
@@ -177,10 +202,14 @@ final class RoomListActivityTest extends DatabaseTestCase
 final class RoomActivityCountingStatement extends PDOStatement
 {
     public static int $executionCount = 0;
+    public static ?\Closure $beforeExecute = null;
 
     public function execute(?array $params = null): bool
     {
         self::$executionCount++;
+        if (self::$beforeExecute !== null) {
+            (self::$beforeExecute)($this->queryString);
+        }
         return parent::execute($params);
     }
 }
