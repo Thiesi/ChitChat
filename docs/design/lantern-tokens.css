@@ -1,0 +1,67 @@
+/*
+ * Lantern colour roles for the ChitChat web client: the design source for S0
+ * (#167). Not loaded by any page yet; S0 moves these blocks into the shipped
+ * token file, and tests/js/design-contrast.test.js checks every scheme here.
+ *
+ * Provenance: Thiesi/ChitChat-Mobile @ e9eb5b452ba23c316e1962e7993fe09010ff9933,
+ * docs/design/visual-vocabulary.md ("Core tokens", "AMOLED black theme").
+ * Shared values change only through paired PRs in both repositories.
+ *
+ * Cascade rule (as in the shipped CSS): a scheme inherits Lantern's value for
+ * every role it does not set, in the same theme.
+ */
+
+/* Lantern, light: Persimmon on Paper. */
+[data-scheme="lantern"][data-theme="light"] {
+  --ground: #FBF7F1;
+  --surface: #FFFFFF;
+  --raised: #F3ECE2;
+  --line: #E6DCCF;
+  --field-line: #8C8299;
+  --text: #14111C;
+  --text-muted: #5E566B;
+  --signature: #F06A3B;
+  --on-signature: #14111C;
+  --signature-text: #B5401A;
+  --outgoing: #FFD9C4;
+  --on-outgoing: #14111C;
+  --presence: #FFB547;
+  --unsure-line: #8F5B00;
+  --presence-wash: #FFF0D2;
+  --steward: #3D52C4;
+  --error: #C4314B;
+}
+
+/* Lantern, dark: Persimmon on Night ink (warm violet-black, never neutral grey). */
+[data-scheme="lantern"][data-theme="dark"] {
+  --ground: #14111C;
+  --surface: #1C1826;
+  --raised: #272233;
+  --line: #3A3347;
+  --field-line: #7D7490;
+  --text: #F2EDF7;
+  --text-muted: #A79FB4;
+  --signature: #F06A3B;
+  --on-signature: #14111C;
+  --signature-text: #F06A3B;
+  --outgoing: #8A3A1E;
+  --on-outgoing: #F2EDF7;
+  --presence: #FFB547;
+  --unsure-line: #FFB547;
+  --presence-wash: #4A3A1C;
+  --steward: #A9B6FF;
+  --error: #FF8A9B;
+}
+
+/*
+ * Midnight, dark: CC's own opt-in true-black scheme. Never presented as
+ * Lantern's dark mode or as a "Pure black" toggle. Its black surfaces reuse
+ * CCM's AMOLED override values so both clients render the same blacks.
+ * In light mode Midnight is Lantern light.
+ */
+[data-scheme="midnight"][data-theme="dark"] {
+  --ground: #000000;
+  --surface: #110E17;
+  --raised: #1F1B29;
+  --line: #2E2938;
+}
