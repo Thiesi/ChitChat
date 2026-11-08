@@ -228,7 +228,9 @@ function showProfile(label, actions, profile, self) {
     actions.append(document.createElement('hr'), remove);
   }
 
-  if (!self && canReport(profile) && reportDialogAvailable()) actions.append(document.createElement('hr'), reportItem(profile));
+  // Guests report only from a room: the server needs that context for them (#159).
+  const reportContextOk = !currentUserIsGuest || moderationRoomId !== null;
+  if (!self && canReport(profile) && reportContextOk && reportDialogAvailable()) actions.append(document.createElement('hr'), reportItem(profile));
 }
 
 // "Report {name}": last, after a divider, in the ordinary menu colour.
