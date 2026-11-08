@@ -46,7 +46,7 @@ final class UserReportService
 SELECT 1 FROM moderation_cases c
 JOIN moderation_reports report ON report.case_id = c.id
 WHERE c.subject_kind = 'user' AND c.subject_user_id = :subject_id AND c.scope_key = :scope
-  AND c.status IN ('open', 'in_review') AND report.reporter_user_id = :reporter_id
+  AND report.reporter_user_id = :reporter_id
 SQL);
         $statement->execute(['subject_id' => $userId, 'scope' => self::scope($roomId), 'reporter_id' => $actor->id]);
         return ['can_report' => true, 'reported_by_me' => $statement->fetchColumn() !== false];

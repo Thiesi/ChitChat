@@ -66,6 +66,7 @@ HTTP 201 with the existing `{case:{id,status,report_count}}` shape.
 
 Cases are keyed by `(subject, immutable scope)`: `room:<id>` or `global`.
 One report per reporter applies **per case**, including after closure.
+The advisory `reported_by_me` stays true in every status while that case is retained.
 Another reporter may reopen a closed case without replacing its original
 snapshot. Separate rooms and global reports never share counts, details,
 assignment or resolution.

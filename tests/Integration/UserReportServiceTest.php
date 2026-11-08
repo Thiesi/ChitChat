@@ -307,6 +307,8 @@ final class UserReportServiceTest extends DatabaseTestCase
         $oldAudit = (int) $this->pdo->query('SELECT closed_audit_id FROM moderation_cases WHERE id = ' . $case['id'])->fetchColumn();
         $this->assertApi(409, 'already_reported', fn () => $service->report($first, $subject->id, 'spam', null, null, '127.0.0.1'));
         self::assertSame('dismissed', $cases->caseDetail($root, $case['id'])['status']);
+        self::assertTrue($service->profileStatus($first, $subject->id, null)['reported_by_me']);
+        self::assertFalse($service->profileStatus($second, $subject->id, null)['reported_by_me']);
         $this->pdo->exec("UPDATE users SET username = 'Changed' WHERE id = {$subject->id}");
         $new = $service->report($second, $subject->id, 'offensive_username', null, null, '127.0.0.1');
         self::assertSame($case['id'], $new['id']);
@@ -315,6 +317,9 @@ final class UserReportServiceTest extends DatabaseTestCase
         self::assertSame($subject->username, $cases->caseDetail($root, $case['id'])['snapshot']['username']);
         $this->pdo->exec('DELETE FROM audit_log WHERE id = ' . $oldAudit);
         self::assertSame('open', $cases->caseDetail($root, $case['id'])['status']);
+        $cases->resolve($root, $case['id'], 'resolved', 'user_warned', null, '127.0.0.1');
+        self::assertTrue($service->profileStatus($first, $subject->id, null)['reported_by_me']);
+        self::assertTrue($service->profileStatus($second, $subject->id, null)['reported_by_me']);
     }
 
     private function storageConfig(string $label): Config
