@@ -598,7 +598,7 @@ async function selectRoom(chosen) {
     }
   }
   state.currentRoom = room;
-  setModerationRoom(room.id);
+  setModerationRoom(room.id, room.name);
   roomTyping?.clear();
   // Where this visit's "New messages" divider goes; it stays put while here.
   state.readMarker = Number.isInteger(room.last_read_message_id) && (room.unread_count ?? 0) > 0

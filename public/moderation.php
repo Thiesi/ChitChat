@@ -19,6 +19,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <link rel="stylesheet" href="/assets/css/components.css">
   <link rel="stylesheet" href="/assets/css/accessibility.css">
   <link rel="stylesheet" href="/assets/css/moderation.css">
+  <link rel="stylesheet" href="/assets/css/person-reports.css">
 </head>
 <body>
   <div id="moderation-loading" class="app-loading" role="status">Loading moderation queue…</div>
@@ -35,7 +36,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
 
     <section class="moderation-notice" aria-labelledby="moderation-notice-title">
       <h2 id="moderation-notice-title">Participant-submitted evidence</h2>
-      <p>Each report contains an immutable snapshot of one message as the reporter saw it. A direct-message report does not grant access to surrounding conversation history.</p>
+      <p>Each report contains an immutable snapshot of one message as the reporter saw it, or of one person's name and profile picture. A direct-message report does not grant access to surrounding conversation history.</p>
       <p>Room owners and room moderators see only cases from rooms they moderate. Global moderation roles may review all room and direct-message cases.</p>
     </section>
 
@@ -57,6 +58,12 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
               <option value="all">All</option>
             </select>
           </label>
+          <fieldset class="moderation-kind">
+            <legend>Kind</legend>
+            <label><input type="radio" name="moderation-kind" value="all" checked> All</label>
+            <label><input type="radio" name="moderation-kind" value="message"> Messages</label>
+            <label><input type="radio" name="moderation-kind" value="user"> People</label>
+          </fieldset>
         </div>
         <div id="moderation-case-list" class="moderation-case-list"></div>
         <button id="moderation-more" class="secondary-button hidden" type="button">Load older cases</button>
@@ -77,6 +84,18 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
             </div>
           </header>
 
+          <section id="moderation-person-evidence" class="moderation-person-evidence hidden" aria-labelledby="moderation-person-evidence-title">
+            <h3 id="moderation-person-evidence-title">Evidence at first report</h3>
+            <div class="person-evidence">
+              <div id="person-evidence-picture" class="person-evidence-picture"></div>
+              <dl class="person-evidence-facts">
+                <dt>Username then</dt><dd id="person-evidence-then"></dd>
+                <dt class="person-evidence-renamed hidden">Username now</dt><dd id="person-evidence-now" class="person-evidence-renamed hidden"></dd>
+              </dl>
+            </div>
+            <p id="person-evidence-changed" class="moderation-muted hidden">The profile picture has changed since the report.</p>
+          </section>
+
           <section aria-labelledby="moderation-reports-title">
             <h3 id="moderation-reports-title">Reports and evidence</h3>
             <div id="moderation-report-list" class="moderation-report-list"></div>
@@ -93,6 +112,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
             <label>Outcome
               <select id="moderation-resolution-code">
                 <option value="content_removed">Reported content removed</option>
+                <option value="profile_picture_removed">Profile picture removed</option>
                 <option value="user_warned">User warned</option>
                 <option value="account_restricted">Account restricted</option>
                 <option value="other">Other action</option>

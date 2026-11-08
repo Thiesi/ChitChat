@@ -147,7 +147,7 @@ test('acting on a report in the moderation queue closes the case', async ({ brow
     await reported.getByRole('button', { name: 'Report', exact: true }).click();
     const reportDialog = rootPage.getByRole('dialog', { name: /Report/ });
     await reportDialog.locator('#message-report-category').selectOption('spam');
-    await reportDialog.getByRole('button', { name: 'Submit report' }).click();
+    await reportDialog.getByRole('button', { name: 'Report', exact: true }).click();
     await expect(rootPage.locator('#toast-region')).toContainText('Report submitted');
 
     // ...and the case itself offers Delete message, which also closes it.

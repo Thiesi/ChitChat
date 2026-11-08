@@ -56,6 +56,8 @@ Emulation cannot prove behavior with real browser zoom, Windows contrast themes,
 
 `presentation-rules.spec.js` does the same for community rules and the privacy policy: agreeing at registration and guest start, the stale-version message, the dialog, banner and paused composer after a change (rooms and direct messages), external rules, the Account card, the administration card, and the page shown for an unpublished document. With nothing configured, it checks that registration and the footer stay exactly as before.
 
+`presentation-report-person.spec.js` covers reporting a person: the profile card and direct-message header entries, room versus global context, the success step with ignore and block, already-reported and refused reports, message reports keeping their own wording, the phone bottom sheet, and person cases in the moderation queue with the blurred picture and person actions.
+
 With the application server running, use:
 
 ```sh
