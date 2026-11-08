@@ -35,7 +35,7 @@ Endpoint::run($config, static function () use ($config): ApiResult {
         $payload['challenge_solution'] ?? null,
         time(),
     );
-    $guest = (new GuestService($pdo))->start($ipAddress);
+    $guest = (new GuestService($pdo))->start($ipAddress, $payload['accepted_rules_version'] ?? null);
     SessionManager::login($guest);
 
     return ApiResult::created([

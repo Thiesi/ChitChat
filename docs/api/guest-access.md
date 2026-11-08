@@ -74,3 +74,10 @@ Ends the guest's session at once. The guest is signed out (a `forced_logout` eve
 ```
 
 Blocks new guest sessions from the guest's connection (IP address) for one hour, one day or one week (`3600`, `86400` or `604800`). Every guest from that connection ends now. The moderator never sees the address. Members using the same connection are not affected and can still sign in or register. Audited as `guest.connection_blocked`.
+
+## Community rules
+
+Guest start sends `accepted_rules_version` after solving the guest challenge.
+The response includes `user.rules`; material updates pause new content until the
+guest accepts. Reading and safety controls stay available. See
+[policy contract](policies.md).

@@ -190,6 +190,7 @@ final readonly class RateLimitPolicySet
             'moderation_queue' => self::definition(120, 60, 1, 5_000, 1, 3_600),
             'moderation_action' => self::definition(60, 3_600, 1, 1_000, 60, 86_400),
             'push_subscription_management' => self::definition(20, 3_600, 1, 100, 60, 86_400),
+            'policy_preview' => self::definition(30, 60, 1, 1_000, 1, 3_600),
         ];
     }
 

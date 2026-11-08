@@ -108,3 +108,8 @@ The `policy` label has a fixed application-defined vocabulary, so it does not cr
 - Do not disable a policy by setting zero; zero is rejected at startup.
 
 Rate limiting is defense in depth. It does not replace authorization, CSRF validation, block relationships, upload validation, privileged step-up, required reasons, search authorization, moderation evidence boundaries, or audit logging.
+
+Policy Markdown preview has a dedicated `policy_preview` throttle: 30 attempts
+per 60 seconds by default, configurable with `RATE_LIMIT_POLICY_PREVIEW_MAX_ATTEMPTS`
+and `RATE_LIMIT_POLICY_PREVIEW_WINDOW_SECONDS`. It is checked after CSRF and
+Super-Administrator authorization; preview does not require privileged step-up.

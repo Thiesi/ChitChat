@@ -12,6 +12,7 @@ use ChitChat\Moderation\MuteService;
 use ChitChat\Reactions\ReactionHydrator;
 use ChitChat\Realtime\EventRepository;
 use ChitChat\Upload\AttachmentPolicy;
+use ChitChat\Policy\PolicyService;
 use PDO;
 use RuntimeException;
 use Throwable;
@@ -206,6 +207,7 @@ SQL;
 
         $this->pdo->beginTransaction();
         try {
+            (new PolicyService($this->pdo))->assertMayWrite($actor);
             $statement = $this->pdo->prepare(<<<'SQL'
 INSERT INTO room_messages (room_id, sender_id, message_type, body, reply_to_message_kind, reply_to_message_id)
 VALUES (:room_id, :sender_id, :message_type, :body, :reply_to_message_kind, :reply_to_message_id)

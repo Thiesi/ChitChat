@@ -16,6 +16,7 @@ use ChitChat\Realtime\EventRepository;
 use ChitChat\Upload\AttachmentFileStore;
 use ChitChat\Upload\AttachmentPolicy;
 use ChitChat\Upload\IncomingFile;
+use ChitChat\Policy\PolicyService;
 use PDO;
 use RuntimeException;
 use Throwable;
@@ -63,6 +64,7 @@ final class DirectMessageAttachmentService
         string $ipAddress,
         ?int $replyToMessageId = null,
     ): array {
+        (new PolicyService($this->pdo))->assertMayWrite($actor);
         $recipient = $this->requireOtherUser($actor, $recipientUserId);
         $caption = trim($captionInput);
         if (mb_strlen($caption, 'UTF-8') > 4000) {
@@ -77,6 +79,7 @@ final class DirectMessageAttachmentService
 
         try {
             $this->pdo->beginTransaction();
+            (new PolicyService($this->pdo))->assertMayWrite($actor);
             $this->blocks->lockPair($actor->id, $recipientUserId);
             $this->blocks->requireMessagingAvailable($actor, $recipientUserId);
             (new MuteService($this->pdo))->assertMaySendDirect($actor->id);
