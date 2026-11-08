@@ -57,6 +57,15 @@ total. It also checks a conservative available-memory budget before decoding.
 Resizing precedes rotation so no second full-size source is allocated. Encoded
 preview bytes are capped at 4 MiB.
 
+Generating renditions requires PHP GD with WebP and the source image codecs.
+For large-photo previews, configure PHP-FPM's `memory_limit` to at least `256M`
+(and an appropriate CLI limit for backfill). The estimate is approximately
+width × height × 8 + 32 MiB, plus the encoded file size and existing PHP usage:
+a 16 MP source therefore needs around 160 MiB before those extra costs. A common
+`128M` limit can return `preview:null` for large photos even below the pixel caps.
+Use a larger limit when the source sizes/workload require it. Header dimensions
+remain available independently of GD and preview memory.
+
 Over-budget, corrupt, unsupported-codec or unavailable-GD inputs remain accepted
 when the original upload policy accepts them. They return `preview:null`; trusted
 header dimensions remain populated. Rendering/storage failure of the optional

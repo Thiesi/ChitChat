@@ -9,7 +9,11 @@ uses bounded image-decoding CPU/memory when GD is available, and writes renditio
 files and metadata. Use an appropriate maintenance slot and the normal backup
 procedure. The same database and attachment-storage configuration as the
 installation must be available to the CLI. GD with WebP and the source codecs
-is optional: trusted header dimensions can still be filled without it.
+is required to generate renditions; trusted header dimensions can still be
+filled without GD. Operators wanting previews for large photos should set
+PHP-FPM's `memory_limit` to at least `256M` and size the CLI limit accordingly.
+The usual `128M` limit may skip a preview while still updating dimensions; see
+the [rendering budget](../api/image-previews.md#rendering-and-compatibility).
 
 Start with a dry-run, then apply the same range:
 
