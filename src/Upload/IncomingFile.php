@@ -16,7 +16,7 @@ final readonly class IncomingFile
     ) {
     }
 
-    public static function fromGlobal(string $field): self
+    public static function fromGlobal(string $field, ?int $maxBytes = null): self
     {
         $file = $_FILES[$field] ?? null;
         if (!is_array($file)) {
@@ -32,7 +32,7 @@ final readonly class IncomingFile
         }
 
         if ($error !== UPLOAD_ERR_OK) {
-            throw self::uploadError($error);
+            throw self::uploadError($error, $maxBytes);
         }
         if (!is_uploaded_file($temporaryPath)) {
             throw new ApiException(400, 'invalid_attachment_upload', 'The upload temporary file is invalid.');
@@ -72,13 +72,14 @@ final readonly class IncomingFile
         }
     }
 
-    private static function uploadError(int $error): ApiException
+    private static function uploadError(int $error, ?int $maxBytes): ApiException
     {
         return match ($error) {
             UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE => new ApiException(
                 413,
                 'attachment_too_large',
                 'The uploaded file exceeds the server upload limit.',
+                maxBytes: $maxBytes,
             ),
             UPLOAD_ERR_PARTIAL => new ApiException(400, 'attachment_incomplete', 'The file upload was incomplete.'),
             UPLOAD_ERR_NO_FILE => new ApiException(400, 'attachment_missing', 'Choose a file to upload.'),

@@ -12,6 +12,7 @@ use ChitChat\Http\Endpoint;
 use ChitChat\Http\RateLimiter;
 use ChitChat\Http\Request;
 use ChitChat\Upload\IncomingFile;
+use ChitChat\Upload\AttachmentUploadLimits;
 
 /** @var ChitChat\Config $config */
 $config = require dirname(__DIR__, 5) . '/bootstrap/http.php';
@@ -25,6 +26,8 @@ Endpoint::run($config, static function () use ($config): ApiResult {
         'direct_message_attachment_upload',
         'user:' . $actor->id,
     );
+    $uploadLimits = AttachmentUploadLimits::fromConfig($config);
+    $uploadLimits->requireBodyFits($_SERVER['CONTENT_LENGTH'] ?? null);
 
     $recipientValue = $_POST['recipient_user_id'] ?? null;
     if (!is_string($recipientValue) || filter_var($recipientValue, FILTER_VALIDATE_INT) === false) {
@@ -42,7 +45,7 @@ Endpoint::run($config, static function () use ($config): ApiResult {
     $message = (new DirectMessageAttachmentService($pdo, $config))->upload(
         actor: $actor,
         recipientUserId: (int) $recipientValue,
-        file: IncomingFile::fromGlobal('file'),
+        file: IncomingFile::fromGlobal('file', $uploadLimits->maxBytes),
         captionInput: $caption,
         ipAddress: Request::clientIp(),
         replyToMessageId: $replyToValue === null ? null : (int) $replyToValue,

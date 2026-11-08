@@ -4,6 +4,10 @@ Direct-message attachments use the same opaque storage root, MIME allowlist, max
 
 Attachments are not end-to-end encrypted. The file and its message caption follow the configured direct-message retention policy.
 
+See [upload policy discovery](attachments.md#upload-policy-discovery) for the shared
+`session.php` policy, effective size/MIME limits, independent per-route quotas and
+HTTP 413 `attachment_too_large` / `error.max_bytes` behavior.
+
 ## Upload
 
 `POST /api/v1/direct-messages/attachments/upload.php` requires authentication, the current `X-CSRF-Token`, and `multipart/form-data` fields:
@@ -13,7 +17,7 @@ Attachments are not end-to-end encrypted. The file and its message caption follo
 - `reply_to_message_id`: optional positive integer form field identifying another message in the same conversation;
 - `file`: one uploaded file.
 
-If the caption is empty, the normalized original filename becomes the direct-message body. The upload is limited to 10 successful attempts per authenticated user per hour, in addition to the web server and PHP request-size limits. The returned message object carries `reply_to`, `mentions`, and `reactions` in the same shape as an ordinary direct message; see [`direct-messages.md`](direct-messages.md#message-representation).
+If the caption is empty, the normalized original filename becomes the direct-message body. The upload is limited to 10 attempts per authenticated user per hour by default (rejected attempts count), in addition to the web server and PHP request-size limits. The returned message object carries `reply_to`, `mentions`, and `reactions` in the same shape as an ordinary direct message; see [`direct-messages.md`](direct-messages.md#message-representation).
 
 The service writes the file under a random 64-character storage key outside `public/`, verifies its actual size and SHA-256 digest, and then serializes on the same unordered user-pair advisory lock used by text sends and block operations. If either participant has blocked the other, the upload returns HTTP 403 with `direct_message_unavailable` and the stored file is removed.
 
