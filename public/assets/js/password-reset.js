@@ -6,7 +6,7 @@ import { ApiError } from './api.js';
 import { buildKeyStep } from './recovery-key-step.js';
 import { continueResetWithMfa, hideMfaPanel } from './mfa-login.js';
 import { createRegistrationChallenge } from './registration-challenge.js';
-import { RESET_CHALLENGE_ENDPOINT, RESET_FAILED, cancelReset, issuedKey, resetPassword } from './recovery.js';
+import { RESET_CHALLENGE_ENDPOINT, RESET_FAILED, RESET_MFA_ENDPOINTS, cancelReset, issuedKey, resetPassword } from './recovery.js';
 
 const challenge = createRegistrationChallenge(RESET_CHALLENGE_ENDPOINT);
 let elements = null;
@@ -125,6 +125,7 @@ async function submit(event) {
       continueResetWithMfa({
         title: 'One more step',
         text: 'Confirm it’s you with your passkey or a recovery code. Your password changes after this.',
+        endpoints: RESET_MFA_ENDPOINTS,
         onComplete: (response) => finished(issuedKey(response)),
         onCancel: async () => {
           let acknowledged = true;

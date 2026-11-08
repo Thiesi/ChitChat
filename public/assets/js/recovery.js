@@ -6,6 +6,13 @@ import { apiPost } from './api.js';
 export const RESET_ENDPOINT = '/api/v1/password-reset.php';
 export const RESET_CHALLENGE_ENDPOINT = '/api/v1/password-reset/challenge.php';
 const RESET_CANCEL_ENDPOINT = '/api/v1/password-reset/cancel.php';
+// The reset's own second-factor endpoints: unlike sign-in, completing a
+// reset never grants privileged step-up (lead decision on #155).
+export const RESET_MFA_ENDPOINTS = {
+  options: '/api/v1/password-reset/mfa-options.php',
+  finish: '/api/v1/password-reset/mfa-finish.php',
+  recovery: '/api/v1/password-reset/mfa-recovery.php',
+};
 const CREATE_KEY_ENDPOINT = '/api/v1/account/recovery-key.php';
 
 export const RESET_FAILED = 'reset_failed';

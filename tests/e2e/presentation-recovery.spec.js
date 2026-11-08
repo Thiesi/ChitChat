@@ -46,7 +46,7 @@ async function fixture(page, { user = null, overrides = {}, requests = [] } = {}
       'register.php': { user: { ...viewer, recovery_key: { exists: true, created_at: '2026-11-08T10:00:00Z' } }, csrf_token: 'fixture-2', recovery_key: KEY },
       'password-reset.php': { status: 'complete', user: viewer, csrf_token: 'fixture-3', recovery_key: NEW_KEY },
       'password-reset/cancel.php': {},
-      'mfa/login-recovery.php': { user: viewer, csrf_token: 'fixture-4', recovery_key: NEW_KEY },
+      'password-reset/mfa-recovery.php': { user: viewer, csrf_token: 'fixture-4', recovery_key: NEW_KEY },
       'account/recovery-key.php': { recovery_key: NEW_KEY, created_at: '2026-11-08T11:00:00Z' },
     };
     if (!(path in responses)) throw new Error(`Missing fixture: ${path}`);
@@ -251,7 +251,7 @@ test('a cancel the server never acknowledged, and a final step whose answer is l
   await expect(page.locator('#password-reset-status')).toHaveText(/couldn’t reach the server to cancel/);
   await expect(page.locator('#password-reset-status')).not.toHaveText(/Nothing was changed/);
 
-  await page.route('**/api/v1/mfa/login-recovery.php', (route) => route.abort('failed'));
+  await page.route('**/api/v1/password-reset/mfa-recovery.php', (route) => route.abort('failed'));
   await fillReset(page);
   await page.getByRole('textbox', { name: 'Recovery code' }).fill('ABCD-EF01-2345-6789-ABCD-EF01');
   await page.getByRole('button', { name: 'Use recovery code' }).click();

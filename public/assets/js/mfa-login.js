@@ -3,6 +3,11 @@ import { getPasskey, webAuthnSupported } from './webauthn.js';
 
 const SIGN_IN_TITLE = 'Complete sign-in';
 const SIGN_IN_TEXT = 'Use a registered passkey. A one-time recovery code is available when your authenticator is unavailable.';
+const SIGN_IN_ENDPOINTS = {
+  options: '/api/v1/mfa/login-options.php',
+  finish: '/api/v1/mfa/login-finish.php',
+  recovery: '/api/v1/mfa/login-recovery.php',
+};
 let sharedPanel = null;
 // A password reset (#155) finishes through this same panel, but keeps the
 // completion response (it carries the new recovery key) and handles cancel.
@@ -12,9 +17,9 @@ let continuation = null;
  * Shows the second-factor step for a password reset. `onComplete` receives
  * the completing response; `onCancel` runs instead of signing out.
  */
-export function continueResetWithMfa({ title, text, onComplete, onCancel, onUncertain }) {
+export function continueResetWithMfa({ title, text, endpoints, onComplete, onCancel, onUncertain }) {
   if (!sharedPanel) return false;
-  continuation = { onComplete, onCancel, onUncertain };
+  continuation = { onComplete, onCancel, onUncertain, endpoints };
   sharedPanel.title.textContent = title;
   sharedPanel.explanation.textContent = text;
   showMfaPanel(sharedPanel);
@@ -158,9 +163,10 @@ async function completeWithPasskey(panel) {
   panel.status.textContent = '';
   setPanelBusy(panel, true);
   try {
-    const options = await apiPost('/api/v1/mfa/login-options.php');
+    const endpoints = continuation?.endpoints ?? SIGN_IN_ENDPOINTS;
+    const options = await apiPost(endpoints.options);
     const credential = await getPasskey(options.public_key);
-    await finish(await apiPost('/api/v1/mfa/login-finish.php', { credential }));
+    await finish(await apiPost(endpoints.finish, { credential }));
   } catch (error) {
     if (uncertain(error)) return;
     panel.status.textContent = message(error);
@@ -174,7 +180,7 @@ async function completeWithRecovery(event, panel) {
   panel.status.textContent = '';
   setPanelBusy(panel, true);
   try {
-    const response = await apiPost('/api/v1/mfa/login-recovery.php', {
+    const response = await apiPost((continuation?.endpoints ?? SIGN_IN_ENDPOINTS).recovery, {
       recovery_code: panel.input.value,
     });
     panel.recovery.reset();
