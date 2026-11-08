@@ -311,4 +311,13 @@ test('moderators review person cases with a blurred picture and person actions',
   await expect(page.locator('.moderation-case-button')).toHaveCount(1);
   await expect(page.locator('#moderation-person-evidence')).toBeHidden();
   await expect(page.locator('.moderation-evidence')).toHaveText('Buy now');
+
+  // The real-server reflow gate checks the queue at 320px, with and without cases.
+  await page.setViewportSize({ width: 320, height: 740 });
+  await page.getByRole('radio', { name: 'People' }).check();
+  await noOverflow(page);
+  await page.route('**/api/v1/moderation/cases.php?**', (route) => route.fulfill({ json: { cases: [], has_more: false, next_before_id: null } }));
+  await page.getByRole('radio', { name: 'All' }).check();
+  await expect(page.locator('#moderation-status')).toHaveText('No cases match this filter.');
+  await noOverflow(page);
 });

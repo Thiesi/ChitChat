@@ -39,9 +39,15 @@
 
 /* ---- Moderation queue ---- */
 .moderation-queue-heading:has(.moderation-kind) { flex-wrap: wrap; }
-.moderation-kind { display: flex; flex: 1 1 100%; gap: 0.25rem; margin: 0; padding: 0.2rem; border: 1px solid var(--border); border-radius: 0.8rem; }
+/* Below 40rem the heading is a column (moderation.css); wrapping a flex column
+   would start a second column beside it and overflow. */
+@media (max-width: 40rem) {
+  .moderation-queue-heading:has(.moderation-kind) { flex-wrap: nowrap; }
+}
+/* A fieldset's default min-width is its content, which overflows narrow queues; let it shrink and wrap. */
+.moderation-kind { display: flex; flex: 1 1 100%; flex-wrap: wrap; min-width: 0; gap: 0.25rem; margin: 0; padding: 0.2rem; border: 1px solid var(--border); border-radius: 0.8rem; }
 .moderation-kind legend { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-.moderation-kind label { position: relative; flex: 1; min-width: 0; display: flex; justify-content: center; align-items: center; min-height: 2.75rem; padding: 0 0.85rem; border-radius: 0.6rem; color: var(--text); font-size: 0.9rem; cursor: pointer; }
+.moderation-kind label { position: relative; flex: 1 1 auto; min-width: 0; display: flex; justify-content: center; align-items: center; min-height: 2.75rem; padding: 0 0.6rem; border-radius: 0.6rem; color: var(--text); font-size: 0.9rem; cursor: pointer; }
 .moderation-kind input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
 .moderation-kind label:has(input:checked) { background: var(--surface-2); font-weight: 700; box-shadow: inset 0 0 0 1px var(--border); }
 .moderation-kind label:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 1px; }
