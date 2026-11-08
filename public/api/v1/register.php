@@ -41,6 +41,7 @@ Endpoint::run($config, static function () use ($config): ApiResult {
         Request::string($payload, 'password'),
         $ipAddress,
         $birthDate,
+        $payload['accepted_rules_version'] ?? null,
     );
     SessionManager::login($user);
 

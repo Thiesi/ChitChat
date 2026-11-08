@@ -19,3 +19,5 @@
 - [Web Push subscriptions and preferences](web-push.md)
 - [Administration](admin.md)
 - [System settings](system-settings.md)
+
+- [Installation policies and rules acceptance](policies.md)

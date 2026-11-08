@@ -12,6 +12,7 @@ use ChitChat\Room\Room;
 use ChitChat\Room\RoomAuthorization;
 use ChitChat\Room\RoomEligibility;
 use ChitChat\Room\RoomRepository;
+use ChitChat\Policy\PolicyService;
 use PDO;
 use RuntimeException;
 
@@ -40,17 +41,19 @@ final class RoomReactionService
         }
         (new MuteService($this->pdo))->assertMayPostInRoom($actor->id, $roomId);
 
-        $statement = $this->pdo->prepare(<<<'SQL'
-INSERT INTO room_message_reactions (message_id, user_id, emoji)
-VALUES (:message_id, :user_id, :emoji)
-ON CONFLICT (message_id, user_id, emoji) DO NOTHING
-SQL);
-        if ($statement === false) {
-            throw new RuntimeException('Unable to prepare room-message reaction add.');
-        }
-        $statement->execute(['message_id' => $messageId, 'user_id' => $actor->id, 'emoji' => $emoji]);
+        return (new PolicyService($this->pdo))->write($actor, function () use ($actor, $messageId, $emoji, $roomId): array {
+            $statement = $this->pdo->prepare(<<<'SQL'
+    INSERT INTO room_message_reactions (message_id, user_id, emoji)
+    VALUES (:message_id, :user_id, :emoji)
+    ON CONFLICT (message_id, user_id, emoji) DO NOTHING
+    SQL);
+            if ($statement === false) {
+                throw new RuntimeException('Unable to prepare room-message reaction add.');
+            }
+            $statement->execute(['message_id' => $messageId, 'user_id' => $actor->id, 'emoji' => $emoji]);
 
-        return $this->publishAndReturn($messageId, $roomId, $actor->id);
+            return $this->publishAndReturn($messageId, $roomId, $actor->id);
+        });
     }
 
     /** @return list<array{emoji:string, users:list<array{id:int, username:string}>, reacted_by_me:bool}> */

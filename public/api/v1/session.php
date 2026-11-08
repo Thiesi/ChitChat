@@ -17,6 +17,7 @@ use ChitChat\Http\PublicSessionMetadata;
 use ChitChat\Moderation\MuteService;
 use ChitChat\Realtime\TypingService;
 use ChitChat\Upload\AttachmentPolicy;
+use ChitChat\Policy\PolicyService;
 
 /** @var ChitChat\Config $config */
 $config = require dirname(__DIR__, 3) . '/bootstrap/http.php';
@@ -44,6 +45,7 @@ SQL);
     return ApiResult::ok([
         'application' => $metadata->application(),
         'capabilities' => $metadata->capabilities(),
+        'policies' => (new PolicyService($pdo, $config))->discovery(),
         'csrf_token' => SessionManager::csrfToken(),
         'user' => $user?->toSessionArray(),
         'attachments' => AttachmentPolicy::forSession($config, $user),

@@ -21,6 +21,7 @@ abstract class DatabaseTestCase extends TestCase
         $this->pdo->exec(
             'TRUNCATE TABLE guest_blocks, oidc_signing_keys, user_identities, account_notifications, maintenance_runs, sse_connections, rate_limit_counters, request_rate_limits, direct_message_attachments, direct_messages, attachments, room_presence, realtime_events, room_messages, room_invitations, room_members, rooms, audit_log, user_bans, login_attempts, account_closures, mfa_recovery_codes, webauthn_credentials, user_roles, users RESTART IDENTITY CASCADE',
         );
+        $this->pdo->exec("UPDATE policy_documents SET source = 'none', markdown = NULL, url = NULL, version = 0, change_summary = NULL, updated_at = NULL");
         $this->pdo->exec(<<<'SQL'
 UPDATE system_settings
 SET registration_enabled = TRUE,

@@ -7,6 +7,7 @@ use ChitChat\Admin\ApplicationNameService;
 use ChitChat\Audit\AuditLogger;
 use ChitChat\Auth\AuthenticatedUser;
 use ChitChat\Config;
+use ChitChat\Policy\PolicyService;
 use PDO;
 use RuntimeException;
 use Throwable;
@@ -61,6 +62,7 @@ final class PersonalDataExportService
                     'description' => 'Retained personal data currently associated with the authenticated account.',
                     'includes' => [
                         'account profile, profile picture, connected sign-in providers (provider and its account identifier only), people ignored in rooms, roles and ban history',
+                        'community rules acceptance versions and timestamps',
                         'rooms created by the account, memberships and pending invitations',
                         'retained room messages authored by the account and their retained revisions',
                         'retained direct messages visible to the account and attachment metadata',
@@ -89,6 +91,7 @@ final class PersonalDataExportService
                     'avatar' => (new AvatarService($this->pdo, $this->config))->exportFor($actor->id),
                     'sign_in_providers' => $this->signInProviders($actor->id),
                     'ignored_people' => $this->ignoredPeople($actor->id),
+                    'rules_acceptances' => (new PolicyService($this->pdo, $this->config))->acceptanceHistory($actor->id),
                 ]),
                 'rooms' => [
                     'created' => $createdRooms,

@@ -233,6 +233,14 @@ SQL);
         } elseif ($kind === 'admin_password_reset') {
             $title = 'Password reset by an administrator';
             $message = 'An administrator reset your password and invalidated your existing signed-in sessions.';
+        } elseif ($kind === 'privacy_policy_updated') {
+            $title = 'Privacy policy updated';
+            $message = 'The installation privacy policy has changed. You do not need to agree to it.';
+            $summary = $this->nonEmptyString($context['change_summary'] ?? null);
+            if ($summary !== null) {
+                $details[] = $summary;
+            }
+            $link = $this->nonEmptyString($context['url'] ?? null);
         } elseif ($kind === 'system_policy_changed') {
             $title = 'Installation policy changed';
             $message = 'A Super-Administrator changed one or more installation policies.';

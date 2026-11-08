@@ -12,6 +12,7 @@ use ChitChat\Moderation\MuteService;
 use ChitChat\Room\RoomAuthorization;
 use ChitChat\Room\RoomRepository;
 use DateTimeImmutable;
+use ChitChat\Policy\PolicyService;
 use PDO;
 use RuntimeException;
 use Throwable;
@@ -88,6 +89,7 @@ SQL);
 
         $this->pdo->beginTransaction();
         try {
+            (new PolicyService($this->pdo))->assertMayWrite($actor);
             $insert = $this->pdo->prepare(<<<'SQL'
 INSERT INTO room_pings (room_id, sender_id, target_id, body)
 VALUES (:room_id, :sender_id, :target_id, :body)
