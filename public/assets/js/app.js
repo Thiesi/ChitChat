@@ -13,6 +13,9 @@ import { COMMANDS, SHRUG, attachCommandSuggestions, parseSlashCommand, showComma
 import { alertUser } from './attention.js';
 import { formatDateTime } from './datetime.js';
 import { guestBadge, isGuestName, markGuestAvatar } from './guest.js';
+import { openResetIfRequested, showKeyStepInCard } from './password-reset.js';
+import { issuedKey } from './recovery.js';
+import { renderRecoveryNudge, setRecoveryNudgeUser } from './recovery-nudge.js';
 
 const registrationChallenge = createRegistrationChallenge();
 const guestChallenge = createRegistrationChallenge('/api/v1/guest/challenge.php');
@@ -213,6 +216,7 @@ async function bootstrap() {
   }
 
   if (session.user) {
+    openResetIfRequested({ signedIn: true });
     await enterApplication(session.user);
   } else {
     renderGuestEntry();
@@ -220,6 +224,7 @@ async function bootstrap() {
     setProviderSignUp(session.pending_sign_up ?? null);
     showSignInErrorFromRedirect();
     elements['auth-shell'].classList.remove('hidden');
+    openResetIfRequested();
     if (session.pending_sign_up) elements['register-username'].focus();
   }
 }
@@ -250,6 +255,8 @@ async function enterApplication(user) {
     }
   }
   renderGuestBanner();
+  setRecoveryNudgeUser(user.id);
+  renderRecoveryNudge(user, { lockdown: document.getElementById('chat-lockdown')?.classList.contains('hidden') === false });
   elements['new-room-button'].classList.toggle('hidden', !canCreateRooms(user));
   clearAuthError();
   presence.start();
@@ -307,6 +314,17 @@ async function submitRegistration(event) {
     registrationChallenge.reset();
     elements['register-form'].reset();
     setProviderSignUp(null);
+    // A password account gets its recovery key once, before the chat opens (#155).
+    const key = issuedKey(response);
+    if (key && showKeyStepInCard({
+      eyebrow: 'One more thing',
+      title: 'Save your recovery key',
+      intro: 'If you ever forget your password, this key lets you set a new one yourself. We can show it only this once.',
+      key,
+      username: response.user?.username ?? '',
+      continueLabel: `Continue to ${document.querySelector('meta[name="application-name"]')?.content || 'ChitChat'}`,
+      onContinue: () => void enterApplication(response.user),
+    })) return;
     await enterApplication(response.user);
   } catch (error) {
     // Every submission consumes the challenge, so prepare a fresh one.

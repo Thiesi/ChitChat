@@ -54,6 +54,8 @@ Emulation cannot prove behavior with real browser zoom, Windows contrast themes,
 
 `presentation.spec.js` exercises the actual PHP templates and JavaScript with intercepted API responses. It checks both themes with axe-core, desktop and narrow layouts down to 320 CSS pixels, keyboard authentication tabs, replies, emoji, the mobile menu, empty conversations, long installation names, reduced motion, and forced-color focus. It writes review screenshots into the Playwright output directory and makes no database writes. These checks complement the real-backend journeys; they do not verify authentication, persistence, or realtime delivery.
 
+`presentation-recovery.spec.js` covers recovery keys and the self-service password reset: the key shown once after registration (copy, download, the required tick), the reset form with its generic failure and rate-limit copy, the second-factor continuation and its cancel, honest wording when a cancel or the final step gets no answer, creating and replacing a key in Account, and the nudge for accounts without one.
+
 With the application server running, use:
 
 ```sh
