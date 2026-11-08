@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace ChitChat\Room;
 
+use ChitChat\Database\LikePattern;
 use PDO;
 use RuntimeException;
 
@@ -244,7 +245,7 @@ SQL);
         }
         $statement->bindValue(':room_id', $roomId, PDO::PARAM_INT);
         $statement->bindValue(':excluded_user_id', $excludeUserId, PDO::PARAM_INT);
-        $statement->bindValue(':pattern', strtr(strtolower($prefix), ['\\' => '\\\\', '%' => '\\%', '_' => '\\_']) . '%');
+        $statement->bindValue(':pattern', LikePattern::prefix($prefix));
         $statement->bindValue(':limit', $limit, PDO::PARAM_INT);
         $statement->execute();
 

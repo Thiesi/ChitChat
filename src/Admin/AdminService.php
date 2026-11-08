@@ -11,6 +11,7 @@ use ChitChat\Http\ApiException;
 use ChitChat\Realtime\EventRepository;
 use DateTimeImmutable;
 use JsonException;
+use ChitChat\Database\LikePattern;
 use PDO;
 use RuntimeException;
 use Throwable;
@@ -89,7 +90,7 @@ WHERE u.id > :after_id
   AND u.account_kind = 'member'
   AND (
       CAST(:search_empty AS integer) = 1
-      OR lower(u.username) LIKE :search_pattern
+      OR lower(u.username) LIKE :search_pattern ESCAPE '\'
   )
 GROUP BY u.id, active_ban.reason, active_ban.expires_at
 ORDER BY u.id ASC
@@ -100,7 +101,7 @@ SQL);
         }
         $statement->bindValue(':after_id', $afterId, PDO::PARAM_INT);
         $statement->bindValue(':search_empty', $search === '' ? 1 : 0, PDO::PARAM_INT);
-        $statement->bindValue(':search_pattern', strtolower($search) . '%');
+        $statement->bindValue(':search_pattern', LikePattern::prefix($search));
         $statement->bindValue(':limit', $limit, PDO::PARAM_INT);
         $statement->execute();
 

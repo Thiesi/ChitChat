@@ -68,6 +68,22 @@ final class DirectMessageServiceTest extends DatabaseTestCase
         self::assertSame([$first['id']], array_column($older, 'id'));
     }
 
+    public function testRecipientSearchTreatsUnderscoreAsALiteralPrefixCharacter(): void
+    {
+        $auth = new AuthService($this->pdo, $this->config);
+        $viewer = $auth->register('ann_viewer', 'a very secure password', '127.0.0.1');
+        $literal = $auth->register('ann_member', 'another secure password', '127.0.0.2');
+        $wildcard = $auth->register('annxmember', 'different secure password', '127.0.0.3');
+        $service = new DirectMessageService($this->pdo);
+        $expected = [['id' => $literal->id, 'username' => 'ann_member']];
+        self::assertSame($expected, $service->searchUsers($viewer, 'ann_'));
+        self::assertSame($expected, $service->searchUsers($viewer, 'ANN_'));
+        self::assertSame($expected, $service->searchUsers($viewer, 'ann', 1));
+        self::assertSame([
+            ...$expected, ['id' => $wildcard->id, 'username' => 'annxmember'],
+        ], $service->searchUsers($viewer, 'ann'));
+    }
+
     public function testSearchExcludesSelfAndSelfMessagingIsRejected(): void
     {
         $auth = new AuthService($this->pdo, $this->config);
