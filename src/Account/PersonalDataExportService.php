@@ -76,7 +76,7 @@ final class PersonalDataExportService
                         'audit entries where the account is the recorded actor',
                     ],
                     'excludes' => [
-                        'password hashes, session state, CSRF tokens and privileged-step-up state',
+                        'password hashes, password-recovery keys/hashes/generation identifiers, staged reset state, CSRF tokens and privileged-step-up state',
                         'attachment file bytes and internal attachment storage keys',
                         'direct-message blocks created by other users',
                         'revision history for messages authored by other users',

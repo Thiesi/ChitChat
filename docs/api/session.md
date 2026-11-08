@@ -67,3 +67,5 @@ change the non-E2EE and retention disclosures for direct messages.
 Public `policies` and authenticated `user.rules` are documented in
 [installation policies and rules acceptance](policies.md). Missing fields mean
 unknown on older servers; None defaults preserve existing behavior.
+
+See [password recovery](password-recovery.md) for the private `user.recovery_key` status, once-only key disclosure, dedicated reset MFA flow, and password-change/admin-reset rotation policy.

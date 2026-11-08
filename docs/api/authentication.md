@@ -304,3 +304,5 @@ Password registration and provider completion at `oidc/register.php` send
 `accepted_rules_version` when discovery publishes community rules. The abuse
 challenge is checked before rules acceptance and account mutation. Login remains
 available while rules acceptance is pending. See [policy contract](policies.md).
+
+See [password recovery](password-recovery.md) for the private `user.recovery_key` status, once-only key disclosure, dedicated reset MFA flow, and password-change/admin-reset rotation policy.
