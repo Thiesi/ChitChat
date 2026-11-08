@@ -170,9 +170,14 @@ SQL);
     /** @return array{status:string,csrf_token:string} */
     public function cancel(string $ipAddress): array
     {
-        $state = $_SESSION['pending_password_reset'] ?? null;
-        if (!is_array($state)) {
-            // A completion may already have committed. Never acknowledge "nothing changed" here.
+        try {
+            // Persisted pending state can survive a committed reset if the response/session
+            // cleanup was interrupted. Check the live version/generation before promising no commit.
+            $this->pending($ipAddress);
+        } catch (ApiException $exception) {
+            if ($exception->errorCode !== 'reset_failed') {
+                throw $exception;
+            }
             throw new ApiException(409, 'reset_not_pending', 'No pending reset was cancelled. Check sign-in before trying again.');
         }
         SessionManager::clearPendingPasswordReset();
@@ -264,7 +269,10 @@ SQL);
      */
     private function signedIn(#[\SensitiveParameter] array $result): array
     {
-        SessionManager::login($result['user']); // Clears pending state and elevation; never grants step-up.
+        // The DB commit already happened. Clear pending state before fallible session-ID
+        // rotation, so a failed response cannot later acknowledge this reset as cancelled.
+        unset($_SESSION['pending_password_reset'], $_SESSION['password_reset_challenge']);
+        SessionManager::login($result['user']); // Clears elevation; never grants step-up.
         return ['status' => 'complete', 'user' => $result['user']->toSessionArray(),
             'csrf_token' => SessionManager::csrfToken(), 'recovery_key' => $result['recovery_key']];
     }

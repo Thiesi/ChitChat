@@ -118,6 +118,7 @@ final class PasswordResetServiceTest extends DatabaseTestCase
         $service = new PasswordResetService($this->pdo, $this->config);
         $this->assertError('invalid_recovery_code', fn () => $service->finishRecovery($key, self::IP), 403);
         self::assertSame(1, (new MfaRepository($this->pdo))->recoveryCodesRemaining($user->id));
+        $persistedPending = $_SESSION;
         $result = $service->finishRecovery($passkey->recoveryCode, self::IP);
         self::assertSame('complete', $result['status']);
         self::assertNotSame($key, $result['recovery_key']);
@@ -126,6 +127,12 @@ final class PasswordResetServiceTest extends DatabaseTestCase
         self::assertArrayNotHasKey('privileged_step_up', $_SESSION);
         self::assertSame($user->sessionVersion + 1, (int) $this->row($user->id)['session_version']);
         $this->assertError('reset_not_pending', fn () => $service->cancel(self::IP), 409);
+        // Simulate persisted session data from before a committed response was lost.
+        $_SESSION = $persistedPending;
+        $this->assertError('reset_not_pending', fn () => $service->cancel(self::IP), 409);
+        self::assertArrayNotHasKey('pending_password_reset', $_SESSION);
+        self::assertTrue(password_verify(self::NEW_PASSWORD, $this->row($user->id)['password_hash']));
+        self::assertSame(0, (new MfaRepository($this->pdo))->recoveryCodesRemaining($user->id));
         $_SESSION = [];
         $this->assertError('reset_failed', fn () => $this->begin($user->username, $passkey->recoveryCode), 400);
     }

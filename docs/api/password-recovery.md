@@ -124,7 +124,7 @@ an assertion started for ordinary sign-in or privileged step-up cannot complete
 a reset. Existing MFA errors and independent MFA rate limits apply.
 
 Only an acknowledged cancellation means no reset committed. With no pending
-reset (including after an already committed completion), cancel returns
+reset (including stale persisted state after an already committed completion), cancel returns
 409 `reset_not_pending`. A lost response or failed cancellation is uncertain:
 check sign-in rather than promising "nothing changed" or retrying the reset.
 
