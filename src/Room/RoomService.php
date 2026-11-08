@@ -28,17 +28,20 @@ final class RoomService
         $this->roomList = new RoomListSignal(new EventRepository($pdo));
     }
 
-    /** @return list<array{id:int, key:string, name:string, info_line:string, visibility:string, minimum_age:int, inactivity_timeout_seconds:int, created_by:int, member_role:?string, invited:bool, unread_count:int, last_read_message_id:?int}> */
+    /** @return list<array{id:int, key:string, name:string, info_line:string, visibility:string, minimum_age:int, inactivity_timeout_seconds:int, created_by:int, member_role:?string, invited:bool, unread_count:int, last_read_message_id:?int, active_count:?int, last_activity_at:?string}> */
     public function list(AuthenticatedUser $actor): array
     {
         $includeAll = RoomAuthorization::canModerateAnyRoom($actor);
         $reads = (new RoomReadService($this->pdo))->forUser($actor->id);
         $mutes = (new MuteService($this->pdo))->allFor($actor->id);
+        $activity = (new RoomListActivity($this->pdo))->forUser($actor);
         // Unread counts only for joined rooms; others have nothing to count.
         return array_map(
             static fn (Room $room): array => $room->toArray() + [
                 'unread_count' => $room->isMember() ? ($reads[$room->id]['unread_count'] ?? 0) : 0,
                 'last_read_message_id' => $room->isMember() ? ($reads[$room->id]['last_read_message_id'] ?? null) : null,
+                'active_count' => $activity[$room->id]['active_count'] ?? null,
+                'last_activity_at' => $activity[$room->id]['last_activity_at'] ?? null,
                 // Muted everywhere counts in every room.
                 'muted' => $mutes['everywhere'] ?? $mutes['rooms'][$room->id] ?? null,
             ],

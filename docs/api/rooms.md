@@ -18,6 +18,33 @@ Returns rooms visible in the user's room list. Global room moderators receive al
 
 For rooms the account has joined, each entry also carries `unread_count` (messages from others, not deleted, after the read position; counting stops at 100, shown as "99+") and `last_read_message_id` (`null` until the account first reads there). Other rooms report `0` and `null`.
 
+Joined-room list entries additionally contain:
+
+```json
+{"active_count": 4, "last_activity_at": "2026-11-08T10:00:00+00:00"}
+```
+
+- `active_count` counts distinct accounts and guests with an unexpired room
+  presence lease and an unexpired interaction window, exactly as the presence
+  list. Multiple tabs/devices count once. The viewer is excluded; `0` means
+  nobody else is active. A zero room inactivity timeout disables only the
+  interaction-window check, never lease expiry.
+- `last_activity_at` is the newest creation timestamp among current messages
+  visible in room history, formatted as ISO-8601 UTC. Deleted-for-everyone and
+  retention-removed messages do not count. Private pings never count. Messages
+  from ignored accounts do count: ignore is a display filter. No message text
+  or sender identity is disclosed. An empty visible history gives `null`.
+- Both values are `null` outside joined rooms, including rooms a global
+  moderator can inspect without joining. Joined accounts that can no longer
+  read history (for example after a minimum-age change) also receive `null`;
+  global moderators keep their existing age bypass. Missing fields on older
+  servers, or `null`, mean unknown/unavailable, never zero.
+
+These are snapshots, not a new live-presence feed. Clients can refresh the list
+on entry, foreground, and existing invalidations. No new SSE event is added;
+room ordering and unread/read-position behavior stay unchanged. All room activity
+is fetched in one batch query, in addition to the existing list/read/mute queries.
+
 ### `POST /api/v1/rooms/read.php`
 
 Requires authentication, CSRF and membership of the room.
