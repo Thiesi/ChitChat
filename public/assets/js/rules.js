@@ -3,6 +3,7 @@
 // until the person agrees again. Server shapes live in policies.js.
 import { ApiError, apiGet } from './api.js';
 import {
+  POLICY_NOT_FOUND,
   RULES_ACCEPTANCE_REQUIRED,
   RULES_VERSION_OUTDATED,
   acceptRules,
@@ -214,8 +215,13 @@ async function loadRules({ updatedAgain = false } = {}) {
   note.textContent = updatedAgain ? 'The rules were updated again just now.' : '';
   try {
     current = await fetchRules();
-  } catch {
+  } catch (failure) {
     current = null;
+    // The rules were removed meanwhile: there is nothing left to agree to.
+    if (failure instanceof ApiError && failure.code === POLICY_NOT_FOUND) {
+      rulesWithdrawn();
+      return;
+    }
     body.replaceChildren(Object.assign(document.createElement('p'), {
       textContent: 'The rules couldn’t be loaded. Close this and try again in a moment.',
     }));
@@ -261,6 +267,16 @@ async function agree() {
     error.textContent = failure instanceof Error ? failure.message : 'That didn’t work. Try again.';
     accept.disabled = false;
   }
+}
+
+function rulesWithdrawn() {
+  if (signedIn) {
+    signedIn = { ...signedIn, rules: { ...(signedIn.rules ?? {}), acceptance_required: false } };
+  }
+  setGated(false);
+  dialog?.close();
+  announce('The community rules were removed. You can write again.');
+  window.dispatchEvent(new CustomEvent('chitchat:rules-accepted', { detail: { version: null } }));
 }
 
 function announce(message) {

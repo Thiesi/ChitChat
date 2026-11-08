@@ -241,6 +241,18 @@ test('external rules show a link instead of the text, and a stale version reload
   await expect(dialog).toBeHidden();
 });
 
+test('rules removed meanwhile lift the pause instead of failing', async ({ page }) => {
+  await fixture(page, {
+    user: pending,
+    overrides: { 'policies/show.php': { status: 404, json: { error: { code: 'policy_document_not_found', message: 'Not published.' } } } },
+  });
+  await page.goto('/');
+  await expect(page.locator('#rules-announcer')).toHaveText('The community rules were removed. You can write again.');
+  await expect(page.locator('.rules-dialog')).not.toHaveAttribute('open', '');
+  await expect(page.locator('#chat-shell > .rules-banner')).toBeHidden();
+  await expect(page.locator('#composer-form')).toBeVisible();
+});
+
 test('direct messages pause writing too', async ({ page }) => {
   await fixture(page, { user: pending });
   await page.addInitScript(() => sessionStorage.setItem('chitchat-rules-dialog-shown', '1'));

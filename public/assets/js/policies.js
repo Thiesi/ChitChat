@@ -5,6 +5,7 @@ import { apiGet, apiPost } from './api.js';
 
 export const RULES_ACCEPTANCE_REQUIRED = 'rules_acceptance_required';
 export const RULES_VERSION_OUTDATED = 'rules_version_outdated';
+export const POLICY_NOT_FOUND = 'policy_document_not_found';
 
 const SHOW_ENDPOINT = '/api/v1/policies/show.php';
 const ACCEPT_ENDPOINT = '/api/v1/policies/accept.php';
