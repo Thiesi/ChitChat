@@ -144,7 +144,8 @@
 .message[data-run="middle"] .guest-badge,
 .message[data-run="end"] .guest-badge,
 .message.mine .guest-badge { display: none; }
-.message[data-run] .message-edited-indicator { color: var(--text-muted); font-size: 0.72rem; }
+/* No opacity on top of the muted colour: blended, it falls below 4.5:1. */
+:is(.message[data-run], .dm-message) .message-edited-indicator { color: var(--text-muted); font-size: 0.72rem; opacity: 1; }
 
 /* Actions appear on hover and focus only (never read state or typing here). */
 .message[data-run] .message-react-button { order: 9; margin-left: auto; }
@@ -207,8 +208,11 @@
   background: var(--raised);
   color: var(--text);
 }
+/* Inside your own bubble every muted text (time, "edited", "read", file
+   details, reply excerpts) uses the bubble's text colour: the scheme's
+   muted colour is chosen for the ground, not for --outgoing. */
 .message.mine .message-bubble,
-.dm-message.outgoing .message-bubble { background: var(--outgoing); color: var(--on-outgoing); }
+.dm-message.outgoing .message-bubble { background: var(--outgoing); color: var(--on-outgoing); --text-muted: var(--on-outgoing); }
 /* The link accent doesn't reach 4.5:1 on every scheme's outgoing colour, so
    links in your own bubbles take the bubble's text colour, underlined. */
 .message.mine .message-bubble a,

@@ -62,7 +62,11 @@ async function fixture(page) {
       'session.php': { user: viewer, csrf_token: 'fixture', registration_enabled: true, sign_in_providers: [] },
       'rooms/list.php': { rooms },
       'rooms/messages.php': { messages: history },
-      'rooms/message-mutations.php': { messages: history.map((message) => ({ ...message, can_edit: message.sender_id === 1, can_delete: message.sender_id === 1, can_moderate: false })) },
+      // Edited: one of yours (outgoing bubble) and one from someone else, so axe checks "edited" on both.
+      'rooms/message-mutations.php': { messages: history.map((message) => ({
+        ...message, edited_at: [3, 4].includes(message.id) ? '2026-10-04T10:30:00Z' : null,
+        can_edit: message.sender_id === 1, can_delete: message.sender_id === 1, can_moderate: false,
+      })) },
       'attachments/metadata.php': { attachments },
       'presence/heartbeat.php': { presence: { room_id: 1, expired: false } },
       'rooms/presence.php': { users: [] },
@@ -79,7 +83,9 @@ async function fixture(page) {
       })) },
       'direct-messages/read.php': {},
       'direct-messages/attachments/metadata.php': { attachments: [] },
-      'direct-messages/message-mutations.php': { messages: [] },
+      'direct-messages/message-mutations.php': { messages: [{
+        id: 4, body: history[3].body, edited_at: '2026-10-04T10:30:00Z', deleted: false, can_edit: true, can_delete: true, mentions: [],
+      }] },
     };
     await route.fulfill({ json: responses[path] ?? {} });
   });
@@ -174,9 +180,19 @@ for (const theme of ['light', 'dark']) {
     await fixture(page);
     await page.setViewportSize({ width: 320, height: 720 });
     await openRoom(page);
+    await expect(message(page, 4).locator('.message-edited-indicator')).toBeVisible();
+    await expect(message(page, 3).locator('.message-edited-indicator')).toBeVisible();
+    // The header with "edited" shows on hover or focus; focus your own edited message so axe sees it.
+    await message(page, 4).focus();
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
     const result = await new AxeBuilder({ page }).include('#message-list').withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
     expect(result.violations).toEqual([]);
+
+    // Direct messages: an edited outgoing message ("· edited" in its meta).
+    await page.goto('/messages.php?user=2');
+    await expect(page.locator('#dm-message-list article[data-message-id="4"] .message-edited-indicator')).toBeVisible();
+    const dms = await new AxeBuilder({ page }).include('#dm-message-list').withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
+    expect(dms.violations).toEqual([]);
   });
 }
 
