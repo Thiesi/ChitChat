@@ -242,6 +242,18 @@ SQL, 'account-restoration lookup');
     {
         if (!$this->pdo->inTransaction()) throw new RuntimeException('Restoration requires an outer transaction.');
         $mfaPolicyRequired = $this->lockGlobalAccountPolicy();
+        // After serializing account policy, lock closure before account, as in
+        // finalizeDue and the native guard. Recheck state/deadline after the wait.
+        $closureLookup = $this->prepare(<<<'SQL'
+SELECT id, role_snapshot::text AS role_snapshot
+FROM account_closures
+WHERE user_id = :user_id
+  AND restored_at IS NULL
+  AND finalized_at IS NULL
+FOR UPDATE
+SQL, 'pending account-closure lookup');
+        $closureLookup->execute(['user_id' => $userId]);
+        $closure = $closureLookup->fetch();
         $user = $this->userForUpdate($userId, $nativeHandoff);
         if ((string) $user['account_state'] === 'closed') {
             throw new ApiException(410, 'account_closed', 'This account has already been permanently closed.');
@@ -253,16 +265,6 @@ SQL, 'account-restoration lookup');
             throw new ApiException(410, 'account_restoration_expired', 'The account-restoration deadline has passed.');
         }
 
-        $closureLookup = $this->prepare(<<<'SQL'
-SELECT id, role_snapshot::text AS role_snapshot
-FROM account_closures
-WHERE user_id = :user_id
-  AND restored_at IS NULL
-  AND finalized_at IS NULL
-FOR UPDATE
-SQL, 'pending account-closure lookup');
-        $closureLookup->execute(['user_id' => $userId]);
-        $closure = $closureLookup->fetch();
         if (!is_array($closure)) {
             throw new RuntimeException('Pending account-closure lifecycle is missing.');
         }
