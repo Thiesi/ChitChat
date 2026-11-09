@@ -37,9 +37,11 @@ sign-in and remain present for members and guests; every existing v1 field stays
   **NATIVE_ANDROID_APPS** contains at least one trusted package/certificate pair.
   It describes configured server support, not proof of Digital Asset Links
   deployment or trust in any particular APK. See the [MFA API](mfa.md#native-android-passkey-clients).
-- **native_auth_handoff** remains **false** until the independent browser OIDC
-  handoff contract ships. A source version alone is not evidence of a trusted
-  Android client or redirect.
+- **native_auth_handoff** is true only with trusted Android apps, an enabled
+  Google/Twitch provider, explicit HTTPS **APP_ORIGIN**, the same
+  **OIDC_REDIRECT_ORIGIN**, and the integrated browser confirmation page.
+  It describes server support, not APK attestation, app delivery or a completed
+  sign-in. See [Native browser authentication](native-auth.md).
 
 On older servers, missing `application` or `capabilities` means unknown, never
 confirmed support. Clients fall back to host/default branding and disable new

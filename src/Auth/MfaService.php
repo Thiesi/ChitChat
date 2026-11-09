@@ -250,7 +250,7 @@ final class MfaService
             throw new ApiException(400, 'invalid_webauthn_payload', 'rawId must be a string.');
         }
         $credentialBytes = Base64Url::decode($rawId, 'rawId');
-        return $this->completeResetTransaction($user, 'passkey', $ipAddress, $complete,
+        return $this->completeFactorTransaction($user, 'mfa_password_reset', 'passkey', $ipAddress, $complete,
             function () use ($user, $credential, $credentialBytes, $challenge, $ipAddress): void {
                 $this->verifyAssertionInTransaction($user, 'mfa_password_reset', $credential, $credentialBytes, $challenge, $ipAddress);
             });
@@ -269,25 +269,65 @@ final class MfaService
             $this->auditFailure($user, 'mfa_password_reset', 'recovery_code', $ipAddress, 'invalid_format');
             throw new ApiException(403, 'invalid_recovery_code', 'The recovery code is invalid or has already been used.');
         }
-        return $this->completeResetTransaction($user, 'recovery_code', $ipAddress, $complete,
+        return $this->completeFactorTransaction($user, 'mfa_password_reset', 'recovery_code', $ipAddress, $complete,
             function () use ($user, $normalized, $ipAddress): void {
                 $this->verifyRecoveryCodeInTransaction($user, $normalized, 'mfa_password_reset', $ipAddress);
             });
     }
 
     /**
-     * The callback validates and locks the reset primary proof before invoking the factor verifier.
+     * @template T
+     * @param array<string,mixed> $credential
+     * @param callable(callable():void):T $complete
+     * @return T
+     */
+    public function completeNativeWithAssertion(AuthenticatedUser $user, array $credential, string $ipAddress, callable $complete): mixed
+    {
+        $this->requireAvailable();
+        $this->rateLimiter->consume('mfa_assertion', $user->id . '|' . $ipAddress);
+        $challenge = SessionManager::consumeWebAuthnChallenge('mfa_login', $user->id);
+        $rawId = $credential['rawId'] ?? null;
+        if (!is_string($rawId)) throw new ApiException(400, 'invalid_webauthn_payload', 'rawId must be a string.');
+        $bytes = Base64Url::decode($rawId, 'rawId');
+        return $this->completeFactorTransaction($user, 'mfa_login', 'passkey', $ipAddress, $complete,
+            function () use ($user, $credential, $bytes, $challenge, $ipAddress): void {
+                $this->verifyAssertionInTransaction($user, 'mfa_login', $credential, $bytes, $challenge, $ipAddress);
+            });
+    }
+
+    /**
+     * @template T
+     * @param callable(callable():void):T $complete
+     * @return T
+     */
+    public function completeNativeWithRecoveryCode(AuthenticatedUser $user, #[\SensitiveParameter] string $code, string $ipAddress, callable $complete): mixed
+    {
+        $this->rateLimiter->consume('mfa_recovery', $user->id . '|' . $ipAddress);
+        $normalized = $this->normalizeRecoveryCode($code);
+        if ($normalized === null) {
+            $this->auditFailure($user, 'mfa_login', 'recovery_code', $ipAddress, 'invalid_format');
+            throw new ApiException(403, 'invalid_recovery_code', 'The recovery code is invalid or has already been used.');
+        }
+        return $this->completeFactorTransaction($user, 'mfa_login', 'recovery_code', $ipAddress, $complete,
+            function () use ($user, $normalized, $ipAddress): void {
+                $this->verifyRecoveryCodeInTransaction($user, $normalized, 'mfa_login', $ipAddress);
+            });
+    }
+
+    /**
+     * The callback validates and locks its primary context before invoking the factor verifier.
      * Rate-limit consumption above is intentionally outside this rollback boundary.
      *
-     * @param callable(callable():void):array{user:AuthenticatedUser,recovery_key:string} $complete
+     * @template T
+     * @param callable(callable():void):T $complete
      * @param callable():void $verify
      *
-     * @return array{user:AuthenticatedUser,recovery_key:string}
+     * @return T
      */
-    private function completeResetTransaction(AuthenticatedUser $user, string $method, string $ipAddress, callable $complete, callable $verify): array
+    private function completeFactorTransaction(AuthenticatedUser $user, string $purpose, string $method, string $ipAddress, callable $complete, callable $verify): mixed
     {
         if ($this->pdo->inTransaction()) {
-            throw new RuntimeException('Reset MFA completion must own its transaction.');
+            throw new RuntimeException('MFA completion must own its transaction.');
         }
         $this->pdo->beginTransaction();
         try {
@@ -297,7 +337,7 @@ final class MfaService
         } catch (Throwable $exception) {
             $this->rollBack();
             if ($exception instanceof ApiException) {
-                $this->auditFailure($user, 'mfa_password_reset', $method, $ipAddress, $exception->errorCode);
+                $this->auditFailure($user, $purpose, $method, $ipAddress, $exception->errorCode);
             }
             throw $exception;
         }

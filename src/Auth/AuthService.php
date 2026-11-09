@@ -73,6 +73,16 @@ final class AuthService
         ], $acceptedRulesVersion);
     }
 
+    /** Account creation can share the native continuation's consume transaction. */
+    public function registerWithProviderInTransaction(
+        string $usernameInput, string $provider, string $subject, string $ipAddress,
+        ?string $birthDate = null, mixed $acceptedRulesVersion = null,
+    ): AuthenticatedUser {
+        if (!$this->pdo->inTransaction()) throw new RuntimeException('Provider registration requires an outer transaction.');
+        return $this->createAccount($usernameInput, null, $ipAddress, $birthDate,
+            ['provider' => $provider, 'subject' => $subject], $acceptedRulesVersion, ownTransaction: false);
+    }
+
     /** @param ?array{provider:string, subject:string} $identity */
     private function createAccount(
         string $usernameInput,
@@ -82,6 +92,7 @@ final class AuthService
         ?array $identity,
         mixed $acceptedRulesVersion,
         #[\SensitiveParameter] ?string &$issuedRecoveryKey = null,
+        bool $ownTransaction = true,
     ): AuthenticatedUser {
         (new LockdownService($this->pdo))->assertOpen();
         $username = Username::display($usernameInput);
@@ -92,7 +103,8 @@ final class AuthService
         }
 
         $userId = null;
-        $this->pdo->beginTransaction();
+        if ($ownTransaction) $this->pdo->beginTransaction();
+        elseif (!$this->pdo->inTransaction()) throw new RuntimeException('Account creation requires a transaction.');
 
         try {
             $policies = new PolicyService($this->pdo, $this->config);
@@ -179,9 +191,9 @@ SQL);
                 ipAddress: $ipAddress,
             );
 
-            $this->pdo->commit();
+            if ($ownTransaction) $this->pdo->commit();
         } catch (PDOException $exception) {
-            if ($this->pdo->inTransaction()) {
+            if ($ownTransaction && $this->pdo->inTransaction()) {
                 $this->pdo->rollBack();
             }
 
@@ -194,7 +206,7 @@ SQL);
 
             throw $exception;
         } catch (Throwable $exception) {
-            if ($this->pdo->inTransaction()) {
+            if ($ownTransaction && $this->pdo->inTransaction()) {
                 $this->pdo->rollBack();
             }
             throw $exception;
