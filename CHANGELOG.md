@@ -6,20 +6,32 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ## [Unreleased]
 
+No changes since `v3.4.0`.
+
+## [3.4.0] - 2026-11-09
+
+The second native-client readiness release, additive to API v1, with four forward-only database migrations (`0041` to `0044`); back up before upgrading. See the [`v3.4.0` release notes](docs/releases/v3.4.0.md).
+
 ### Added
 
+- Installation community rules, privacy policy and legal notice: hosted Markdown or external links, agreement at registration, provider sign-up and guest start, server-versioned re-agreement that pauses only new content, and an information-only notification for material privacy changes. Discovery is via `policies` and `user.rules` in `session.php`.
+- Reporting a person (username, profile picture or behaviour) from profile cards and direct-message headers, with room- or global-scoped cases, a retained picture snapshot shown blurred to moderators, an ignore and block offer, and a "Profile picture removed" outcome.
+- Self-service password recovery with a single rotating recovery key per password account (shown once, replaceable after confirming identity). Resets still require an enabled second factor, never grant elevated access, and sign out every other session. Administrator resets invalidate the key.
+- `APP_ORIGIN`, the canonical public origin for absolute links.
 - Room/direct attachment metadata includes nullable oriented display dimensions and an optional bounded WebP rendition with a same-origin preview URL. New previews use a maximum 1024 px long edge, preserve aspect ratio without upscaling, strip source metadata, and show GIFs as a static first frame. Authorized rendition downloads support private ETag revalidation; original downloads remain compatible.
 - An optional bounded image-preview backfill CLI with dry-run, table-specific cursors and the existing maintenance-cleanup lock. Migration `0044_attachment_image_previews.sql` adds nullable metadata without processing existing files.
 
 ### Fixed
 
 - No-op global imports no longer put PHP compiler warnings ahead of room/DM download bytes, SSE events, metrics text or administration-role JSON when error display is enabled. A guard checks public PHP routes against recurrence.
+- An ordinary password change checks the current password and session inside its transaction, so it can't interleave with a recovery reset.
 
 ### Operator notes
 
 - Backfill is an explicit host change: the maintainer decides whether and when to run it. Deployment and scheduled maintenance never start it automatically. See [image-preview backfill](docs/operations/image-preview-backfill.md).
 - Rendition generation requires GD with WebP/source-codec support. For large-photo previews, PHP-FPM should have `memory_limit` of at least `256M`, sized for the workload; the common `128M` setting can skip a preview while still returning header dimensions. Original uploads stay accepted when rendering is unavailable.
 - Continue backing up PostgreSQL and complete attachment storage together, including the new private renditions.
+- Set `APP_ORIGIN` behind a TLS-terminating proxy, and upgrade every web node before publishing hosted rules or a privacy policy.
 
 ## [3.3.0] - 2026-11-08
 
