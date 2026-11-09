@@ -204,3 +204,7 @@ body[data-audience="guest"] .account-card:not([data-guest-visible]) { display: n
 .session-meta { color: var(--text-muted); font-size: 0.85rem; overflow-wrap: anywhere; }
 #sessions-heading:focus { outline: none; }
 #sessions-heading:focus-visible { outline: 2px solid var(--signature-text); outline-offset: 3px; }
+/* No empty bands: the status and error lines take room only when they say
+   something, and the actions row only when there is another sign-in. */
+#sessions-status:empty, #sessions-error:empty { display: none; }
+.account-action-row:has(> #sessions-revoke-others[hidden]) { display: none; }
