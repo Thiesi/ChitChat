@@ -81,11 +81,13 @@ async function openRoom(page) {
   await expect(message(page, 6).locator('.message-mutation-button').first()).toBeVisible();
 }
 
-// Times are locale- and time-zone-formatted; the contract is that one follows
-// the text. The date part is optional: once the day headings carry the date
-// (S1c), a message names only its time. Slashes are escaped because the
-// pattern sits inside a /regex/ in the snapshot template.
-const TIME = String.raw`(?:\d{1,2}\/\d{1,2}\/\d{2}, )?\d{1,2}:\d{2}\s?[AP]M`;
+// Times are locale- and time-zone-formatted; the contract is that the full
+// moment (date and time, in the account's format) follows the text, also
+// since S1c shows only the time in the bubble. Slashes are escaped because
+// the pattern sits inside a /regex/ in the snapshot template.
+const TIME = String.raw`\d{1,2}\/\d{1,2}\/\d{2}, \d{1,2}:\d{2}\s?[AP]M`;
+// Direct messages give their stamp in the account's medium date style.
+const DM_TIME = String.raw`\w{3} \d{1,2}, \d{4}, \d{1,2}:\d{2}\s?[AP]M`;
 
 /** The accessible role and name of whatever has focus, read from the accessibility tree. */
 async function focusedNode(page) {
@@ -274,8 +276,8 @@ test('direct messages expose the same tree: day headings, one Tab stop, the same
       - listitem:
         - heading "October 3, 2026" [level=3]
       - listitem:
-        - 'article /^Rowan\\. Anyone else taking the slow route through Sunday\\? .+/'
+        - 'article /^Rowan\\. Anyone else taking the slow route through Sunday\\? ${DM_TIME}$/'
       - listitem:
-        - 'article /^You\\. Coffee, a good playlist, and absolutely no plans\\. .+/'
+        - 'article /^You\\. Coffee, a good playlist, and absolutely no plans\\. ${DM_TIME}$/'
   `);
 });

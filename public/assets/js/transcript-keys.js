@@ -122,11 +122,22 @@ export function attachTranscriptKeys(list, options) {
       parts.push(span.id);
     };
 
+    // The bubble shows only the time (the day heading carries the date), so
+    // the name reads the full moment in the account's format from the time's
+    // title, plus "read" where a DM shows it.
+    const stamp = (node) => {
+      if (!(node instanceof HTMLElement)) return;
+      const full = node.getAttribute('title')?.trim();
+      if (!full) { ref(node, 'time'); return; }
+      const read = node.classList.contains('dm-message-meta') && /·\s*read$/u.test(node.textContent.trim()) ? ', read' : '';
+      hiddenSpan('stamp', `${full}${read}`);
+    };
+
     if (article.classList.contains('ignored-message') || article.classList.contains('room-notice')) {
       ref(article.firstElementChild, 'text');
     } else if (article.dataset.pingId) {
       ref(own('.message-body'), 'body');
-      ref(own('.message-time'), 'time');
+      stamp(own('.message-time'));
     } else {
       const author = article.dataset.author || own('.message-author')?.textContent?.trim() || 'Someone';
       const self = options.selfName();
@@ -139,7 +150,7 @@ export function attachTranscriptKeys(list, options) {
         hiddenSpan('reply', `Replying to ${to}: ${excerpt}`);
       }
       ref(own('.message-body, .dm-message-body'), 'body');
-      ref(own('.message-time, .dm-message-meta'), 'time');
+      stamp(own('.message-time, .dm-message-meta'));
       const extras = [];
       if (own('.message-edited-indicator')) extras.push('Edited.');
       const file = own('.attachment-card .attachment-download');
