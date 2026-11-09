@@ -28,9 +28,11 @@ LimitRequestBody 12582912
 # Never compress the event stream.
 SetEnvIf Request_URI "^/api/v1/events/stream\.php$" no-gzip
 
-# Android credential association (v3.6.0+, #145). An exact path served by
-# assetlinks.php; an operator's own static file, if present, takes precedence.
-# Without this, FallbackResource would answer with the chat page.
+# Android credential association (#145, the release after v3.5.0). An exact
+# path served by assetlinks.php; an operator's own static file, if present,
+# takes precedence. Without this, FallbackResource would answer with the chat
+# page. Vhost context only (not inside <Directory>/<Location>), and ahead of
+# any dotfile deny.
 RewriteEngine On
 RewriteCond %{DOCUMENT_ROOT}%{REQUEST_URI} !-f
 RewriteRule "^/\.well-known/assetlinks\.json$" "/assetlinks.php" [PT,L]
@@ -39,7 +41,24 @@ RewriteRule "^/\.well-known/assetlinks\.json$" "/assetlinks.php" [PT,L]
 # ChitChat sends. If your server sets one, restore ChitChat's own value here.
 Header always set X-Frame-Options DENY
 
-# Optional: request logs without query strings (ChitChat's native sign-in
-# hand-off carries one-time values in the query). %U is the path only.
+# Request log without query strings (ChitChat's native sign-in hand-off
+# carries one-time values in the query); %U is the path only. REPLACE the
+# vhost's existing access log with this; a second CustomLog would leave the
+# query strings in the first.
 # LogFormat "%h %l %u %t \"%m %U %H\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"" chitchat_noquery
 # CustomLog /var/log/httpd/APPUSER-access.log chitchat_noquery
+
+# Optional: your installation's own icons instead of ChitChat's Lantern icons.
+# Map all six URLs ChitChat links; keep the files outside the checkout.
+# Alias /favicon.svg                              /home/APPUSER/branding/favicon.svg
+# Alias /assets/app-icons/favicon-32.png          /home/APPUSER/branding/favicon-32.png
+# Alias /assets/app-icons/apple-touch-icon.png    /home/APPUSER/branding/apple-touch-icon.png
+# Alias /assets/app-icons/icon-192.png            /home/APPUSER/branding/icon-192.png
+# Alias /assets/app-icons/icon-512.png            /home/APPUSER/branding/icon-512.png
+# Alias /assets/app-icons/icon-maskable-512.png   /home/APPUSER/branding/icon-maskable-512.png
+# Alias /favicon.ico                              /home/APPUSER/branding/favicon.ico
+# <Directory /home/APPUSER/branding>
+# 	Options None
+# 	AllowOverride None
+# 	Require all granted
+# </Directory>
