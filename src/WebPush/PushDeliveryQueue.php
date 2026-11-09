@@ -54,6 +54,13 @@ SQL)->fetch();
                     $this->pdo->commit();
                     break;
                 }
+                // A worker can commit between our MVCC scan and row-lock acquisition.
+                // Use a fresh statement snapshot after owning the notification lock.
+                if ($this->query('SELECT 1 FROM push_dispatch_sources WHERE notification_id = :id',
+                    ['id' => $row['id']])->fetchColumn() !== false) {
+                    $this->pdo->commit();
+                    continue;
+                }
                 $notification = $this->notification($row);
                 $deadline = $notification->createdAt->modify('+' . PushDeliveryPolicy::lifetime($notification->kind) . ' seconds');
                 $reason = $notification->read ? 'read' : ($deadline <= $now ? 'expired' : $suppression($notification));
