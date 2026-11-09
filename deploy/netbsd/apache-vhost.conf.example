@@ -48,7 +48,9 @@ Header always set X-Frame-Options DENY
 # LogFormat "%h %l %u %t \"%m %U %H\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"" chitchat_noquery
 # CustomLog /var/log/httpd/APPUSER-access.log chitchat_noquery
 
-# Optional: your installation's own icons instead of ChitChat's Lantern icons.
+# Legacy only: older releases needed the Alias overrides below. Prefer the
+# Installation icon setting beside the installation name; remove these mappings
+# when adopting it. The existing FallbackResource also handles /favicon.ico.
 # Map all six URLs ChitChat links; keep the files outside the checkout.
 # Alias /favicon.svg                              /home/APPUSER/branding/favicon.svg
 # Alias /assets/app-icons/favicon-32.png          /home/APPUSER/branding/favicon-32.png

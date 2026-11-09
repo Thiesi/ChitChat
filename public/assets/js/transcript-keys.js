@@ -31,6 +31,9 @@ export function attachTranscriptKeys(list, options) {
   help.textContent = 'Use the arrow keys to move between messages. Enter opens actions. Escape goes to the message box.';
   list.after(help);
   list.setAttribute('aria-describedby', help.id);
+  // Firefox makes a scrolling container a Tab stop of its own even when it
+  // holds focusable items; the current message is the transcript's only one.
+  if (!list.hasAttribute('tabindex')) list.setAttribute('tabindex', '-1');
 
   const messages = () => [...list.querySelectorAll(MESSAGE)];
   const keyOf = (article) => (article.dataset.messageId ? `m:${article.dataset.messageId}` : `p:${article.dataset.pingId}`);
