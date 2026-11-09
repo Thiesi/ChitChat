@@ -61,6 +61,8 @@
   --presence: #FFB547;
   --presence-text: #FFB547;
   --unsure-line: #FFB547;
+  /* Warning icons and text: the "attention, not danger" amber (#225, CCM's unsureLine alias). */
+  --warning: var(--unsure-line);
   --presence-wash: #4A3A1C;
   --steward: #A9B6FF;
   --error: #FF8A9B;
@@ -204,6 +206,7 @@
   --presence: #FFB547;
   --presence-text: #FFB547;
   --unsure-line: #FFB547;
+  --warning: #FFD966; /* yellower: Ember's action colour is amber */
   --presence-wash: #4A3322;
   --steward: #A9B6FF;
   --error: #FF8F8F;
@@ -226,6 +229,7 @@
   --presence: #FFB547;
   --presence-text: #8F5B00;
   --unsure-line: #8F5B00;
+  --warning: #6F5A00; /* yellower: Ember's action colour is amber */
   --presence-wash: #F6DFC8;
   --steward: #3D52C4;
   --error: #B42318;
@@ -292,6 +296,7 @@
   --presence: #FFD60A;
   --presence-text: #FFD60A;
   --unsure-line: #FFD60A;
+  --warning: #FF9F1C; /* orange: this scheme's unsure line is its yellow action colour */
   --presence-wash: #333300;
   --steward: #9CB4FF;
   --error: #FF7B7B;

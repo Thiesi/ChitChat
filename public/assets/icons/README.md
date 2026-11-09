@@ -40,7 +40,15 @@ Material Symbols copy, and they are covered by this repository's BSD 2-Clause li
 | `image` | Image or photo | files-media.md |
 | `check` | Confirmed, selected | status |
 | `info` | Information | status ladder, notice |
-| `warning` | Needs attention | status ladder, notice |
+| `warning` | Needs attention: a rounded triangle with "!", in `warning` | status ladder, notice |
+| `error` | Something failed: an octagon with "!", in `error` | status ladder (stream errors), gap-audit.md F3 failed badge |
+| `mention` | You were mentioned (an @) | web Activity kind and filter; the app shows mentions as text today |
+| `people` | Members and people lists (two people) | members, admin |
+| `settings` | Operational settings (sliders). `appearance` keeps meaning theme only | admin |
+| `status` | Health and status checks (a pulse) | admin server status |
+| `format` | Text formatting help ("Aa") | web only: the app's composer has no formatting |
+| `history` | Revisions and history (going back around a list) | web only (edit-history review is web-only, moderation.md) |
+| `inspect` | Direct-message inspection (a page under a magnifier, never an eye) | web only (moderation.md) |
 | `help` | Help | onboarding |
 | `block` | Block, not allowed | DM, moderation |
 | `lock` | Private, locked | rooms, security |
@@ -56,6 +64,10 @@ Material Symbols copy, and they are covered by this repository's BSD 2-Clause li
 | `open-external` | Opens outside the app (browser) | play-readiness.md §1 |
 
 ## Notes
+
+- `info` (circle), `warning` (triangle) and `error` (octagon) differ by shape, not only by
+  color (A-05). Their colors are `textMuted` or `text`, `warning` and `error`. The shapes and the
+  `warning` token were approved with ChitChat #225 v3 and are shared with the web.
 
 - The current app still ships an older paper-plane `ic_message_send` drawable on Send. The
   Lantern Send glyph is the arrow above, and the paper plane means a private ping. The swap
