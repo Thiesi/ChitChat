@@ -55,4 +55,16 @@ final class PublicSessionMetadataTest extends DatabaseTestCase
                 (new PublicSessionMetadata($this->pdo, $config))->capabilities());
         }
     }
+    public function testNativeHandoffDiscoveryRequiresAllInstallationInputsAndTheIntegratedRenderer(): void
+    {
+        self::assertTrue(\ChitChat\View\NativeAuthPage::integrated());
+        $values = ['applicationOrigin' => 'https://chat.test', 'oidcRedirectOrigin' => 'https://chat.test',
+            'nativeAndroidApps' => [['package' => 'de.networkxxiii.chitchat', 'sha256_cert_fingerprint' => implode(':', array_fill(0, 32, 'AB'))]],
+            'oidcProviders' => ['google' => ['client_id' => 'client', 'client_secret' => 'secret', 'endpoint_override' => '']]];
+        self::assertTrue((new PublicSessionMetadata($this->pdo, $this->configWith($values)))->capabilities()['native_auth_handoff']);
+        foreach ([['applicationOrigin' => ''], ['applicationOrigin' => 'http://127.0.0.1'], ['oidcRedirectOrigin' => 'https://other.test'],
+            ['nativeAndroidApps' => []], ['oidcProviders' => []]] as $invalid) {
+            self::assertFalse((new PublicSessionMetadata($this->pdo, $this->configWith(array_replace($values, $invalid))))->capabilities()['native_auth_handoff']);
+        }
+    }
 }

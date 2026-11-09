@@ -76,6 +76,17 @@ curl --fail --silent --show-error \
   --retry 30 --retry-delay 1 --retry-all-errors \
   "$base_url/ready.php" >/dev/null
 
+# Unknown native callbacks never create a session, and sensitive query values
+# must not appear in the configured Nginx access/error logs.
+native_headers="$work_root/native.headers"
+native_status="$(curl --silent --show-error --dump-header "$native_headers" --output "$work_root/native.body" \
+  --write-out '%{http_code}' "$base_url/api/v1/oidc/callback.php?state=native.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA&code=cc-native-log-secret")"
+[[ "$native_status" == 400 ]]
+! grep -Eqi '^Set-Cookie:' "$native_headers"
+grep -qi '^Cache-Control: no-store' "$native_headers"
+grep -qi '^Referrer-Policy: no-referrer' "$native_headers"
+grep -Fq '/api/v1/oidc/callback.php HTTP/' "$nginx_access"
+! grep -Eq 'cc-native-log-secret|native\.AAAAAAAA' "$nginx_access" "$nginx_log"
 # Synthetic certificate: verifies serving/configuration only, not Android acceptance.
 dal_headers="$work_root/dal.headers"
 dal_body="$work_root/dal.json"

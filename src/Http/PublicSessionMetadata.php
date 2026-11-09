@@ -31,7 +31,7 @@ final readonly class PublicSessionMetadata
             'schema_version' => 1,
             // Native passkeys require explicit installation trust; handoff is separate.
             'native_passkey_origins' => $this->config->webauthnEnabled() && $this->config->nativeAndroidApps !== [],
-            'native_auth_handoff' => false,
+            'native_auth_handoff' => \ChitChat\Auth\NativeAuth\NativeAuthConfiguration::available($this->config),
         ];
     }
 

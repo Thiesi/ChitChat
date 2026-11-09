@@ -303,6 +303,45 @@ final class OidcServiceTest extends DatabaseTestCase
         }
     }
 
+
+    public function testNativeVerificationStagesNoWebEffectsAndCannotFallThroughToWebCompletion(): void
+    {
+        [$root, $member] = $this->users();
+        $this->signInAs($root);
+        $browserAuth = $_SESSION['auth'];
+        $auditBefore = (int) $this->pdo->query('SELECT COUNT(*) FROM audit_log')->fetchColumn();
+        $attemptsBefore = (int) $this->pdo->query('SELECT COUNT(*) FROM login_attempts')->fetchColumn();
+        foreach (['login', 'restore', 'link', 'step_up', 'picture'] as $purpose) {
+            $transaction = \ChitChat\Auth\NativeAuth\NativeAuthConfiguration::token();
+            $user = in_array($purpose, ['link', 'step_up', 'picture'], true) ? $member : null;
+            parse_str((string) parse_url($this->oidc->begin('google', $purpose, $user, $transaction), PHP_URL_QUERY), $query);
+            $this->provider->nonce = (string) $query['nonce'];
+            $this->provider->challenge = (string) $query['code_challenge'];
+            self::assertStringStartsWith('native.', $query['state']);
+            $verified = $this->oidc->verifyCallback(['state' => $query['state'], 'code' => 'verified-code']);
+            self::assertSame($transaction, $verified->nativeTransaction);
+            self::assertSame($purpose, $verified->purpose);
+            self::assertSame($this->provider->subject, $verified->claims['sub']);
+            self::assertSame($browserAuth, $_SESSION['auth']);
+            self::assertArrayNotHasKey('oidc_sign_up', $_SESSION);
+        }
+        parse_str((string) parse_url($this->oidc->begin('google', 'link', $member,
+            \ChitChat\Auth\NativeAuth\NativeAuthConfiguration::token()), PHP_URL_QUERY), $query);
+        $this->provider->nonce = (string) $query['nonce'];
+        $this->provider->challenge = (string) $query['code_challenge'];
+        try {
+            $this->oidc->complete(['state' => $query['state'], 'code' => 'code'], '192.0.2.1');
+            self::fail('A native proof must not invoke web completion.');
+        } catch (ApiException $exception) {
+            self::assertSame('native_flow_required', $exception->errorCode);
+        }
+        self::assertSame(0, (int) $this->pdo->query('SELECT COUNT(*) FROM user_identities')->fetchColumn());
+        self::assertSame(0, (int) $this->pdo->query('SELECT COUNT(*) FROM avatar_imports')->fetchColumn());
+        self::assertSame($auditBefore, (int) $this->pdo->query('SELECT COUNT(*) FROM audit_log')->fetchColumn());
+        self::assertSame($attemptsBefore, (int) $this->pdo->query('SELECT COUNT(*) FROM login_attempts')->fetchColumn());
+        self::assertSame($browserAuth, $_SESSION['auth']);
+    }
+
     private function signInAs(AuthenticatedUser $user): void
     {
         $_SESSION['auth'] = ['user_id' => $user->id, 'session_version' => $user->sessionVersion, 'authenticated_at' => time()];
