@@ -80,7 +80,7 @@ final class LoginSessionTest extends DatabaseTestCase
         $auth = $_SESSION['auth'];
         $csrf = SessionManager::csrfToken();
         $this->fails('current_session', fn () => $this->logins->revoke($this->member, $second->id, hash('sha256', $second->token), $second->id, '127.0.0.1'));
-        $other = (new AuthService($this->pdo, $this->config))->register('Other', 'another secure password', '127.0.0.2');
+        $other = (new AuthService($this->pdo, $this->config))->register('Other', 'different secure passphrase', '127.0.0.2');
         $_SESSION = [];
         $foreign = $this->logins->issue($other);
         $_SESSION['auth'] = $auth;

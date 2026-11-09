@@ -28,5 +28,5 @@ ChitChat Mobile. If you're visiting as a guest, start guest access again.
 Your account and conversations will still be here. After signing in,
 your device can reconnect notifications as usual.
 
-Please make sure you can use your usual password, passkey or connected provider
-before the announced maintenance time.
+Please make sure you can use your usual sign-in method and any required second
+factor before the announced maintenance time.

@@ -22,7 +22,7 @@ final class LoginSessionHttpTest extends DatabaseTestCase
     {
         $auth = new AuthService($this->pdo, $this->config);
         $actor = $auth->register('Member', 'a very secure password', '127.0.0.1');
-        $auth->register('Other', 'another secure password', '127.0.0.2');
+        $auth->register('Other', 'different secure passphrase', '127.0.0.2');
         $socket = stream_socket_server('tcp://127.0.0.1:0', $code, $message);
         self::assertIsResource($socket, $message);
         $address = stream_socket_get_name($socket, false);
@@ -43,7 +43,7 @@ final class LoginSessionHttpTest extends DatabaseTestCase
                 self::assertTrue($bootstrap['capabilities']['signed_in_sessions']);
                 self::assertSame(200, $this->request($jar, '/api/v1/login.php',
                     ['username' => $jar === 'foreign' ? 'Other' : 'Member',
-                        'password' => $jar === 'foreign' ? 'another secure password' : 'a very secure password'])[0]);
+                        'password' => $jar === 'foreign' ? 'different secure passphrase' : 'a very secure password'])[0]);
             }
             [$status, $list] = $this->request('one', '/api/v1/account/sessions/list.php');
             self::assertSame(200, $status);
@@ -81,6 +81,18 @@ final class LoginSessionHttpTest extends DatabaseTestCase
             self::assertSame('rate_limited', $limited['error']['code']);
             self::assertGreaterThan(0, $limited['error']['retry_after_seconds']);
             self::assertSame((string) $limited['error']['retry_after_seconds'], $this->headers['retry-after']);
+            $this->pdo->exec("UPDATE system_settings SET guest_access_enabled = TRUE, registration_min_fill_seconds = 0, registration_proof_of_work_bits = 0 WHERE id = 1");
+            $this->request('guest', '/api/v1/session.php');
+            [$status, $started] = $this->request('guest', '/api/v1/guest/start.php', []);
+            self::assertSame(201, $status);
+            self::assertTrue($started['user']['guest']);
+            $guestId = $started['user']['id'];
+            self::assertCount(1, $this->request('guest', '/api/v1/account/sessions/list.php')[1]['sessions']);
+            self::assertSame(['revoked_count' => 0], $this->request('guest', '/api/v1/account/sessions/revoke-others.php', [])[1]);
+            $this->pdo->exec('UPDATE users SET guest_last_seen_at = NOW() - interval \'3 hours\' WHERE id = ' . $guestId);
+            self::assertSame(401, $this->request('guest', '/api/v1/account/sessions/list.php')[0]);
+            (new \ChitChat\Auth\GuestService($this->pdo))->endExpired();
+            self::assertSame(0, (int) $this->pdo->query('SELECT COUNT(*) FROM login_sessions WHERE revoked_at IS NULL AND user_id = ' . $guestId)->fetchColumn());
             self::assertStringNotContainsString('a very secure password', file_get_contents($log) ?: '');
         } finally {
             if (proc_get_status($process)['running']) proc_terminate($process);
