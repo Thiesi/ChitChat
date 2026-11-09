@@ -24,6 +24,13 @@ export function attachTranscriptKeys(list, options) {
   let lastIndex = null;
   let menu = null;
   let syncing = false;
+  // Incremental sync (review item 6): only messages that changed since the
+  // last sync, plus the old and new current one, are re-labelled. A full pass
+  // runs once at the start and after reset().
+  let previous = null;
+  let lastFocused = null;
+  let fullPending = true;
+  const dirty = new Set();
 
   const help = document.createElement('p');
   help.id = `transcript-help-${helpCount += 1}`;
@@ -38,7 +45,33 @@ export function attachTranscriptKeys(list, options) {
   const messages = () => [...list.querySelectorAll(MESSAGE)];
   const keyOf = (article) => (article.dataset.messageId ? `m:${article.dataset.messageId}` : `p:${article.dataset.pingId}`);
   const find = (key) => messages().find((article) => keyOf(article) === key) ?? null;
-  const current = () => (currentKey ? find(currentKey) : null);
+  const current = () => {
+    if (!currentKey) return null;
+    if (previous?.isConnected && list.contains(previous) && keyOf(previous) === currentKey) return previous;
+    return find(currentKey);
+  };
+
+  function markDirty(node, deep) {
+    if (!(node instanceof Element) || node === list) return;
+    const own = node.closest(MESSAGE);
+    if (own) dirty.add(own);
+    if (deep) for (const inner of node.querySelectorAll(MESSAGE)) dirty.add(inner);
+  }
+
+  function collect(records) {
+    for (const record of records) {
+      markDirty(record.target, false);
+      for (const added of record.addedNodes) markDirty(added, true);
+    }
+  }
+
+  /** Closes a reaction picker left open in a message (review item 5). */
+  function closePickers(article) {
+    for (const picker of article.querySelectorAll('.reaction-picker:not([hidden])')) {
+      picker.hidden = true;
+      picker.parentElement?.querySelector('.reaction-add-button')?.setAttribute('aria-expanded', 'false');
+    }
+  }
 
   function initial(all) {
     const firstUnread = list.querySelector('li:has(> .new-messages-divider) ~ li article[data-message-id]');
@@ -109,7 +142,7 @@ export function attachTranscriptKeys(list, options) {
       ref(own('.message-time, .dm-message-meta'), 'time');
       const extras = [];
       if (own('.message-edited-indicator')) extras.push('Edited.');
-      const file = own('.attachment-card .attachment-name, .attachment-card a');
+      const file = own('.attachment-card .attachment-download');
       if (file?.textContent?.trim()) extras.push(`File: ${file.textContent.trim()}.`);
       const reactions = [...article.querySelectorAll('.reaction-button')].map((button) => {
         const [emojiPart, countPart] = (button.getAttribute('aria-label') ?? '').split(':')[0].split(', ');
@@ -128,19 +161,28 @@ export function attachTranscriptKeys(list, options) {
     if (syncing) return;
     syncing = true;
     try {
+      collect(observer.takeRecords());
       const all = messages();
       if (all.length === 0) {
         currentKey = null;
         lastIndex = null;
+        previous = null;
+        dirty.clear();
         return;
       }
-      const hadFocus = document.activeElement === document.body && lastIndex !== null;
+      // Focus is restored only when the node that had it was removed, never
+      // after focus simply went to nothing (review item 1).
+      const hadFocus = document.activeElement === document.body && lastIndex !== null
+        && lastFocused !== null && !lastFocused.isConnected;
       let chosen = current();
       if (!chosen) {
         // The current message is gone (deleted): the next one, else the previous.
         chosen = lastIndex !== null ? all[Math.min(lastIndex, all.length - 1)] : initial(all);
       }
-      for (const article of all) {
+      const targets = fullPending
+        ? all
+        : new Set([...dirty, previous, chosen].filter((article) => article?.isConnected && list.contains(article)));
+      for (const article of targets) {
         const isCurrent = article === chosen;
         // tabIndex reads -1 without the attribute too, so compare the attribute itself.
         const value = isCurrent ? '0' : '-1';
@@ -148,10 +190,16 @@ export function attachTranscriptKeys(list, options) {
         setInner(article, isCurrent && article.contains(document.activeElement));
         label(article);
       }
+      if (previous && previous !== chosen && previous.isConnected) closePickers(previous);
+      fullPending = false;
+      dirty.clear();
+      previous = chosen;
       currentKey = keyOf(chosen);
       lastIndex = all.indexOf(chosen);
       if (hadFocus && list.dataset.transcriptFocused === 'true') focusArticle(chosen);
     } finally {
+      // What sync itself changed (hidden name spans) needs no second pass.
+      observer.takeRecords();
       syncing = false;
     }
   }
@@ -189,6 +237,7 @@ export function attachTranscriptKeys(list, options) {
 
     if (event.key === 'Escape' && !onMessage) {
       event.preventDefault();
+      closePickers(article);
       focusArticle(article);
       return;
     }
@@ -236,6 +285,7 @@ export function attachTranscriptKeys(list, options) {
 
   list.addEventListener('focusin', (event) => {
     list.dataset.transcriptFocused = 'true';
+    if (event.target instanceof Element) lastFocused = event.target;
     const article = event.target instanceof HTMLElement ? event.target.closest(MESSAGE) : null;
     if (!article) return;
     if (keyOf(article) !== currentKey) makeCurrent(article);
@@ -246,8 +296,36 @@ export function attachTranscriptKeys(list, options) {
     const next = event.relatedTarget;
     const article = current();
     if (article && !(next instanceof Node && article.contains(next))) setInner(article, false);
-    // A removed node reports no target; only a move elsewhere ends transcript focus.
-    if (next instanceof Node && !list.contains(next)) list.dataset.transcriptFocused = 'false';
+    if (next instanceof Node) {
+      if (!list.contains(next)) list.dataset.transcriptFocused = 'false';
+      return;
+    }
+    // No new target: either the focused node was removed (keep transcript
+    // focus, so sync moves it to the next message) or focus went to nothing,
+    // such as a click on non-focusable space (end it, so a later sync doesn't
+    // pull focus and scroll back). Removal has happened by the next task.
+    const from = event.target;
+    window.setTimeout(() => {
+      if (from instanceof Node && from.isConnected && !list.contains(document.activeElement)) {
+        list.dataset.transcriptFocused = 'false';
+      }
+    }, 0);
+  });
+
+  // (5) Opening a message's reaction picker (the + button, or React… in the
+  // actions menu) moves focus to its first option; choosing one returns focus
+  // to the message, since the picker closes.
+  list.addEventListener('click', (event) => {
+    const target = event.target instanceof Element ? event.target : null;
+    const article = target?.closest(MESSAGE);
+    if (!article) return;
+    if (target.closest('.reaction-picker-option')) {
+      focusArticle(article);
+      return;
+    }
+    const add = target.closest('.reaction-add-button');
+    const picker = add?.parentElement?.querySelector('.reaction-picker');
+    if (picker && !picker.hidden) picker.querySelector('button')?.focus();
   });
 
   // Tapping a message on touch opens the same actions, as a bottom sheet. It
@@ -268,11 +346,13 @@ export function attachTranscriptKeys(list, options) {
   // Other modules decorate messages after rendering (edit/delete, files,
   // "edited"); their controls must not add tab stops.
   let queued = false;
-  new MutationObserver(() => {
+  const observer = new MutationObserver((records) => {
+    collect(records);
     if (queued || syncing) return;
     queued = true;
     queueMicrotask(() => { queued = false; sync(); });
-  }).observe(list, { childList: true, subtree: true });
+  });
+  observer.observe(list, { childList: true, subtree: true });
 
   // ---------- actions menu ----------
 
@@ -297,7 +377,7 @@ export function attachTranscriptKeys(list, options) {
     }
     const original = article.querySelector('button.reply-preview');
     if (original) add('Go to the original message', click(original));
-    const file = article.querySelector('.attachment-card a[href]');
+    const file = article.querySelector('.attachment-card .attachment-download[href]');
     if (file) add('Download file', click(file));
     for (const button of article.querySelectorAll('.message-mutation-button')) {
       if (!button.disabled) add(button.textContent.trim(), click(button), button.classList.contains('danger'));
@@ -367,7 +447,7 @@ export function attachTranscriptKeys(list, options) {
   return {
     sync,
     /** A new conversation starts at its first unread message, else its newest. */
-    reset() { currentKey = null; lastIndex = null; closeMenu({ restore: false }); },
+    reset() { currentKey = null; lastIndex = null; previous = null; fullPending = true; dirty.clear(); closeMenu({ restore: false }); },
     focus(article) { if (article && list.contains(article)) focusArticle(article); },
     focusNewest() { const all = messages(); if (all.length) focusArticle(all.at(-1)); },
   };

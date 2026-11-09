@@ -214,6 +214,41 @@ test('loading older history marks the list busy and says how many loaded', async
   await expect(page.locator('#message-list')).toHaveAttribute('aria-busy', 'false');
 });
 
+test('direct messages announce older history and mark the list busy, like rooms', async ({ page }) => {
+  const dm = (id, body) => ({
+    id, body, created_at: new Date(Date.UTC(2026, 9, 4, 8, 0, 0) + id * 60_000).toISOString(), mentions: [], reactions: [], reply_to: null,
+    sender: rowan, recipient: viewer, outgoing: false, read_at: null,
+  });
+  const recent = Array.from({ length: 100 }, (_, index) => dm(201 + index, `Recent ${201 + index}`));
+  // A full page, so Load older stays available for the empty page after it.
+  const older = Array.from({ length: 100 }, (_, index) => dm(101 + index, `Older ${101 + index}`));
+  await fixture(page);
+  let release;
+  const held = new Promise((resolve) => { release = resolve; });
+  let olderEmpty = false;
+  await page.route('**/api/v1/direct-messages/history.php?**', async (route) => {
+    const before = new URL(route.request().url()).searchParams.get('before_id');
+    if (before && !olderEmpty) await held;
+    await route.fulfill({ json: { messages: before ? (olderEmpty ? [] : older) : recent } });
+  });
+  await page.goto('/messages.php?user=2');
+  const list = page.locator('#dm-message-list');
+  await expect(list.locator('article.dm-message')).toHaveCount(100);
+  await page.locator('#dm-load-older').click();
+  await expect(announcer(page)).toHaveText('Loading older messages…');
+  await expect(list).toHaveAttribute('aria-busy', 'true');
+  release();
+  await expect(list.locator('article.dm-message')).toHaveCount(200);
+  await expect(announcer(page)).toHaveText('100 older messages loaded.');
+  await expect(list).toHaveAttribute('aria-busy', 'false');
+
+  // Nothing older the next time: says so.
+  olderEmpty = true;
+  await page.locator('#dm-load-older').click();
+  await expect(announcer(page)).toHaveText('No older messages.');
+  await expect(list).toHaveAttribute('aria-busy', 'false');
+});
+
 for (const theme of ['light', 'dark']) {
   test(`${theme}: the transcript passes axe and reflows at 320px`, async ({ page }) => {
     await page.addInitScript((choice) => localStorage.setItem('chitchat-theme', choice), theme);

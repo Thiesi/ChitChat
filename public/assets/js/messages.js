@@ -369,6 +369,11 @@ async function loadHistory({ replace = false, beforeId = null } = {}) {
   const user = state.selectedUser;
   if (!user) return;
   elements['dm-load-older'].disabled = true;
+  const older = beforeId !== null;
+  if (older) {
+    elements['dm-message-list'].setAttribute('aria-busy', 'true');
+    announce('Loading older messages…');
+  }
   try {
     const parameters = new URLSearchParams({ user_id: String(user.id), limit: '100' });
     if (beforeId !== null) parameters.set('before_id', String(beforeId));
@@ -386,15 +391,31 @@ async function loadHistory({ replace = false, beforeId = null } = {}) {
     state.oldestMessageId = state.messages[0]?.id ?? null;
     elements['dm-load-older'].classList.toggle('hidden', incoming.length < 100);
     renderMessages({ scrollToEnd: replace && beforeId === null, prepended: beforeId !== null });
+    if (older) {
+      announce(fresh.length > 0
+        ? `${fresh.length} older ${fresh.length === 1 ? 'message' : 'messages'} loaded.`
+        : 'No older messages.');
+    }
   } catch (error) {
     handleApiFailure(error);
   } finally {
     elements['dm-load-older'].disabled = false;
+    if (older) elements['dm-message-list'].setAttribute('aria-busy', 'false');
   }
 }
 
-async function loadOlder() {
-  if (state.oldestMessageId !== null) await loadHistory({ beforeId: state.oldestMessageId });
+// One older-history request at a time per conversation (see app.js).
+let olderLoad = null;
+function loadOlder() {
+  const userId = state.selectedUser?.id;
+  if (olderLoad && olderLoad.userId === userId) return olderLoad.promise;
+  if (state.oldestMessageId === null) return Promise.resolve();
+  const entry = { userId, promise: null };
+  entry.promise = loadHistory({ beforeId: state.oldestMessageId }).finally(() => {
+    if (olderLoad === entry) olderLoad = null;
+  });
+  olderLoad = entry;
+  return entry.promise;
 }
 
 function renderMessages({ scrollToEnd = false, prepended = false } = {}) {

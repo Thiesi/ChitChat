@@ -26,12 +26,17 @@ import { formatDateTime } from './datetime.js';
 export function reconcile(list, items) {
   const existing = new Map();
   for (const child of [...list.children]) {
-    if (child instanceof HTMLLIElement && child.dataset.key) existing.set(child.dataset.key, child);
+    // A second node with a key already seen is a stray: drop it too.
+    if (child instanceof HTMLLIElement && child.dataset.key && !existing.has(child.dataset.key)) existing.set(child.dataset.key, child);
     else child.remove();
   }
 
   let cursor = list.firstElementChild;
+  const placed = new Set();
   for (const item of items) {
+    // One node per key: a repeated item (for example a message delivered twice) is skipped.
+    if (placed.has(item.key)) continue;
+    placed.add(item.key);
     let li = existing.get(item.key);
     if (li) {
       existing.delete(item.key);
