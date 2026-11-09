@@ -932,10 +932,20 @@ async function loadMessages({ replace = false, beforeId = null, pings = null } =
   }
 }
 
-async function loadOlderMessages() {
-  if (state.oldestMessageId !== null) {
-    await loadMessages({ beforeId: state.oldestMessageId });
-  }
+// One older-history request at a time per room: ArrowUp autorepeat or a
+// double click would otherwise ask twice for the same before_id, and the
+// second answer would announce "No older messages."
+let olderLoad = null;
+function loadOlderMessages() {
+  const roomId = state.currentRoom?.id;
+  if (olderLoad && olderLoad.roomId === roomId) return olderLoad.promise;
+  if (state.oldestMessageId === null) return Promise.resolve();
+  const entry = { roomId, promise: null };
+  entry.promise = loadMessages({ beforeId: state.oldestMessageId }).finally(() => {
+    if (olderLoad === entry) olderLoad = null;
+  });
+  olderLoad = entry;
+  return entry.promise;
 }
 
 function renderMessages({ scrollToEnd = false, prepended = false } = {}) {
