@@ -89,15 +89,17 @@ function row(entry) {
 
 async function signOutOne(entry, title, item, button) {
   clear();
+  // Disabling the button drops focus, so note now whether it was in this row.
+  const hadFocus = item.contains(document.activeElement);
   button.disabled = true;
   try {
     await apiPost('/api/v1/account/sessions/revoke.php', { id: entry.id });
-    removeRow(item);
+    removeRow(item, hadFocus);
     status.textContent = `Signed out ${title}.`;
   } catch (failure) {
     if (failure instanceof ApiError && failure.code === 'session_not_found') {
       // Only this means the sign-in is gone (it ended, or was pruned).
-      removeRow(item);
+      removeRow(item, hadFocus);
       status.textContent = 'That sign-in had already ended.';
       return;
     }
@@ -126,9 +128,8 @@ async function signOutOthers() {
 }
 
 /** Removes a row and keeps focus in the list: the next row's button, else the heading. */
-function removeRow(item) {
+function removeRow(item, hadFocus) {
   const next = item.nextElementSibling ?? item.previousElementSibling;
-  const hadFocus = item.contains(document.activeElement);
   item.remove();
   revokeOthers.hidden = !list.querySelector('.session-row button');
   if (!hadFocus) return;
