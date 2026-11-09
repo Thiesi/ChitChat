@@ -4,18 +4,25 @@ import { readFile } from 'node:fs/promises';
 const user = { id: 7, username: 'Member', session_version: 3, guest: false };
 const endpoint = 'https://push.example/device';
 
-async function fixture(page, { pending = false } = {}) {
+async function fixture(page, { pending = false, initialUser = user, allowIdentity = false, pendingIdentity = false, pendingFirstSession = false, unsubscribeFails = false } = {}) {
   const requests = [];
+  const identityRequests = [];
+  let sessionUser = initialUser;
+  let firstSession = true;
+  let releaseIdentity;
+  const blockedIdentity = new Promise((resolve) => { releaseIdentity = resolve; });
+  let releaseSession;
+  const blockedSession = new Promise((resolve) => { releaseSession = resolve; });
   let release;
   const blocked = new Promise((resolve) => { release = resolve; });
-  await page.addInitScript(({ endpoint }) => {
+  await page.addInitScript(({ endpoint, unsubscribeFails }) => {
     window.PushManager = function PushManager() {};
     Object.defineProperty(window, 'Notification', { configurable: true, value: { permission: 'granted' } });
     window.pushCalls = { unsubscribed: 0, closed: 0 };
     const subscription = {
       endpoint,
       toJSON: () => ({ endpoint, keys: { p256dh: 'fixture', auth: 'fixture' } }),
-      unsubscribe: async () => { ++window.pushCalls.unsubscribed; return true; },
+      unsubscribe: async () => { ++window.pushCalls.unsubscribed; if (unsubscribeFails) throw new Error('offline fixture'); return true; },
     };
     const registration = {
       pushManager: { getSubscription: async () => subscription },
@@ -25,28 +32,41 @@ async function fixture(page, { pending = false } = {}) {
     Object.defineProperty(navigator, 'serviceWorker', { configurable: true, value: {
       register: async () => registration, getRegistration: async () => registration,
     } });
-  }, { endpoint });
+  }, { endpoint, unsubscribeFails });
   const files = new Set(['push-state.js', 'push-lifecycle.js', 'api.js', 'datetime.js']);
   await page.route('http://localhost/**', async (route) => {
     const url = new URL(route.request().url());
-    if (url.pathname === '/fixture') return route.fulfill({
+    if (['/fixture', '/rules.php', '/privacy.php'].includes(url.pathname)) return route.fulfill({
       contentType: 'text/html', body: '<!doctype html><title>Push contract fixture</title><script type="module" src="/assets/js/push-lifecycle.js"></script>',
     });
     const filename = url.pathname.split('/').pop();
     if (files.has(filename)) return route.fulfill({
       contentType: 'text/javascript', body: await readFile(new URL('../../public/assets/js/' + filename, import.meta.url), 'utf8'),
     });
-    if (url.pathname === '/api/v1/session.php') return route.fulfill({ json: { user, csrf_token: 'csrf', web_push: { enabled: true } } });
+    if (url.pathname === '/api/v1/session.php') {
+      const snapshot = sessionUser;
+      const hold = firstSession && pendingFirstSession;
+      firstSession = false;
+      if (hold) await blockedSession;
+      return route.fulfill({ json: { user: snapshot, csrf_token: snapshot ? 'csrf' : 'expired-csrf', web_push: { enabled: true } } });
+    }
     if (url.pathname === '/api/v1/push/subscribe.php') {
       requests.push(route.request().postDataJSON());
       if (pending) await blocked;
       return route.fulfill({ json: { subscribed: true, id: 42, binding: 'binding-for-seven' } });
     }
-    if (['/api/v1/logout.php', '/api/v1/password-reset.php', '/api/v1/oidc/register.php'].includes(url.pathname)) return route.abort('internetdisconnected');
+    if (url.pathname === '/api/v1/logout.php') return route.abort('internetdisconnected');
+    if (['/api/v1/login.php', '/api/v1/password-reset.php', '/api/v1/oidc/register.php',
+      '/api/v1/mfa/login-recovery.php', '/api/v1/password-reset/mfa-finish.php'].includes(url.pathname)) {
+      identityRequests.push(url.pathname);
+      if (!allowIdentity) return route.abort('internetdisconnected');
+      if (pendingIdentity) await blockedIdentity;
+      return route.fulfill({ json: { user: sessionUser, csrf_token: 'csrf' } });
+    }
     return route.fulfill({ status: 404, body: '' });
   });
   await page.goto('http://localhost/fixture');
-  return { requests, release };
+  return { requests, release, identityRequests, releaseIdentity, releaseSession, setUser: (value) => { sessionUser = value; } };
 }
 
 test('existing subscriptions refresh on every authenticated page load without requesting permission', async ({ page }) => {
@@ -67,7 +87,7 @@ for (const identityPath of ['/api/v1/logout.php', '/api/v1/password-reset.php', 
     await apiPost(path).catch(() => {});
   }, identityPath);
   expect(await page.evaluate(async () => (await ChitChatPushState.read())?.binding)).toBeNull();
-  expect(await page.evaluate(() => pushCalls.unsubscribed)).toBe(1);
+  expect(await page.evaluate(() => pushCalls.unsubscribed)).toBe(identityPath === '/api/v1/logout.php' ? 1 : 0);
   expect(await page.evaluate(() => pushCalls.closed)).toBeGreaterThan(0);
   release();
   // Wait for the completed response, then a second state read proves it did not revive the binding.
@@ -136,4 +156,96 @@ test('worker drops stale pushes, uses event tags and checks the current account 
   expect(result.shown[0].tag).toBe('worker-event-1');
   expect(result.opened).toEqual(['/?room=2', '/']);
   expect(result.closed).toBe(2);
+});
+for (const path of ['/rules.php', '/privacy.php']) test('passive expiry preserves permission and the last owner on ' + path, async ({ page }) => {
+  const f = await fixture(page);
+  await expect.poll(() => page.evaluate(async () => (await ChitChatPushState.read())?.binding)).toBe('binding-for-seven');
+  const previousEpoch = await page.evaluate(async () => (await ChitChatPushState.read()).epoch);
+  f.setUser(null);
+  await page.goto('http://localhost' + path);
+  await expect.poll(() => page.evaluate(async () => (await ChitChatPushState.read())?.binding)).toBeNull();
+  const current = await page.evaluate(() => ChitChatPushState.read());
+  expect(current.user_id).toBe(7);
+  expect(current.id).toBe(42);
+  expect(current.endpoint).toBe(endpoint);
+  expect(current.epoch).not.toBe(previousEpoch);
+  expect(await page.evaluate(() => pushCalls.unsubscribed)).toBe(0);
+  expect(await page.evaluate(() => pushCalls.closed)).toBeGreaterThan(0);
+  expect(await page.evaluate(() => ChitChatPushState.claim('after-expiry', 'binding-for-seven'))).toBe(false);
+  expect(f.requests).toHaveLength(1);
+});
+
+for (const path of ['/api/v1/login.php', '/api/v1/mfa/login-recovery.php', '/api/v1/password-reset/mfa-finish.php']) test('same owner reauthenticates across a new session version via ' + path, async ({ page }) => {
+  const f = await fixture(page, { allowIdentity: true });
+  await expect.poll(() => page.evaluate(async () => (await ChitChatPushState.read())?.binding)).toBe('binding-for-seven');
+  f.setUser(null);
+  await page.reload();
+  await expect.poll(() => page.evaluate(async () => (await ChitChatPushState.read())?.binding)).toBeNull();
+  f.setUser({ ...user, session_version: 4 });
+  await page.evaluate(async (path) => (await import('/assets/js/api.js')).apiPost(path), path);
+  await expect.poll(() => f.requests.length).toBe(2);
+  await expect.poll(() => page.evaluate(async () => (await ChitChatPushState.read())?.session_version)).toBe(4);
+  expect(await page.evaluate(() => pushCalls.unsubscribed)).toBe(0);
+});
+
+test('a different authenticated user removes the old subscription instead of re-registering it', async ({ page }) => {
+  const f = await fixture(page);
+  await expect.poll(() => page.evaluate(async () => (await ChitChatPushState.read())?.binding)).toBe('binding-for-seven');
+  f.setUser({ ...user, id: 99 });
+  await page.reload();
+  await expect.poll(() => page.evaluate(() => pushCalls.unsubscribed)).toBe(1);
+  const current = await page.evaluate(() => ChitChatPushState.read());
+  expect(current.binding).toBeNull();
+  expect(current.user_id).toBeNull();
+  expect(f.requests).toHaveLength(1);
+});
+
+test('a delayed sign-in response cannot undo a later explicit logout', async ({ page }) => {
+  const f = await fixture(page, { allowIdentity: true, pendingIdentity: true });
+  await expect.poll(() => page.evaluate(async () => (await ChitChatPushState.read())?.binding)).toBe('binding-for-seven');
+  const signIn = page.evaluate(async () => (await import('/assets/js/api.js')).apiPost('/api/v1/login.php'));
+  await expect.poll(() => f.identityRequests.length).toBe(1);
+  await page.evaluate(async () => (await import('/assets/js/api.js')).apiPost('/api/v1/logout.php').catch(() => {}));
+  f.releaseIdentity();
+  await signIn;
+  expect(await page.evaluate(async () => (await ChitChatPushState.read())?.binding)).toBeNull();
+  expect(await page.evaluate(async () => (await ChitChatPushState.read())?.user_id)).toBeNull();
+  expect(await page.evaluate(() => pushCalls.unsubscribed)).toBe(1);
+  expect(f.requests).toHaveLength(1);
+});
+
+test('a delayed anonymous bootstrap cannot suppress a newer successful sign-in', async ({ page }) => {
+  const f = await fixture(page, { initialUser: null, pendingFirstSession: true, allowIdentity: true });
+  f.setUser(user);
+  await page.evaluate(async () => (await import('/assets/js/api.js')).apiPost('/api/v1/login.php'));
+  f.releaseSession();
+  await expect.poll(() => page.evaluate(async () => (await ChitChatPushState.read())?.binding)).toBe('binding-for-seven');
+  expect(await page.evaluate(() => pushCalls.unsubscribed)).toBe(0);
+  expect(f.requests).toHaveLength(1);
+});
+test('offline logout remains disabled after reload even if local unsubscribe fails', async ({ page }) => {
+  const f = await fixture(page, { unsubscribeFails: true });
+  await expect.poll(() => page.evaluate(async () => (await ChitChatPushState.read())?.binding)).toBe('binding-for-seven');
+  await page.evaluate(async () => (await import('/assets/js/api.js')).apiPost('/api/v1/logout.php').catch(() => {}));
+  await page.reload();
+  await expect.poll(() => page.evaluate(async () => (await ChitChatPushState.read())?.disabled)).toBe(true);
+  expect(await page.evaluate(async () => (await ChitChatPushState.read())?.binding)).toBeNull();
+  expect(f.requests).toHaveLength(1);
+});
+
+test('a logout in another tab fences a delayed sign-in reply and failed unsubscribe', async ({ page, context }) => {
+  const f = await fixture(page, { allowIdentity: true, pendingIdentity: true });
+  await expect.poll(() => page.evaluate(async () => (await ChitChatPushState.read())?.binding)).toBe('binding-for-seven');
+  const signIn = page.evaluate(async () => (await import('/assets/js/api.js')).apiPost('/api/v1/login.php'));
+  await expect.poll(() => f.identityRequests.length).toBe(1);
+  const other = await context.newPage();
+  await fixture(other, { unsubscribeFails: true });
+  await expect.poll(() => other.evaluate(async () => (await ChitChatPushState.read())?.binding)).toBe('binding-for-seven');
+  await other.evaluate(async () => (await import('/assets/js/api.js')).apiPost('/api/v1/logout.php').catch(() => {}));
+  f.releaseIdentity();
+  await signIn;
+  expect(await page.evaluate(async () => (await ChitChatPushState.read())?.binding)).toBeNull();
+  expect(await page.evaluate(async () => (await ChitChatPushState.read())?.disabled)).toBe(true);
+  expect(f.requests).toHaveLength(1);
+  await other.close();
 });

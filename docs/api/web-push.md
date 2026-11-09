@@ -213,3 +213,25 @@ notification links. Removing push does not revoke account login credentials.
 There is no endpoint-confirmation protocol or expiring registration lease in
 this release. See [operations](../operations/web-push.md) for DNS, private-provider
 configuration, migration/cutover and proof boundaries.
+### Passive expiry and reauthentication
+
+An anonymous bootstrap after passive session expiry clears the local delivery
+binding and visible alerts, and starts a new epoch, while preserving the raw
+browser subscription and last owner/device ID. Permission is not silently lost.
+Sign-in/reset/OIDC completion clears the binding first; the same user then
+re-registers automatically, including across a new account session version.
+A different user causes the old subscription to be unsubscribed. Explicit
+logout, account closure, turning push off, and revoking the current local device
+unsubscribe and clear; turning push off also closes this device's visible alerts.
+
+The server gates subscription rows by account `session_version`, not by passive
+PHP cookie/garbage-collection expiry. Without the deferred session-lease registry,
+it cannot observe that expiry. Pushes may still be sent during it; once the
+client observes an anonymous bootstrap, its cleared binding rejects them without
+display. Before the client observes expiry, it may still have the old binding.
+No passive-expiry delivery cutoff is promised by this feature.
+
+Late sign-in or bootstrap responses cannot resurrect a later logout. Identity
+requests invalidate older bootstrap side effects, and durable epochs fence
+registration responses. Initial in-flight session reads share the existing
+promise; additional page caching and tab-reuse navigation are separate work.

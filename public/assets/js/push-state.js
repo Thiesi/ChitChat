@@ -47,7 +47,14 @@ globalThis.ChitChatPushState = (() => {
   const identifier = (value) => typeof value === 'string' && /^[\x21-\x7e]{1,64}$/.test(value);
 
   async function clear() {
-    return change(() => ({ epoch: crypto.randomUUID(), user_id: null, binding: null, seen: [] }));
+    return change(() => ({ epoch: crypto.randomUUID(), user_id: null, binding: null, disabled: true, seen: [] }));
+  }
+
+  async function pause() {
+    return change((current) => ({
+      ...(current ?? {}), epoch: crypto.randomUUID(), user_id: current?.user_id ?? null,
+      binding: null, disabled: current?.disabled ?? false, seen: [],
+    }));
   }
 
   async function save(registration, session, epoch, endpoint) {
@@ -56,7 +63,7 @@ globalThis.ChitChatPushState = (() => {
     }
     return change((current) => current?.epoch === epoch ? {
       epoch, user_id: session.user.id, session_version: session.user.session_version,
-      binding: registration.binding, id: registration.id, endpoint, seen: current.seen ?? [],
+      binding: registration.binding, disabled: false, id: registration.id, endpoint, seen: current.seen ?? [],
     } : undefined);
   }
 
@@ -73,5 +80,5 @@ globalThis.ChitChatPushState = (() => {
     return accepted;
   }
 
-  return { read, change, clear, save, claim, identifier };
+  return { read, change, clear, pause, save, claim, identifier };
 })();

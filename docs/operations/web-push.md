@@ -229,3 +229,21 @@ The automated resolver, transport, database, HTTP and mocked browser tests do
 not demonstrate real distributor delivery. Actual browser delivery plus two
 compatible distributor/device deliveries remain a separately coordinated
 technical-lead/CCM acceptance gate.
+### Passive session expiry
+
+An anonymous bootstrap pauses display without silently disabling a granted
+subscription: it rotates the local epoch, clears the binding and visible alerts,
+and retains only the raw subscription and its last owner/device ID. Same-user
+reauthentication automatically re-registers it, also after a new account
+session version. A different authenticated user causes full local unsubscribe.
+Explicit logout/closure/disable still removes the local subscription; turning
+push off in settings closes visible notifications too. Storage failure falls
+back to local unsubscribe rather than keeping an unfenced binding.
+
+The server observes account `session_version`, not passive PHP cookie/GC expiry.
+There is no session-lease registry in this release, so pushes can still be sent
+during passive expiry. They are rejected without display after the browser
+observes an anonymous bootstrap and clears its binding. Until the client
+observes expiry, the old binding may still match. This is not a passive-expiry
+delivery cutoff. See the API contract for reauthentication and delayed-response
+fences.
