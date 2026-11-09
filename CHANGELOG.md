@@ -6,6 +6,8 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ## [Unreleased]
 
+- Web Push registrations gain validated P-256/auth keys, public-destination DNS checks and pinned HTTPS delivery, exact private-provider exceptions, atomic device limits/rotation, session-bound logout cleanup, additive event IDs/kinds/bindings, and browser stale-push/offline-logout protection. Apply migration 0047. Existing clients may ignore additive response/payload fields; explicit resolver-file overrides are available for Windows hosts.
+
 - Push dispatch records per-device outcomes with atomic leased claims, bounded retry/backoff, read and permission rechecks, explicit 30-minute attention / six-hour other lifetimes, and corrected non-default-port VAPID authentication. Apply migrations 0045–0046 and keep the dispatcher scheduled; existing push payloads stay compatible. Provider acceptance is best effort and can duplicate after a worker crash.
 
 - An optional commit-woken `bin/dispatch-web-push --listen` loop, with database reconnect/backoff and graceful shutdown, supplements the supported timer mode. The timer example now runs every 15 seconds instead of 30. A listener systemd service is documented only: installing or starting it is a maintainer decision.

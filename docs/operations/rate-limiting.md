@@ -77,7 +77,8 @@ The `registration` policy's environment values are server defaults: a Super-Admi
 | `user_report` | 10 / 3600 s | Person-report attempts, per member or guest identity, independently of message reports |
 | `moderation_queue` | 120 / 60 s | Authorization-scoped moderation queue, case and copied-avatar reads |
 | `moderation_action` | 60 / 3600 s | Case assignment, release, dismissal, and resolution |
-| `push_subscription_management` | 20 / 3600 s | Web Push subscribe, unsubscribe, preference updates, and device revocation |
+| `push_subscription_management` | 20 / 3600 s | Web Push registration changes, unsubscribe, preference updates, and device revocation |
+| `push_subscription_refresh` | 600 / 3600 s | Cheap early guard on subscribe; identical owner/endpoint/keys/login-session refreshes skip DNS and the management charge |
 
 The complete variable list with current defaults is in `.env.example`.
 

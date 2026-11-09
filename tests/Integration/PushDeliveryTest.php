@@ -17,7 +17,7 @@ use ChitChat\WebPush\NotificationPreferenceService;
 use ChitChat\WebPush\PushDeliveryQueue;
 use ChitChat\WebPush\PushNotification;
 use ChitChat\WebPush\PushSendResult;
-use ChitChat\WebPush\PushSubscriptionService;
+use ChitChat\Tests\Support\PushFixtures;
 use ChitChat\WebPush\WebPushDispatcher;
 use DateTimeImmutable;
 use Minishlink\WebPush\VAPID;
@@ -78,7 +78,7 @@ final class PushDeliveryTest extends DatabaseTestCase
         self::assertNotNull($this->marker($id));
         self::assertSame(0, $second['pending_deliveries']);
         $payload = json_decode($transport->calls[0]['payload'], true, 8, JSON_THROW_ON_ERROR);
-        self::assertSame(['title', 'body', 'link', 'app_name'], array_keys($payload), 'Payload additions await #147.');
+        self::assertSame(['title', 'body', 'link', 'app_name', 'kind', 'notification_id', 'event_id', 'binding'], array_keys($payload));
     }
 
     public function testPermanentProviderFailuresDoNotRemoveValidDevicesAndRotationIsSafe(): void
@@ -349,7 +349,7 @@ final class PushDeliveryTest extends DatabaseTestCase
 
     private function subscribe(AuthenticatedUser $member, string $suffix): int
     {
-        (new PushSubscriptionService($this->pdo))->subscribe($member, 'https://push.example/' . $suffix, 'key', 'auth', null);
+        (PushFixtures::subscriptions($this->pdo))->subscribe($member, 'https://push.example/' . $suffix, PushFixtures::key(), PushFixtures::auth(), null, str_repeat('a', 64));
         return (int) $this->pdo->query('SELECT MAX(id) FROM push_subscriptions')->fetchColumn();
     }
 
