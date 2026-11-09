@@ -243,6 +243,107 @@ for (const theme of ['light', 'dark']) {
   });
 }
 
+// Regression tests for the lead's review of the S1 stack (#192 table, items 1, 2, 4, 5).
+
+test('review 1: after a click on non-focusable space, a later update doesn’t pull focus back', async ({ page }) => {
+  await fixture(page);
+  await openRoom(page);
+  await focusFromComposer(page);
+  await page.keyboard.press('ArrowUp');
+  expect(await focusedId(page)).toBe('5');
+  await page.locator('#room-title').click();
+  // Any later render or decoration runs a sync; it must leave focus alone.
+  await page.evaluate(() => document.querySelector('#message-list article[data-message-id="3"]').append(document.createElement('span')));
+  await page.waitForTimeout(200);
+  expect(await focusedId(page)).toBeNull();
+  // Removing the focused message still moves focus to the next one.
+  await message(page, 3).focus();
+  await page.evaluate(() => document.querySelector('#message-list article[data-message-id="3"]').closest('li').remove());
+  await expect.poll(() => focusedId(page)).toBe('4');
+});
+
+test('review 2: a file is named and downloaded through its download link, not the preview', async ({ page }) => {
+  await fixture(page);
+  await page.route('**/api/v1/attachments/metadata.php?**', (route) => route.fulfill({ json: { attachments: [{
+    id: 9, message_id: 4, name: 'record-shop.jpg', mime_type: 'image/jpeg', size_bytes: 120000, previewable: true, sha256: 'x',
+  }] } }));
+  await openRoom(page);
+  await expect(message(page, 4).locator('.attachment-card')).toBeVisible();
+  await expect(message(page, 4)).toHaveAccessibleName(/ File: record-shop\.jpg\.$/);
+  // Record which link the action clicks, without navigating.
+  await page.evaluate(() => document.addEventListener('click', (event) => {
+    const link = event.target instanceof Element ? event.target.closest('a') : null;
+    if (link) { window.__clicked = { className: link.className, href: link.getAttribute('href') }; event.preventDefault(); }
+  }, true));
+  await message(page, 4).focus();
+  await page.keyboard.press('Enter');
+  await page.getByRole('menuitem', { name: 'Download file' }).click();
+  const clicked = await page.evaluate(() => window.__clicked);
+  expect(clicked.className).toContain('attachment-download');
+  expect(clicked.href).toBe('/api/v1/attachments/download.php?id=9');
+});
+
+test('review 4: ↑ held on the oldest message sends one older-history request and announces once', async ({ page }) => {
+  const recent = Array.from({ length: 100 }, (_, index) => roomMessage(101 + index, index % 2 ? rowan : priya, `Recent ${101 + index}`));
+  await fixture(page, { messages: recent });
+  let release;
+  const held = new Promise((resolve) => { release = resolve; });
+  const olderRequests = [];
+  await page.route('**/api/v1/rooms/messages.php?**', async (route) => {
+    const before = new URL(route.request().url()).searchParams.get('before_id');
+    if (before) {
+      olderRequests.push(before);
+      await held;
+    }
+    const older = Array.from({ length: 20 }, (_, index) => roomMessage(81 + index, rowan, `Older ${81 + index}`));
+    await route.fulfill({ json: { messages: before ? older : recent } });
+  });
+  await page.goto('/');
+  await expect(page.locator('#message-list article.message')).toHaveCount(100);
+  await page.evaluate(() => {
+    const region = document.getElementById('announcer');
+    window.__spoken = [];
+    new MutationObserver(() => { if (region.textContent.trim()) window.__spoken.push(region.textContent.trim()); })
+      .observe(region, { childList: true, characterData: true, subtree: true });
+  });
+  await message(page, 101).focus();
+  for (let repeat = 0; repeat < 4; repeat += 1) await page.keyboard.press('ArrowUp');
+  await expect.poll(() => olderRequests.length).toBe(1);
+  release();
+  await expect(page.locator('#message-list article.message')).toHaveCount(120);
+  await page.waitForTimeout(500);
+  expect(olderRequests).toEqual(['101']);
+  expect(await page.evaluate(() => window.__spoken)).toEqual(['Loading older messages…', '20 older messages loaded.']);
+  await expect.poll(() => focusedId(page)).toBe('101');
+});
+
+test('review 5: React… moves focus into the picker; it closes when its message stops being current', async ({ page }) => {
+  await fixture(page);
+  await openRoom(page);
+  await focusFromComposer(page);
+  await page.keyboard.press('ArrowUp');
+  await page.keyboard.press('Enter');
+  await page.getByRole('menuitem', { name: 'React…' }).press('Enter');
+  const picker = message(page, 5).locator('.reaction-picker');
+  await expect(picker).toBeVisible();
+  await expect(picker.locator('button').first()).toBeFocused();
+  // Escape closes it and returns to the message.
+  await page.keyboard.press('Escape');
+  await expect(picker).toBeHidden();
+  expect(await page.evaluate(() => document.activeElement.dataset.messageId)).toBe('5');
+
+  // The + button opens it too; moving to another message closes it.
+  await page.keyboard.press('Tab');
+  const add = message(page, 5).getByRole('button', { name: 'Add reaction' });
+  await add.focus();
+  await page.keyboard.press('Enter');
+  await expect(picker).toBeVisible();
+  await expect(picker.locator('button').first()).toBeFocused();
+  await message(page, 4).focus();
+  await expect(picker).toBeHidden();
+  await expect(add).toHaveAttribute('aria-expanded', 'false');
+});
+
 test.describe('touch', () => {
   test.use({ hasTouch: true, isMobile: true, viewport: { width: 390, height: 844 } });
 
