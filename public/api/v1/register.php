@@ -44,7 +44,7 @@ Endpoint::run($config, static function () use ($config): ApiResult {
         $payload['accepted_rules_version'] ?? null,
     );
     $user = $registration['user'];
-    SessionManager::login($user);
+    SessionManager::login($user, (new \ChitChat\Auth\LoginSessionRepository($pdo))->issue($user, $_SERVER['HTTP_USER_AGENT'] ?? null));
 
     return ApiResult::created([
         'csrf_token' => SessionManager::csrfToken(),

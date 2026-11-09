@@ -53,7 +53,7 @@ final class PasswordResetServiceTest extends DatabaseTestCase
         self::assertSame(['exists' => true, 'created_at' => RecoveryKeyService::timestamp($before['created_at'])],
             $user->toSessionArray()['recovery_key']);
         self::assertArrayNotHasKey('recovery_key', $user->toArray());
-        SessionManager::login($user);
+        SessionManager::login($user, (new \ChitChat\Auth\LoginSessionRepository($this->pdo))->issue($user));
         $oldSession = $_SESSION;
         $_SESSION = [];
         $result = $this->begin($user->username, strtolower(str_replace('-', ' ', $key)));
@@ -199,7 +199,7 @@ SQL);
         $this->begin($user->username, $key);
         $pendingSession = $_SESSION;
         $_SESSION = [];
-        SessionManager::login($user);
+        SessionManager::login($user, (new \ChitChat\Auth\LoginSessionRepository($this->pdo))->issue($user));
         SessionManager::establishPrivilegedStepUp($user, 'passkey');
         $replacement = (new RecoveryKeyService($this->pdo, $this->config))->generate($user, self::IP);
         $_SESSION = $pendingSession;
@@ -319,7 +319,7 @@ SQL);
     public function testIpBudgetCannotBeBypassedByChangingUsernamesAndManagementRequiresStepUp(): void
     {
         [$user, $key] = $this->account();
-        SessionManager::login($user);
+        SessionManager::login($user, (new \ChitChat\Auth\LoginSessionRepository($this->pdo))->issue($user));
         $this->assertError('step_up_required',
             fn () => (new RecoveryKeyService($this->pdo, $this->config))->generate($user, self::IP), 403);
         self::assertSame(PasswordRecoveryKey::hash($key), $this->row($user->id)['key_hash']);

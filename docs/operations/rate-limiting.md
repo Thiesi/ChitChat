@@ -128,3 +128,5 @@ Password reset consumes its one-use challenge even on rejection or throttling. I
 
 
 Installation icons use separate actor budgets after role/CSRF/current step-up checks: application_icon_update (20 attempts/hour for Save and Reset) and application_icon_preview (60 attempts/hour for dry_run=1). Both use the usual RATE_LIMIT_<NAME>_MAX_ATTEMPTS and RATE_LIMIT_<NAME>_WINDOW_SECONDS overrides and 429 metadata. Preview accounts for attempts but writes no icon or audit. See [the icon contract](../api/installation-icon.md).
+
+The sessions_management limit defaults to 60 attempts/hour/account, shared by revoke and revoke-others. Overrides: RATE_LIMIT_SESSIONS_MANAGEMENT_MAX_ATTEMPTS (1-600) and RATE_LIMIT_SESSIONS_MANAGEMENT_WINDOW_SECONDS (60-86400). Attempts survive mutation rollback. Standard HTTP 429, Retry-After and error.retry_after_seconds apply.

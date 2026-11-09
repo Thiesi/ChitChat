@@ -39,20 +39,20 @@ final class PushLifecycleTest extends DatabaseTestCase
         };
         $service = new PushSubscriptionService($this->pdo, new PushDestinationGuard($dns, new PushAddressPolicy()),
             new RateLimiter($this->pdo, $this->config->rateLimits));
-        $first = $service->subscribe($actor, 'https://push.example/device', PushFixtures::key(), PushFixtures::auth(), 'One', str_repeat('a', 64));
+        $first = $service->subscribe($actor, 'https://push.example/device', PushFixtures::key(), PushFixtures::auth(), 'One', PushFixtures::login($this->pdo, $actor, str_repeat('a', 64)));
         for ($i = 0; $i < 25; ++$i) {
-            self::assertSame($first, $service->subscribe($actor, 'https://push.example/device', PushFixtures::key(), PushFixtures::auth(), 'Two', str_repeat('a', 64)));
+            self::assertSame($first, $service->subscribe($actor, 'https://push.example/device', PushFixtures::key(), PushFixtures::auth(), 'Two', PushFixtures::login($this->pdo, $actor, str_repeat('a', 64))));
         }
         self::assertSame(1, $dns->calls);
         self::assertSame(1, (int) $this->pdo->query("SELECT attempt_count FROM request_rate_limits WHERE scope = 'push_subscription_management'")->fetchColumn());
-        $rotated = $service->subscribe($actor, 'https://push.example/device', PushFixtures::key(1), PushFixtures::auth(1), 'Two', str_repeat('a', 64));
+        $rotated = $service->subscribe($actor, 'https://push.example/device', PushFixtures::key(1), PushFixtures::auth(1), 'Two', PushFixtures::login($this->pdo, $actor, str_repeat('a', 64)));
         self::assertSame($first['id'], $rotated['id']);
         self::assertNotSame($first['binding'], $rotated['binding']);
         self::assertSame(2, $dns->calls);
         self::assertSame(2, (int) $this->pdo->query('SELECT generation FROM push_subscriptions')->fetchColumn());
-        $newSession = $service->subscribe($actor, 'https://push.example/device', PushFixtures::key(1), PushFixtures::auth(1), 'Two', str_repeat('b', 64));
+        $newSession = $service->subscribe($actor, 'https://push.example/device', PushFixtures::key(1), PushFixtures::auth(1), 'Two', PushFixtures::login($this->pdo, $actor, str_repeat('b', 64)));
         self::assertNotSame($rotated['binding'], $newSession['binding']);
-        $listed = $service->list($actor, str_repeat('b', 64));
+        $listed = $service->list($actor, PushFixtures::login($this->pdo, $actor, str_repeat('b', 64)));
         self::assertTrue($listed[0]['current_session']);
         foreach (['endpoint', 'auth_key', 'p256dh_key', 'session_binding_hash', 'delivery_binding'] as $secret) {
             self::assertArrayNotHasKey($secret, $listed[0]);
@@ -64,9 +64,9 @@ final class PushLifecycleTest extends DatabaseTestCase
         $owner = $this->member('Owner');
         $other = $this->member('Other');
         $service = new PushSubscriptionService($this->pdo, PushFixtures::guard(), new RateLimiter($this->pdo, $this->config->rateLimits));
-        $registration = $service->subscribe($owner, 'https://push.example/shared', PushFixtures::key(), PushFixtures::auth(), null, str_repeat('a', 64));
+        $registration = $service->subscribe($owner, 'https://push.example/shared', PushFixtures::key(), PushFixtures::auth(), null, PushFixtures::login($this->pdo, $owner, str_repeat('a', 64)));
         try {
-            $service->subscribe($other, 'https://push.example/shared', PushFixtures::key(), PushFixtures::auth(), null, str_repeat('b', 64));
+            $service->subscribe($other, 'https://push.example/shared', PushFixtures::key(), PushFixtures::auth(), null, PushFixtures::login($this->pdo, $other, str_repeat('b', 64)));
             self::fail('Endpoint ownership transferred.');
         } catch (ApiException $exception) {
             self::assertSame('push_subscription_conflict', $exception->errorCode);
@@ -84,16 +84,16 @@ final class PushLifecycleTest extends DatabaseTestCase
         $service = PushFixtures::subscriptions($this->pdo);
         $first = null;
         for ($i = 0; $i < PushSubscriptionService::MAX_SUBSCRIPTIONS; ++$i) {
-            $registration = $service->subscribe($actor, 'https://push.example/' . $i, PushFixtures::key(), PushFixtures::auth(), null, str_repeat('a', 64));
+            $registration = $service->subscribe($actor, 'https://push.example/' . $i, PushFixtures::key(), PushFixtures::auth(), null, PushFixtures::login($this->pdo, $actor, str_repeat('a', 64)));
             $first ??= $registration;
         }
         try {
-            $service->subscribe($actor, 'https://push.example/overflow', PushFixtures::key(), PushFixtures::auth(), null, str_repeat('a', 64));
+            $service->subscribe($actor, 'https://push.example/overflow', PushFixtures::key(), PushFixtures::auth(), null, PushFixtures::login($this->pdo, $actor, str_repeat('a', 64)));
             self::fail('Cap was exceeded.');
         } catch (ApiException $exception) {
             self::assertSame('push_subscription_limit', $exception->errorCode);
         }
-        $replacement = $service->subscribe($actor, 'https://push.example/new-endpoint', PushFixtures::key(1), PushFixtures::auth(1), null, str_repeat('a', 64), $first['id']);
+        $replacement = $service->subscribe($actor, 'https://push.example/new-endpoint', PushFixtures::key(1), PushFixtures::auth(1), null, PushFixtures::login($this->pdo, $actor, str_repeat('a', 64)), $first['id']);
         self::assertCount(20, $service->list($actor));
         self::assertNotSame($first['id'], $replacement['id']);
         $service->revoke($actor, $replacement['id']);
@@ -105,15 +105,15 @@ final class PushLifecycleTest extends DatabaseTestCase
         $actor = $this->member();
         $service = PushFixtures::subscriptions($this->pdo);
         foreach (['own' => 'a', 'other' => 'b', 'legacy' => 'c'] as $path => $session) {
-            $service->subscribe($actor, 'https://push.example/' . $path, PushFixtures::key(), PushFixtures::auth(), null, str_repeat($session, 64));
+            $service->subscribe($actor, 'https://push.example/' . $path, PushFixtures::key(), PushFixtures::auth(), null, PushFixtures::login($this->pdo, $actor, str_repeat($session, 64)));
         }
         $this->pdo->exec("UPDATE push_subscriptions SET session_binding_hash = NULL, delivery_binding = NULL WHERE endpoint LIKE '%/legacy'");
-        $service->logout($actor, str_repeat('a', 64));
+        $service->logout($actor, PushFixtures::login($this->pdo, $actor, str_repeat('a', 64)));
         self::assertCount(1, $service->list($actor));
         self::assertSame('https://push.example/other', $this->pdo->query('SELECT endpoint FROM push_subscriptions')->fetchColumn());
         $this->pdo->exec('UPDATE users SET session_version = session_version + 1');
         try {
-            $service->subscribe($actor, 'https://push.example/new', PushFixtures::key(), PushFixtures::auth(), null, str_repeat('a', 64));
+            $service->subscribe($actor, 'https://push.example/new', PushFixtures::key(), PushFixtures::auth(), null, PushFixtures::login($this->pdo, $actor, str_repeat('a', 64)));
             self::fail('Stale session registered push.');
         } catch (ApiException $exception) {
             self::assertSame(401, $exception->status);
@@ -128,7 +128,7 @@ final class PushLifecycleTest extends DatabaseTestCase
         $this->pdo->beginTransaction();
         $this->pdo->query('SELECT id FROM users WHERE id = ' . $actor->id . ' FOR NO KEY UPDATE');
         try {
-            PushFixtures::subscriptions($other)->subscribe($actor, 'https://push.example/new', PushFixtures::key(), PushFixtures::auth(), null, str_repeat('a', 64));
+            PushFixtures::subscriptions($other)->subscribe($actor, 'https://push.example/new', PushFixtures::key(), PushFixtures::auth(), null, PushFixtures::login($this->pdo, $actor, str_repeat('a', 64)));
             self::fail('Registration bypassed the account lock.');
         } catch (PDOException $exception) {
             self::assertSame('55P03', $exception->getCode());
@@ -142,7 +142,7 @@ final class PushLifecycleTest extends DatabaseTestCase
     {
         $actor = $this->member();
         $service = PushFixtures::subscriptions($this->pdo);
-        $registration = $service->subscribe($actor, 'https://push.example/device', PushFixtures::key(), PushFixtures::auth(), null, str_repeat('a', 64));
+        $registration = $service->subscribe($actor, 'https://push.example/device', PushFixtures::key(), PushFixtures::auth(), null, PushFixtures::login($this->pdo, $actor, str_repeat('a', 64)));
         $id = (int) $this->pdo->query("INSERT INTO account_notifications (user_id, kind) VALUES ({$actor->id}, 'admin_password_reset') RETURNING id")->fetchColumn();
         $keys = VAPID::createVapidKeys();
         $config = $this->configWith(['webPushVapidPublicKey' => $keys['publicKey'], 'webPushVapidPrivateKey' => $keys['privateKey'], 'webPushVapidSubject' => 'mailto:admin@example.test']);
@@ -171,9 +171,9 @@ final class PushLifecycleTest extends DatabaseTestCase
     {
         $actor = $this->member();
         $service = PushFixtures::subscriptions($this->pdo);
-        $service->subscribe($actor, 'https://push.example/device', PushFixtures::key(), PushFixtures::auth(), null, str_repeat('a', 64));
+        $service->subscribe($actor, 'https://push.example/device', PushFixtures::key(), PushFixtures::auth(), null, PushFixtures::login($this->pdo, $actor, str_repeat('a', 64)));
         $this->pdo->exec("INSERT INTO account_notifications (user_id, kind) VALUES ({$actor->id}, 'admin_password_reset')");
-        $service->subscribe($actor, 'https://push.example/device', PushFixtures::key(), PushFixtures::auth(), null, str_repeat('b', 64));
+        $service->subscribe($actor, 'https://push.example/device', PushFixtures::key(), PushFixtures::auth(), null, PushFixtures::login($this->pdo, $actor, str_repeat('b', 64)));
         $queue = new PushDeliveryQueue($this->pdo);
         $summary = $queue->materialize(10, $queue->now(), static fn (PushNotification $notification): ?string => null);
         self::assertSame(1, $summary['skipped_no_subscriptions']);
@@ -183,9 +183,9 @@ final class PushLifecycleTest extends DatabaseTestCase
     {
         $actor = $this->member();
         $service = PushFixtures::subscriptions($this->pdo);
-        $old = $service->subscribe($actor, 'https://push.example/old', PushFixtures::key(), PushFixtures::auth(), null, str_repeat('a', 64));
-        $new = $service->subscribe($actor, 'https://push.example/new', PushFixtures::key(1), PushFixtures::auth(1), null, str_repeat('a', 64), $old['id']);
-        self::assertSame($new, $service->subscribe($actor, 'https://push.example/new', PushFixtures::key(1), PushFixtures::auth(1), null, str_repeat('a', 64), $old['id']));
+        $old = $service->subscribe($actor, 'https://push.example/old', PushFixtures::key(), PushFixtures::auth(), null, PushFixtures::login($this->pdo, $actor, str_repeat('a', 64)));
+        $new = $service->subscribe($actor, 'https://push.example/new', PushFixtures::key(1), PushFixtures::auth(1), null, PushFixtures::login($this->pdo, $actor, str_repeat('a', 64)), $old['id']);
+        self::assertSame($new, $service->subscribe($actor, 'https://push.example/new', PushFixtures::key(1), PushFixtures::auth(1), null, PushFixtures::login($this->pdo, $actor, str_repeat('a', 64)), $old['id']));
         self::assertSame(1, (int) $this->pdo->query('SELECT generation FROM push_subscriptions')->fetchColumn());
         self::assertCount(1, $service->list($actor));
     }
@@ -194,7 +194,7 @@ final class PushLifecycleTest extends DatabaseTestCase
     {
         $actor = $this->member();
         $registration = PushFixtures::subscriptions($this->pdo)->subscribe($actor, 'https://push.example/device',
-            PushFixtures::key(), PushFixtures::auth(), null, str_repeat('a', 64));
+            PushFixtures::key(), PushFixtures::auth(), null, PushFixtures::login($this->pdo, $actor, str_repeat('a', 64)));
         $this->pdo->exec("INSERT INTO account_notifications (user_id, kind) VALUES ({$actor->id}, 'admin_password_reset')");
         $queue = new PushDeliveryQueue($this->pdo);
         $queue->materialize(10, $queue->now(), static fn (PushNotification $notification): ?string => null);

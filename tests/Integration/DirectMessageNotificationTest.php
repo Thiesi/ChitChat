@@ -292,7 +292,7 @@ SQL);
     private function subscribe(string $suffix): void
     {
         PushFixtures::subscriptions($this->pdo)->subscribe($this->recipient, 'https://push.example/' . $suffix,
-            PushFixtures::key(), PushFixtures::auth(), null, str_repeat('a', 64));
+            PushFixtures::key(), PushFixtures::auth(), null, PushFixtures::login($this->pdo, $this->recipient, str_repeat('a', 64)));
     }
 
     /** @return list<array<string,mixed>> */

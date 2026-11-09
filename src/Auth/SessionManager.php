@@ -52,33 +52,58 @@ final class SessionManager
         }
     }
 
-    public static function login(AuthenticatedUser $user, bool $preserveNativeBinding = false): void
+    public static function login(AuthenticatedUser $user, IssuedLogin $login, bool $preserveNativeBinding = false): void
     {
+        if ($login->userId !== $user->id || $login->sessionVersion !== $user->sessionVersion) {
+            throw new ApiException(500, 'session_unavailable', 'The issued sign-in does not match this account.');
+        }
         if (!$preserveNativeBinding) \ChitChat\Auth\NativeAuth\NativeAuthSession::invalidate();
         self::rotateSessionIdentifier();
         $_SESSION['auth'] = [
             'user_id' => $user->id,
             'session_version' => $user->sessionVersion,
             'authenticated_at' => time(),
-            'push_token' => bin2hex(random_bytes(32)),
+            'push_token' => $login->token,
+            'login_session_id' => $login->id,
         ];
         unset($_SESSION['pending_mfa'], $_SESSION['privileged_step_up'], $_SESSION['webauthn_ceremony'],
             $_SESSION['pending_password_reset'], $_SESSION['password_reset_challenge']);
         $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
     }
 
-    /** Server-only login binding; never expose the underlying session token to a client. */
+    /** @return array{id:string,user_id:int,version:int,hash:string}|null */
+    public static function loginBinding(): ?array
+    {
+        $auth = $_SESSION['auth'] ?? null;
+        if (!is_array($auth) || !is_int($auth['user_id'] ?? null) || !is_int($auth['session_version'] ?? null)
+            || !is_string($auth['login_session_id'] ?? null) || !is_string($auth['push_token'] ?? null)
+            || preg_match('/\A[A-Za-z0-9_-]{43}\z/D', $auth['login_session_id']) !== 1
+            || preg_match('/\A[0-9a-f]{64}\z/D', $auth['push_token']) !== 1) return null;
+        return ['id' => $auth['login_session_id'], 'user_id' => $auth['user_id'],
+            'version' => $auth['session_version'], 'hash' => hash('sha256', $auth['push_token'])];
+    }
+
+    /** A proved login may replace a holder captured before primary authentication cleared auth.
+     * @return array{id:string,user_id:int,hash:string}|null
+     */
+    public static function replacedLoginBinding(): ?array
+    {
+        $current = self::loginBinding();
+        if ($current !== null) return ['id' => $current['id'], 'user_id' => $current['user_id'], 'hash' => $current['hash']];
+        $pending = $_SESSION['pending_mfa'] ?? null;
+        $old = is_array($pending) ? ($pending['replaced_login'] ?? null) : null;
+        if (!is_array($old) || !is_string($old['id'] ?? null) || !is_int($old['user_id'] ?? null)
+            || $old['user_id'] < 1 || !is_string($old['hash'] ?? null)
+            || preg_match('/\A[A-Za-z0-9_-]{43}\z/D', $old['id']) !== 1
+            || preg_match('/\A[0-9a-f]{64}\z/D', $old['hash']) !== 1) return null;
+        return ['id' => $old['id'], 'user_id' => $old['user_id'], 'hash' => $old['hash']];
+    }
+
+    /** Server-only binding. A legacy or damaged session never creates a new credential. */
     public static function pushBindingHash(): string
     {
-        if (!is_array($_SESSION['auth'] ?? null)) {
-            throw new ApiException(401, 'authentication_required', 'Sign in before managing push.');
-        }
-        $token = $_SESSION['auth']['push_token'] ?? null;
-        if (!is_string($token) || preg_match('/\A[0-9a-f]{64}\z/D', $token) !== 1) {
-            $token = bin2hex(random_bytes(32));
-            $_SESSION['auth']['push_token'] = $token;
-        }
-        return hash('sha256', $token);
+        return self::loginBinding()['hash']
+            ?? throw new ApiException(401, 'authentication_required', 'Sign in before managing push.');
     }
 
     public static function beginPasswordReset(
@@ -143,6 +168,7 @@ final class SessionManager
         if (!in_array($flow, self::MFA_FLOWS, true)) {
             throw new ApiException(500, 'invalid_mfa_flow', 'Unsupported multi-factor sign-in flow.');
         }
+        $replaced = self::replacedLoginBinding();
         if ($nativeTransaction === null) {
             \ChitChat\Auth\NativeAuth\NativeAuthSession::invalidate();
         } elseif (\ChitChat\Auth\NativeAuth\NativeAuthSession::nativeHash() === null) {
@@ -158,6 +184,7 @@ final class SessionManager
             'flow' => $flow,
             'expires_at' => time() + $ttlSeconds,
             ...($nativeTransaction === null ? [] : ['native_transaction' => $nativeTransaction]),
+            ...($replaced === null ? [] : ['replaced_login' => $replaced]),
         ];
         $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
     }
@@ -294,12 +321,35 @@ final class SessionManager
             self::clearAuthentication();
             return null;
         }
+        $binding = self::loginBinding();
+        $reason = $binding === null ? 'authentication_required' : $users->loginSessions()->invalidReason(
+            $user->id, $user->sessionVersion, $binding['id'], $binding['hash'], true);
+        if ($reason !== null) {
+            self::clearAuthentication();
+            if ($reason === 'session_revoked') {
+                throw new ApiException(401, 'session_revoked', 'You were signed out from another device. Sign in again.');
+            }
+            return null;
+        }
         // A guest session ends when it idles out or expires, or guest access is switched off.
         if ($user->guest && !$users->touchGuest($user->id, GuestService::IDLE_SECONDS)) {
             self::clearAuthentication();
             return null;
         }
         return $user;
+    }
+
+    /** Optional-auth entry points must still be usable when a holder was revoked.
+     * currentUser already clears its private state before throwing this one outcome.
+     */
+    public static function currentUserOrNull(UserRepository $users): ?AuthenticatedUser
+    {
+        try {
+            return self::currentUser($users);
+        } catch (ApiException $exception) {
+            if ($exception->errorCode !== 'session_revoked') throw $exception;
+            return null;
+        }
     }
 
     /**

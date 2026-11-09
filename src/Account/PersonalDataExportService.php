@@ -77,7 +77,7 @@ final class PersonalDataExportService
                         'audit entries where the account is the recorded actor',
                     ],
                     'excludes' => [
-                        'password hashes, password-recovery keys/hashes/generation identifiers, staged reset state, CSRF tokens and privileged-step-up state',
+                        'password hashes, password-recovery keys/hashes/generation identifiers, staged reset state, CSRF tokens, login binding tokens/hashes and privileged-step-up state',
                         'attachment file bytes and internal attachment storage keys',
                         'direct-message blocks created by other users',
                         'revision history for messages authored by other users',
@@ -88,6 +88,7 @@ final class PersonalDataExportService
                 ],
                 'account' => array_merge($profile, [
                     'roles' => $roles,
+                    'signed_in_sessions' => (new \ChitChat\Auth\LoginSessionRepository($this->pdo))->list($actor, ''),
                     'ban_history' => $bans,
                     'avatar' => (new AvatarService($this->pdo, $this->config))->exportFor($actor->id),
                     'sign_in_providers' => $this->signInProviders($actor->id),

@@ -50,7 +50,8 @@ final readonly class NativeAuthExchange
         if ($this->pdo->inTransaction()) throw new RuntimeException('Native exchange must own its transaction.');
         $this->pdo->beginTransaction();
         try {
-            $this->guard->lockAccountPolicy($snapshot['user_id'] === null ? null : (int) $snapshot['user_id'], $snapshot['purpose'] === 'restore');
+            $this->guard->lockAccountPolicy($snapshot['user_id'] === null ? null : (int) $snapshot['user_id'],
+                $snapshot['purpose'] === 'restore', SessionManager::replacedLoginBinding()['user_id'] ?? null);
             $row = $this->rows->require($id, true);
             $this->guard->nativeOwner($row);
             $error = $this->guard->errorCode($row);
@@ -68,6 +69,10 @@ final readonly class NativeAuthExchange
             $this->guard->nativeIdentity($row, $actor);
             $proof = $this->guard->proof($row);
             $outcome = (new NativeAuthEffects($this->pdo, $this->config))->apply($row, $proof, $ip);
+            if ($outcome->outcome === 'completed' && in_array($outcome->purpose, ['login', 'restore', 'sign_up'], true)) {
+                $outcome = $outcome->withLogin((new \ChitChat\Auth\LoginSessionRepository($this->pdo))->issue(
+                    $outcome->user ?? throw new RuntimeException('Native account is missing.'), $_SERVER['HTTP_USER_AGENT'] ?? null));
+            }
             // A dependency lock may have waited past a deadline. Roll back effects as well as consumption.
             $lateError = $this->guard->errorCode($row);
             if ($lateError !== null) throw NativeAuthGuard::failure($lateError);

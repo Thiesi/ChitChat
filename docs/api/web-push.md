@@ -280,3 +280,4 @@ Client check: presence of the boolean `direct_message_push_enabled` in the
 authenticated preference response identifies this addition, even when false.
 A missing field means an older/unknown contract; do not assume opt-in.
 Clients must tolerate the additive `direct_message_received` kind.
+Subscriptions require an active registered login matched by private binding hash and account version. Revocation atomically removes its bound subscriptions; delivery claim/retry rechecks the login. An in-flight provider request cannot be recalled. Passive cookie expiry does not establish device presence. See [signed-in sessions](signed-in-sessions.md).

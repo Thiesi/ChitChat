@@ -12,6 +12,7 @@ sign-in and remain present for members and guests; every existing v1 field stays
   "application": {"name": "The Common Room", "version": "3.3.0"},
   "capabilities": {
     "schema_version": 1,
+    "signed_in_sessions": true,
     "native_passkey_origins": false,
     "native_auth_handoff": false
   }
@@ -77,3 +78,5 @@ Public `policies` and authenticated `user.rules` are documented in
 unknown on older servers; None defaults preserve existing behavior.
 
 See [password recovery](password-recovery.md) for the private `user.recovery_key` status, once-only key disclosure, dedicated reset MFA flow, and password-change/admin-reset rotation policy.
+
+The signed_in_sessions capability advertises the [registered-login list and revocation API](signed-in-sessions.md). Missing or false means unsupported. It does not assert that a device is online.

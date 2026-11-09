@@ -55,7 +55,7 @@ final class PushSubscriptionService
         if ($replacesId === null) {
             $this->pdo->beginTransaction();
             try {
-                $this->lockActor($actor);
+                $this->lockActor($actor, $sessionBindingHash);
                 $row = $this->query('SELECT * FROM push_subscriptions WHERE endpoint = :endpoint FOR UPDATE',
                     ['endpoint' => $endpoint])->fetch();
                 if (is_array($row) && (int) $row['user_id'] === $actor->id
@@ -88,7 +88,7 @@ final class PushSubscriptionService
         }
         $this->pdo->beginTransaction();
         try {
-            $this->lockActor($actor);
+            $this->lockActor($actor, $sessionBindingHash);
             // Endpoint uniqueness is global. Never transfer ownership, even if the
             // caller knows another account's endpoint and encryption keys.
             $row = $this->query('SELECT * FROM push_subscriptions WHERE endpoint = :endpoint FOR UPDATE',
@@ -209,7 +209,7 @@ SQL, ['user' => $actor->id, 'version' => $actor->sessionVersion])->fetchAll();
         $this->limiter?->consume('push_subscription_management', 'user:' . $actor->id);
     }
 
-    private function lockActor(AuthenticatedUser $actor): void
+    private function lockActor(AuthenticatedUser $actor, string $sessionBindingHash): void
     {
         $row = $this->query('SELECT account_state, account_kind, session_version FROM users WHERE id = :id FOR NO KEY UPDATE',
             ['id' => $actor->id])->fetch();
@@ -217,6 +217,7 @@ SQL, ['user' => $actor->id, 'version' => $actor->sessionVersion])->fetchAll();
             || (int) $row['session_version'] !== $actor->sessionVersion || (new UserRepository($this->pdo))->activeBan($actor->id) !== null) {
             throw new ApiException(401, 'authentication_required', 'Sign in again before registering push.');
         }
+        (new \ChitChat\Auth\LoginSessionRepository($this->pdo))->requireBound($actor, $sessionBindingHash);
         // Obsolete login generations must not consume the account's device allowance.
         $this->query('DELETE FROM push_subscriptions WHERE user_id = :user AND session_version <> :version',
             ['user' => $actor->id, 'version' => $actor->sessionVersion]);

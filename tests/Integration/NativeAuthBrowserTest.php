@@ -61,7 +61,7 @@ final class NativeAuthBrowserTest extends DatabaseTestCase
     private function start(?AuthenticatedUser $actor = null, string $purpose = 'login'): array
     {
         if ($actor !== null) {
-            SessionManager::login($actor);
+            SessionManager::login($actor, (new \ChitChat\Auth\LoginSessionRepository($this->pdo))->issue($actor));
             if ($purpose === 'link') SessionManager::establishPrivilegedStepUp($actor, 'password');
         }
         $state = NativeConfig::token();
@@ -166,7 +166,7 @@ final class NativeAuthBrowserTest extends DatabaseTestCase
         $view = $this->browser->bootstrapView($bootstrap['cookie']);
         $this->rejects('csrf_failed', fn () => $this->browser->validateBootstrap($bootstrap['cookie'], 'wrong', 'entry'));
         $other = (new AuthService($this->pdo, $this->config))->register('Other', 'a different secure password', '192.0.2.3');
-        SessionManager::login($other);
+        SessionManager::login($other, (new \ChitChat\Auth\LoginSessionRepository($this->pdo))->issue($other));
         $sid = session_id();
         $proof = $this->browser->validateBootstrap($bootstrap['cookie'], $view['csrf_token'], 'entry');
         self::assertNull($this->browser->continueBootstrap($proof, '198.51.100.1'));
@@ -212,6 +212,48 @@ final class NativeAuthBrowserTest extends DatabaseTestCase
     }
 
     /** @return iterable<string,array{string}> */
+    public static function authenticatedPurposes(): iterable
+    {
+        foreach (['link', 'step_up', 'picture'] as $purpose) yield $purpose => [$purpose];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('authenticatedPurposes')]
+    public function testRevokingTheOriginatingLoginPreventsEveryAuthenticatedNativeEffect(string $purpose): void
+    {
+        if ($purpose === 'link') $this->pdo->exec('DELETE FROM user_identities');
+        $start = $this->start($this->member, $purpose);
+        if ($purpose === 'link') $this->provider->subject = 'second-subject';
+        if ($purpose === 'step_up') $this->provider->authTime = time();
+        if ($purpose === 'picture') {
+            $this->provider->pictureClaim = NativeOidcProvider::ISSUER . '/picture';
+            $this->provider->picture = (string) base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jxS8AAAAASUVORK5CYII=', true);
+        }
+        $query = $this->enter($start);
+        $this->flow->direct($query, '198.51.100.1');
+        $this->browser->approve('198.51.100.1');
+        parse_str((string) parse_url($this->browser->view()['return_url'], PHP_URL_QUERY), $grant);
+        $origin = $start['native']['auth']['login_session_id'];
+        $_SESSION = [];
+        $logins = new \ChitChat\Auth\LoginSessionRepository($this->pdo);
+        $other = $logins->issue($this->member);
+        self::assertSame(1, $logins->revoke($this->member, $other->id, hash('sha256', $other->token), $origin, '192.0.2.1'));
+        $_SESSION = $start['native'];
+        try {
+            (new NativeAuthExchange($this->pdo, $this->nativeConfig))->exchange([
+                ...$grant, 'code_verifier' => 'dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk'], '203.0.113.1');
+            self::fail('A revoked login applied a staged native effect.');
+        } catch (ApiException $exception) {
+            self::assertSame(401, $exception->status);
+            self::assertSame('session_revoked', $exception->errorCode);
+        }
+        self::assertSame('staged', $this->rows->require($start['id'])['phase']);
+        self::assertSame($purpose === 'link' ? 0 : 1, (int) $this->pdo->query('SELECT COUNT(*) FROM user_identities')->fetchColumn());
+        self::assertSame(0, (int) $this->pdo->query('SELECT COUNT(*) FROM avatar_imports')->fetchColumn());
+        self::assertArrayNotHasKey('privileged_step_up', $_SESSION);
+        self::assertArrayNotHasKey('auth', $_SESSION);
+        self::assertCount(1, $logins->list($this->member, $other->id));
+    }
+
     public static function purposes(): iterable
     {
         foreach (['link', 'step_up', 'picture', 'restore'] as $purpose) yield $purpose => [$purpose];

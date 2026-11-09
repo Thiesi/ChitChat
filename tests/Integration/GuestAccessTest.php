@@ -61,7 +61,9 @@ final class GuestAccessTest extends DatabaseTestCase
         $this->enableGuests();
         $guest = (new GuestService($this->pdo))->start('10.0.0.1');
         $users = new UserRepository($this->pdo);
-        $_SESSION['auth'] = ['user_id' => $guest->id, 'session_version' => $guest->sessionVersion, 'authenticated_at' => time()];
+        $issued = (new \ChitChat\Auth\LoginSessionRepository($this->pdo))->issue($guest);
+        $_SESSION['auth'] = ['user_id' => $guest->id, 'session_version' => $guest->sessionVersion,
+            'authenticated_at' => time(), 'login_session_id' => $issued->id, 'push_token' => $issued->token];
 
         self::assertSame($guest->id, SessionManager::requireUserOrGuest($users)->id);
         $this->assertRefused('guest_not_allowed', fn () => SessionManager::requireUser($users));
