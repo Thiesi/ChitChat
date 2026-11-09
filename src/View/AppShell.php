@@ -12,7 +12,7 @@ use InvalidArgumentException;
  * each wraps its <main> in open() … close().
  *
  * The navigation starts hidden. shell.js shows it once the session is known:
- * members get Rooms · Direct · Activity · You, guests Rooms only, and staff
+ * members get Rooms · Direct · Activity · You, guests Rooms and You, and staff
  * also get Stewarding (role-filtered, as the old Administration link was).
  * Badges start empty and are filled from data the pages already have.
  */
@@ -52,7 +52,8 @@ final class AppShell
             . ($pageCountsActivity ? ' data-activity-source="page"' : '') . '>'
             . '<nav id="app-nav" class="app-nav" aria-label="Main" hidden><ul class="app-nav-list">';
         foreach (self::ITEMS as $key => $item) {
-            $html .= '<li class="app-nav-entry" data-entry="' . $key . '"' . ($key === 'rooms' ? '' : ' data-members-only') . '>'
+            // Guests have Rooms and a short You (S2b); Direct and Activity are for members.
+            $html .= '<li class="app-nav-entry" data-entry="' . $key . '"' . (in_array($key, ['direct', 'activity'], true) ? ' data-members-only' : '') . '>'
                 . self::item($key, $item['href'], $item['label'], $item['icon'], $tab)
                 . '</li>';
         }

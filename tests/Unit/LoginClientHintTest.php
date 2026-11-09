@@ -18,7 +18,7 @@ final class LoginClientHintTest extends TestCase
             ['Mozilla/5.0 (Android) Chrome/140 Safari/537', 'Chrome on Android'],
             ['Mozilla/5.0 (iPhone) FxiOS/140 Safari/605', 'Firefox on iOS'],
             ['Mozilla/5.0 (Macintosh) Version/18 Safari/605', 'Safari on macOS'],
-            ['ChitChat-Mobile (Android)', 'ChitChat Mobile on Android'],
+            ['ChitChat-Mobile/1.0 (Android 15)', 'ChitChat app on Android'],
             [str_repeat('x', 513) . ' Firefox/140 Windows', 'Unknown client'],
         ] as [$agent, $expected]) {
             self::assertSame($expected, LoginSessionRepository::clientHint($agent));

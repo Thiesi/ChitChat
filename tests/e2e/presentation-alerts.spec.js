@@ -39,7 +39,7 @@ async function withoutBrowserPush(page) {
 test('choices are shown and saved without a browser subscription; the DM switch is off by default', async ({ page }) => {
   await withoutBrowserPush(page);
   const saved = await fixture(page);
-  await page.goto('/notifications.php');
+  await page.goto('/account.php');
 
   await expect(page.getByRole('heading', { name: 'Alerts', level: 2 })).toBeVisible();
   await expect(page.locator('#push-unsupported')).toBeVisible();
@@ -72,7 +72,7 @@ test('a saved opt-in loads as on; devices replace the no-device note', async ({ 
       { id: 5, user_agent: '', created_at: '2026-11-07T10:00:00Z' },
     ],
   });
-  await page.goto('/notifications.php');
+  await page.goto('/account.php');
   await expect(page.getByRole('switch', { name: 'New direct messages' })).toBeChecked();
   await expect(page.locator('#push-no-device')).toBeHidden();
   await expect(page.locator('#push-device-list li')).toHaveCount(2);
@@ -87,7 +87,7 @@ test('a browser that can show alerts offers to turn them on here', async ({ page
   // support, in every engine.
   test.skip(browserName !== 'chromium', 'Push subscription needs Chromium in the test harness.');
   await fixture(page);
-  await page.goto('/notifications.php');
+  await page.goto('/account.php');
   await expect(page.locator('#push-settings')).toBeVisible();
   await expect(page.locator('#push-browser')).toBeVisible();
   await expect(page.locator('#push-browser-status')).toHaveText('Alerts are off in this browser.');
@@ -96,7 +96,7 @@ test('a browser that can show alerts offers to turn them on here', async ({ page
 
 test('a server without alerts says so and shows no choices', async ({ page }) => {
   await fixture(page, { pushConfigured: false });
-  await page.goto('/notifications.php');
+  await page.goto('/account.php');
   await expect(page.locator('#push-status')).toHaveText('Alerts aren’t set up on this server.');
   await expect(page.locator('#push-settings')).toBeHidden();
   await expect(page.locator('#push-browser')).toBeHidden();
@@ -108,7 +108,7 @@ for (const theme of ['light', 'dark']) {
     await withoutBrowserPush(page);
     await fixture(page);
     await page.setViewportSize({ width: 320, height: 800 });
-    await page.goto('/notifications.php');
+    await page.goto('/account.php');
     await expect(page.locator('#push-settings')).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
     const result = await new AxeBuilder({ page }).include('section[aria-labelledby="push-heading"]').withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
@@ -121,7 +121,7 @@ for (const theme of ['light', 'dark']) {
 test('the "How long alerts stay on screen" note is closed, opens from the keyboard, and names the system settings', async ({ page }) => {
   await withoutBrowserPush(page);
   await fixture(page);
-  await page.goto('/notifications.php');
+  await page.goto('/account.php');
   const help = page.locator('#push-help');
   const summary = help.locator('summary');
   await expect(summary).toHaveText('How long alerts stay on screen');
@@ -149,7 +149,7 @@ for (const theme of ['light', 'dark']) {
     await page.addInitScript((choice) => localStorage.setItem('chitchat-theme', choice), theme);
     await withoutBrowserPush(page);
     await fixture(page);
-    await page.goto('/notifications.php');
+    await page.goto('/account.php');
     await page.locator('#push-help summary').click();
     await expect(page.locator('#push-help')).toHaveAttribute('open', '');
     const result = await new AxeBuilder({ page }).include('#push-browser').withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
