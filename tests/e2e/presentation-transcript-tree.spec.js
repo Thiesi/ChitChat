@@ -81,9 +81,11 @@ async function openRoom(page) {
   await expect(message(page, 6).locator('.message-mutation-button').first()).toBeVisible();
 }
 
-// Times are locale- and time-zone-formatted; the contract is that one follows the text.
-// Slashes are escaped because the pattern sits inside a /regex/ in the snapshot template.
-const TIME = String.raw`\d{1,2}\/\d{1,2}\/\d{2}, \d{1,2}:\d{2}\s?[AP]M`;
+// Times are locale- and time-zone-formatted; the contract is that one follows
+// the text. The date part is optional: once the day headings carry the date
+// (S1c), a message names only its time. Slashes are escaped because the
+// pattern sits inside a /regex/ in the snapshot template.
+const TIME = String.raw`(?:\d{1,2}\/\d{1,2}\/\d{2}, )?\d{1,2}:\d{2}\s?[AP]M`;
 
 /** The accessible role and name of whatever has focus, read from the accessibility tree. */
 async function focusedNode(page) {
