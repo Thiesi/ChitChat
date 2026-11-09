@@ -317,7 +317,7 @@ final class OidcServiceTest extends DatabaseTestCase
             parse_str((string) parse_url($this->oidc->begin('google', $purpose, $user, $transaction), PHP_URL_QUERY), $query);
             $this->provider->nonce = (string) $query['nonce'];
             $this->provider->challenge = (string) $query['code_challenge'];
-            self::assertSame($transaction, $this->oidc->nativeTransactionForCallback(['state' => $query['state']]));
+            self::assertStringStartsWith('native.', $query['state']);
             $verified = $this->oidc->verifyCallback(['state' => $query['state'], 'code' => 'verified-code']);
             self::assertSame($transaction, $verified->nativeTransaction);
             self::assertSame($purpose, $verified->purpose);

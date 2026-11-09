@@ -19,6 +19,7 @@ final class NativeOidcProvider implements OidcHttpClient
     public ?string $nonceOverride = null;
     public ?int $authTime = null;
     public ?string $pictureClaim = null;
+    public string $keyId = 'fake-1';
     public int $keyFetches = 0;
     public int $exchanges = 0;
     public ?\Closure $beforeRequest = null;
@@ -80,7 +81,7 @@ final class NativeOidcProvider implements OidcHttpClient
 
         return ['keys' => [[
             'kty' => 'RSA',
-            'kid' => 'fake-1',
+            'kid' => $this->keyId,
             'n' => self::b64($details['rsa']['n']),
             'e' => self::b64($details['rsa']['e']),
         ]]];
@@ -89,7 +90,7 @@ final class NativeOidcProvider implements OidcHttpClient
     /** @param array<string, mixed> $claims */
     private function sign(array $claims): string
     {
-        $header = self::b64((string) json_encode(['alg' => 'RS256', 'kid' => 'fake-1']));
+        $header = self::b64((string) json_encode(['alg' => 'RS256', 'kid' => $this->keyId]));
         $payload = self::b64((string) json_encode($claims));
         openssl_sign("{$header}.{$payload}", $signature, $this->key, OPENSSL_ALGO_SHA256);
 

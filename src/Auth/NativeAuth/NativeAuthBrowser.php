@@ -115,6 +115,7 @@ final readonly class NativeAuthBrowser
         if ($phase === 'superseded' || in_array($error, ['expired', 'code_expired'], true)) $phase = 'expired';
         elseif ($error === 'native_config_changed') $phase = 'disabled';
         elseif ($phase === 'consumed') $phase = 'used';
+        if ($phase !== 'staged') unset($_SESSION['native_auth_browser']['return_code']);
         $returnCode = $_SESSION['native_auth_browser']['return_code'] ?? null;
         return $this->views->model($row, $phase, is_string($row['outcome']) ? $row['outcome'] : null,
             SessionManager::csrfToken(), $actor, is_string($returnCode) ? $returnCode : null, authorizedStatus: true);

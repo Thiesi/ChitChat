@@ -92,6 +92,8 @@ final readonly class NativeAuthGuard
         // Match registration and policy writes: rules, installation policy, account, then native row.
         $rules = $this->pdo->query("SELECT document FROM policy_documents WHERE document = 'rules' FOR SHARE");
         if ($rules === false || $rules->fetchColumn() === false) throw new RuntimeException('Rules policy is unavailable.');
+        // Deliberately serialize native account work installation-wide at this scale,
+        // preserving a consistent policy/account/native-row lock order.
         $statement = $this->pdo->query('SELECT id FROM system_settings WHERE id = 1 FOR UPDATE');
         if ($statement === false || $statement->fetchColumn() === false) throw new RuntimeException('Account policy is unavailable.');
         if ($restoration && $userId !== null) {

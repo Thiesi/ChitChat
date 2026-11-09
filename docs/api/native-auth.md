@@ -66,7 +66,11 @@ provider-identity mismatches require an explicit action.
 
 With a withheld Strict PHP cookie, an entry or provider callback uses a separate
 single-use `__Host-` Secure, HttpOnly, SameSite=Strict, Path=/ bootstrap cookie.
-Entry and callback bootstraps cannot substitute for each other. Continue first
+Entry and callback bootstraps cannot substitute for each other. The initial
+entry/callback response renders its interstitial directly with HTTP 200; a
+redirect there would keep the cross-site initiator and withhold both Strict
+cookies again. The user-initiated form POST is the same-site continuation.
+Continue first
 validates its cookie/CSRF, then recovers the original same-site session. A
 callback with its session cookie verifies directly. Unknown/expired native
 callback state creates no session or cookie. Parked callbacks keep only bounded

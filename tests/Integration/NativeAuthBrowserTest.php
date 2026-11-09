@@ -79,9 +79,10 @@ final class NativeAuthBrowserTest extends DatabaseTestCase
      */
     private function enter(array $start): array
     {
+        $previousExchanges = $this->provider->exchanges;
         $this->browser->enterWithSession($start['id'], $start['entry']);
         self::assertSame('entry', $this->browser->view()['phase']);
-        self::assertSame(0, $this->provider->exchanges);
+        self::assertSame($previousExchanges, $this->provider->exchanges);
         return $this->authorization((string) $this->browser->continueAction('192.0.2.9'));
     }
 
@@ -122,6 +123,7 @@ final class NativeAuthBrowserTest extends DatabaseTestCase
         $_SESSION = $browserSession;
         self::assertSame('used', $this->browser->view()['phase']);
         self::assertSame('unknown', $this->browser->view()['outcome']);
+        self::assertArrayNotHasKey('return_code', $_SESSION['native_auth_browser']);
         self::assertNull($this->browser->view()['return_url']);
     }
 
@@ -266,6 +268,19 @@ final class NativeAuthBrowserTest extends DatabaseTestCase
         self::assertNull($this->browser->view()['return_url']);
         $this->rejects('consent_required', fn () => $this->browser->approve('198.51.100.1'));
         self::assertSame(1, (int) $this->pdo->query('SELECT COUNT(*) FROM user_identities')->fetchColumn());
+    }
+    public function testThePrivateReturnCodeIsDiscardedWhenTheStagedGrantExpiresOrIsSuperseded(): void
+    {
+        foreach (['expired', 'superseded'] as $terminal) {
+            $start = $this->start();
+            $query = $this->enter($start);
+            $this->flow->direct($query, '198.51.100.1');
+            $this->browser->approve('198.51.100.1');
+            self::assertArrayHasKey('return_code', $_SESSION['native_auth_browser']);
+            $this->rows->terminal($start['id'], $terminal);
+            self::assertSame('expired', $this->browser->view()['phase']);
+            self::assertArrayNotHasKey('return_code', $_SESSION['native_auth_browser']);
+        }
     }
     private function rejects(string $code, callable $operation): void
     {

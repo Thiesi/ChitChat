@@ -17,8 +17,8 @@ final class NativeAuthController
 {
     public static function page(Config $config): never
     {
-        self::headers($config);
         try {
+            self::headers($config);
             Request::requireMethod('GET');
             $service = new NativeAuthService(Database::connect($config), $config);
             $browser = $service->browser();
@@ -28,6 +28,7 @@ final class NativeAuthController
                 if (!self::receivedSession($config)) {
                     $bootstrap = $browser->prepareEntryBootstrap($id, $entry);
                     NativeAuthBootstrap::send($bootstrap['cookie'], $bootstrap['remaining']);
+                    self::render($bootstrap['view']);
                 } else {
                     SessionManager::start($config);
                     $browser->enterWithSession($id, $entry);
@@ -43,9 +44,7 @@ final class NativeAuthController
                 $view = $service->browserView();
             }
             if (in_array($view['phase'], ['cancelled', 'expired', 'used', 'disabled'], true)) NativeAuthBootstrap::clear();
-            header('Content-Type: text/html; charset=utf-8');
-            echo NativeAuthPage::render($view);
-            exit;
+            self::render($view);
         } catch (\Throwable $exception) {
             self::failure($config, $exception);
         }
@@ -53,8 +52,8 @@ final class NativeAuthController
 
     public static function action(Config $config, string $action): never
     {
-        self::headers($config);
         try {
+            self::headers($config);
             Request::requireMethod('POST');
             $service = new NativeAuthService(Database::connect($config), $config);
             $browser = $service->browser();
@@ -93,10 +92,11 @@ final class NativeAuthController
     /** Called only after config bootstrap, never after the ordinary HTTP/session bootstrap. */
     public static function callback(Config $config): never
     {
-        self::headers($config);
         try {
+            self::headers($config);
             Request::requireMethod('GET');
-            $flow = (new NativeAuthService(Database::connect($config), $config))->providerFlow();
+            $service = new NativeAuthService(Database::connect($config), $config);
+            $flow = $service->providerFlow();
             $flow->recognize($_GET); // Unknown/expired native state creates no session or cookie.
             if (self::receivedSession($config)) {
                 SessionManager::start($config);
@@ -105,11 +105,20 @@ final class NativeAuthController
             } else {
                 $bootstrap = $flow->park($_GET, Request::clientIp());
                 NativeAuthBootstrap::send($bootstrap['cookie'], $bootstrap['remaining']);
+                self::render($service->browser()->bootstrapView($bootstrap['cookie']));
             }
             self::redirect('/native-auth.php');
         } catch (\Throwable $exception) {
             self::failure($config, $exception);
         }
+    }
+
+    /** @param array<string,mixed> $view */
+    private static function render(array $view): never
+    {
+        header('Content-Type: text/html; charset=utf-8');
+        echo NativeAuthPage::render($view);
+        exit;
     }
 
     private static function headers(Config $config): void
@@ -147,6 +156,9 @@ final class NativeAuthController
             && in_array($exception->errorCode, ['expired', 'code_expired', 'cancelled', 'superseded', 'already_used', 'bootstrap_mismatch'], true)) {
             NativeAuthBootstrap::clear();
         }
+        header('Cache-Control: no-store');
+        header('Referrer-Policy: no-referrer');
+        header('X-Robots-Tag: noindex, nofollow');
         $status = $exception instanceof ApiException ? $exception->status : 500;
         if ($exception instanceof ApiException && $exception->retryAfterSeconds !== null) header('Retry-After: ' . $exception->retryAfterSeconds);
         if (!$exception instanceof ApiException) error_log('Native auth browser operation failed (' . $exception::class . ').');
@@ -160,7 +172,7 @@ final class NativeAuthController
             $view = (new NativeAuthViewModel(Database::connect($config), $config))->model(null, $phase, null, '');
             echo NativeAuthPage::render($view);
         } catch (\Throwable) {
-            echo '<!doctype html><meta charset="utf-8"><title>Native sign-in unavailable</title><p>Start again from the app.</p>';
+            echo NativeAuthPage::render(['phase' => 'disabled', 'installation_name' => $config->applicationName]);
         }
         exit;
     }

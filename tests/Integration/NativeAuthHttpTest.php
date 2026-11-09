@@ -37,7 +37,8 @@ final class NativeAuthHttpTest extends DatabaseTestCase
         parent::tearDown();
     }
 
-    private function servers(): void
+    /** @param array<string,string> $overrides */
+    private function servers(array $overrides = []): void
     {
         $auth = new AuthService($this->pdo, $this->config);
         $auth->register('Root', 'a very secure password', '192.0.2.1');
@@ -61,7 +62,7 @@ final class NativeAuthHttpTest extends DatabaseTestCase
             'WEBAUTHN_RP_ID' => 'chat.test', 'WEBAUTHN_ORIGIN' => 'https://chat.test',
             'CC_NATIVE_PROVIDER_FIXTURE' => $this->providerState,
             'NATIVE_ANDROID_APPS' => json_encode([['package' => 'de.networkxxiii.chitchat',
-                'sha256_cert_fingerprint' => implode(':', array_fill(0, 32, 'AB'))]], JSON_THROW_ON_ERROR)]);
+                'sha256_cert_fingerprint' => implode(':', array_fill(0, 32, 'AB'))]], JSON_THROW_ON_ERROR)], $overrides);
         unset($environment['PHP_CLI_SERVER_WORKERS']);
         $this->serve($address, [$root . '/tests/Support/native-oidc-router.php'], $environment);
         $address = $this->address();
@@ -114,7 +115,7 @@ final class NativeAuthHttpTest extends DatabaseTestCase
             'ignore_errors' => true, 'follow_location' => 0, 'timeout' => 20]]);
         $body = file_get_contents(str_starts_with($path, $this->providerUrl) ? $path : $this->baseUrl . $path, false, $context);
         self::assertIsString($body);
-        $raw = http_get_last_response_headers();
+        $raw = function_exists('http_get_last_response_headers') ? http_get_last_response_headers() : ($http_response_header ?? []);
         self::assertIsArray($raw);
         preg_match('/\AHTTP\/\S+ (\d+)/', $raw[0], $status);
         $resultHeaders = [];
@@ -195,8 +196,9 @@ final class NativeAuthHttpTest extends DatabaseTestCase
         self::assertSame([], $unknown['cookies']);
         $start = $this->start();
         $entry = $this->request('browser', $this->entryPath($start['browser_url']));
-        self::assertSame(303, $entry['status']);
-        self::assertSame('/native-auth.php', $entry['headers']['location']);
+        self::assertSame(200, $entry['status']);
+        self::assertArrayNotHasKey('location', $entry['headers']);
+        self::assertStringContainsString('data-phase="entry"', $entry['body']);
         self::assertCount(1, $entry['cookies']);
         self::assertStringContainsString('__Host-chitchat-native=', $entry['cookies'][0]);
         foreach (['secure', 'HttpOnly', 'SameSite=Strict', 'path=/'] as $attribute) self::assertStringContainsString($attribute, $entry['cookies'][0]);
@@ -254,7 +256,8 @@ final class NativeAuthHttpTest extends DatabaseTestCase
         foreach ($originalCookies as $name => $cookie) self::assertSame($cookie, $this->jars['browser'][$name]);
         $query = $this->providerCallback($continue['headers']['location']);
         $callback = $this->request('callback-hop', '/api/v1/oidc/callback.php?' . http_build_query($query));
-        self::assertSame(303, $callback['status'], $callback['body']);
+        self::assertSame(200, $callback['status'], $callback['body']);
+        self::assertArrayNotHasKey('location', $callback['headers']);
         self::assertCount(1, $callback['cookies']);
         $this->jars['browser'][NativeAuthBootstrap::COOKIE] = $this->jars['callback-hop'][NativeAuthBootstrap::COOKIE];
         $csrf = $this->csrfForm('browser');
@@ -280,7 +283,7 @@ final class NativeAuthHttpTest extends DatabaseTestCase
     /** @param array{transaction_id:string,browser_url:string,expires_at:string} $start */
     private function verifyBrowser(array $start): void
     {
-        self::assertSame(303, $this->request('browser', $this->entryPath($start['browser_url']))['status']);
+        self::assertSame(200, $this->request('browser', $this->entryPath($start['browser_url']))['status']);
         $continue = $this->request('browser', '/api/v1/native-auth/browser/continue.php', ['csrf_token' => $this->csrfForm('browser')], true);
         self::assertSame(303, $continue['status'], $continue['body']);
         $query = $this->providerCallback($continue['headers']['location']);
@@ -365,5 +368,28 @@ final class NativeAuthHttpTest extends DatabaseTestCase
         self::assertGreaterThan(0, $limited['json']['error']['retry_after_seconds']);
         self::assertSame((string) $limited['json']['error']['retry_after_seconds'], $limited['headers']['retry-after']);
         self::assertStringNotContainsString($payload['state'], $limited['body']);
+    }
+    public function testDatabaseOutageKeepsThePureConfirmationCardWithoutCreatingABrowserSession(): void
+    {
+        $this->servers(['DB_PORT' => '1']);
+        $response = $this->request('outage', '/native-auth.php?transaction_id=' . NativeConfig::token() . '&entry=' . NativeConfig::token());
+        self::assertSame(500, $response['status']);
+        self::assertSame([], $response['cookies']);
+        self::assertSame('no-store', $response['headers']['cache-control']);
+        self::assertSame('no-referrer', $response['headers']['referrer-policy']);
+        self::assertStringContainsString('data-phase="disabled"', $response['body']);
+        self::assertStringContainsString('/assets/css/native-auth.css', $response['body']);
+        self::assertStringNotContainsString('SQLSTATE', $response['body']);
+    }
+    public function testInvalidNativeCspConfigurationStillReturnsTheSafeConfirmationPage(): void
+    {
+        $this->servers(['OIDC_GOOGLE_ENDPOINT_OVERRIDE' => 'https://invalid.test;bad']);
+        $response = $this->request('invalid-csp', '/native-auth.php');
+        self::assertSame(500, $response['status']);
+        self::assertSame([], $response['cookies']);
+        self::assertSame('no-store', $response['headers']['cache-control']);
+        self::assertSame('no-referrer', $response['headers']['referrer-policy']);
+        self::assertStringContainsString('data-phase="disabled"', $response['body']);
+        self::assertStringNotContainsString('invalid.test', $response['body']);
     }
 }

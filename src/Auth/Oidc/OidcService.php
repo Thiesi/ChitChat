@@ -101,12 +101,6 @@ final class OidcService
             'created_at' => time(),
             ...($nativeTransaction === null ? [] : ['native_transaction' => $nativeTransaction]),
         ];
-        if ($nativeTransaction !== null) {
-            $callbacks = $_SESSION['native_oidc_callbacks'] ?? [];
-            $callbacks = is_array($callbacks) ? $callbacks : [];
-            $callbacks[$state] = ['id' => $nativeTransaction, 'created_at' => time()];
-            $_SESSION['native_oidc_callbacks'] = array_slice($callbacks, -self::MAX_PENDING_FLOWS, null, true);
-        }
         // Keep only the newest few, so abandoned attempts cannot pile up.
         uasort($flows, static fn (array $left, array $right): int => $right['created_at'] <=> $left['created_at']);
         $_SESSION['oidc_flows'] = array_slice($flows, 0, self::MAX_PENDING_FLOWS, true);
@@ -198,19 +192,6 @@ final class OidcService
             'picture' => $this->importPicture((int) $verified->userId, $provider, $claims, $ipAddress),
             default => $this->signIn($provider, $subject, $ipAddress),
         };
-    }
-
-    /** @param array<string,mixed> $query */
-    public function nativeTransactionForCallback(array $query): ?string
-    {
-        $state = is_string($query['state'] ?? null) ? $query['state'] : '';
-        $flow = $this->pendingFlows()[$state] ?? null;
-        if ($flow !== null && $flow['native_transaction'] !== null) return $flow['native_transaction'];
-        $callbacks = $_SESSION['native_oidc_callbacks'] ?? [];
-        $remembered = is_array($callbacks) ? ($callbacks[$state] ?? null) : null;
-        return is_array($remembered) && is_string($remembered['id'] ?? null)
-            && is_int($remembered['created_at'] ?? null) && $remembered['created_at'] > time() - 3600
-            ? $remembered['id'] : null;
     }
 
     /**
