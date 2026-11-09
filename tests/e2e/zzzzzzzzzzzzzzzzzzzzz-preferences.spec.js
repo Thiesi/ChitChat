@@ -17,13 +17,14 @@ async function login(page) {
 test('colour schemes apply on every page, and dates follow the account format', async ({ page }) => {
   await login(page);
 
-  // A colour scheme chosen in the account menu applies everywhere on this device.
-  await page.getByRole('button', { name: 'Account menu' }).click();
-  await page.getByRole('radiogroup', { name: 'Colour scheme' }).getByRole('radio', { name: 'Dusk' }).check();
-  await expect(page.locator('html')).toHaveAttribute('data-scheme', 'dusk');
-  await page.getByRole('link', { name: 'Account', exact: true }).click();
-  await expect(page.locator('html')).toHaveAttribute('data-scheme', 'dusk');
+  // A colour scheme chosen on You applies everywhere on this device (the account menu went in #168, S2b).
+  await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'You', exact: true }).click();
   const accountSchemes = page.locator('#account-shell').getByRole('radiogroup', { name: 'Colour scheme' });
+  await accountSchemes.getByRole('radio', { name: 'Dusk' }).check();
+  await expect(page.locator('html')).toHaveAttribute('data-scheme', 'dusk');
+  await page.goto('/');
+  await expect(page.locator('html')).toHaveAttribute('data-scheme', 'dusk');
+  await page.goto('/account.php');
   await expect(accountSchemes.getByRole('radio', { name: 'Dusk' })).toBeChecked();
 
   try {

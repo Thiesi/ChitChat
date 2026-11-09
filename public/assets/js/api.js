@@ -7,6 +7,9 @@ let sessionGeneration = 0;
 const SESSION_ENDPOINT = '/api/v1/session.php';
 const STEP_UP_ENDPOINT = '/api/v1/step-up.php';
 const SESSION_VERSION_MARKER = Symbol.for('chitchat.sessionVersion');
+/** Pages a guest may stay on when an endpoint refuses guests. */
+const GUEST_PAGES = new Set(['/', '/account.php']);
+
 const SESSION_CHANGE_ENDPOINTS = new Set([
   '/api/v1/login.php',
   '/api/v1/register.php',
@@ -116,8 +119,9 @@ async function request(path, options) {
 
   if (!response.ok) {
     const error = payload?.error ?? {};
-    // A guest who reaches a members-only page goes back to the chat.
-    if (error.code === 'guest_not_allowed' && window.location.pathname !== '/') {
+    // A guest who reaches a members-only page goes back to the chat. Rooms and
+    // the short guest You (S2b) are theirs; on You the member cards stay hidden.
+    if (error.code === 'guest_not_allowed' && !GUEST_PAGES.has(window.location.pathname)) {
       window.location.assign('/');
     }
     // A write paused until the person agrees to changed community rules:

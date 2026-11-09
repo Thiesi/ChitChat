@@ -129,9 +129,8 @@ test.describe.serial('ChitChat browser release checks', () => {
     try {
       const adminPage = await adminContext.newPage();
       await registerOrSignIn(adminPage, admin, register);
-      await adminPage.getByRole('button', { name: 'Account menu' }).click();
-      await expect(adminPage.locator('#admin-link')).toBeVisible();
-      await adminPage.keyboard.press('Escape');
+      // Administration is the shell's Stewarding item since the account menu went (#168, S2b).
+      await expect(adminPage.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Stewarding' })).toBeVisible();
 
       // Every later spec uses this room, so a retry reuses it rather than recreating it.
       const { rooms } = await (await adminContext.request.get('/api/v1/rooms/list.php')).json();
@@ -170,7 +169,7 @@ test.describe.serial('ChitChat browser release checks', () => {
         await joinButton.click();
       }
       await expect(composer).toBeVisible();
-      await expect(memberPage.locator('#admin-link')).toBeHidden();
+      await expect(memberPage.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Stewarding' })).toBeHidden();
 
       await expect(adminPage.locator('#presence-list')).toContainText(member.username, { timeout: 20_000 });
       await expect(memberPage.locator('#presence-list')).toContainText(admin.username, { timeout: 20_000 });

@@ -25,113 +25,18 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <link rel="stylesheet" href="/assets/css/shell.css">
 </head>
 <body>
-  <div id="privacy-notifications-loading" class="app-loading" role="status">Loading notifications…</div>
+  <div id="privacy-notifications-loading" class="app-loading" role="status">Loading activity…</div>
 
   <?= \ChitChat\View\AppShell::open('activity', 'privacy-notifications-shell', 'Skip to content', true) ?>
   <main id="privacy-notifications-shell" tabindex="-1" class="account-shell hidden">
     <header class="account-header">
       <div>
         <p class="account-eyebrow"><?= $appName ?></p>
-        <h1>Notifications</h1>
+        <h1>Activity</h1>
         <p id="privacy-notifications-identity" class="account-muted"></p>
       </div>
     </header>
 
-    <section class="account-card" aria-labelledby="push-heading">
-      <p class="account-eyebrow">Notifications</p>
-      <h2 id="push-heading">Alerts</h2>
-      <p id="push-status" class="account-muted" role="status" aria-live="polite"></p>
-
-      <!-- Account-wide: these apply to every device with alerts on, including the ChitChat app,
-           so they're shown whether or not this browser is subscribed (#150). -->
-      <div id="push-settings" class="hidden">
-        <p>These choices apply to every device where alerts are on, including the ChitChat app.</p>
-        <p id="push-no-device" class="push-note hidden">No device has alerts turned on yet. Your choices are saved for when you do.</p>
-        <form id="push-preferences-form" class="form-stack">
-          <h3>What should alert you?</h3>
-          <label class="push-choice">
-            <input id="push-dm-enabled" type="checkbox" role="switch" aria-describedby="push-dm-help">
-            <span><span class="push-choice-label">New direct messages</span>
-            <span id="push-dm-help" class="account-muted">Someone writes to you directly. The alert never shows what they wrote.</span></span>
-          </label>
-          <label class="push-choice">
-            <input id="push-mentioned-enabled" type="checkbox" role="switch" aria-describedby="push-mentioned-help">
-            <span><span class="push-choice-label">Mentions</span>
-            <span id="push-mentioned-help" class="account-muted">@you, @room or @here.</span></span>
-          </label>
-          <label class="push-choice">
-            <input id="push-pinged-enabled" type="checkbox" role="switch" aria-describedby="push-pinged-help">
-            <span><span class="push-choice-label">Pings</span>
-            <span id="push-pinged-help" class="account-muted">Someone uses /ping with your name.</span></span>
-          </label>
-          <p class="account-muted push-overlap">If one message is both a direct message and a mention, you get one alert, not two.</p>
-
-          <h3>Quiet hours</h3>
-          <p class="account-muted">No alerts during these hours. Your notifications here still arrive.</p>
-          <label>
-            <span>From</span>
-            <select id="push-quiet-start">
-              <option value="">Off</option>
-              <?php for ($hour = 0; $hour < 24; $hour++): ?>
-                <option value="<?= $hour ?>"><?= sprintf('%02d:00', $hour) ?></option>
-              <?php endfor; ?>
-            </select>
-          </label>
-          <label>
-            <span>To</span>
-            <select id="push-quiet-end">
-              <option value="">Off</option>
-              <?php for ($hour = 0; $hour < 24; $hour++): ?>
-                <option value="<?= $hour ?>"><?= sprintf('%02d:00', $hour) ?></option>
-              <?php endfor; ?>
-            </select>
-          </label>
-          <label>
-            <span>Time zone</span>
-            <input id="push-quiet-timezone" type="text" placeholder="e.g. Europe/Berlin" list="push-timezone-options" autocomplete="off">
-            <datalist id="push-timezone-options">
-              <?php foreach (DateTimeZone::listIdentifiers() as $identifier): ?>
-                <option value="<?= htmlspecialchars($identifier, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>"></option>
-              <?php endforeach; ?>
-            </datalist>
-          </label>
-
-          <div class="account-action-row">
-            <button id="push-preferences-save" class="secondary-button" type="submit">Save</button>
-            <p id="push-preferences-status" class="account-muted" role="status" aria-live="polite"></p>
-          </div>
-        </form>
-      </div>
-
-      <!-- This device only. -->
-      <div id="push-browser" class="hidden">
-        <h3>This browser</h3>
-        <p id="push-unsupported" class="account-muted hidden">This browser can’t show alerts. Your choices above still apply to your other devices.</p>
-        <p id="push-browser-status" class="account-muted"></p>
-        <div class="account-action-row">
-          <button id="push-subscribe-toggle" class="secondary-button" type="button" disabled>Turn on alerts here</button>
-        </div>
-        <p class="account-muted">Alerts can arrive late or not at all. Your notifications here are always complete.</p>
-        <!-- #212: the device, not ChitChat, decides where alerts appear and how long they stay. -->
-        <details id="push-help" class="account-details push-help">
-          <summary>How long alerts stay on screen</summary>
-          <p>Your device shows alerts, so it decides where they appear and how long they stay. ChitChat can’t choose that. You can change it in your system’s notification settings, for example:</p>
-          <ul>
-            <li><strong>Windows:</strong> Settings<span aria-hidden="true"> ›</span><span class="visually-hidden">,</span> Accessibility<span aria-hidden="true"> ›</span><span class="visually-hidden">,</span> Visual effects<span aria-hidden="true"> ›</span><span class="visually-hidden">,</span> “Dismiss notifications after this amount of time”.</li>
-            <li><strong>macOS:</strong> System Settings<span aria-hidden="true"> ›</span><span class="visually-hidden">,</span> Notifications<span aria-hidden="true"> ›</span><span class="visually-hidden">,</span> your browser. Choose “Persistent” (called “Alerts” in older versions) to keep alerts until you close them.</li>
-            <li><strong>Android:</strong> alerts stay in the notification shade until you clear them.</li>
-          </ul>
-        </details>
-      </div>
-
-      <div id="push-devices" class="hidden">
-        <h3>Devices with alerts on</h3>
-        <ul id="push-device-list" class="push-device-list" aria-label="Devices with alerts on"></ul>
-        <p id="push-device-empty" class="account-muted hidden">None yet.</p>
-      </div>
-
-      <p id="push-error" class="error-text" role="alert"></p>
-    </section>
 
     <section class="account-card" aria-labelledby="privacy-notifications-heading">
       <div class="privacy-notifications-heading-row">
@@ -161,7 +66,6 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   </main>
   <?= \ChitChat\View\AppShell::close() ?>
 
-  <script type="module" src="/assets/js/push-notifications.js"></script>
   <script type="module" src="/assets/js/privacy-notifications.js"></script>
   <script type="module" src="/assets/js/shell.js"></script>
 </body>

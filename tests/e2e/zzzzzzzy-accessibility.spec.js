@@ -157,26 +157,16 @@ test.describe.serial('ChitChat accessibility checks', () => {
     }
   });
 
-  test('the account menu and the phone drawer open, trap nothing, and return focus', async ({ page }) => {
-    const accountMenu = page.getByRole('button', { name: 'Account menu' });
-    const account = page.getByRole('link', { name: 'Account', exact: true });
+  // The account menu is gone (#168, S2b): You is a destination in the shell's navigation.
+  test('You is in the navigation, and the phone drawer opens, traps nothing, and returns focus', async ({ page }) => {
+    const you = page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'You', exact: true });
     const drawer = page.getByRole('button', { name: 'Rooms and conversations', exact: true });
     const rooms = page.getByRole('navigation', { name: 'Rooms' });
 
     await loginOrRegister(page);
     await expect(drawer).toBeHidden();
     await expect(rooms).toBeVisible();
-    await expect(account).toBeHidden();
-
-    await expect(accountMenu).toHaveAttribute('aria-expanded', 'false');
-    await accountMenu.click();
-    await expect(accountMenu).toHaveAttribute('aria-expanded', 'true');
-    await expect(account).toBeFocused();
-    await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible();
-    await page.keyboard.press('Escape');
-    await expect(accountMenu).toHaveAttribute('aria-expanded', 'false');
-    await expect(account).toBeHidden();
-    await expect(accountMenu).toBeFocused();
+    await expect(you).toBeVisible();
 
     await page.setViewportSize({ width: 390, height: 844 });
     await expect(drawer).toBeVisible();
@@ -194,8 +184,8 @@ test.describe.serial('ChitChat accessibility checks', () => {
     await expect(rooms).toBeHidden();
     await expect(drawer).toBeFocused();
 
-    await accountMenu.click();
-    await account.click();
+    await you.click();
     await expect(page).toHaveURL(/\/account\.php$/);
+    await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible();
   });
 });

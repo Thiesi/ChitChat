@@ -215,6 +215,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
         <button id="drawer-toggle" class="header-button drawer-toggle" type="button" aria-label="Rooms and conversations" aria-expanded="false" aria-controls="sidebar">
           <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
         </button>
+        <span id="current-user" hidden></span>
         <div class="room-heading">
           <h2 id="room-title">Choose a room</h2>
           <p id="room-info">Select a room from the sidebar.</p>
@@ -227,71 +228,6 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
           </button>
           <span class="header-divider member-only" aria-hidden="true"></span>
           <a class="header-button header-search member-only" href="/search.php" aria-label="Search messages" title="Search messages"><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></a>
-          <div class="popover-anchor">
-            <button id="notifications-button" class="header-button" type="button" aria-expanded="false" aria-controls="notifications-popover" aria-label="Notifications, none unread">
-              <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-              <span id="notification-badge" class="header-badge hidden" aria-hidden="true">0</span>
-            </button>
-            <section id="notifications-popover" class="popover hidden" aria-labelledby="notifications-popover-title">
-              <div class="popover-title">
-                <h2 id="notifications-popover-title">Notifications</h2>
-                <button id="notifications-mark-all" class="text-button hidden" type="button">Mark all read</button>
-              </div>
-              <ul id="notifications-preview" class="notification-preview"></ul>
-              <hr>
-              <a class="popover-footer member-only" href="/notifications.php">All notifications and push settings →</a>
-              <a class="popover-footer guest-only" href="/?register=1">Create an account →</a>
-            </section>
-          </div>
-          <div class="popover-anchor">
-            <button id="user-menu-button" class="user-button" type="button" aria-expanded="false" aria-controls="user-menu" aria-label="Account menu"><span id="user-initials" aria-hidden="true"></span></button>
-            <section id="user-menu" class="popover hidden" aria-label="Account menu">
-              <div class="popover-identity">
-                <span id="user-menu-avatar" class="mini-avatar" aria-hidden="true"></span>
-                <div><span class="visually-hidden" data-identity-prefix>Signed in as </span><strong id="current-user"></strong><span aria-hidden="true" data-identity-status>Signed in</span></div>
-              </div>
-              <hr>
-              <a class="menu-item guest-only guest-signup" href="/?register=1">
-                <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Create an account
-              </a>
-              <a class="menu-item member-only" href="/account.php">
-                <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Account
-              </a>
-              <a id="admin-link" class="menu-item hidden" href="/admin.php">
-                <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Stewarding
-              </a>
-              <hr>
-              <fieldset class="menu-group">
-                <legend class="menu-group-label">Appearance</legend>
-                <div class="segmented">
-                  <label><input type="radio" name="theme-mode" value="system" data-theme-radio><span>System</span></label>
-                  <label><input type="radio" name="theme-mode" value="light" data-theme-radio><span>Light</span></label>
-                  <label><input type="radio" name="theme-mode" value="dark" data-theme-radio><span>Dark</span></label>
-                </div>
-                <div class="scheme-picker" role="radiogroup" aria-label="Colour scheme">
-                  <label class="scheme-option" title="Lantern"><input type="radio" name="menu-scheme" value="lantern" data-scheme-radio><span class="scheme-swatch" data-swatch="lantern" aria-hidden="true"></span><span class="scheme-name">Lantern</span></label>
-                  <label class="scheme-option" title="Lounge"><input type="radio" name="menu-scheme" value="lounge" data-scheme-radio><span class="scheme-swatch" data-swatch="lounge" aria-hidden="true"></span><span class="visually-hidden">Lounge</span></label>
-                  <label class="scheme-option" title="Dusk"><input type="radio" name="menu-scheme" value="dusk" data-scheme-radio><span class="scheme-swatch" data-swatch="dusk" aria-hidden="true"></span><span class="visually-hidden">Dusk</span></label>
-                  <label class="scheme-option" title="Ember"><input type="radio" name="menu-scheme" value="ember" data-scheme-radio><span class="scheme-swatch" data-swatch="ember" aria-hidden="true"></span><span class="visually-hidden">Ember</span></label>
-                  <label class="scheme-option" title="Rosé"><input type="radio" name="menu-scheme" value="rose" data-scheme-radio><span class="scheme-swatch" data-swatch="rose" aria-hidden="true"></span><span class="visually-hidden">Rosé</span></label>
-                  <label class="scheme-option" title="Midnight"><input type="radio" name="menu-scheme" value="midnight" data-scheme-radio><span class="scheme-swatch" data-swatch="midnight" aria-hidden="true"></span><span class="visually-hidden">Midnight</span></label>
-                  <label class="scheme-option" title="High contrast"><input type="radio" name="menu-scheme" value="contrast" data-scheme-radio><span class="scheme-swatch" data-swatch="contrast" aria-hidden="true"></span><span class="visually-hidden">High contrast</span></label>
-                </div>
-                <p class="guest-menu-note guest-only">Kept on this device until you leave.</p>
-              </fieldset>
-              <fieldset class="menu-group member-only">
-                <legend class="menu-group-label">Sounds on this device</legend>
-                <label class="menu-switch"><input type="checkbox" data-sound="ping" checked> Pings</label>
-                <label class="menu-switch"><input type="checkbox" data-sound="mention" checked> Mentions</label>
-                <label class="menu-switch"><input type="checkbox" data-sound="dm" checked> Direct messages</label>
-              </fieldset>
-              <hr>
-              <button id="logout-button" class="menu-item danger-item" type="button">
-                <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg><span class="member-only">Sign out</span><span class="guest-only">Leave</span>
-              </button>
-              <?= \ChitChat\View\PoweredBy::html($config) ?>
-            </section>
-          </div>
         </div>
       </header>
 

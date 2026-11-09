@@ -9,6 +9,7 @@ import { attachMentionAutocomplete } from './mention-autocomplete.js';
 import { attachEmojiPicker } from './emoji-picker.js';
 import { createRegistrationChallenge } from './registration-challenge.js';
 import { attachPhoto, avatarTone, initials } from './avatar.js';
+import { takeSignedOutMessage } from './sign-out.js';
 import { nameButton, setModerationRoom } from './name-menu.js';
 import { attachNameCompletion } from './name-completion.js';
 import { createTypingIndicator, createTypingSignal } from './typing.js';
@@ -93,10 +94,6 @@ function bindElements() {
     'connection-status',
     'room-list',
     'current-user',
-    'user-initials',
-    'user-menu-avatar',
-    'user-menu-button',
-    'logout-button',
     'new-room-button',
     'room-title',
     'room-info',
@@ -150,7 +147,6 @@ function bindEvents() {
   elements['register-form'].addEventListener('focusin', () => {
     registrationChallenge.prepare().catch(() => {});
   });
-  elements['logout-button'].addEventListener('click', submitLogout);
   elements['join-button'].addEventListener('click', joinCurrentRoom);
   elements['composer-form'].addEventListener('submit', submitMessage);
   elements['composer-input'].addEventListener('keydown', (event) => {
@@ -238,6 +234,8 @@ async function bootstrap() {
     setProviderSignUp(session.pending_sign_up ?? null);
     showSignInErrorFromRedirect();
     elements['auth-shell'].classList.remove('hidden');
+    // Signed out on You (or from another device): one line saying so.
+    showSignedOutMessage();
     openResetIfRequested();
     if (session.pending_sign_up) elements['register-username'].focus();
   }
@@ -250,24 +248,8 @@ async function enterApplication(user) {
   elements['chat-shell'].classList.toggle('guest-mode', guest);
   elements['auth-shell'].classList.add('hidden');
   elements['chat-shell'].classList.remove('hidden');
+  // Other modules read who is signed in from here; You shows it to people (S2b).
   elements['current-user'].textContent = user.username;
-  document.querySelector('[data-identity-prefix]').textContent = guest ? 'Visiting as ' : 'Signed in as ';
-  document.querySelector('[data-identity-status]').textContent = guest ? 'Visiting as a guest' : 'Signed in';
-  for (const avatar of [elements['user-initials'], elements['user-menu-avatar']]) {
-    avatar.textContent = initials(user.username);
-  }
-  elements['user-menu-avatar'].dataset.tone = String(avatarTone(user.id));
-  elements['user-menu-button'].classList.toggle('guest-avatar', guest);
-  elements['user-menu-avatar'].classList.toggle('guest-avatar', guest);
-  if (guest) {
-    markGuestAvatar(elements['user-initials'], { outline: false });
-    markGuestAvatar(elements['user-menu-avatar']);
-  } else {
-    for (const avatar of [elements['user-menu-button'], elements['user-menu-avatar']]) {
-      avatar.dataset.avatarUser = String(user.id);
-      attachPhoto(avatar, user.id);
-    }
-  }
   renderGuestBanner();
   renderNewLook(user);
   startRulesGate(user);
@@ -432,7 +414,14 @@ function showSignedOutPage(mode) {
   renderGuestEntry();
   showAuthMode(mode);
   elements['auth-shell'].classList.remove('hidden');
+  showSignedOutMessage();
   if (mode === 'register') elements['register-username'].focus();
+}
+
+/** Signing out on You (sign-out.js) leaves one line for the sign-in screen. */
+function showSignedOutMessage() {
+  const message = takeSignedOutMessage();
+  if (message) toast(message);
 }
 
 /** A guest posts only where the room lets guests write. */
@@ -440,19 +429,6 @@ function guestReadOnly(room) {
   return state.user?.guest === true && room?.guest_access !== 'write';
 }
 
-async function submitLogout() {
-  elements['logout-button'].disabled = true;
-  try {
-    await apiPost('/api/v1/logout.php');
-  } catch (error) {
-    if (!(error instanceof ApiError && error.status === 401)) {
-      toast(errorMessage(error), 'error');
-    }
-  } finally {
-    elements['logout-button'].disabled = false;
-    forceSignedOut(state.user?.guest ? 'Thanks for visiting. Your guest visit has ended.' : 'You have been logged out.');
-  }
-}
 
 async function loadRooms(preferredRoomId = null) {
   try {

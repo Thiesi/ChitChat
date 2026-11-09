@@ -41,8 +41,8 @@ async function start() {
     return;
   }
 
-  const guest = isGuestName(user.username);
-  // Guests look around without an account: Direct, Activity and You are for members.
+  const guest = user.guest === true || isGuestName(user.username);
+  // Guests look around without an account: Direct and Activity are for members; You is short.
   for (const entry of nav.querySelectorAll('[data-members-only]')) entry.hidden = guest;
   nav.hidden = false;
   frame.classList.add('has-nav');
@@ -102,9 +102,17 @@ async function placeSteward(user) {
 
   const holder = nav.querySelector('.app-nav-steward');
   const link = holder?.querySelector('a');
-  if (!holder || !link) return;
-  holder.hidden = destination === null;
-  if (destination) link.href = destination;
+  if (holder && link) {
+    holder.hidden = destination === null;
+    if (destination) link.href = destination;
+  }
+  // On You, the same way in; it is the only one on phones, where the bar has no Stewarding.
+  const card = document.getElementById('you-steward-card');
+  const cardLink = document.getElementById('you-steward-link');
+  if (card && cardLink) {
+    card.classList.toggle('hidden', destination === null);
+    if (destination) cardLink.href = destination;
+  }
 }
 
 /** '/admin.php' for a room owner, '/moderation.php' for a room moderator, null for neither, undefined if unknown. */

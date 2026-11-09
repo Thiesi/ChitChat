@@ -42,9 +42,12 @@ test('a ping is a private notice for both people and reaches a target who was of
     await expect(received).toContainText(`${root.username} pinged you`);
     await expect(received).toContainText('only you two see this');
 
-    await page.getByRole('button', { name: /^Notifications, \d+ unread$/ }).click();
-    await expect(page.locator('#notifications-preview')).toContainText(`${root.username} pinged you`);
-    await page.keyboard.press('Escape');
+    // The bell went (#168, S2b): the rail's Activity tab carries the count, the Activity page the item.
+    await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: /^Activity, \d+ unread$/ })).toBeVisible();
+    const activity = await page.context().newPage();
+    await activity.goto('/notifications.php');
+    await expect(activity.locator('#privacy-notifications-list')).toContainText(`${root.username} pinged you`);
+    await activity.close();
 
     // The notice survives a reload: it is stored, not just a live event.
     await page.reload();

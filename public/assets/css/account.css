@@ -178,3 +178,19 @@
     text-align: center;
   }
 }
+
+/* You (S2b, #168): the shell's You tab. Guests see only the cards marked
+   for them (their name, Appearance, an invitation, Leave). */
+body[data-audience="guest"] .account-card:not([data-guest-visible]) { display: none; }
+/* Cards set their own display, so the hidden attribute needs saying here. */
+.account-card[hidden] { display: none; }
+.you-identity { display: flex; align-items: center; gap: 0.6rem; margin: 0; }
+.you-identity .mini-avatar { flex: none; width: 2.4rem; height: 2.4rem; font-size: 0.75rem; }
+.you-steward .account-eyebrow { color: var(--steward); }
+.you-session { display: flex; align-items: center; }
+/* Sounds sit with the other alert settings: one place for everything that alerts you. */
+.push-sounds { display: grid; gap: 0.45rem; min-width: 0; margin: 0.5rem 0 0; padding: 1rem 0 0; border: 0; border-top: 1px solid var(--line); }
+.push-sounds legend { padding: 0; }
+.push-sounds legend h3 { margin: 0; font-size: 1rem; }
+.push-sounds p { margin: 0; }
+.push-sounds label { display: flex; align-items: center; gap: 0.5rem; }
