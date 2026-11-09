@@ -336,7 +336,7 @@ test('the key card stays away from anyone the server refuses', async ({ page }) 
 // ---- Every state in both themes ----
 
 for (const theme of ['light', 'dark']) {
-  test(`${theme}: setup states and the key card pass axe at 1280 and 360 px`, async ({ page }) => {
+  test(`${theme}: setup states and the key card pass axe at 1280 and 360 px`, async ({ page }, testInfo) => {
     await page.addInitScript((choice) => localStorage.setItem('chitchat-theme', choice), theme);
     await fixture(page, { user: superAdmin, overrides: { 'admin/settings/totp/get.php': adminKey({ mode: 'database', available: true, database_key_enabled: true, database_key_references: 2 }) } });
     for (const width of [1280, 360]) {
@@ -347,10 +347,12 @@ for (const theme of ['light', 'dark']) {
       await block(page).getByRole('button', { name: 'Set up an authenticator app' }).click();
       await expect(block(page).locator('.totp-qr')).toBeVisible();
       await axe(page, '.mfa-totp', `setup ${width}`);
+      await block(page).screenshot({ path: testInfo.outputPath(`setup-${theme}-${width}.png`) });
       expect(await page.evaluate(() => document.documentElement.scrollWidth), `setup reflow ${width}`).toBeLessThanOrEqual(width);
       await page.goto('/admin-settings.php');
       await expect(page.locator('#totp-settings')).toBeVisible();
       await axe(page, '#totp-settings', `key card ${width}`);
+      await page.locator('#totp-settings').screenshot({ path: testInfo.outputPath(`key-card-${theme}-${width}.png`) });
     }
   });
 

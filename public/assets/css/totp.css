@@ -42,7 +42,8 @@
 
 /* Super-Administrator key card. */
 .totp-settings[hidden] { display: none; }
-.totp-settings { display: grid; gap: 0.75rem; }
+.totp-settings { grid-column: 1 / -1; display: grid; align-content: start; gap: 0.75rem; }
+.totp-settings > * { max-width: 46rem; }
 .totp-settings p { margin: 0; }
 .totp-mode { font-weight: 600; }
 .totp-database { display: grid; gap: 0.6rem; }
