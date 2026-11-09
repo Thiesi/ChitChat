@@ -2,6 +2,7 @@ import { setDateFormatPreference } from './datetime.js';
 
 let csrfToken = '';
 let sessionRequest = null;
+let sessionGeneration = 0;
 
 const SESSION_ENDPOINT = '/api/v1/session.php';
 const STEP_UP_ENDPOINT = '/api/v1/step-up.php';
@@ -13,6 +14,17 @@ const SESSION_CHANGE_ENDPOINTS = new Set([
   '/api/v1/logout.php',
   '/api/v1/account/close.php',
   '/api/v1/account/restore.php',
+]);
+
+// These flows can stage/complete a different identity without a full page load.
+const PUSH_IDENTITY_ENDPOINTS = new Set([
+  ...SESSION_CHANGE_ENDPOINTS,
+  '/api/v1/password-reset.php',
+  '/api/v1/oidc/register.php',
+  '/api/v1/mfa/login-finish.php',
+  '/api/v1/mfa/login-recovery.php',
+  '/api/v1/password-reset/mfa-finish.php',
+  '/api/v1/password-reset/mfa-recovery.php',
 ]);
 
 export class ApiError extends Error {
@@ -35,41 +47,49 @@ export function apiGet(path) {
     return request(path, { method: 'GET' });
   }
   if (sessionRequest === null) {
-    sessionRequest = request(path, { method: 'GET' }).finally(() => {
-      sessionRequest = null;
+    const pending = request(path, { method: 'GET' });
+    const shared = pending.finally(() => {
+      if (sessionRequest === shared) sessionRequest = null;
     });
+    sessionRequest = shared;
   }
 
   return sessionRequest;
 }
 
 export async function apiPost(path, body = {}) {
-  const send = () => request(path, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-CSRF-Token': csrfToken,
-    },
-    body: JSON.stringify(body),
-  });
+  let lifecycle = null;
+  let intent = null;
+  if (PUSH_IDENTITY_ENDPOINTS.has(path)) {
+    ++sessionGeneration;
+    sessionRequest = null;
+    lifecycle = await import('./push-lifecycle.js');
+    // Fence local state before HTTP, including an offline or failed sign-in.
+    intent = await lifecycle.beforePushIdentityChange(path).catch(() => null);
+  }
+  const send = async () => {
+    const payload = await request(path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+      body: JSON.stringify(body),
+    });
+    if (lifecycle) {
+      ++sessionGeneration;
+      sessionRequest = null;
+      void lifecycle.completePushIdentityChange(path, intent).catch(() => {});
+    }
+    return payload;
+  };
 
   try {
     return await send();
   } catch (error) {
-    if (
-      path === STEP_UP_ENDPOINT
-      || !(error instanceof ApiError)
-      || error.code !== 'step_up_required'
-    ) {
-      throw error;
-    }
+    if (path === STEP_UP_ENDPOINT || !(error instanceof ApiError) || error.code !== 'step_up_required') throw error;
   }
-
   const { verifyCurrentPassword } = await import('./step-up.js');
   await verifyCurrentPassword();
   return send();
 }
-
 export async function apiUpload(path, formData) {
   return request(path, {
     method: 'POST',
@@ -81,6 +101,7 @@ export async function apiUpload(path, formData) {
 }
 
 async function request(path, options) {
+  const startedSessionGeneration = sessionGeneration;
   const response = await fetch(path, {
     credentials: 'same-origin',
     cache: 'no-store',
@@ -112,6 +133,9 @@ async function request(path, options) {
       Number.isInteger(error.retry_after_seconds) ? error.retry_after_seconds : (Number.isInteger(headerRetry) ? headerRetry : null),
     );
   }
+
+  // An old bootstrap cannot restore stale CSRF or account markers after sign-in.
+  if (path === SESSION_ENDPOINT && startedSessionGeneration !== sessionGeneration) return payload ?? {};
 
   if (payload && typeof payload.csrf_token === 'string') {
     setCsrfToken(payload.csrf_token);

@@ -21,6 +21,6 @@ Endpoint::run($config, static function () use ($config): ApiResult {
 
     return ApiResult::ok([
         'preferences' => (new NotificationPreferenceService($pdo))->get($actor->id),
-        'devices' => (new PushSubscriptionService($pdo))->list($actor),
+        'devices' => (new PushSubscriptionService($pdo))->list($actor, SessionManager::pushBindingHash()),
     ]);
 });

@@ -7,7 +7,7 @@ use ChitChat\Auth\AuthService;
 use ChitChat\Config;
 use ChitChat\Http\ApiException;
 use ChitChat\WebPush\NotificationPreferenceService;
-use ChitChat\WebPush\PushSubscriptionService;
+use ChitChat\Tests\Support\PushFixtures;
 use ChitChat\WebPush\WebPushDispatcher;
 use DateTimeImmutable;
 use DateTimeZone;
@@ -20,16 +20,16 @@ final class WebPushTest extends DatabaseTestCase
         $auth = new AuthService($this->pdo, $this->config);
         $member = $auth->register('Member', 'a very secure password', '127.0.0.1');
 
-        $subscriptions = new PushSubscriptionService($this->pdo);
-        $subscriptions->subscribe($member, 'https://push.example.org/abc', 'p256dh-key', 'auth-key', 'TestAgent/1.0');
-        $subscriptions->subscribe($member, 'https://push.example.org/abc', 'p256dh-key-rotated', 'auth-key-rotated', 'TestAgent/2.0');
+        $subscriptions = PushFixtures::subscriptions($this->pdo);
+        $subscriptions->subscribe($member, 'https://push.example.org/abc', PushFixtures::key(), PushFixtures::auth(), 'TestAgent/1.0', str_repeat('a', 64));
+        $subscriptions->subscribe($member, 'https://push.example.org/abc', PushFixtures::key(1), PushFixtures::auth(1), 'TestAgent/2.0', str_repeat('a', 64));
 
         self::assertSame(
             1,
             (int) $this->pdo->query('SELECT COUNT(*) FROM push_subscriptions')->fetchColumn(),
         );
         $row = $this->pdo->query('SELECT p256dh_key, user_agent FROM push_subscriptions')->fetch();
-        self::assertSame('p256dh-key-rotated', $row['p256dh_key']);
+        self::assertSame(PushFixtures::key(1), $row['p256dh_key']);
         self::assertSame('TestAgent/2.0', $row['user_agent']);
 
         $devices = $subscriptions->list($member);
@@ -49,12 +49,13 @@ final class WebPushTest extends DatabaseTestCase
         $member = $auth->register('Member', 'a very secure password', '127.0.0.1');
 
         try {
-            (new PushSubscriptionService($this->pdo))->subscribe(
+            (PushFixtures::subscriptions($this->pdo))->subscribe(
                 $member,
                 'http://push.example.org/abc',
-                'p256dh-key',
-                'auth-key',
+                PushFixtures::key(),
+                PushFixtures::auth(),
                 null,
+                str_repeat('a', 64),
             );
             self::fail('Expected a non-https endpoint to be rejected.');
         } catch (ApiException $exception) {
@@ -68,8 +69,8 @@ final class WebPushTest extends DatabaseTestCase
         $owner = $auth->register('Owner', 'a very secure password', '127.0.0.1');
         $outsider = $auth->register('Outsider', 'another secure password', '127.0.0.2');
 
-        $subscriptions = new PushSubscriptionService($this->pdo);
-        $subscriptions->subscribe($owner, 'https://push.example.org/owned', 'p256dh-key', 'auth-key', null);
+        $subscriptions = PushFixtures::subscriptions($this->pdo);
+        $subscriptions->subscribe($owner, 'https://push.example.org/owned', PushFixtures::key(), PushFixtures::auth(), null, str_repeat('a', 64));
         $deviceId = $subscriptions->list($owner)[0]['id'];
 
         $subscriptions->revoke($outsider, $deviceId);
