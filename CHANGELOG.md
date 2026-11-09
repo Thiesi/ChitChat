@@ -6,6 +6,8 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ## [Unreleased]
 
+- Add opt-in Android passkey certificate origins through NATIVE_ANDROID_APPS, preserving existing password-first MFA and the web origin. Publish grouped credential-only Digital Asset Links through a documented exact Nginx mapping (existing static files win); no deployment is performed. Native capability discovery requires configured WebAuthn and nonempty trust. Signed-device acceptance remains separate from fixture/CI proof; native OIDC handoff remains disabled.
+
 - Stop pinning `APP_VERSION` in the environment template so health and session discovery default to the deployed release. If your `.env` sets `APP_VERSION`, remove it (recommended) or update it; keep explicit overrides only for custom builds. Release publication rejects active template pins.
 
 - Add staff user filters/counts and sign-in cursors, account-filtered audit entries, and scoped subject-case history for Stewarding.

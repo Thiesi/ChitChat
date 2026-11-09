@@ -12,6 +12,7 @@ set -euo pipefail
 # browser's registration challenge.
 export REGISTRATION_MIN_FILL_SECONDS=0
 export REGISTRATION_PROOF_OF_WORK_BITS=0
+export NATIVE_ANDROID_APPS='[{"package":"de.networkxxiii.chitchat.debug","sha256_cert_fingerprint":"AB:AB:AB:AB:AB:AB:AB:AB:AB:AB:AB:AB:AB:AB:AB:AB:AB:AB:AB:AB:AB:AB:AB:AB:AB:AB:AB:AB:AB:AB:AB:AB"}]'
 
 root="$(pwd)"
 work_root="${RUNNER_TEMP:-/tmp}/chitchat-nginx-rehearsal"
@@ -25,8 +26,17 @@ base_url="${CHITCHAT_BASE_URL:-http://127.0.0.1:8080}"
 fpm_pid=""
 nginx_pid=""
 stream_pid=""
+dal_static_file=""
+dal_created_directory=""
 
 cleanup() {
+  if [[ -n "$dal_static_file" && -L "$dal_static_file" \
+      && "$(readlink "$dal_static_file")" == "$work_root/dal-static.json" ]]; then
+    rm -f "$dal_static_file"
+  fi
+  if [[ -n "$dal_created_directory" ]]; then
+    rmdir "$dal_created_directory" 2>/dev/null || true
+  fi
   if [[ -n "$stream_pid" ]]; then
     kill "$stream_pid" 2>/dev/null || true
     wait "$stream_pid" 2>/dev/null || true
@@ -65,6 +75,43 @@ trap 'status=$?; if (( status != 0 )); then show_logs; fi; cleanup; exit $status
 curl --fail --silent --show-error \
   --retry 30 --retry-delay 1 --retry-all-errors \
   "$base_url/ready.php" >/dev/null
+
+# Synthetic certificate: verifies serving/configuration only, not Android acceptance.
+dal_headers="$work_root/dal.headers"
+dal_body="$work_root/dal.json"
+dal_status="$(curl --silent --show-error --dump-header "$dal_headers" --output "$dal_body" \
+  --write-out '%{http_code}' "$base_url/.well-known/assetlinks.json")"
+[[ "$dal_status" == 200 ]]
+jq -e 'length == 1 and .[0].relation == ["delegate_permission/common.get_login_creds"]
+  and .[0].target.namespace == "android_app"
+  and .[0].target.package_name == "de.networkxxiii.chitchat.debug"
+  and (.[0].target.sha256_cert_fingerprints | length) == 1' "$dal_body" >/dev/null
+grep -qi '^Content-Type: application/json' "$dal_headers"
+grep -qi '^Cache-Control: public, max-age=300' "$dal_headers"
+! grep -Eqi '^(Set-Cookie|Location):' "$dal_headers"
+[[ "$(curl --silent --show-error --head --output "$work_root/dal-head.headers" --write-out '%{http_code}' "$base_url/.well-known/assetlinks.json")" == 200 ]]
+[[ "$(curl --silent --show-error -X POST --output "$work_root/dal-method.json" --write-out '%{http_code}' "$base_url/.well-known/assetlinks.json")" == 405 ]]
+[[ "$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' "$base_url/.well-known/unrelated-private-file")" == 403 ]]
+
+# Create only our own bounded symlink; never replace an operator's declaration.
+dal_dir="$root/public/.well-known"
+dal_path="$dal_dir/assetlinks.json"
+[[ ! -e "$dal_path" && ! -L "$dal_path" ]] || { echo 'Existing static DAL fixture path; refusing to replace it.' >&2; exit 1; }
+if [[ ! -d "$dal_dir" ]]; then
+  mkdir "$dal_dir"
+  dal_created_directory="$dal_dir"
+fi
+printf '[{"fixture":"operator-static"}]\n' > "$work_root/dal-static.json"
+ln -s "$work_root/dal-static.json" "$dal_path"
+dal_static_file="$dal_path"
+curl --fail --silent --show-error "$base_url/.well-known/assetlinks.json" \
+  | jq -e '.[0].fixture == "operator-static"' >/dev/null
+rm -f "$dal_static_file"
+dal_static_file=""
+if [[ -n "$dal_created_directory" ]]; then
+  rmdir "$dal_created_directory"
+  dal_created_directory=""
+fi
 
 session="$(curl --fail-with-body --silent --show-error \
   --cookie "$cookie" --cookie-jar "$cookie" \

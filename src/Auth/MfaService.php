@@ -38,6 +38,7 @@ final class MfaService
             $config->webauthnOrigin,
             (new ApplicationNameService($pdo, $config))->effective(),
             $config->webauthnChallengeTtlSeconds * 1000,
+            $config->webauthnEnabled() ? NativeAndroidApps::origins($config->nativeAndroidApps) : [],
         );
     }
 

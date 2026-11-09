@@ -33,10 +33,13 @@ sign-in and remain present for members and guests; every existing v1 field stays
   forced override of the configured version during development.
 - `capabilities.schema_version` identifies this additive discovery schema.
   Clients ignore unknown capability keys and continue to accept additive fields.
-- `native_passkey_origins` and `native_auth_handoff` are currently **false**:
-  those native-authentication contracts have not shipped. Future true values must
-  reflect both implemented and configured support for the installation. A source
-  version alone is not evidence of a trusted Android client or redirect.
+- **native_passkey_origins** is true only when WebAuthn is enabled and
+  **NATIVE_ANDROID_APPS** contains at least one trusted package/certificate pair.
+  It describes configured server support, not proof of Digital Asset Links
+  deployment or trust in any particular APK. See the [MFA API](mfa.md#native-android-passkey-clients).
+- **native_auth_handoff** remains **false** until the independent browser OIDC
+  handoff contract ships. A source version alone is not evidence of a trusted
+  Android client or redirect.
 
 On older servers, missing `application` or `capabilities` means unknown, never
 confirmed support. Clients fall back to host/default branding and disable new

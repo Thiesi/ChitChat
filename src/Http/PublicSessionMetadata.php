@@ -29,8 +29,8 @@ final readonly class PublicSessionMetadata
     {
         return [
             'schema_version' => 1,
-            // Neither native authentication contract has shipped yet.
-            'native_passkey_origins' => false,
+            // Native passkeys require explicit installation trust; handoff is separate.
+            'native_passkey_origins' => $this->config->webauthnEnabled() && $this->config->nativeAndroidApps !== [],
             'native_auth_handoff' => false,
         ];
     }
