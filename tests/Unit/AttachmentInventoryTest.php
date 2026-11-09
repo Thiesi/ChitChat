@@ -42,7 +42,9 @@ final class AttachmentInventoryTest extends TestCase
         if (!function_exists('symlink')) {
             self::markTestSkipped('Symbolic links are unavailable.');
         }
-        symlink($this->root . '/nested', $this->root . '/link');
+        if (!@symlink($this->root . '/nested', $this->root . '/link')) {
+            self::markTestSkipped('Cannot create symbolic links here (for example, the Windows symlink privilege is unavailable).');
+        }
 
         $this->expectException(BackupException::class);
         AttachmentInventory::scan($this->root);
