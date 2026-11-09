@@ -104,6 +104,9 @@ test('You: picture and name, alerts with Sounds, appearance, and Sign out last',
   const lastCard = page.locator('#account-shell > .account-card').last();
   await expect(lastCard.getByRole('button', { name: 'Sign out' })).toBeVisible();
   await expect(page.locator('#you-steward-card')).toBeHidden();
+  // The guest invitation and Leave are for guests only.
+  await expect(page.getByRole('heading', { name: 'Want to stay?' })).toBeHidden();
+  await expect(page.getByRole('button', { name: 'Leave' })).toHaveCount(0);
 });
 
 test('signing out from You ends the session and says so on the sign-in screen', async ({ page }) => {
@@ -152,7 +155,7 @@ test('guests get a short You: their name, appearance, an invitation, and Leave',
 
 // Every state of the new destinations, in both themes and at phone width.
 for (const theme of ['light', 'dark']) {
-  test(`${theme}: You, guest You and Activity pass axe at 1280 and 360 px, and reflow at 320`, async ({ page }) => {
+  test(`${theme}: You, guest You and Activity pass axe at 1280 and 360 px, and reflow at 320`, async ({ page }, testInfo) => {
     await page.addInitScript((choice) => localStorage.setItem('chitchat-theme', choice), theme);
     await fixture(page, { user: { ...member, roles: ['admin'] } });
     for (const width of [1280, 360]) {
@@ -162,11 +165,13 @@ for (const theme of ['light', 'dark']) {
       await page.getByRole('button', { name: 'Sign out' }).focus();
       const you = await new AxeBuilder({ page }).include('#account-shell').withTags(WCAG).analyze();
       expect(you.violations, `You ${width}`).toEqual([]);
+      await page.screenshot({ path: testInfo.outputPath(`you-${theme}-${width}.png`), fullPage: true });
 
       await page.goto('/notifications.php');
       await expect(page.locator('#privacy-notifications-list > li')).toHaveCount(3);
       const activity = await new AxeBuilder({ page }).include('#privacy-notifications-shell').withTags(WCAG).analyze();
       expect(activity.violations, `Activity ${width}`).toEqual([]);
+      await page.screenshot({ path: testInfo.outputPath(`activity-${theme}-${width}.png`), fullPage: true });
     }
     await page.setViewportSize({ width: 320, height: 700 });
     for (const path of ['/account.php', '/notifications.php']) {
@@ -176,12 +181,13 @@ for (const theme of ['light', 'dark']) {
     }
   });
 
-  test(`${theme}: guest You passes axe`, async ({ page }) => {
+  test(`${theme}: guest You passes axe`, async ({ page }, testInfo) => {
     await page.addInitScript((choice) => localStorage.setItem('chitchat-theme', choice), theme);
     await fixture(page, { user: guest });
     await page.goto('/account.php');
     await expect(page.getByRole('button', { name: 'Leave' })).toBeVisible();
     const result = await new AxeBuilder({ page }).include('#account-shell').withTags(WCAG).analyze();
     expect(result.violations).toEqual([]);
+    await page.screenshot({ path: testInfo.outputPath(`you-guest-${theme}.png`), fullPage: true });
   });
 }

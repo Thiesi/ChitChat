@@ -182,6 +182,8 @@
 /* You (S2b, #168): the shell's You tab. Guests see only the cards marked
    for them (their name, Appearance, an invitation, Leave). */
 body[data-audience="guest"] .account-card:not([data-guest-visible]) { display: none; }
+/* Cards set their own display, so the hidden attribute needs saying here. */
+.account-card[hidden] { display: none; }
 .you-identity { display: flex; align-items: center; gap: 0.6rem; margin: 0; }
 .you-identity .mini-avatar { flex: none; width: 2.4rem; height: 2.4rem; font-size: 0.75rem; }
 .you-steward .account-eyebrow { color: var(--steward); }
