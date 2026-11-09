@@ -8,6 +8,10 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 - Recognize mentions followed by sentence punctuation using the longest mentionable username, shared by room/DM notification resolution and browser rendering. Preserve real trailing-punctuation names, room broadcasts, literal message bodies and email boundaries.
 
+## [3.6.0] - 2026-11-09
+
+Administrator-managed installation icons, keyboard-visible suggestion lists, and the server side of ChitChat Mobile sign-in (Android passkeys and browser hand-off, both off until configured), plus two sign-in and restoration fixes. Additive to API v1, with two forward-only database migrations (`0049` and `0050`); back up before upgrading. See the [`v3.6.0` release notes](docs/releases/v3.6.0.md).
+
 - Add a Super-Administrator installation icon setting with bounded PNG/WebP normalization, server-rendered previews, maskable-safe artwork, native bootstrap metadata and cookie-free favicon fallback. Apply migration 0050; icon bytes travel in database backups. Uploads require GD with PNG/WebP support.
 
 - Serialize web account restoration with closure finalization by locking the pending closure before the account. Recheck the deadline after any lock wait; expired or finalized completions preserve the account state and role snapshot.
@@ -17,6 +21,12 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 - Add opt-in native browser OIDC handoff with explicit consent, PKCE/state, isolated app/browser sessions, atomic one-use purpose effects, and bounded native MFA/sign-up continuations. Apply migration 0049. Enable only with trusted apps and matching HTTPS application/provider callback origins; capability discovery also requires the integrated confirmation page. Committed Nginx examples redact native queries; deployment and signed-device acceptance remain separate.
 
 - Add opt-in Android passkey certificate origins through NATIVE_ANDROID_APPS, preserving existing password-first MFA and the web origin. Publish grouped credential-only Digital Asset Links through a documented exact Nginx mapping (existing static files win); no deployment is performed. Native capability discovery requires configured WebAuthn and nonempty trust. Signed-device acceptance remains separate from fixture/CI proof; native OIDC handoff has its own installation requirements.
+
+- Make the active `@` mention and `/` command suggestion visible: an accent wash plus a non-colour start-edge bar in every scheme and theme, forced-colours and Contrast outlines, scroll-into-view while cycling, and hover sharing the same single highlight.
+
+- Explain under Alerts that the device decides where notifications appear and how long they stay, with the Windows, macOS and Android settings.
+
+- Document NetBSD with rc.d, cron and Apache plus PHP-FPM (`docs/operations/netbsd-apache.md`, `deploy/netbsd/`), and make the attachment tests portable to Windows.
 
 ## [3.5.0] - 2026-11-09
 

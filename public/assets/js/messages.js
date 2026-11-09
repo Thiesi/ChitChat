@@ -1,4 +1,7 @@
 import { ApiError, apiGet, apiPost, setCsrfToken } from './api.js';
+import { announce, announceIncoming, markKnown, resetAnnouncements } from './announcer.js';
+import { controlItem, reconcile, signatureOf, withDays } from './transcript.js';
+import { attachTranscriptKeys } from './transcript-keys.js';
 import { attachEmojiPicker } from './emoji-picker.js';
 import { renderMessageBody, buildReplyPreview, buildReactionBar } from './message-content.js';
 import { attachMentionAutocomplete } from './mention-autocomplete.js';
@@ -10,6 +13,7 @@ import { openPersonReportDialog } from './message-report-dialog.js';
 import { canReport } from './person-reports.js';
 import { startRulesGate } from './rules.js';
 
+let transcriptKeys = null;
 const state = {
   user: null,
   privacy: null,
@@ -51,6 +55,12 @@ function bindElements() {
 function bindEvents() {
   elements['dm-user-search-form'].addEventListener('submit', searchUsers);
   elements['dm-load-older'].addEventListener('click', loadOlder);
+  transcriptKeys = attachTranscriptKeys(elements['dm-message-list'], {
+    composer: elements['dm-message-input'],
+    loadOlder: loadOlder,
+    canLoadOlder: () => !elements['dm-load-older'].classList.contains('hidden'),
+    selfName: () => state.user?.username ?? null,
+  });
   elements['dm-composer'].addEventListener('submit', sendMessage);
   elements['dm-block-toggle'].addEventListener('click', toggleBlock);
   elements['dm-report-person'].addEventListener('click', reportPeer);
@@ -223,7 +233,10 @@ function renderUserResults(users) {
 }
 
 async function selectUser(user) {
+  const unread = state.conversations.find((conversation) => conversation.user?.id === user.id)?.unread_count ?? 0;
   state.selectedUser = user;
+  resetAnnouncements();
+  transcriptKeys?.reset();
   peerTyping?.clear();
   delete elements['dm-message-list'].dataset.highlightMessageId;
   state.relationship = null;
@@ -242,6 +255,9 @@ async function selectUser(user) {
     loadHistory({ replace: true }),
     loadRelationship(user),
   ]);
+  if (unread > 0 && state.selectedUser?.id === user.id) {
+    announce(`${user.username}. ${unread} new ${unread === 1 ? 'message' : 'messages'}.`);
+  }
   await markRead();
 }
 
@@ -353,6 +369,11 @@ async function loadHistory({ replace = false, beforeId = null } = {}) {
   const user = state.selectedUser;
   if (!user) return;
   elements['dm-load-older'].disabled = true;
+  const older = beforeId !== null;
+  if (older) {
+    elements['dm-message-list'].setAttribute('aria-busy', 'true');
+    announce('Loading older messages…');
+  }
   try {
     const parameters = new URLSearchParams({ user_id: String(user.id), limit: '100' });
     if (beforeId !== null) parameters.set('before_id', String(beforeId));
@@ -370,15 +391,31 @@ async function loadHistory({ replace = false, beforeId = null } = {}) {
     state.oldestMessageId = state.messages[0]?.id ?? null;
     elements['dm-load-older'].classList.toggle('hidden', incoming.length < 100);
     renderMessages({ scrollToEnd: replace && beforeId === null, prepended: beforeId !== null });
+    if (older) {
+      announce(fresh.length > 0
+        ? `${fresh.length} older ${fresh.length === 1 ? 'message' : 'messages'} loaded.`
+        : 'No older messages.');
+    }
   } catch (error) {
     handleApiFailure(error);
   } finally {
     elements['dm-load-older'].disabled = false;
+    if (older) elements['dm-message-list'].setAttribute('aria-busy', 'false');
   }
 }
 
-async function loadOlder() {
-  if (state.oldestMessageId !== null) await loadHistory({ beforeId: state.oldestMessageId });
+// One older-history request at a time per conversation (see app.js).
+let olderLoad = null;
+function loadOlder() {
+  const userId = state.selectedUser?.id;
+  if (olderLoad && olderLoad.userId === userId) return olderLoad.promise;
+  if (state.oldestMessageId === null) return Promise.resolve();
+  const entry = { userId, promise: null };
+  entry.promise = loadHistory({ beforeId: state.oldestMessageId }).finally(() => {
+    if (olderLoad === entry) olderLoad = null;
+  });
+  olderLoad = entry;
+  return entry.promise;
 }
 
 function renderMessages({ scrollToEnd = false, prepended = false } = {}) {
@@ -388,18 +425,60 @@ function renderMessages({ scrollToEnd = false, prepended = false } = {}) {
   // when older history is prepended above them.
   const previousTop = list.scrollTop;
   const previousHeight = list.scrollHeight;
-  list.replaceChildren();
+  const focus = focusedItem(list);
   if (state.messages.length === 0) {
+    reconcile(list, []);
     elements['dm-empty-state'].classList.remove('hidden');
     elements['dm-empty-state'].textContent = state.selectedUser ? 'No messages yet.' : 'No conversation selected.';
     return;
   }
   elements['dm-empty-state'].classList.add('hidden');
-  if (!elements['dm-load-older'].classList.contains('hidden')) list.append(elements['dm-load-older']);
-  for (const message of state.messages) list.append(buildMessage(message));
+  // Only what changed is touched (transcript.js), the same list as in rooms.
+  const items = elements['dm-load-older'].classList.contains('hidden')
+    ? []
+    : [controlItem('load-older', elements['dm-load-older'])];
+  items.push(...withDays(state.messages, (message) => message.created_at, messageItem));
+  reconcile(list, items);
+  for (const article of list.querySelectorAll('article')) {
+    article.classList.toggle('search-result-target', article.dataset.messageId === list.dataset.highlightMessageId);
+  }
+  restoreFocus(list, focus);
+  transcriptKeys?.sync();
   if (scrollToEnd) list.scrollTop = list.scrollHeight;
   else if (prepended) list.scrollTop = previousTop + (list.scrollHeight - previousHeight);
   else list.scrollTop = previousTop;
+}
+
+function messageItem(message) {
+  const { reactions, ...rest } = message;
+  return {
+    key: `m:${message.id}`,
+    signature: signatureOf([rest, state.user?.id ?? null, formatDateTime(message.created_at)]),
+    reactions: signatureOf(reactions ?? []),
+    build: () => buildMessage(message),
+    patchReactions: (article) => {
+      article.querySelector('.reaction-bar')?.replaceWith(reactionBarFor(message));
+    },
+  };
+}
+
+// Re-rendering keeps unchanged nodes, so focus usually stays; a rebuilt
+// message gets it back by id and position.
+function focusedItem(list) {
+  const active = document.activeElement;
+  if (!(active instanceof HTMLElement) || !list.contains(active)) return null;
+  const article = active.closest('article[data-message-id]');
+  if (!article) return null;
+  const focusable = [...article.querySelectorAll('button, a[href], [tabindex]')];
+  return { id: article.dataset.messageId, index: focusable.indexOf(active), self: active === article };
+}
+
+function restoreFocus(list, focus) {
+  if (!focus || list.contains(document.activeElement)) return;
+  const article = list.querySelector(`article[data-message-id="${focus.id}"]`);
+  if (!article) return;
+  const target = focus.self ? article : [...article.querySelectorAll('button, a[href], [tabindex]')][focus.index];
+  target?.focus({ preventScroll: true });
 }
 
 function buildMessage(message) {
@@ -438,10 +517,14 @@ function buildMessage(message) {
   actions.append(replyButton);
 
   article.append(body, meta, actions);
-  article.append(buildReactionBar(message.reactions, state.user?.id, (emoji, reactedByMe) => {
-    toggleReaction(message.id, emoji, reactedByMe);
-  }));
+  article.append(reactionBarFor(message));
   return article;
+}
+
+function reactionBarFor(message) {
+  return buildReactionBar(message.reactions, state.user?.id, (emoji, reactedByMe) => {
+    toggleReaction(message.id, emoji, reactedByMe);
+  });
 }
 
 async function toggleReaction(messageId, emoji, reactedByMe) {
@@ -512,6 +595,8 @@ function focusReplyTarget(replyTo) {
   list.dataset.highlightMessageId = target.dataset.messageId;
   target.classList.add('search-result-target');
   target.scrollIntoView({ block: 'center', behavior: 'auto' });
+  transcriptKeys?.focus(target);
+  announce(`Original message from ${replyTo.message?.sender?.username ?? 'someone'}`);
 }
 
 async function sendMessage(event) {
@@ -541,12 +626,13 @@ async function sendMessage(event) {
 }
 
 function appendMessage(message, scrollToEnd = false) {
-  if (!message || state.messageIds.has(message.id)) return;
+  if (!message || state.messageIds.has(message.id)) return false;
   state.messageIds.add(message.id);
   state.messages.push(message);
   state.messages.sort((left, right) => left.id - right.id);
   state.oldestMessageId = state.messages[0]?.id ?? null;
   renderMessages({ scrollToEnd });
+  return true;
 }
 
 async function markRead() {
@@ -579,8 +665,12 @@ function startEventStream() {
     if (!message.outgoing && !watching) {
       alertUser('dm', `Message from ${peer.username}`);
     }
+    if (state.selectedUser?.id === peer.id && appendMessage(message, true)) {
+      // The transcript is not a live region; the announcer speaks new messages once.
+      if (message.outgoing) markKnown([`dm:${message.id}`]);
+      else announceIncoming({ key: `dm:${message.id}`, sender: peer.username, body: message.body });
+    }
     if (state.selectedUser?.id === peer.id) {
-      appendMessage(message, true);
       if (!message.outgoing) markRead().catch(console.error);
     } else if (!message.outgoing) {
       toast(`New message from ${peer.username}.`);

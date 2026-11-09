@@ -1,0 +1,95 @@
+/* The shared transcript for rooms and direct messages (S1, #166).
+   Both lists are <ol>s of <li> items (transcript.js). Each item is a flex
+   column, so a message keeps aligning itself (DM outgoing to the end) as it
+   did when it was the list's direct child. */
+.message-list,
+.dm-message-list {
+  margin: 0;
+  list-style: none;
+}
+
+.message-list > li,
+.dm-message-list > li {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+/* Day headings: h3s inside the list, so H jumps between days in browse mode. */
+.transcript-day { align-items: center; }
+.transcript-day-label {
+  margin: 0;
+  padding: 0.15rem 0.75rem;
+  border-radius: 999px;
+  background: var(--raised);
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.6;
+}
+
+/* "New messages" is a heading too; it keeps the divider's look. */
+.new-messages-label {
+  margin: 0;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+}
+
+.transcript-control { align-items: center; }
+
+/* The current message (S1b): one tab stop; a ring outside the message, never colour alone. */
+.message-list article[tabindex],
+.dm-message-list article[tabindex] {
+  scroll-margin-block: 24px;
+  border-radius: 1rem;
+}
+.message-list article:focus-visible,
+.dm-message-list article:focus-visible {
+  outline: 2px solid var(--field-line);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 2px var(--ground);
+}
+
+/* Message actions: a menu by the message, a bottom sheet on touch. */
+.message-menu {
+  position: fixed;
+  z-index: 60;
+  display: grid;
+  min-width: 13rem;
+  max-height: calc(100dvh - 1rem);
+  padding: 0.35rem;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  background: var(--surface);
+  box-shadow: var(--shadow-strong);
+}
+.message-menu-item {
+  min-height: 2.75rem;
+  padding: 0.55rem 0.8rem;
+  border: 0;
+  border-radius: 0.7rem;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: start;
+}
+.message-menu-item:hover,
+.message-menu-item:focus-visible { background: var(--raised); outline: 2px solid var(--field-line); outline-offset: -2px; }
+.message-menu-item.danger { color: var(--error); }
+.message-menu-sheet {
+  inset: auto 0 0 0;
+  min-width: 0;
+  padding: 0.75rem 0.75rem calc(0.75rem + env(safe-area-inset-bottom));
+  border-radius: 1.75rem 1.75rem 0 0;
+}
+.message-menu-sheet .message-menu-item { min-height: 3rem; }
+
+@media (forced-colors: active) {
+  .transcript-day-label { border: 1px solid CanvasText; }
+  .message-list article:focus-visible,
+  .dm-message-list article:focus-visible { outline: 2px solid CanvasText; }
+  .message-menu { border: 1px solid CanvasText; }
+}
