@@ -21,7 +21,8 @@ function roomMessage(id, sender, body, extra = {}) {
   return {
     id, room_id: 1, sender_id: sender.id, username: sender.username, body, type: 'text', deleted: false,
     mentions: [], reactions: [], reply_to: null, attachment: null,
-    created_at: `2026-10-04T10:${String(id % 60).padStart(2, '0')}:00Z`, ...extra,
+    // Minutes after 08:00 on the same day, so time order matches id order.
+    created_at: new Date(Date.UTC(2026, 9, 4, 8, 0, 0) + id * 60_000).toISOString(), ...extra,
   };
 }
 

@@ -1,6 +1,7 @@
 import { ApiError, apiGet, apiPost, setCsrfToken } from './api.js';
 import { announce, announceIncoming, markKnown, resetAnnouncements } from './announcer.js';
 import { controlItem, dayItem, dayKey, newMessagesItem, reconcile, signatureOf } from './transcript.js';
+import { attachTranscriptKeys } from './transcript-keys.js';
 import { createPresenceClient } from './presence.js';
 import { renderMessageBody, buildReplyPreview, buildReactionBar } from './message-content.js';
 import { attachMentionAutocomplete } from './mention-autocomplete.js';
@@ -49,6 +50,7 @@ const state = {
 const elements = {};
 let presence = null;
 let mentionAutocomplete = null;
+let transcriptKeys = null;
 let commandSuggestions = null;
 let roomTyping = null;
 let typingSignal = null;
@@ -168,6 +170,12 @@ function bindEvents() {
   attachNameCompletion(elements['composer-input'], completionCandidates);
   attachEmojiPicker(elements['emoji-button'], elements['composer-input']);
   elements['load-older-button'].addEventListener('click', loadOlderMessages);
+  transcriptKeys = attachTranscriptKeys(elements['message-list'], {
+    composer: elements['composer-input'],
+    loadOlder: loadOlderMessages,
+    canLoadOlder: () => !elements['load-older-button'].classList.contains('hidden'),
+    selfName: () => state.user?.username ?? null,
+  });
   elements['jump-latest'].addEventListener('click', jumpToLatest);
   elements['message-list'].addEventListener('scroll', onMessageListScroll, { passive: true });
   document.addEventListener('visibilitychange', () => {
@@ -621,6 +629,7 @@ async function selectRoom(chosen) {
   }
   state.currentRoom = room;
   resetAnnouncements();
+  transcriptKeys?.reset();
   setModerationRoom(room.id, room.name);
   roomTyping?.clear();
   // Where this visit's "New messages" divider goes; it stays put while here.
@@ -995,6 +1004,7 @@ function renderMessages({ scrollToEnd = false, prepended = false } = {}) {
   reconcile(list, items);
   applyHighlight(list);
   restoreFocus(list, focus);
+  transcriptKeys?.sync();
 
   if (scrollToEnd) {
     list.scrollTop = list.scrollHeight;
@@ -1284,6 +1294,9 @@ function focusReplyTarget(replyTo) {
   list.dataset.highlightMessageId = target.dataset.messageId;
   target.classList.add('search-result-target');
   target.scrollIntoView({ block: 'center', behavior: 'auto' });
+  // Focus follows to the original, and says where it went (§4).
+  transcriptKeys?.focus(target);
+  announce(`Original message from ${replyTo.message?.sender?.username ?? 'someone'}`);
 }
 
 function availableCommands() {
@@ -1453,7 +1466,9 @@ function jumpToLatest() {
   state.newWhileAway = 0;
   updateJumpButton();
   scheduleMarkRead();
-  elements['composer-input'].focus();
+  // Focus goes to the newest message, so reading can continue from there.
+  if (transcriptKeys) transcriptKeys.focusNewest();
+  else elements['composer-input'].focus();
 }
 
 // Reading is recorded once the newest message has been on screen, a moment

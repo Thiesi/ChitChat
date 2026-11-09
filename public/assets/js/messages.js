@@ -1,6 +1,7 @@
 import { ApiError, apiGet, apiPost, setCsrfToken } from './api.js';
 import { announce, announceIncoming, markKnown, resetAnnouncements } from './announcer.js';
 import { controlItem, reconcile, signatureOf, withDays } from './transcript.js';
+import { attachTranscriptKeys } from './transcript-keys.js';
 import { attachEmojiPicker } from './emoji-picker.js';
 import { renderMessageBody, buildReplyPreview, buildReactionBar } from './message-content.js';
 import { attachMentionAutocomplete } from './mention-autocomplete.js';
@@ -12,6 +13,7 @@ import { openPersonReportDialog } from './message-report-dialog.js';
 import { canReport } from './person-reports.js';
 import { startRulesGate } from './rules.js';
 
+let transcriptKeys = null;
 const state = {
   user: null,
   privacy: null,
@@ -53,6 +55,12 @@ function bindElements() {
 function bindEvents() {
   elements['dm-user-search-form'].addEventListener('submit', searchUsers);
   elements['dm-load-older'].addEventListener('click', loadOlder);
+  transcriptKeys = attachTranscriptKeys(elements['dm-message-list'], {
+    composer: elements['dm-message-input'],
+    loadOlder: loadOlder,
+    canLoadOlder: () => !elements['dm-load-older'].classList.contains('hidden'),
+    selfName: () => state.user?.username ?? null,
+  });
   elements['dm-composer'].addEventListener('submit', sendMessage);
   elements['dm-block-toggle'].addEventListener('click', toggleBlock);
   elements['dm-report-person'].addEventListener('click', reportPeer);
@@ -228,6 +236,7 @@ async function selectUser(user) {
   const unread = state.conversations.find((conversation) => conversation.user?.id === user.id)?.unread_count ?? 0;
   state.selectedUser = user;
   resetAnnouncements();
+  transcriptKeys?.reset();
   peerTyping?.clear();
   delete elements['dm-message-list'].dataset.highlightMessageId;
   state.relationship = null;
@@ -434,6 +443,7 @@ function renderMessages({ scrollToEnd = false, prepended = false } = {}) {
     article.classList.toggle('search-result-target', article.dataset.messageId === list.dataset.highlightMessageId);
   }
   restoreFocus(list, focus);
+  transcriptKeys?.sync();
   if (scrollToEnd) list.scrollTop = list.scrollHeight;
   else if (prepended) list.scrollTop = previousTop + (list.scrollHeight - previousHeight);
   else list.scrollTop = previousTop;
@@ -585,6 +595,8 @@ function focusReplyTarget(replyTo) {
   list.dataset.highlightMessageId = target.dataset.messageId;
   target.classList.add('search-result-target');
   target.scrollIntoView({ block: 'center', behavior: 'auto' });
+  transcriptKeys?.focus(target);
+  announce(`Original message from ${replyTo.message?.sender?.username ?? 'someone'}`);
 }
 
 async function sendMessage(event) {
