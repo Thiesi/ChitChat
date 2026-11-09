@@ -1,59 +1,41 @@
 # Web Push
 
-Web Push delivers a best-effort browser notification for selected account events even when no ChitChat tab is open. It is disabled until an operator configures a VAPID keypair. See [ADR 0006](../architecture/0006-web-push.md) for the full design.
+Web Push sends best-effort alerts from the durable account-notification timeline to browser and compatible UnifiedPush subscriptions. It stays disabled until the installation has a VAPID keypair. The timeline is authoritative; push acceptance is neither a delivery receipt nor a read receipt.
 
-Push is never a delivery guarantee and never a source of truth. The durable in-app notification timeline (`account_notifications`) is authoritative; push is a best-effort nudge derived from it.
+## Enablement
 
-## Enabling Web Push
-
-Generate a VAPID keypair once per installation and keep the private key secret:
-
-```sh
-npx web-push generate-vapid-keys
-```
-
-Set all three values in `.env`:
+Generate a VAPID keypair once, keep the private key secret, and configure:
 
 ```env
-WEB_PUSH_VAPID_PUBLIC_KEY=<generated public key>
-WEB_PUSH_VAPID_PRIVATE_KEY=<generated private key>
+WEB_PUSH_VAPID_PUBLIC_KEY=<public key>
+WEB_PUSH_VAPID_PRIVATE_KEY=<private key>
 WEB_PUSH_VAPID_SUBJECT=mailto:admin@example.org
 ```
 
-`WEB_PUSH_VAPID_SUBJECT` must be a `mailto:` address or an `https:` URL — it is a contact a push service may use to reach the operator, not shown to participants. Web Push stays inert (no subscribe affordance offered, `bin/dispatch-web-push` exits immediately) unless the public and private keys are both configured, mirroring how passkeys stay inert without `WEBAUTHN_RP_ID`/`WEBAUTHN_ORIGIN`.
+The subject is a mailto or HTTPS contact for the operator. Use the installation's existing keypair when upgrading; changing it can require clients to subscribe again. The dispatcher validates configuration before claiming work.
 
-## Dispatch sweep
+## Dispatch and scheduling
 
-```sh
-composer dispatch-web-push
-```
+Run `php bin/dispatch-web-push` (or `composer dispatch-web-push`). PostgreSQL stores event jobs and a separate outcome for every snapshotted subscription; Redis and another sender are unnecessary. Existing processed notifications are never replayed.
 
-The command sweeps `account_notifications` rows that have never had a push attempt, checks each recipient's quiet hours and (for the one mutable category) mute preference, sends to every active browser subscription for accounts that pass, and marks every row it looked at as attempted — regardless of per-subscription success. A subscription is removed automatically only when the push service reports it permanently gone (HTTP 404/410); any other delivery failure is left alone for the next sweep to retry against, since the failure is about that specific push attempt, not the subscription's validity.
+A short transaction claims an event for one device attempt using `FOR UPDATE SKIP LOCKED`, a random token and a 60-second lease. HTTP runs after commit with 3-second connection and 10-second total timeouts. Completion is token-fenced; an expired worker cannot overwrite its successor's result or remove a rotated registration.
 
-The command prints a JSON summary:
+Only subscriptions registered by the notification's creation time are included. New devices do not receive historical alerts. A notification with no subscriptions is terminal. Read notifications are skipped before job creation and checked again before every send/retry, alongside current preferences, quiet hours, recipient status and source authorization.
 
-```json
-{
-  "processed": 3,
-  "sent": 2,
-  "skipped_muted": 1,
-  "skipped_quiet_hours": 0,
-  "pruned_subscriptions": 0
-}
-```
+Lifetimes, absolute from notification creation:
 
-Unlike `composer maintenance`, this command is meant to run **frequently** — every 30-60 seconds — since its entire value is timely delivery while a mention or event is still relevant. It requires no queue or Redis: the `account_notifications.push_dispatched_at IS NULL` filter over an already-durable table is the queue.
+| Kind | Lifetime | Urgency |
+| --- | --- | --- |
+| Mention, ping (and the future opt-in DM kind) | 30 minutes | high |
+| Other pushed kinds | 6 hours | normal |
 
-## Scheduling
+The wire TTL is the remaining whole seconds, so retrying never restarts the lifetime. These constants live together in `PushDeliveryPolicy`.
 
-Ready-to-adapt systemd examples are provided in:
+Retry network failures, HTTP 408/429 and 5xx, at most five attempts, with exponential delays starting at 15 seconds and capped at 120 seconds plus small jitter. Valid Retry-After seconds or HTTP dates take precedence when longer. A retry outside the deadline expires instead. Successful devices are not retried because another device failed.
 
-```text
-deploy/systemd/chitchat-web-push.service
-deploy/systemd/chitchat-web-push.timer
-```
+HTTP 404/410 removes only the exact expired registration; other 4xx, including 401/403, fail that delivery without unsubscribing the device. Redirects are not followed or counted as acceptance. Diagnostics contain status/outcome codes, not provider response text, endpoints, keys or notification contents.
 
-Copy them to `/etc/systemd/system/`, adapt the user, group, installation path, and PHP path, then enable the timer:
+Schedule every 15 seconds for low worker delay. The supplied systemd service/timer can be adapted with the installation user and paths:
 
 ```sh
 sudo systemctl daemon-reload
@@ -61,26 +43,34 @@ sudo systemctl enable --now chitchat-web-push.timer
 systemctl list-timers chitchat-web-push.timer
 ```
 
-The provided timer runs 30 seconds after boot and every 30 seconds thereafter. A cron equivalent (minimum practical granularity is one minute) remains valid but delivers push less promptly:
+A once-per-minute cron remains supported but adds up to a minute of scheduling latency:
 
 ```cron
 * * * * * cd /srv/chitchat && /usr/bin/php bin/dispatch-web-push >> var/log/web-push.log 2>&1
 ```
 
-Running the sweep from multiple hosts is safe — each row is claimed by whichever invocation updates it first — but redundant; one scheduled instance is sufficient for the single-application-server deployment target.
+Multiple workers may overlap safely; one scheduled worker suffices for a small installation. Each invocation is bounded to 500 new notifications and 500 device claims (service limits can be set between 1 and 5000). Under sustained load, monitor queue age and increase worker capacity. A provider timeout occupies one claim until completion or lease expiry.
 
-## Notification categories and preferences
+## Outcomes and monitoring
 
-Six notification kinds exist; only `mentioned` and `pinged` can be muted per account, via `POST /api/v1/push/update-preferences.php`. `revision_review`, `moderator_message_deleted`, `admin_password_reset`, and `system_policy_changed` are security/audit notices and always push when Web Push is configured and the account is outside quiet hours — the same way they are already non-optional in the in-app timeline. An account can still stop receiving any push by removing every subscribed browser.
+The command returns JSON counters. Existing `processed`, `sent`, `skipped_muted`, `skipped_quiet_hours` and `pruned_subscriptions` remain; `sent` means provider accepted, not a handset receipt. Additions include `retried`, `failed`, `expired`, `stale_results`, `pruned_jobs`, reason-specific `skipped_*`, `pending_deliveries`, `due_deliveries`, `failed_deliveries` and `oldest_pending_seconds`.
 
-Quiet hours are a per-account local-time window (`push_quiet_hours_start`, `push_quiet_hours_end`, an hour 0-23 each, plus `push_quiet_hours_timezone`, an IANA identifier) that suppresses every category, mutable or not, uniformly. All three or none may be set. A notification skipped for quiet hours is marked attempted like any other — it is not queued for redelivery once the window ends; the in-app timeline is where a participant catches up on anything push missed.
+Alert on growing due work/queue age or repeated terminal failures. A count of old pending deliveries after a stopped scheduler is not proof of an unreachable device. Disabled installations return zero counters without touching notifications.
 
-## Privacy
+`account_notifications.push_dispatched_at` now means all selected device outcomes are terminal; it remains null while retries are pending. `push_outcome` describes the terminal processing outcome. The timeline's `read_at` remains independent. Terminal job/delivery history is removed after seven days by the dispatcher; it never stores copies of endpoints, encryption keys or payloads. Physical account deletion cascades through queue records; deleting source notifications removes their mappings, and the next sweep removes orphan jobs.
 
-- A push payload carries only the same sender-username/room-name/title text already considered safe for the in-app timeline — never a raw message body. See `PrivacyNotificationService::renderText()`, the single rendering path both surfaces share.
-- Push subscriptions (`push_subscriptions`) and notification preferences (`notification_preferences`) are cleared at the same account-tombstone point durable privacy notifications already are (see [maintenance.md](maintenance.md#account-closure-finalization)).
-- The VAPID private key is deployment secret material; treat `.env` accordingly. It is never sent to a browser or logged.
+## Preferences and privacy
 
-## Dependency
+Mention and ping preferences retain their existing defaults. Quiet hours suppress every category uniformly and terminally: there is no deferred morning replay. Security/moderation notices do not inherit a social-alert preference or a sender's posting mute. Privacy-policy update notices remain in-app only.
 
-Web Push introduces `minishlink/web-push` (plus a minimal `php-http/curl-client` + `nyholm/psr7` PSR-18/17 implementation) as this project's first production Composer dependency, since VAPID JWT signing and RFC 8291 payload encryption are security-sensitive cryptographic code with no PHP built-in support worth hand-rolling. `ext-curl` is required at runtime for the HTTP client.
+Before social delivery, the worker rechecks the original message/ping, account and ban state, room history/age or DM participant/block eligibility, source deletion and relevant sender restrictions. Room ignores apply to room mentions and pings; they do not replace DM blocking. A conversation already marked read cannot produce a late DM mention alert.
+
+Payload keys remain `title`, `body`, `link`, `app_name`. Rendered sender/room names may appear, but message bodies, captions and filenames never do. Encryption to the push provider is not chat end-to-end encryption.
+
+Provider acceptance followed by worker death is ambiguous. Reclaimed attempts can duplicate an already accepted push, and notifications accepted before a read/block/logout cannot be recalled. Updated client deduplication/binding is separate lifecycle work; this release promises neither exactly-once alerts nor delivery to an offline/permission-disabled device.
+
+## Dependencies and interoperability
+
+The worker uses the locked `minishlink/web-push` encryption and VAPID signer with an explicit `php-http/curl-client` PSR-18 transport (`ext-curl` required). A project-owned request adapter corrects v11's VAPID audience for HTTPS services on non-default ports while preserving the encrypted request. No vendor files, FCM server sender or relay are added. TLS validation stays enabled; environment proxies and redirects are disabled.
+
+Automated request/signature and queue tests do not prove native background delivery. Real browser delivery plus two compatible distributor/device deliveries are a separate acceptance gate coordinated with CCM. See [the API contract](../api/web-push.md) and [ADR 0006](../architecture/0006-web-push.md).

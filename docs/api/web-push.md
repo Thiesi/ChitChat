@@ -132,3 +132,31 @@ Request body:
 ```json
 {"devices": []}
 ```
+
+## Dispatch lifetime and retries
+
+The subscription/preference requests and the existing push payload
+`{title, body, link, app_name}` remain unchanged by #148. Extra payload
+discriminators and lifecycle binding are separate work; clients must not assume
+they are present.
+
+Push is derived from unread durable notifications. Read rows are skipped at
+claim time and rechecked before retries. Mention/ping alerts have a 30-minute
+absolute lifetime; other pushed kinds have six hours. The server sends an
+explicit remaining-seconds TTL and high urgency for mentions/pings, normal for
+other kinds. Quiet hours and disabled preferences suppress an event permanently;
+there is no deferred morning push.
+
+The shared worker records each snapshotted device independently, retries
+transient failures at most five times within that lifetime, and never retries a
+device known to have succeeded merely because another failed. A device
+registered after the event does not receive it. Only HTTP 404/410 prunes the
+exact expired registration; authentication/configuration failures do not revoke
+valid devices. Standard and non-default HTTPS push-provider ports use their
+complete origin in VAPID authentication.
+
+A worker crash after provider acceptance can cause an ambiguous retry and a
+duplicate alert. Reading or revoking after acceptance cannot recall an already
+queued provider message. Push remains best effort; the timeline is the source of
+truth. See [operations](../operations/web-push.md) for scheduling, retry policy,
+redacted counters and queue retention.

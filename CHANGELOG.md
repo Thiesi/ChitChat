@@ -6,6 +6,8 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ## [Unreleased]
 
+- Push dispatch records per-device outcomes with atomic leased claims, bounded retry/backoff, read and permission rechecks, explicit 30-minute attention / six-hour other lifetimes, and corrected non-default-port VAPID authentication. Apply migration 0045 and keep the dispatcher scheduled; existing push payloads stay compatible. Provider acceptance is best effort and can duplicate after a worker crash.
+
 ### Added
 
 - Room/direct attachment metadata includes nullable oriented display dimensions and an optional bounded WebP rendition with a same-origin preview URL. New previews use a maximum 1024 px long edge, preserve aspect ratio without upscaling, strip source metadata, and show GIFs as a static first frame. Authorized rendition downloads support private ETag revalidation; original downloads remain compatible.

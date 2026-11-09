@@ -7,255 +7,119 @@ namespace ChitChat\WebPush;
 use ChitChat\Account\PrivacyNotificationService;
 use ChitChat\Admin\ApplicationNameService;
 use ChitChat\Config;
+use Closure;
 use DateTimeImmutable;
-use DateTimeZone;
+use DateInterval;
 use InvalidArgumentException;
-use Minishlink\WebPush\Subscription;
-use Minishlink\WebPush\WebPush;
 use PDO;
-use RuntimeException;
 use Throwable;
 
-/**
- * Periodic best-effort sweep over undelivered account_notifications rows.
- * Intended to run frequently via an operator-scheduled command (bin/dispatch-web-push),
- * not as a request-time side effect. See docs/architecture/0006-web-push.md.
- */
+/** Shared best-effort worker. Claims are committed before HTTP; see ADR 0006. */
 final class WebPushDispatcher
 {
-    /** @var array<string, string> notification kinds a user can mute, mapped to their preference key */
-    private const MUTABLE_KINDS = [
-        'mentioned' => 'mentioned_push_enabled',
-        'pinged' => 'pinged_push_enabled',
-    ];
+    private readonly Closure $clock;
+    private readonly PushDeliveryQueue $queue;
+    private readonly PushEligibility $eligibility;
 
-    private readonly PrivacyNotificationService $notifications;
-    private readonly NotificationPreferenceService $preferences;
-    private ?WebPush $webPush = null;
-
-    public function __construct(private readonly PDO $pdo, private readonly Config $config)
+    /** @param (Closure():DateTimeImmutable)|null $clock */
+    public function __construct(private readonly PDO $pdo, private readonly Config $config,
+        private ?PushTransport $transport = null, ?Closure $clock = null)
     {
-        $this->notifications = new PrivacyNotificationService($pdo);
-        $this->preferences = new NotificationPreferenceService($pdo);
+        $this->queue = new PushDeliveryQueue($pdo);
+        $this->clock = $clock ?? fn (): DateTimeImmutable => $this->queue->now();
+        $this->eligibility = new PushEligibility($pdo);
     }
 
-    /**
-     * Constructed lazily so an unconfigured (disabled) installation never
-     * runs VAPID key validation against empty configuration values — only
-     * reached once dispatch() has already confirmed webPushEnabled().
-     */
-    private function webPush(): WebPush
-    {
-        return $this->webPush ??= new WebPush([
-            'VAPID' => [
-                'subject' => $this->config->webPushVapidSubject,
-                'publicKey' => $this->config->webPushVapidPublicKey,
-                'privateKey' => $this->config->webPushVapidPrivateKey,
-            ],
-        ]);
-    }
-
-    /**
-     * @return array{
-     *   processed:int,
-     *   sent:int,
-     *   skipped_muted:int,
-     *   skipped_quiet_hours:int,
-     *   pruned_subscriptions:int
-     * }
-     */
+    /** @return array<string,int> */
     public function dispatch(int $limit = 500): array
     {
-        $summary = [
-            'processed' => 0,
-            'sent' => 0,
-            'skipped_muted' => 0,
-            'skipped_quiet_hours' => 0,
-            'pruned_subscriptions' => 0,
-        ];
-        if (!$this->config->webPushEnabled()) {
-            return $summary;
-        }
         if ($limit < 1 || $limit > 5000) {
             throw new InvalidArgumentException('limit must be between 1 and 5000.');
         }
-
-        foreach ($this->pendingNotifications($limit) as $notification) {
-            $summary['processed']++;
-            $this->dispatchOne($notification, $summary);
+        $summary = ['processed' => 0, 'sent' => 0, 'skipped_muted' => 0, 'skipped_quiet_hours' => 0,
+            'pruned_subscriptions' => 0, 'retried' => 0, 'failed' => 0, 'expired' => 0, 'stale_results' => 0];
+        if (!$this->config->webPushEnabled()) {
+            return $summary;
         }
-
-        return $summary;
-    }
-
-    /** @return list<array{id:int, user_id:int, kind:string, context:array<string, mixed>}> */
-    private function pendingNotifications(int $limit): array
-    {
-        $statement = $this->pdo->prepare(<<<'SQL'
-SELECT id, user_id, kind, context_json::text AS context
-FROM account_notifications
-WHERE push_dispatched_at IS NULL
-  AND kind <> 'privacy_policy_updated'
-ORDER BY id
-LIMIT :limit
-SQL);
-        if ($statement === false) {
-            throw new RuntimeException('Unable to prepare pending push notification lookup.');
+        // Validate installation keys/transport before mutating queue state.
+        $this->transport ??= new LibraryPushTransport($this->config);
+        $now = ($this->clock)();
+        $summary['pruned_jobs'] = $this->queue->prune($now);
+        $materialized = $this->queue->materialize($limit, $now,
+            fn (PushNotification $notification): ?string => $this->eligibility->suppression($notification, $now));
+        foreach ($materialized as $name => $count) {
+            $summary[$name] = ($summary[$name] ?? 0) + $count;
         }
-        $statement->bindValue(':limit', $limit, PDO::PARAM_INT);
-        $statement->execute();
-
-        $result = [];
-        foreach ($statement->fetchAll() as $row) {
-            if (!is_array($row)) {
-                continue;
+        for ($index = 0; $index < $limit; $index++) {
+            $claim = $this->queue->claim(($this->clock)());
+            if ($claim === null) {
+                break;
             }
-            $result[] = [
-                'id' => (int) $row['id'],
-                'user_id' => (int) $row['user_id'],
-                'kind' => (string) $row['kind'],
-                'context' => $this->notifications->decodeContext((string) $row['context']),
-            ];
+            $this->deliver($claim, $summary);
         }
-
-        return $result;
+        return $summary + $this->queue->health(($this->clock)());
     }
 
-    /**
-     * @param array{id:int, user_id:int, kind:string, context:array<string, mixed>} $notification
-     * @param array{processed:int, sent:int, skipped_muted:int, skipped_quiet_hours:int, pruned_subscriptions:int} $summary
-     */
-    private function dispatchOne(array $notification, array &$summary): void
+    /** @param array<string,int> $summary */
+    private function deliver(PushClaim $claim, array &$summary): void
     {
-        $preferences = $this->preferences->get($notification['user_id']);
-
-        if ($preferences['quiet_hours'] !== null && $this->inQuietHours($preferences['quiet_hours'])) {
-            $summary['skipped_quiet_hours']++;
-            $this->markDispatched($notification['id']);
-            return;
+        $now = ($this->clock)();
+        $ttl = PushDeliveryPolicy::remainingSeconds($claim->expiresAt, $now);
+        $reason = $ttl <= 0 ? 'expired' : $this->eligibility->suppression($claim->notification, $now);
+        if ($reason === null && ($claim->subscription === null
+            || $claim->subscription['user_id'] !== $claim->notification->userId
+            || !hash_equals($claim->fingerprint, PushDeliveryQueue::fingerprint($claim->subscription)))) {
+            $reason = 'revoked';
         }
-        $preferenceKey = self::MUTABLE_KINDS[$notification['kind']] ?? null;
-        if ($preferenceKey !== null && !$preferences[$preferenceKey]) {
-            $summary['skipped_muted']++;
-            $this->markDispatched($notification['id']);
-            return;
-        }
-
-        $rendered = $this->notifications->renderText($notification['kind'], $notification['context']);
-        $payload = json_encode(
-            [
-                'title' => $rendered['title'],
-                'body' => $rendered['message'],
-                'link' => $rendered['link'],
-                'app_name' => (new ApplicationNameService($this->pdo, $this->config))->effective(),
-            ],
-            JSON_THROW_ON_ERROR,
-        );
-
-        foreach ($this->subscriptionsFor($notification['user_id']) as $subscription) {
-            $this->sendOne($subscription, $payload, $summary);
-        }
-
-        $this->markDispatched($notification['id']);
-    }
-
-    /** @return list<array{id:int, endpoint:string, p256dh_key:string, auth_key:string}> */
-    private function subscriptionsFor(int $userId): array
-    {
-        $statement = $this->pdo->prepare(<<<'SQL'
-SELECT id, endpoint, p256dh_key, auth_key
-FROM push_subscriptions
-WHERE user_id = :user_id
-SQL);
-        if ($statement === false) {
-            throw new RuntimeException('Unable to prepare push subscription lookup.');
-        }
-        $statement->execute(['user_id' => $userId]);
-
-        $result = [];
-        foreach ($statement->fetchAll() as $row) {
-            if (!is_array($row)) {
-                continue;
+        if ($reason !== null) {
+            if ($this->queue->finish($claim, $reason === 'expired' ? 'expired' : 'suppressed', $reason, $now) !== null) {
+                $key = 'skipped_' . $reason;
+                $summary[$key] = ($summary[$key] ?? 0) + 1;
             }
-            $result[] = [
-                'id' => (int) $row['id'],
-                'endpoint' => (string) $row['endpoint'],
-                'p256dh_key' => (string) $row['p256dh_key'],
-                'auth_key' => (string) $row['auth_key'],
-            ];
+            return;
         }
-
-        return $result;
-    }
-
-    /**
-     * @param array{id:int, endpoint:string, p256dh_key:string, auth_key:string} $subscriptionRow
-     * @param array{processed:int, sent:int, skipped_muted:int, skipped_quiet_hours:int, pruned_subscriptions:int} $summary
-     */
-    private function sendOne(array $subscriptionRow, string $payload, array &$summary): void
-    {
-        $subscription = Subscription::create([
-            'endpoint' => $subscriptionRow['endpoint'],
-            'keys' => [
-                'p256dh' => $subscriptionRow['p256dh_key'],
-                'auth' => $subscriptionRow['auth_key'],
-            ],
-            'contentEncoding' => 'aes128gcm',
-        ]);
-
-        try {
-            $report = $this->webPush()->sendOneNotification($subscription, $payload);
-        } catch (Throwable) {
+        if ($claim->attempts > PushDeliveryPolicy::MAX_ATTEMPTS) {
+            $this->queue->finish($claim, 'failed', 'attempt_limit', $now);
+            $summary['failed']++;
             return;
         }
 
-        if ($report->isSuccess()) {
-            $summary['sent']++;
+        $rendered = (new PrivacyNotificationService($this->pdo))->renderText($claim->notification->kind, $claim->notification->context);
+        $payload = json_encode(['title' => $rendered['title'], 'body' => $rendered['message'],
+            'link' => $rendered['link'], 'app_name' => (new ApplicationNameService($this->pdo, $this->config))->effective()],
+            JSON_THROW_ON_ERROR);
+        try {
+            $result = $this->transport?->send($claim->subscription, $payload, $ttl, PushDeliveryPolicy::urgency($claim->notification->kind))
+                ?? new PushSendResult('retry');
+        } catch (Throwable) {
+            $result = new PushSendResult('retry');
+        }
+        $now = ($this->clock)();
+        $state = $result->outcome;
+        $outcome = $state === 'sent' ? 'accepted' : ($state === 'expired' ? 'subscription_expired' : 'http_error');
+        $retryAt = null;
+        if ($state === 'retry') {
+            $remaining = PushDeliveryPolicy::remainingSeconds($claim->expiresAt, $now);
+            $delay = max(PushDeliveryPolicy::retryDelay($claim->attempts), $result->retryAfterSeconds ?? 0);
+            if ($remaining <= 0 || $delay >= $remaining) {
+                $state = 'expired';
+                $outcome = 'deadline';
+            } elseif ($claim->attempts >= PushDeliveryPolicy::MAX_ATTEMPTS) {
+                $state = 'failed';
+                $outcome = 'attempt_limit';
+            } else {
+                $state = 'pending';
+                $retryAt = $now->add(new DateInterval('PT' . $delay . 'S'));
+            }
+        }
+        $pruned = $this->queue->finish($claim, $state, $outcome, $now, $result->httpStatus, $retryAt,
+            $result->outcome === 'expired' && in_array($result->httpStatus, [404, 410], true));
+        if ($pruned === null) {
+            $summary['stale_results']++;
             return;
         }
-        if ($report->isSubscriptionExpired()) {
-            $this->pruneSubscription($subscriptionRow['id']);
-            $summary['pruned_subscriptions']++;
-        }
-    }
-
-    private function pruneSubscription(int $subscriptionId): void
-    {
-        $statement = $this->pdo->prepare('DELETE FROM push_subscriptions WHERE id = :id');
-        if ($statement === false) {
-            throw new RuntimeException('Unable to prepare expired push subscription removal.');
-        }
-        $statement->execute(['id' => $subscriptionId]);
-    }
-
-    private function markDispatched(int $notificationId): void
-    {
-        $statement = $this->pdo->prepare(
-            'UPDATE account_notifications SET push_dispatched_at = NOW() WHERE id = :id',
-        );
-        if ($statement === false) {
-            throw new RuntimeException('Unable to prepare push dispatch marker.');
-        }
-        $statement->execute(['id' => $notificationId]);
-    }
-
-    /** @param array{start:int, end:int, timezone:string} $quietHours */
-    private function inQuietHours(array $quietHours): bool
-    {
-        if ($quietHours['start'] === $quietHours['end']) {
-            return false;
-        }
-        try {
-            $now = new DateTimeImmutable('now', new DateTimeZone($quietHours['timezone']));
-        } catch (Throwable) {
-            return false;
-        }
-        $hour = (int) $now->format('G');
-
-        if ($quietHours['start'] < $quietHours['end']) {
-            return $hour >= $quietHours['start'] && $hour < $quietHours['end'];
-        }
-
-        return $hour >= $quietHours['start'] || $hour < $quietHours['end'];
+        $summary['pruned_subscriptions'] += $pruned;
+        $key = ['sent' => 'sent', 'pending' => 'retried', 'failed' => 'failed', 'expired' => 'expired'][$state] ?? 'failed';
+        $summary[$key]++;
     }
 }
