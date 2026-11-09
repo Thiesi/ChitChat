@@ -173,3 +173,70 @@ Room administration does not require privileged step-up in this milestone.
 The administration console constructs all account, room, and audit views with DOM nodes and `textContent`. Usernames, reasons, room information, and audit metadata are never inserted as HTML.
 
 When a protected JSON POST returns `step_up_required`, the shared browser API layer opens an accessible current-password dialog, verifies through `POST /api/v1/step-up.php`, and retries the original action exactly once. Cancellation or failed verification leaves the original action unapplied.
+
+## Stewarding data additions
+
+The users endpoint also accepts:
+
+- `filter=staff|banned|muted|closing`, or omit it for everyone. Staff means any
+  global role; banned and muted mean a currently active restriction. Guests
+  remain excluded. Existing member account-state inclusion is unchanged.
+- `sort=id` (default, ascending ID) or `sort=last_sign_in` (most recent first,
+  then descending ID for ties; never-signed-in accounts come last).
+- `cursor`, the opaque `next_cursor` returned by a preceding page. It is bound
+  to the normalized search, filter and sort; start a new page sequence after
+  changing any of them. Invalid or mismatched cursors return 400
+  `validation_error`.
+
+The legacy `after_id` path remains available with the default ID order.
+A nonzero `after_id` cannot be combined with `cursor` or `last_sign_in`.
+`limit` remains 1–100. Keyset pagination does not freeze mutable sign-in times:
+an account signing in during traversal can move relative to the current cursor.
+
+Responses retain `users` and add:
+
+```json
+{
+  "counts": {"all": 1284, "staff": 7, "banned": 3, "muted": 2, "closing": 1},
+  "next_cursor": "opaque-token"
+}
+```
+
+`next_cursor` is JSON null at the end. Counts respect `search` but ignore the
+selected filter and pagination, including on an empty or exhausted page.
+Counts and user rows come from one database statement snapshot. Restriction and
+role details are batched within that statement, with no per-user PHP queries.
+
+Each user retains the old fields and also includes:
+
+- `active_ban`: null or `{reason, expires_at, starts_at, created_by:{id,username}}`.
+  The starts_at field is the recorded start time; current API bans begin immediately.
+  Revoked, expired and future bans do not count. This information
+  stays restricted to the same Super-Administrator/Administrator access.
+- `active_mute`: null or `{scope, room, expires_at, room_mute_count}`. Scope is
+  `everywhere` or `room`; room is null or `{id,name}`. An active everywhere mute
+  takes precedence. Otherwise the soonest-ending active room mute is selected,
+  with permanent mutes last and ID as a deterministic tie-breaker.
+  `room_mute_count` counts distinct currently muted rooms, excluding everywhere
+  mutes. Lifted and expired mutes are excluded.
+- `closing`: null or `{purge_at}`, the pending closure's scheduled finalization
+  timestamp. Restored/active and finalized/closed accounts have null here.
+
+### Account audit filtering
+
+`GET /api/v1/admin/audit.php?user_id=N` limits the existing audit listing to rows
+where N is the actor **or** the user subject (`subject_type="user"` and
+`subject_id=N`). Matching metadata alone or another subject type's same numeric
+ID does not qualify. `before_id`, ordering, limits, recorded metadata and
+redaction behavior remain unchanged. No matching entries returns an empty list. Retained user-subject IDs still match after account removal;
+a nonpositive ID returns 400 `validation_error`.
+
+This does not grant audit access to Chat Admins, Global Moderators or room
+moderators. Existing audit access remains Super-Administrator/Administrator
+only. The filter does not add message evidence, report details or secrets to
+the existing audit shape.
+
+Client check: a `counts` object plus `next_cursor` in the authenticated users
+response identifies the new directory contract; missing keys mean unknown/older
+support. Account audit filtering ships with that contract. See also
+[subject case filtering](moderation-reports.md#subject-history-filter).

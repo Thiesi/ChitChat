@@ -22,4 +22,9 @@ final readonly class PushClaim
         public string $eventId,
     ) {
     }
+    public function forNotification(PushNotification $notification): self
+    {
+        return new self($this->jobId, $this->deliveryId, $this->token, $this->attempts,
+            $this->expiresAt, $notification, $this->subscription, $this->fingerprint, $this->eventId);
+    }
 }

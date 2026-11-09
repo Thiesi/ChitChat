@@ -11,11 +11,11 @@ use ChitChat\Http\ApiException;
 use ChitChat\Realtime\EventRepository;
 use DateTimeImmutable;
 use JsonException;
-use ChitChat\Database\LikePattern;
 use PDO;
 use RuntimeException;
 use Throwable;
 
+/** @phpstan-import-type UserRow from UserDirectoryService */
 final class AdminService
 {
     private const ROLES = ['super_admin', 'admin', 'chat_admin', 'global_moderator'];
@@ -31,103 +31,14 @@ final class AdminService
         $this->events = new EventRepository($pdo);
     }
 
-    /**
-     * @return list<array{
-     *   id:int,
-     *   username:string,
-     *   roles:list<string>,
-     *   created_at:string,
-     *   last_login_at:?string,
-     *   active_ban:?array{reason:string, expires_at:?string}
-     * }>
-     */
+    /** @return list<UserRow> */
     public function listUsers(
         AuthenticatedUser $actor,
         string $search = '',
         int $afterId = 0,
         int $limit = 50,
     ): array {
-        $this->requireUserAdministration($actor);
-        $search = trim($search);
-        if (mb_strlen($search, 'UTF-8') > 32) {
-            throw new ApiException(400, 'validation_error', 'search must not exceed 32 characters.');
-        }
-        if ($search !== '' && preg_match('/\A[A-Za-z0-9_.-]+\z/D', $search) !== 1) {
-            throw new ApiException(400, 'validation_error', 'search contains unsupported characters.');
-        }
-        if ($afterId < 0) {
-            throw new ApiException(400, 'validation_error', 'after_id must not be negative.');
-        }
-        if ($limit < 1 || $limit > 100) {
-            throw new ApiException(400, 'validation_error', 'limit must be between 1 and 100.');
-        }
-
-        $statement = $this->pdo->prepare(<<<'SQL'
-SELECT u.id,
-       u.username,
-       u.created_at,
-       u.last_login_at,
-       COALESCE(
-           jsonb_agg(ur.role ORDER BY ur.role) FILTER (WHERE ur.role IS NOT NULL),
-           '[]'::jsonb
-       )::text AS roles,
-       active_ban.reason AS ban_reason,
-       active_ban.expires_at AS ban_expires_at
-FROM users u
-LEFT JOIN user_roles ur ON ur.user_id = u.id
-LEFT JOIN LATERAL (
-    SELECT ub.reason, ub.expires_at
-    FROM user_bans ub
-    WHERE ub.user_id = u.id
-      AND ub.revoked_at IS NULL
-      AND ub.starts_at <= NOW()
-      AND (ub.expires_at IS NULL OR ub.expires_at > NOW())
-    ORDER BY ub.starts_at DESC, ub.id DESC
-    LIMIT 1
-) active_ban ON TRUE
-WHERE u.id > :after_id
-  -- Guests come and go; they are managed from the chat, not here.
-  AND u.account_kind = 'member'
-  AND (
-      CAST(:search_empty AS integer) = 1
-      OR lower(u.username) LIKE :search_pattern ESCAPE '\'
-  )
-GROUP BY u.id, active_ban.reason, active_ban.expires_at
-ORDER BY u.id ASC
-LIMIT :limit
-SQL);
-        if ($statement === false) {
-            throw new RuntimeException('Unable to prepare administrator user list.');
-        }
-        $statement->bindValue(':after_id', $afterId, PDO::PARAM_INT);
-        $statement->bindValue(':search_empty', $search === '' ? 1 : 0, PDO::PARAM_INT);
-        $statement->bindValue(':search_pattern', LikePattern::prefix($search));
-        $statement->bindValue(':limit', $limit, PDO::PARAM_INT);
-        $statement->execute();
-
-        $result = [];
-        foreach ($statement->fetchAll() as $row) {
-            if (!is_array($row)) {
-                continue;
-            }
-            $roles = $this->decodeRoles((string) $row['roles']);
-            $activeBan = $row['ban_reason'] === null
-                ? null
-                : [
-                    'reason' => (string) $row['ban_reason'],
-                    'expires_at' => $row['ban_expires_at'] === null ? null : (string) $row['ban_expires_at'],
-                ];
-            $result[] = [
-                'id' => (int) $row['id'],
-                'username' => (string) $row['username'],
-                'roles' => $roles,
-                'created_at' => (string) $row['created_at'],
-                'last_login_at' => $row['last_login_at'] === null ? null : (string) $row['last_login_at'],
-                'active_ban' => $activeBan,
-            ];
-        }
-
-        return $result;
+        return (new UserDirectoryService($this->pdo))->page($actor, $search, $afterId, $limit)['users'];
     }
 
     /** @param list<string> $roles */
@@ -262,8 +173,12 @@ SQL);
         AuthenticatedUser $actor,
         ?int $beforeId = null,
         int $limit = 50,
+        ?int $userId = null,
     ): array {
         $this->requireUserAdministration($actor);
+        if ($userId !== null && $userId < 1) {
+            throw new ApiException(400, 'validation_error', 'user_id must be positive.');
+        }
         if ($beforeId !== null && $beforeId < 1) {
             throw new ApiException(400, 'validation_error', 'before_id must be positive.');
         }
@@ -283,7 +198,9 @@ SELECT a.id,
        a.created_at
 FROM audit_log a
 LEFT JOIN users actor ON actor.id = a.actor_user_id
-WHERE CAST(:has_before AS integer) = 0 OR a.id < :before_id
+WHERE (CAST(:has_before AS integer) = 0 OR a.id < :before_id)
+  AND (CAST(:has_user AS integer) = 0 OR a.actor_user_id = :actor_match
+       OR (a.subject_type = 'user' AND a.subject_id = :subject_match))
 ORDER BY a.id DESC
 LIMIT :limit
 SQL);
@@ -292,6 +209,9 @@ SQL);
         }
         $statement->bindValue(':has_before', $beforeId === null ? 0 : 1, PDO::PARAM_INT);
         $statement->bindValue(':before_id', $beforeId ?? PHP_INT_MAX, PDO::PARAM_INT);
+        $statement->bindValue(':has_user', $userId === null ? 0 : 1, PDO::PARAM_INT);
+        $statement->bindValue(':actor_match', $userId ?? 0, PDO::PARAM_INT);
+        $statement->bindValue(':subject_match', (string) ($userId ?? 0));
         $statement->bindValue(':limit', $limit, PDO::PARAM_INT);
         $statement->execute();
 
@@ -321,21 +241,6 @@ SQL);
         if (!$actor->canManageUsers()) {
             throw new ApiException(403, 'forbidden', 'User administration requires Administrator access.');
         }
-    }
-
-    /** @return list<string> */
-    private function decodeRoles(string $encoded): array
-    {
-        try {
-            $decoded = json_decode($encoded, true, 32, JSON_THROW_ON_ERROR);
-        } catch (JsonException $exception) {
-            throw new RuntimeException('Stored role list is invalid.', 0, $exception);
-        }
-        if (!is_array($decoded)) {
-            throw new RuntimeException('Stored role list must be an array.');
-        }
-
-        return array_values(array_map(static fn (mixed $role): string => (string) $role, $decoded));
     }
 
     /** @return array<string, mixed> */

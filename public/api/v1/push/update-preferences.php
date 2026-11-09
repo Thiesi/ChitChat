@@ -26,17 +26,16 @@ Endpoint::run($config, static function () use ($config): ApiResult {
     );
 
     $preferences = new NotificationPreferenceService($pdo);
-    $preferences->setMentionedPushEnabled($actor->id, Request::boolean($payload, 'mentioned_push_enabled'));
-    // Optional, so a client that predates the ping switch keeps working.
-    if (array_key_exists('pinged_push_enabled', $payload)) {
-        $preferences->setPingedPushEnabled($actor->id, Request::boolean($payload, 'pinged_push_enabled'));
-    }
-    $preferences->setQuietHours(
+    // Parse every field before starting writes; malformed optional fields cannot
+    // partially change a preference. Omitted new fields preserve their values.
+    $preferences->update(
         $actor->id,
+        Request::boolean($payload, 'mentioned_push_enabled'),
+        array_key_exists('pinged_push_enabled', $payload) ? Request::boolean($payload, 'pinged_push_enabled') : null,
+        array_key_exists('direct_message_push_enabled', $payload) ? Request::boolean($payload, 'direct_message_push_enabled') : null,
         Request::optionalInteger($payload, 'quiet_hours_start'),
         Request::optionalInteger($payload, 'quiet_hours_end'),
         Request::optionalString($payload, 'quiet_hours_timezone'),
     );
-
     return ApiResult::ok(['preferences' => $preferences->get($actor->id)]);
 });

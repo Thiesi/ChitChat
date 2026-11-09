@@ -7,7 +7,12 @@ const elements = {
   status: document.querySelector('#push-status'),
   subscribeToggle: document.querySelector('#push-subscribe-toggle'),
   settings: document.querySelector('#push-settings'),
+  browser: document.querySelector('#push-browser'),
+  browserStatus: document.querySelector('#push-browser-status'),
+  devices: document.querySelector('#push-devices'),
+  noDevice: document.querySelector('#push-no-device'),
   preferencesForm: document.querySelector('#push-preferences-form'),
+  dmEnabled: document.querySelector('#push-dm-enabled'),
   mentionedEnabled: document.querySelector('#push-mentioned-enabled'),
   pingedEnabled: document.querySelector('#push-pinged-enabled'),
   quietStart: document.querySelector('#push-quiet-start'),
@@ -22,6 +27,7 @@ const elements = {
 
 let vapidPublicKey = null;
 let currentEndpoint = null;
+let dmWasEnabled = false;
 
 void initialize();
 
@@ -37,26 +43,31 @@ async function initialize() {
       return;
     }
 
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-      elements.unsupported.classList.remove('hidden');
-      return;
-    }
-
     const webPush = session.web_push ?? {};
     if (!webPush.enabled || typeof webPush.vapid_public_key !== 'string' || webPush.vapid_public_key === '') {
-      elements.status.textContent = 'Push notifications are not configured for this installation.';
+      elements.status.textContent = 'Alerts aren’t set up on this server.';
       return;
     }
     vapidPublicKey = webPush.vapid_public_key;
 
+    // What should alert you is per account and applies to every device,
+    // including the ChitChat app, so it's shown whether or not this browser
+    // is subscribed or can subscribe at all (#150).
+    elements.settings.classList.remove('hidden');
+    elements.devices.classList.remove('hidden');
+    elements.browser.classList.remove('hidden');
+    elements.preferencesForm.addEventListener('submit', savePreferences);
+    await loadPreferencesAndDevices();
+
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      elements.unsupported.classList.remove('hidden');
+      elements.subscribeToggle.closest('.account-action-row')?.classList.add('hidden');
+      return;
+    }
     await navigator.serviceWorker.register('/sw.js');
     elements.subscribeToggle.disabled = false;
     elements.subscribeToggle.addEventListener('click', toggleSubscription);
-    elements.preferencesForm.addEventListener('submit', savePreferences);
-    elements.settings.classList.remove('hidden');
-
     await refreshSubscriptionState();
-    await loadPreferencesAndDevices();
   } catch (error) {
     elements.error.textContent = error instanceof Error
       ? error.message
@@ -72,12 +83,10 @@ async function refreshSubscriptionState() {
 }
 
 function updateToggleState() {
-  elements.subscribeToggle.textContent = currentEndpoint
-    ? 'Disable push notifications on this device'
-    : 'Enable push notifications on this device';
-  elements.status.textContent = currentEndpoint
-    ? 'Push notifications are enabled on this device.'
-    : 'Push notifications are not enabled on this device.';
+  elements.subscribeToggle.textContent = currentEndpoint ? 'Turn off alerts here' : 'Turn on alerts here';
+  elements.browserStatus.textContent = currentEndpoint
+    ? 'Alerts are on in this browser.'
+    : 'Alerts are off in this browser.';
 }
 
 async function toggleSubscription() {
@@ -92,7 +101,7 @@ async function toggleSubscription() {
     } else {
       const permission = await Notification.requestPermission();
       if (permission !== 'granted') {
-        elements.error.textContent = 'Notification permission was not granted.';
+        elements.error.textContent = 'Your browser didn’t allow alerts. You can change that in its site settings.';
         return;
       }
       const subscription = await registration.pushManager.subscribe({
@@ -117,6 +126,9 @@ async function loadPreferencesAndDevices() {
   try {
     const payload = await apiGet('/api/v1/push/preferences.php');
     const preferences = payload.preferences ?? {};
+    // Off unless the person turned it on (#150); older servers don't send it.
+    dmWasEnabled = preferences.direct_message_push_enabled === true;
+    elements.dmEnabled.checked = dmWasEnabled;
     elements.mentionedEnabled.checked = preferences.mentioned_push_enabled !== false;
     elements.pingedEnabled.checked = preferences.pinged_push_enabled !== false;
 
@@ -139,6 +151,7 @@ async function loadPreferencesAndDevices() {
 function renderDevices(devices) {
   elements.deviceList.replaceChildren();
   elements.deviceEmpty.classList.toggle('hidden', devices.length !== 0);
+  elements.noDevice.classList.toggle('hidden', devices.length !== 0);
 
   for (const device of devices) {
     const item = document.createElement('li');
@@ -147,11 +160,11 @@ function renderDevices(devices) {
     const label = document.createElement('span');
     label.textContent = typeof device.user_agent === 'string' && device.user_agent !== ''
       ? device.user_agent
-      : 'Unknown device';
+      : 'Other device';
 
     const meta = document.createElement('span');
     meta.className = 'account-muted';
-    meta.textContent = `Added ${formatTimestamp(device.created_at)}`;
+    meta.textContent = `since ${formatTimestamp(device.created_at)}`;
 
     const revoke = document.createElement('button');
     revoke.type = 'button';
@@ -189,14 +202,20 @@ async function savePreferences(event) {
   const timezoneValue = elements.quietTimezone.value.trim();
 
   try {
+    const dmEnabled = elements.dmEnabled.checked;
     await apiPost('/api/v1/push/update-preferences.php', {
+      direct_message_push_enabled: dmEnabled,
       mentioned_push_enabled: elements.mentionedEnabled.checked,
       pinged_push_enabled: elements.pingedEnabled.checked,
       quiet_hours_start: startValue === '' ? null : Number(startValue),
       quiet_hours_end: endValue === '' ? null : Number(endValue),
       quiet_hours_timezone: timezoneValue === '' ? null : timezoneValue,
     });
-    elements.preferencesStatus.textContent = 'Saved.';
+    // Turning it on never covers earlier messages, so say "from now on".
+    elements.preferencesStatus.textContent = dmEnabled && !dmWasEnabled
+      ? 'Saved. You’ll be alerted about new direct messages from now on.'
+      : 'Saved.';
+    dmWasEnabled = dmEnabled;
   } catch (error) {
     elements.error.textContent = error instanceof Error
       ? error.message

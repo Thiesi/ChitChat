@@ -30,7 +30,7 @@ final class PushEligibility
             return 'read';
         }
         $preferences = (new NotificationPreferenceService($this->pdo))->get($notification->userId);
-        $key = ['mentioned' => 'mentioned_push_enabled', 'pinged' => 'pinged_push_enabled'][$notification->kind] ?? null;
+        $key = ['mentioned' => 'mentioned_push_enabled', 'pinged' => 'pinged_push_enabled', 'direct_message_received' => 'direct_message_push_enabled'][$notification->kind] ?? null;
         if ($key !== null && !$preferences[$key]) {
             return 'muted';
         }
@@ -48,7 +48,7 @@ final class PushEligibility
         if ($actor === null || $actor->guest || $users->activeBan($actor->id) !== null) {
             return 'forbidden';
         }
-        if (!in_array($notification->kind, ['mentioned', 'pinged'], true)) {
+        if (!in_array($notification->kind, ['mentioned', 'pinged', 'direct_message_received'], true)) {
             return null;
         }
         $senderId = $notification->context['sender_user_id'] ?? null;
@@ -57,7 +57,7 @@ final class PushEligibility
             return 'forbidden';
         }
         try {
-            if ($notification->kind === 'mentioned' && ($notification->context['message_kind'] ?? null) === 'direct') {
+            if (($notification->kind === 'mentioned' || $notification->kind === 'direct_message_received') && ($notification->context['message_kind'] ?? null) === 'direct') {
                 return $this->direct($notification, $actor, $sender->id);
             }
             $roomId = $notification->context['room_id'] ?? null;
