@@ -192,7 +192,7 @@ final class PolicyServiceTest extends DatabaseTestCase
         $mute = (new MuteService($this->pdo))->mute($root, $member->id, $room->id, null, 'Moderation still works', false, '127.0.0.1');
         (new MuteService($this->pdo))->lift($root, $mute['id'], '127.0.0.1');
         $subscriptions = PushFixtures::subscriptions($this->pdo);
-        $subscriptions->subscribe($member, 'https://push.example.org/device', PushFixtures::key(), PushFixtures::auth(), null, str_repeat('a', 64));
+        $subscriptions->subscribe($member, 'https://push.example.org/device', PushFixtures::key(), PushFixtures::auth(), null, PushFixtures::login($this->pdo, $member, str_repeat('a', 64)));
         $subscriptions->revoke($member, $subscriptions->list($member)[0]['id']);
         self::assertSame([], $subscriptions->list($member));
         $policies->accept($member, 1, '127.0.0.2');
