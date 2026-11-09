@@ -145,3 +145,8 @@ The session response includes:
 - current privileged step-up status and configured maximum age under `security.privileged_step_up`.
 
 The server still enforces registration, retention, role authorization, and step-up freshness regardless of what a client displays.
+
+
+## Installation icon
+
+See [installation-icon.md](installation-icon.md) for the Super-Administrator setting, server preview, public discovery and cache contract.

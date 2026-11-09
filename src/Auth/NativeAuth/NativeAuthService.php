@@ -15,7 +15,7 @@ use PDO;
  * @phpstan-type ConfirmationPhase 'entry'|'verifying'|'consent'|'account_mismatch'|'identity_mismatch'|'staged'|'cancelled'|'expired'|'used'|'disabled'
  * @phpstan-type ConfirmationOutcome 'completed'|'pending_mfa'|'pending_sign_up'|'unknown'
  * @phpstan-type ConfirmationView array{
- *   installation_name:string,app_name:string,purpose:'login'|'link'|'picture'|'restore'|'step_up'|'sign_up',
+ *   installation_name:string,installation_icon?:array{favicon_url:string,mark_url:string,apple_touch_url:string}|null,app_name:string,purpose:'login'|'link'|'picture'|'restore'|'step_up'|'sign_up',
  *   provider:array{label:string},expires_at:string,bound_account:array{id:int,username:string}|null,
  *   browser_account:array{username:string}|null,phase:ConfirmationPhase,outcome:ConfirmationOutcome|null,
  *   csrf_token:string,actions:array{continue:?string,approve:?string,cancel:?string,restart:?string},

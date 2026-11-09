@@ -61,6 +61,7 @@ final readonly class NativeAuthViewModel
         };
         return [
             'installation_name' => (new ApplicationNameService($this->pdo, $this->config))->effective(),
+            'installation_icon' => \ChitChat\InstallationIcon\IconService::resolve($this->config),
             'app_name' => $app, 'purpose' => $purpose,
             'provider' => ['label' => match ($row['provider'] ?? null) { 'google' => 'Google', 'twitch' => 'Twitch', default => '' }],
             'expires_at' => (string) ($row['expires_at'] ?? gmdate(DATE_ATOM)), 'bound_account' => $bound,

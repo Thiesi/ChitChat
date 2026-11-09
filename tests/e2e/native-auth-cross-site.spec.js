@@ -80,8 +80,21 @@ for (const { flow, sameSite } of scenarios) {
       await ready(app, appPort, path.join(directory, 'app.log'));
       await ready(provider, providerPort, path.join(directory, 'provider.log'));
       // Test-only TLS terminator: the production PHP controller handles real Secure __Host cookies.
+      const callbackBodies = [];
       proxy = https.createServer({ key: material.pem, cert: material.tls_cert }, (req, res) => {
         const upstream = http.request({ hostname: '127.0.0.1', port: appPort, path: req.url, method: req.method, headers: req.headers }, response => {
+          // Preserve the bytes at our TLS fixture boundary before meta-refresh navigation
+          // can make Chromium discard the first response's DevTools body handle.
+          if (req.method === 'GET' && new URL(req.url, origin).pathname === '/api/v1/oidc/callback.php'
+            && response.statusCode === 200) {
+            const chunks = [];
+            let size = 0;
+            response.on('data', chunk => {
+              size += chunk.length;
+              if (size <= 65536) chunks.push(chunk);
+            });
+            response.on('end', () => callbackBodies.push(size <= 65536 ? Buffer.concat(chunks).toString('utf8') : 'oversized fixture response'));
+          }
           res.writeHead(response.statusCode, response.headers);
           response.pipe(res);
         });
@@ -130,7 +143,7 @@ for (const { flow, sameSite } of scenarios) {
           expect(received.cookie ?? '').not.toContain(cookieName + '=');
           expect(firstResponse.status()).toBe(200);
           expect((await firstResponse.allHeaders())['set-cookie']).toBeUndefined();
-          expect(await firstResponse.text()).toContain('http-equiv="refresh"');
+          await expect.poll(() => callbackBodies.at(-1) ?? '').toContain('http-equiv="refresh"');
         } else {
           expect(received.cookie).toContain(`${cookieName}=${sid.value}`);
           expect(firstResponse.status()).toBe(302);
