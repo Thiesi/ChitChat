@@ -10,6 +10,7 @@ use ChitChat\Http\Request;
 use ChitChat\Observability\SseConnectionTracker;
 use ChitChat\Realtime\EventRepository;
 use ChitChat\Realtime\SseEncoder;
+use ChitChat\Realtime\SseBatchGuard;
 
 /** @var ChitChat\Config $config */
 $config = require dirname(__DIR__, 4) . '/bootstrap/http.php';
@@ -58,6 +59,7 @@ try {
     flush();
 
     $events = new EventRepository($pdo);
+    $batchGuard = new SseBatchGuard($pdo);
     $deadline = microtime(true) + 25.0;
     $lastHeartbeat = 0.0;
     $lastLeaseRefresh = microtime(true);
@@ -74,6 +76,13 @@ try {
             break;
         }
         $batch = $events->visibleAfter($actor, $afterId, 100);
+        $checked = $batchGuard->filter($actor, $login, $batch);
+        if ($checked['reason'] !== null) {
+            echo SseEncoder::sessionInvalidated($checked['reason']);
+            flush();
+            break;
+        }
+        $batch = $checked['events'];
         foreach ($batch as $event) {
             echo SseEncoder::event($event);
             $afterId = $event->id;
