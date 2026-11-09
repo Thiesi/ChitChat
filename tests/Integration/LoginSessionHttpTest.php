@@ -22,7 +22,7 @@ final class LoginSessionHttpTest extends DatabaseTestCase
     {
         $auth = new AuthService($this->pdo, $this->config);
         $actor = $auth->register('Member', 'a very secure password', '127.0.0.1');
-        $auth->register('Other', 'different secure passphrase', '127.0.0.2');
+        $other = $auth->register('Other', 'different secure passphrase', '127.0.0.2');
         $socket = stream_socket_server('tcp://127.0.0.1:0', $code, $message);
         self::assertIsResource($socket, $message);
         $address = stream_socket_get_name($socket, false);
@@ -37,7 +37,7 @@ final class LoginSessionHttpTest extends DatabaseTestCase
         fclose($pipes[0]);
         try {
             PhpHttpFixture::waitUntilReady($process, $address, $log);
-            foreach (['one','two','three','foreign'] as $jar) {
+            foreach (['one','two','three','logout','guest','reset','foreign'] as $jar) {
                 [$status, $bootstrap] = $this->request($jar, '/api/v1/session.php');
                 self::assertSame(200, $status);
                 self::assertTrue($bootstrap['capabilities']['signed_in_sessions']);
@@ -48,7 +48,7 @@ final class LoginSessionHttpTest extends DatabaseTestCase
             [$status, $list] = $this->request('one', '/api/v1/account/sessions/list.php');
             self::assertSame(200, $status);
             self::assertSame(50, $list['maximum_sessions']);
-            self::assertCount(3, $list['sessions']);
+            self::assertCount(6, $list['sessions']);
             $current = $list['sessions'][0]['id'];
             self::assertTrue($list['sessions'][0]['current']);
             $second = $this->request('two', '/api/v1/account/sessions/list.php')[1]['sessions'][0]['id'];
@@ -65,8 +65,11 @@ final class LoginSessionHttpTest extends DatabaseTestCase
             self::assertSame('session_revoked', $revoked['error']['code']);
             self::assertNull($this->request('two', '/api/v1/session.php')[1]['user']);
             self::assertSame(200, $this->request('three', '/api/v1/account/sessions/list.php')[0]);
-            self::assertSame(1, $this->request('one', '/api/v1/account/sessions/revoke-others.php', [])[1]['revoked_count']);
+            self::assertSame(4, $this->request('one', '/api/v1/account/sessions/revoke-others.php', [])[1]['revoked_count']);
             self::assertSame(0, $this->request('one', '/api/v1/account/sessions/revoke-others.php', [])[1]['revoked_count']);
+            self::assertSame(200, $this->request('logout', '/api/v1/logout.php', [])[0], 'A revoked holder can explicitly sign out.');
+            self::assertNull($this->request('logout', '/api/v1/session.php')[1]['user']);
+            self::assertSame(200, $this->request('reset', '/api/v1/password-reset/challenge.php')[0], 'A revoked holder can begin password recovery.');
             self::assertSame($current, $this->request('one', '/api/v1/account/sessions/list.php')[1]['sessions'][0]['id']);
             self::assertSame($actor->sessionVersion, (int) $this->pdo->query('SELECT session_version FROM users WHERE id = ' . $actor->id)->fetchColumn());
             self::assertSame('session_revoked', $this->request('three', '/api/v1/account/sessions/list.php')[1]['error']['code']);
@@ -82,7 +85,7 @@ final class LoginSessionHttpTest extends DatabaseTestCase
             self::assertGreaterThan(0, $limited['error']['retry_after_seconds']);
             self::assertSame((string) $limited['error']['retry_after_seconds'], $this->headers['retry-after']);
             $this->pdo->exec("UPDATE system_settings SET guest_access_enabled = TRUE, registration_min_fill_seconds = 0, registration_proof_of_work_bits = 0 WHERE id = 1");
-            $this->request('guest', '/api/v1/session.php');
+            // This jar still carries its revoked member cookie: guest start must treat it as anonymous.
             [$status, $started] = $this->request('guest', '/api/v1/guest/start.php', []);
             self::assertSame(201, $status);
             self::assertTrue($started['user']['guest']);
@@ -93,6 +96,29 @@ final class LoginSessionHttpTest extends DatabaseTestCase
             self::assertSame(401, $this->request('guest', '/api/v1/account/sessions/list.php')[0]);
             (new \ChitChat\Auth\GuestService($this->pdo))->endExpired();
             self::assertSame(0, (int) $this->pdo->query('SELECT COUNT(*) FROM login_sessions WHERE revoked_at IS NULL AND user_id = ' . $guestId)->fetchColumn());
+            // Account A remains signed in on this jar while account B begins MFA sign-in.
+            $this->request('relogin', '/api/v1/session.php');
+            self::assertSame(200, $this->request('relogin', '/api/v1/login.php',
+                ['username' => 'Other', 'password' => 'different secure passphrase'])[0]);
+            $oldId = $this->request('relogin', '/api/v1/account/sessions/list.php')[1]['sessions'][0]['id'];
+            $lookup = $this->pdo->prepare('SELECT binding_hash FROM login_sessions WHERE id = :id');
+            $lookup->execute(['id' => $oldId]);
+            $oldHash = $lookup->fetchColumn();
+            self::assertIsString($oldHash);
+            \ChitChat\Tests\Support\PushFixtures::subscriptions($this->pdo)->subscribe($other,
+                'https://push.example/replaced-login', \ChitChat\Tests\Support\PushFixtures::key(),
+                \ChitChat\Tests\Support\PushFixtures::auth(), null, $oldHash);
+            $factor = \ChitChat\Tests\Support\TestPasskey::create();
+            $factor->seed($this->pdo, $actor->id);
+            self::assertSame(202, $this->request('relogin', '/api/v1/login.php',
+                ['username' => 'Member', 'password' => 'a very secure password'])[0]);
+            self::assertSame(1, (int) $this->pdo->query('SELECT COUNT(*) FROM push_subscriptions')->fetchColumn());
+            self::assertSame(200, $this->request('relogin', '/api/v1/mfa/login-recovery.php',
+                ['recovery_code' => $factor->recoveryCode])[0]);
+            self::assertSame($actor->id, $this->request('relogin', '/api/v1/session.php')[1]['user']['id']);
+            self::assertSame(0, (int) $this->pdo->query('SELECT COUNT(*) FROM push_subscriptions')->fetchColumn());
+            self::assertSame(1, (int) $this->pdo->query("SELECT COUNT(*) FROM login_sessions WHERE id = '" . $oldId . "' AND revoked_at IS NOT NULL")->fetchColumn());
+            self::assertCount(1, $this->request('foreign', '/api/v1/account/sessions/list.php')[1]['sessions'], 'A different browser of account A survives.');
             self::assertStringNotContainsString('a very secure password', file_get_contents($log) ?: '');
         } finally {
             if (proc_get_status($process)['running']) proc_terminate($process);

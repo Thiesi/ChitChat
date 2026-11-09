@@ -65,6 +65,25 @@ final class NativeAuthSessionTest extends TestCase
         }
     }
 
+    public function testMfaCarriesOnlyTheHashedReplacedLoginUntilFullCompletion(): void
+    {
+        $old = new AuthenticatedUser(2, 'Previous', [], 3);
+        $next = new AuthenticatedUser(3, 'Next', [], 1);
+        $issued = new \ChitChat\Auth\IssuedLogin(str_repeat('A', 43), $old->id, $old->sessionVersion, str_repeat('a', 64));
+        SessionManager::login($old, $issued);
+        $expected = ['id' => $issued->id, 'user_id' => $old->id, 'hash' => hash('sha256', $issued->token)];
+        SessionManager::beginMfaLogin($next, '192.0.2.1', 300);
+        self::assertArrayNotHasKey('auth', $_SESSION);
+        self::assertSame($expected, $_SESSION['pending_mfa']['replaced_login']);
+        self::assertSame($expected, SessionManager::replacedLoginBinding());
+        self::assertStringNotContainsString($issued->token, json_encode($_SESSION['pending_mfa'], JSON_THROW_ON_ERROR));
+        SessionManager::beginMfaLogin($next, '192.0.2.1', 300);
+        self::assertSame($expected, SessionManager::replacedLoginBinding(), 'A restarted factor does not lose the original browser holder.');
+        SessionManager::login($next, new \ChitChat\Auth\IssuedLogin(str_repeat('B', 43), $next->id, $next->sessionVersion, str_repeat('b', 64)));
+        self::assertArrayNotHasKey('pending_mfa', $_SESSION);
+        self::assertSame(str_repeat('B', 43), SessionManager::loginBinding()['id']);
+    }
+
     public function testNativeMfaIsBoundToItsTransactionAndSessionRatherThanItsNetwork(): void
     {
         $user = new AuthenticatedUser(2, 'Member', [], 3);

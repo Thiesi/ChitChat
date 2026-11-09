@@ -19,7 +19,7 @@ Endpoint::run($config, static function () use ($config): ApiResult {
     // A guest who leaves is gone for good; the name stays on their messages.
     if (isset($_SESSION['auth'])) {
         $pdo = Database::connect($config);
-        $user = SessionManager::currentUser(new UserRepository($pdo));
+        $user = SessionManager::currentUserOrNull(new UserRepository($pdo));
         if ($user !== null && !$user->guest) {
             $binding = SessionManager::loginBinding();
             if ($binding !== null) (new \ChitChat\Auth\LoginSessionRepository($pdo))->logout($user->id, $binding['id'], $binding['hash']);

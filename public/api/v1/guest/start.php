@@ -22,7 +22,7 @@ Endpoint::run($config, static function () use ($config): ApiResult {
     SessionManager::requireCsrf(Request::csrfHeader());
     $payload = Request::json();
     $pdo = Database::connect($config);
-    if (SessionManager::currentUser(new UserRepository($pdo)) !== null) {
+    if (SessionManager::currentUserOrNull(new UserRepository($pdo)) !== null) {
         throw new ApiException(409, 'already_signed_in', 'You are already signed in.');
     }
 

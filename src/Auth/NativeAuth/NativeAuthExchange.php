@@ -50,7 +50,8 @@ final readonly class NativeAuthExchange
         if ($this->pdo->inTransaction()) throw new RuntimeException('Native exchange must own its transaction.');
         $this->pdo->beginTransaction();
         try {
-            $this->guard->lockAccountPolicy($snapshot['user_id'] === null ? null : (int) $snapshot['user_id'], $snapshot['purpose'] === 'restore');
+            $this->guard->lockAccountPolicy($snapshot['user_id'] === null ? null : (int) $snapshot['user_id'],
+                $snapshot['purpose'] === 'restore', SessionManager::replacedLoginBinding()['user_id'] ?? null);
             $row = $this->rows->require($id, true);
             $this->guard->nativeOwner($row);
             $error = $this->guard->errorCode($row);

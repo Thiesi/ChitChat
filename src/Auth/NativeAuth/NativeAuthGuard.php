@@ -86,7 +86,7 @@ final readonly class NativeAuthGuard
     }
 
     /** Must precede the native transaction row and every credential/identity write lock. */
-    public function lockAccountPolicy(?int $userId, bool $restoration = false): void
+    public function lockAccountPolicy(?int $userId, bool $restoration = false, ?int $replacedUserId = null): void
     {
         if (!$this->pdo->inTransaction()) throw new RuntimeException('Native account locks require a transaction.');
         // Match registration and policy writes: rules, installation policy, account, then native row.
@@ -103,11 +103,17 @@ final readonly class NativeAuthGuard
             $closure->execute(['id' => $userId]);
             if ($closure->fetchColumn() === false) throw self::failure('account_changed');
         }
-        if ($userId !== null) {
+        // Native completion may retire a previous browser's login on another account.
+        // Prelock both accounts in ID order, before native/factor/login rows; ordinary
+        // web issuance uses this same order without taking the native policy mutex.
+        $accounts = array_unique([...($userId === null ? [] : [$userId]),
+            ...($replacedUserId === null ? [] : [$replacedUserId])]);
+        sort($accounts, SORT_NUMERIC);
+        foreach ($accounts as $id) {
             $statement = $this->pdo->prepare('SELECT id FROM users WHERE id = :id FOR NO KEY UPDATE');
             if ($statement === false) throw new RuntimeException('Unable to prepare native account lock.');
-            $statement->execute(['id' => $userId]);
-            if ($statement->fetchColumn() === false) throw self::failure('account_changed');
+            $statement->execute(['id' => $id]);
+            if ($statement->fetchColumn() === false && $id === $userId) throw self::failure('account_changed');
         }
     }
 

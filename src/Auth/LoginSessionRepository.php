@@ -18,13 +18,18 @@ final readonly class LoginSessionRepository
 
     public function __construct(private PDO $pdo) {}
 
-    /** Call only after successful full proof; an existing outer transaction retains ownership. */
-    public function issue(AuthenticatedUser $user, ?string $userAgent = null): IssuedLogin
+    /** Call only after successful full proof; an existing outer transaction retains ownership.
+     * @param array{id:string,user_id:int,hash:string}|null $replaced
+     */
+    public function issue(AuthenticatedUser $user, ?string $userAgent = null, ?array $replaced = null): IssuedLogin
     {
         $own = !$this->pdo->inTransaction();
         if ($own) $this->pdo->beginTransaction();
         try {
-            $old = SessionManager::loginBinding();
+            $old = $replaced ?? SessionManager::replacedLoginBinding();
+            // Native callers prelock these accounts via lockAccountPolicy before
+            // touching native/factor rows. A newly inserted sign-up account is private
+            // to its creating transaction, so no other issuer can hold that row yet.
             $accounts = array_unique([$user->id, ...($old === null ? [] : [$old['user_id']])]);
             sort($accounts, SORT_NUMERIC);
             foreach ($accounts as $id) $this->query('SELECT id FROM users WHERE id = :id FOR NO KEY UPDATE', ['id' => $id]);
@@ -83,7 +88,9 @@ WHERE id = :id AND user_id = :user AND session_version = :version AND binding_ha
 SQL, ['id' => $id, 'user' => $userId, 'version' => $version, 'hash' => $hash])->fetch();
         if (!is_array($row)) return 'authentication_required';
         if ($row['revoked_at'] !== null) return 'session_revoked';
-        if ($touch) {
+        // Optional-auth checks can run after native/factor row locks. Never turn
+        // a read into a login-row lock ahead of the account lock in an outer transaction.
+        if ($touch && !$this->pdo->inTransaction()) {
             $this->query(<<<'SQL'
 UPDATE login_sessions SET last_seen_at = clock_timestamp()
 WHERE id = :id AND revoked_at IS NULL AND last_seen_at < clock_timestamp() - interval '5 minutes'

@@ -83,6 +83,22 @@ final class SessionManager
             'version' => $auth['session_version'], 'hash' => hash('sha256', $auth['push_token'])];
     }
 
+    /** A proved login may replace a holder captured before primary authentication cleared auth.
+     * @return array{id:string,user_id:int,hash:string}|null
+     */
+    public static function replacedLoginBinding(): ?array
+    {
+        $current = self::loginBinding();
+        if ($current !== null) return ['id' => $current['id'], 'user_id' => $current['user_id'], 'hash' => $current['hash']];
+        $pending = $_SESSION['pending_mfa'] ?? null;
+        $old = is_array($pending) ? ($pending['replaced_login'] ?? null) : null;
+        if (!is_array($old) || !is_string($old['id'] ?? null) || !is_int($old['user_id'] ?? null)
+            || $old['user_id'] < 1 || !is_string($old['hash'] ?? null)
+            || preg_match('/\A[A-Za-z0-9_-]{43}\z/D', $old['id']) !== 1
+            || preg_match('/\A[0-9a-f]{64}\z/D', $old['hash']) !== 1) return null;
+        return ['id' => $old['id'], 'user_id' => $old['user_id'], 'hash' => $old['hash']];
+    }
+
     /** Server-only binding. A legacy or damaged session never creates a new credential. */
     public static function pushBindingHash(): string
     {
@@ -152,6 +168,7 @@ final class SessionManager
         if (!in_array($flow, self::MFA_FLOWS, true)) {
             throw new ApiException(500, 'invalid_mfa_flow', 'Unsupported multi-factor sign-in flow.');
         }
+        $replaced = self::replacedLoginBinding();
         if ($nativeTransaction === null) {
             \ChitChat\Auth\NativeAuth\NativeAuthSession::invalidate();
         } elseif (\ChitChat\Auth\NativeAuth\NativeAuthSession::nativeHash() === null) {
@@ -167,6 +184,7 @@ final class SessionManager
             'flow' => $flow,
             'expires_at' => time() + $ttlSeconds,
             ...($nativeTransaction === null ? [] : ['native_transaction' => $nativeTransaction]),
+            ...($replaced === null ? [] : ['replaced_login' => $replaced]),
         ];
         $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
     }
@@ -319,6 +337,19 @@ final class SessionManager
             return null;
         }
         return $user;
+    }
+
+    /** Optional-auth entry points must still be usable when a holder was revoked.
+     * currentUser already clears its private state before throwing this one outcome.
+     */
+    public static function currentUserOrNull(UserRepository $users): ?AuthenticatedUser
+    {
+        try {
+            return self::currentUser($users);
+        } catch (ApiException $exception) {
+            if ($exception->errorCode !== 'session_revoked') throw $exception;
+            return null;
+        }
     }
 
     /**

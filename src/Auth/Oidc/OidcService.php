@@ -364,7 +364,7 @@ final class OidcService
     private function stepUp(int $userId, OidcProvider $provider, array $claims, int $startedAt, string $ipAddress): string
     {
         $returnTo = self::RETURN_TO['step_up'];
-        $current = SessionManager::currentUser($this->users);
+        $current = SessionManager::currentUserOrNull($this->users);
         if ($current === null || $current->guest || $current->id !== $userId) {
             throw new OidcRedirectException($returnTo, 'Your session changed while confirming. Please try again.');
         }
@@ -410,7 +410,7 @@ final class OidcService
     private function importPicture(int $userId, OidcProvider $provider, array $claims, string $ipAddress): string
     {
         $returnTo = self::RETURN_TO['picture'];
-        $current = SessionManager::currentUser($this->users);
+        $current = SessionManager::currentUserOrNull($this->users);
         if ($current === null || $current->guest || $current->id !== $userId) {
             throw new OidcRedirectException($returnTo, 'Your session changed meanwhile. Please try again.');
         }
@@ -480,7 +480,7 @@ final class OidcService
 
     private function link(int $userId, OidcProvider $provider, string $subject, string $ipAddress): string
     {
-        $current = SessionManager::currentUser($this->users);
+        $current = SessionManager::currentUserOrNull($this->users);
         if ($current === null || $current->guest || $current->id !== $userId) {
             throw new OidcRedirectException('/', 'Your session changed while connecting. Please sign in and try again.');
         }

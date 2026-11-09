@@ -280,7 +280,7 @@ SQL);
 
     private function requireAnonymous(): void
     {
-        if (SessionManager::currentUser($this->users) !== null) {
+        if (SessionManager::currentUserOrNull($this->users) !== null) {
             throw new ApiException(409, 'already_signed_in', 'Sign out before using password recovery.');
         }
     }
