@@ -1,3 +1,4 @@
+import { clearLocalPush, clearLocalPushForDevice, registerBrowserSubscription } from './push-lifecycle.js';
 import { ApiError, apiGet, apiPost, setCsrfToken } from './api.js';
 import { formatDateTime } from './datetime.js';
 
@@ -85,8 +86,7 @@ async function toggleSubscription() {
   try {
     const registration = await navigator.serviceWorker.ready;
     if (currentEndpoint) {
-      const subscription = await registration.pushManager.getSubscription();
-      await subscription?.unsubscribe();
+      await clearLocalPush();
       await apiPost('/api/v1/push/unsubscribe.php', { endpoint: currentEndpoint });
       currentEndpoint = null;
     } else {
@@ -99,12 +99,7 @@ async function toggleSubscription() {
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
       });
-      const json = subscription.toJSON();
-      await apiPost('/api/v1/push/subscribe.php', {
-        endpoint: json.endpoint,
-        p256dh: json.keys?.p256dh ?? '',
-        auth: json.keys?.auth ?? '',
-      });
+      await registerBrowserSubscription(subscription);
       currentEndpoint = subscription.endpoint;
     }
     updateToggleState();
@@ -172,6 +167,10 @@ function renderDevices(devices) {
 async function revokeDevice(id) {
   elements.error.textContent = '';
   try {
+    if (await clearLocalPushForDevice(id)) {
+      currentEndpoint = null;
+      updateToggleState();
+    }
     const payload = await apiPost('/api/v1/push/revoke-device.php', { id });
     renderDevices(Array.isArray(payload.devices) ? payload.devices : []);
   } catch (error) {

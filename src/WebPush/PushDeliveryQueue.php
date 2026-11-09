@@ -30,7 +30,16 @@ final class PushDeliveryQueue
     /** @param SubscriptionData $subscription */
     public static function fingerprint(array $subscription): string
     {
-        return hash('sha256', json_encode($subscription, JSON_THROW_ON_ERROR));
+        $identity = ['id' => $subscription['id'], 'user_id' => $subscription['user_id'],
+            'endpoint' => $subscription['endpoint'], 'p256dh_key' => $subscription['p256dh_key'],
+            'auth_key' => $subscription['auth_key']];
+        // Preserve already-queued legacy fingerprints during the additive migration.
+        // Binding a registration changes its identity and fences the old delivery.
+        if (isset($subscription['delivery_binding'])) {
+            $identity += ['session_version' => $subscription['session_version'] ?? 0,
+                'delivery_binding' => $subscription['delivery_binding'], 'generation' => $subscription['generation'] ?? 1];
+        }
+        return hash('sha256', json_encode($identity, JSON_THROW_ON_ERROR));
     }
 
     /**
@@ -69,8 +78,9 @@ SQL)->fetch();
                     $counts['skipped_' . $reason] = ($counts['skipped_' . $reason] ?? 0) + 1;
                 } else {
                     $subscriptions = $this->query(<<<'SQL'
-SELECT id, user_id, endpoint, p256dh_key, auth_key FROM push_subscriptions
-WHERE user_id = :user AND created_at <= :created ORDER BY id
+SELECT id, user_id, endpoint, p256dh_key, auth_key, session_version, delivery_binding, generation FROM push_subscriptions
+WHERE user_id = :user AND generation_started_at <= :created
+ AND session_version = (SELECT session_version FROM users WHERE id = push_subscriptions.user_id) ORDER BY id
 SQL, ['user' => $notification->userId, 'created' => $row['created_at']])->fetchAll();
                     if ($subscriptions === []) {
                         $this->markSource($notification->id, 'no_subscriptions', $now);
@@ -109,7 +119,7 @@ SQL, ['job' => $jobId, 'subscription' => $subscription['id'],
         $this->pdo->beginTransaction();
         try {
             $job = $this->query(<<<'SQL'
-SELECT j.id, j.expires_at
+SELECT j.id, j.expires_at, j.event_id::text
 FROM push_dispatch_jobs j
 WHERE j.finished_at IS NULL AND (j.lease_until IS NULL OR j.lease_until <= :lease_now)
   AND EXISTS (
@@ -135,8 +145,9 @@ SQL, ['job' => $jobId])->fetch();
             }
             $delivery = $this->query(<<<'SQL'
 SELECT d.id, d.subscription_fingerprint, d.attempts,
-       s.id AS subscription_id, s.user_id, s.endpoint, s.p256dh_key, s.auth_key
+       s.id AS subscription_id, s.user_id, s.endpoint, s.p256dh_key, s.auth_key, s.session_version, s.delivery_binding, s.generation
 FROM push_deliveries d LEFT JOIN push_subscriptions s ON s.id = d.subscription_id
+ AND s.session_version = (SELECT session_version FROM users WHERE id = s.user_id)
 WHERE d.job_id = :job AND d.state = 'pending'
   AND (d.next_attempt_at <= :due OR :expired::timestamptz >= :deadline::timestamptz)
 ORDER BY d.id LIMIT 1
@@ -157,7 +168,7 @@ SQL, ['job' => $jobId, 'due' => self::time($now), 'expired' => self::time($now),
                 : self::subscription(array_replace($delivery, ['id' => $delivery['subscription_id']]));
             $claim = new PushClaim($jobId, (int) $delivery['id'], $token,
                 (int) $delivery['attempts'] + 1, new DateTimeImmutable((string) $job['expires_at']),
-                $this->notification($source), $subscription, (string) $delivery['subscription_fingerprint']);
+                $this->notification($source), $subscription, (string) $delivery['subscription_fingerprint'], (string) $job['event_id']);
             $this->pdo->commit();
             return $claim;
         } catch (Throwable $exception) {
@@ -181,6 +192,16 @@ SQL, ['id' => $claim->jobId, 'token' => $claim->token, 'now' => self::time($now)
                 $this->pdo->commit();
                 return null;
             }
+            // Subscription/cascade rows precede the ledger, matching revoke/rotation.
+            $pruned = 0;
+            if ($pruneSubscription && $claim->subscription !== null) {
+                $subscription = $claim->subscription;
+                $pruned = $this->query(<<<'SQL'
+DELETE FROM push_subscriptions
+WHERE id = :id AND user_id = :user AND endpoint = :endpoint AND p256dh_key = :p256dh AND auth_key = :auth AND generation = :generation
+SQL, ['id' => $subscription['id'], 'user' => $subscription['user_id'], 'endpoint' => $subscription['endpoint'],
+                    'p256dh' => $subscription['p256dh_key'], 'auth' => $subscription['auth_key'], 'generation' => $subscription['generation'] ?? 1])->rowCount();
+            }
             $this->query(<<<'SQL'
 UPDATE push_deliveries SET state = :state, outcome = :outcome, http_status = :status,
     completed_at = :completed, next_attempt_at = :next
@@ -188,15 +209,6 @@ WHERE id = :id AND job_id = :job
 SQL, ['state' => $state, 'outcome' => $state === 'pending' ? null : $outcome, 'status' => $status,
                 'completed' => $state === 'pending' ? null : self::time($now),
                 'next' => self::time($retryAt ?? $now), 'id' => $claim->deliveryId, 'job' => $claim->jobId]);
-            $pruned = 0;
-            if ($pruneSubscription && $claim->subscription !== null) {
-                $subscription = $claim->subscription;
-                $pruned = $this->query(<<<'SQL'
-DELETE FROM push_subscriptions
-WHERE id = :id AND user_id = :user AND endpoint = :endpoint AND p256dh_key = :p256dh AND auth_key = :auth
-SQL, ['id' => $subscription['id'], 'user' => $subscription['user_id'], 'endpoint' => $subscription['endpoint'],
-                    'p256dh' => $subscription['p256dh_key'], 'auth' => $subscription['auth_key']])->rowCount();
-            }
             $this->query('UPDATE push_dispatch_jobs SET claim_token = NULL, lease_until = NULL WHERE id = :id', ['id' => $claim->jobId]);
             $pending = (int) $this->query("SELECT COUNT(*) FROM push_deliveries WHERE job_id = :job AND state = 'pending'",
                 ['job' => $claim->jobId])->fetchColumn();
@@ -271,9 +283,22 @@ SQL, ['now' => self::time($now), 'age_now' => self::time($now)])->fetch();
     {
         return ['id' => (int) $row['id'], 'user_id' => (int) $row['user_id'],
             'endpoint' => (string) $row['endpoint'], 'p256dh_key' => (string) $row['p256dh_key'],
-            'auth_key' => (string) $row['auth_key']];
+            'auth_key' => (string) $row['auth_key'], 'session_version' => (int) $row['session_version'],
+            'delivery_binding' => $row['delivery_binding'] === null ? null : (string) $row['delivery_binding'],
+            'generation' => (int) $row['generation']];
     }
 
+    public function registrationIsCurrent(PushClaim $claim): bool
+    {
+        if ($claim->subscription === null) {
+            return false;
+        }
+        $row = $this->query(<<<'SQL'
+SELECT s.* FROM push_subscriptions s JOIN users u ON u.id = s.user_id
+WHERE s.id = :id AND s.session_version = u.session_version
+SQL, ['id' => $claim->subscription['id']])->fetch();
+        return is_array($row) && hash_equals($claim->fingerprint, self::fingerprint(self::subscription($row)));
+    }
     private function markSource(int $id, string $reason, DateTimeImmutable $now): void
     {
         $this->query('UPDATE account_notifications SET push_dispatched_at = :now, push_outcome = :reason WHERE id = :id',

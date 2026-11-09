@@ -75,7 +75,7 @@ final class WebPushDispatcher
         $reason = $ttl <= 0 ? 'expired' : $this->eligibility->suppression($claim->notification, $now);
         if ($reason === null && ($claim->subscription === null
             || $claim->subscription['user_id'] !== $claim->notification->userId
-            || !hash_equals($claim->fingerprint, PushDeliveryQueue::fingerprint($claim->subscription)))) {
+            || !$this->queue->registrationIsCurrent($claim))) {
             $reason = 'revoked';
         }
         if ($reason !== null) {
@@ -92,9 +92,15 @@ final class WebPushDispatcher
         }
 
         $rendered = (new PrivacyNotificationService($this->pdo))->renderText($claim->notification->kind, $claim->notification->context);
-        $payload = json_encode(['title' => $rendered['title'], 'body' => $rendered['message'],
-            'link' => $rendered['link'], 'app_name' => (new ApplicationNameService($this->pdo, $this->config))->effective()],
-            JSON_THROW_ON_ERROR);
+        try {
+            $payload = PushPayload::build($claim->notification, $rendered,
+                (new ApplicationNameService($this->pdo, $this->config))->effective(),
+                $claim->eventId, $claim->subscription['delivery_binding'] ?? null);
+        } catch (\LengthException | \InvalidArgumentException | \JsonException) {
+            $this->queue->finish($claim, 'failed', 'payload_too_large', $now);
+            $summary['failed']++;
+            return;
+        }
         try {
             $result = $this->transport?->send($claim->subscription, $payload, $ttl, PushDeliveryPolicy::urgency($claim->notification->kind))
                 ?? new PushSendResult('retry');
@@ -102,6 +108,9 @@ final class WebPushDispatcher
             $result = new PushSendResult('retry');
         }
         $now = ($this->clock)();
+        if (in_array($result->failureReason, ['dns_unavailable', 'dns_no_addresses', 'destination_blocked'], true)) {
+            $summary[$result->failureReason] = ($summary[$result->failureReason] ?? 0) + 1;
+        }
         $state = $result->outcome;
         $outcome = $state === 'sent' ? 'accepted' : ($state === 'expired' ? 'subscription_expired' : 'http_error');
         $retryAt = null;

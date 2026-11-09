@@ -19,6 +19,7 @@ final readonly class PushClaim
         public PushNotification $notification,
         public ?array $subscription,
         public string $fingerprint,
+        public string $eventId,
     ) {
     }
 }

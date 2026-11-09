@@ -10,6 +10,7 @@ final readonly class PushSendResult
         public string $outcome,
         public ?int $httpStatus = null,
         public ?int $retryAfterSeconds = null,
+        public ?string $failureReason = null,
     ) {
     }
 }

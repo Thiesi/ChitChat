@@ -7,7 +7,7 @@ namespace ChitChat\Tests\Integration;
 use ChitChat\Auth\AuthService;
 use ChitChat\Database;
 use ChitChat\Tests\Support\ScriptedPushTransport;
-use ChitChat\WebPush\PushSubscriptionService;
+use ChitChat\Tests\Support\PushFixtures;
 use ChitChat\WebPush\WebPushDispatcher;
 use ChitChat\WebPush\WebPushListener;
 use Minishlink\WebPush\VAPID;
@@ -48,7 +48,7 @@ final class WebPushListenerTest extends DatabaseTestCase
     public function testCommittedNotificationWakesTheLoopBeforeItsSafetySweepWithoutNetwork(): void
     {
         $member = (new AuthService($this->pdo, $this->config))->register('Member', 'a very secure password', '127.0.0.1');
-        (new PushSubscriptionService($this->pdo))->subscribe($member, 'https://push.example/test', 'key', 'auth', null);
+        (PushFixtures::subscriptions($this->pdo))->subscribe($member, 'https://push.example/test', PushFixtures::key(), PushFixtures::auth(), null, str_repeat('a', 64));
         $reader = Database::connect($this->config);
         $config = $this->enabledConfig();
         $transport = new ScriptedPushTransport();
