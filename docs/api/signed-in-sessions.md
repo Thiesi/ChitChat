@@ -77,3 +77,5 @@ public metadata only, excluding private bindings.
 
 Migration 0051 deliberately signs out previous unregistered sessions once.
 See the [operator notes and announcement](../operations/session-registry-upgrade.md).
+
+An SSE stream re-checks its registered login after fetching a visible batch and before writing that batch. If the holder was revoked, the fetched events are discarded and only the top-level forced_logout event with reason session_revoked is emitted for that connection. Other invalid/retired holder proofs use session_invalidated. Other registered logins keep their own streams. This check does not create an account-wide forced_logout event in the event ledger.

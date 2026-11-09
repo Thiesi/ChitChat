@@ -6,6 +6,8 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ## [Unreleased]
 
+- Re-check an SSE login after fetching its event batch; discard the batch and send the connection's existing session_revoked reason when revocation committed during the fetch/check gap. Other signed-in devices keep their streams (#233).
+
 **Upgrade action: everyone will need to sign in again once after this update.**
 Migration 0051 replaces unregistered PHP logins with the signed-in session registry.
 Guest visitors must restart guest access. Tell participants before upgrading using

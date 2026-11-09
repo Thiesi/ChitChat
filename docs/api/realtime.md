@@ -181,3 +181,5 @@ Reverse proxies must not buffer the SSE response. The endpoint sends `X-Accel-Bu
 The implementation intentionally uses short-lived reconnecting streams rather than holding a PHP worker indefinitely.
 
 Registered-login revocation is checked **before each event batch**. Only the revoked connection receives event: forced_logout with data: {"reason":"session_revoked"}. Single-login revocation does not alter the account-wide event log; other devices continue. Account/version invalidation keeps reason session_invalidated.
+
+An SSE stream re-checks its registered login after fetching a visible batch and before writing that batch. If the holder was revoked, the fetched events are discarded and only the top-level forced_logout event with reason session_revoked is emitted for that connection. Other invalid/retired holder proofs use session_invalidated. Other registered logins keep their own streams. This check does not create an account-wide forced_logout event in the event ledger.
