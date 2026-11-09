@@ -13,6 +13,23 @@ $config = require dirname(__DIR__) . '/bootstrap/app.php';
 $name = \ChitChat\Admin\ApplicationNameService::resolve($config);
 $shortName = mb_strlen($name) <= 12 ? $name : rtrim(mb_substr($name, 0, 12));
 
+try {
+    $repository = new \ChitChat\InstallationIcon\IconRepository(\ChitChat\Database::connect($config));
+    $revision = $repository->currentRevision();
+} catch (\Throwable) {
+    // Match the existing installation-name fallback when the database is unavailable.
+    $revision = null;
+}
+$customIcons = null;
+if ($revision !== null) {
+    $customIcons = [];
+    foreach (['icon_192', 'icon_512', 'maskable'] as $variant) {
+        $spec = \ChitChat\InstallationIcon\IconGeneration::VARIANTS[$variant];
+        $customIcons[] = ['src' => '/installation-icon.php?revision=' . $revision . '&variant=' . $variant,
+            'sizes' => $spec['size'] . 'x' . $spec['size'], 'type' => $spec['mime'],
+            'purpose' => $variant === 'maskable' ? 'maskable' : 'any'];
+    }
+}
 header('Content-Type: application/manifest+json; charset=utf-8');
 header('Cache-Control: no-cache');
 echo json_encode([
@@ -26,7 +43,7 @@ echo json_encode([
     // Night ink, as behind the mark, so the splash screen matches the icon.
     'background_color' => '#14111C',
     'theme_color' => '#14111C',
-    'icons' => [
+    'icons' => $customIcons ?? [
         ['src' => '/favicon.svg', 'sizes' => 'any', 'type' => 'image/svg+xml', 'purpose' => 'any'],
         ['src' => '/assets/app-icons/icon-192.png', 'sizes' => '192x192', 'type' => 'image/png', 'purpose' => 'any'],
         ['src' => '/assets/app-icons/icon-512.png', 'sizes' => '512x512', 'type' => 'image/png', 'purpose' => 'any'],

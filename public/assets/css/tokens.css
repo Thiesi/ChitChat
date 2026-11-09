@@ -330,3 +330,11 @@
 .scheme-swatch[data-swatch="rose"] { background: linear-gradient(135deg, #F0A6C4 50%, #1D1419 50%); }
 .scheme-swatch[data-swatch="midnight"] { background: linear-gradient(135deg, #F06A3B 50%, #000000 50%); }
 .scheme-swatch[data-swatch="contrast"] { background: linear-gradient(135deg, #FFD60A 50%, #000000 50%); }
+
+/* Installation icon (#211): the two fixed background choices (Lantern Night
+   and Paper) and stand-ins for light and dark browser tabs, the same in every
+   scheme and theme because they show other software's colours. */
+.icon-swatch-chip[data-swatch="night"] { background: #14111C; }
+.icon-swatch-chip[data-swatch="paper"] { background: #FBF7F1; }
+.icon-tab-light { background: #F1ECE4; color: #1D1A24; }
+.icon-tab-dark { background: #24202E; color: #F3EFE8; }

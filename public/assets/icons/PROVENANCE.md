@@ -13,3 +13,5 @@ These files are copied unchanged from the ChitChat Mobile repository so the web 
 The fonts are self-hosted on purpose: loading them from a font service would send every visitor's address to a third party, and ChitChat's content security policy allows fonts only from its own origin.
 
 The subset covers U+0000–024F, U+0259, U+1E00–1EFF, general punctuation (U+2000–206F), currency (U+20A0–20CF), ™ and the minus sign. Characters outside it (for example → and №, which the source font doesn't contain either) fall back to the system font. Bricolage is used for display text only, never for messages.
+
+The packaged ../app-icons/favicon.ico wraps the existing favicon-32.png bytes in a 32px ICO directory; it introduces no new artwork.
