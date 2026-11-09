@@ -137,3 +137,26 @@
     align-items: stretch;
   }
 }
+
+/* Alerts (#150): each choice is a switch with its label and one line of help. */
+.push-choice {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.15rem 0.75rem;
+  align-items: start;
+}
+.push-choice input {
+  width: 1.25rem;
+  height: 1.25rem;
+  margin-top: 0.15rem;
+  accent-color: var(--signature);
+}
+.push-choice > span { display: grid; gap: 0.1rem; }
+.push-choice-label { font-weight: 600; }
+.push-overlap { margin: 0; font-size: 0.85rem; }
+.push-note {
+  padding: 0.6rem 0.8rem;
+  border-radius: 0.75rem;
+  background: var(--presence-wash);
+}
+#push-status:empty { display: none; }

@@ -37,34 +37,38 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
     </header>
 
     <section class="account-card" aria-labelledby="push-heading">
-      <p class="account-eyebrow">Real-time delivery</p>
-      <h2 id="push-heading">Push notifications</h2>
-      <p>
-        Get a browser notification for select account events even when no <?= $appName ?> tab is open. A push
-        payload never carries a message body — only the same sender and room text already shown below —
-        and is a best-effort nudge, not a delivery guarantee; this timeline remains the complete record.
-      </p>
-      <p id="push-unsupported" class="account-muted hidden">This browser does not support push notifications.</p>
+      <p class="account-eyebrow">Notifications</p>
+      <h2 id="push-heading">Alerts</h2>
       <p id="push-status" class="account-muted" role="status" aria-live="polite"></p>
-      <div class="account-action-row">
-        <button id="push-subscribe-toggle" class="secondary-button" type="button" disabled>Enable push notifications</button>
-      </div>
 
+      <!-- Account-wide: these apply to every device with alerts on, including the ChitChat app,
+           so they're shown whether or not this browser is subscribed (#150). -->
       <div id="push-settings" class="hidden">
+        <p>These choices apply to every device where alerts are on, including the ChitChat app.</p>
+        <p id="push-no-device" class="push-note hidden">No device has alerts turned on yet. Your choices are saved for when you do.</p>
         <form id="push-preferences-form" class="form-stack">
-          <label>
-            <input id="push-mentioned-enabled" type="checkbox">
-            Notify me when I'm mentioned (@username, @room, or @here)
+          <h3>What should alert you?</h3>
+          <label class="push-choice">
+            <input id="push-dm-enabled" type="checkbox" role="switch" aria-describedby="push-dm-help">
+            <span><span class="push-choice-label">New direct messages</span>
+            <span id="push-dm-help" class="account-muted">Someone writes to you directly. The alert never shows what they wrote.</span></span>
           </label>
-          <label>
-            <input id="push-pinged-enabled" type="checkbox">
-            Notify me when someone pings me (/ping)
+          <label class="push-choice">
+            <input id="push-mentioned-enabled" type="checkbox" role="switch" aria-describedby="push-mentioned-help">
+            <span><span class="push-choice-label">Mentions</span>
+            <span id="push-mentioned-help" class="account-muted">@you, @room or @here.</span></span>
           </label>
+          <label class="push-choice">
+            <input id="push-pinged-enabled" type="checkbox" role="switch" aria-describedby="push-pinged-help">
+            <span><span class="push-choice-label">Pings</span>
+            <span id="push-pinged-help" class="account-muted">Someone uses /ping with your name.</span></span>
+          </label>
+          <p class="account-muted push-overlap">If one message is both a direct message and a mention, you get one alert, not two.</p>
 
           <h3>Quiet hours</h3>
-          <p class="account-muted">Push is suppressed during this local time window; the in-app timeline is unaffected.</p>
+          <p class="account-muted">No alerts during these hours. Your notifications here still arrive.</p>
           <label>
-            <span>Start hour</span>
+            <span>From</span>
             <select id="push-quiet-start">
               <option value="">Off</option>
               <?php for ($hour = 0; $hour < 24; $hour++): ?>
@@ -73,7 +77,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
             </select>
           </label>
           <label>
-            <span>End hour</span>
+            <span>To</span>
             <select id="push-quiet-end">
               <option value="">Off</option>
               <?php for ($hour = 0; $hour < 24; $hour++): ?>
@@ -82,7 +86,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
             </select>
           </label>
           <label>
-            <span>Timezone</span>
+            <span>Time zone</span>
             <input id="push-quiet-timezone" type="text" placeholder="e.g. Europe/Berlin" list="push-timezone-options" autocomplete="off">
             <datalist id="push-timezone-options">
               <?php foreach (DateTimeZone::listIdentifiers() as $identifier): ?>
@@ -92,14 +96,27 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
           </label>
 
           <div class="account-action-row">
-            <button id="push-preferences-save" class="secondary-button" type="submit">Save notification preferences</button>
+            <button id="push-preferences-save" class="secondary-button" type="submit">Save</button>
             <p id="push-preferences-status" class="account-muted" role="status" aria-live="polite"></p>
           </div>
         </form>
+      </div>
 
-        <h3>Devices receiving push</h3>
-        <ul id="push-device-list" class="push-device-list" aria-label="Devices subscribed to push notifications"></ul>
-        <p id="push-device-empty" class="account-muted hidden">No devices are currently subscribed.</p>
+      <!-- This device only. -->
+      <div id="push-browser" class="hidden">
+        <h3>This browser</h3>
+        <p id="push-unsupported" class="account-muted hidden">This browser can’t show alerts. Your choices above still apply to your other devices.</p>
+        <p id="push-browser-status" class="account-muted"></p>
+        <div class="account-action-row">
+          <button id="push-subscribe-toggle" class="secondary-button" type="button" disabled>Turn on alerts here</button>
+        </div>
+        <p class="account-muted">Alerts can arrive late or not at all. Your notifications here are always complete.</p>
+      </div>
+
+      <div id="push-devices" class="hidden">
+        <h3>Devices with alerts on</h3>
+        <ul id="push-device-list" class="push-device-list" aria-label="Devices with alerts on"></ul>
+        <p id="push-device-empty" class="account-muted hidden">None yet.</p>
       </div>
 
       <p id="push-error" class="error-text" role="alert"></p>
