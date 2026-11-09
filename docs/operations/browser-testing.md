@@ -58,6 +58,8 @@ Emulation cannot prove behavior with real browser zoom, Windows contrast themes,
 
 `presentation-report-person.spec.js` covers reporting a person: the profile card and direct-message header entries, room versus global context, the success step with ignore and block, already-reported and refused reports, message reports keeping their own wording, the phone bottom sheet, and person cases in the moderation queue with the blurred picture and person actions.
 
+`presentation-recovery.spec.js` covers recovery keys and the self-service password reset: the key shown once after registration (copy, download, the required tick), the reset form with its generic failure and rate-limit copy, the second-factor continuation and its cancel, honest wording when a cancel or the final step gets no answer, creating and replacing a key in Account, and the nudge for accounts without one.
+
 With the application server running, use:
 
 ```sh

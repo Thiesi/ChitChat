@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { completeRecoveryKeyStep } from './support/recovery.js';
 
 const baseURL = process.env.CHITCHAT_BASE_URL ?? 'http://127.0.0.1:8080';
 const member = {
@@ -82,7 +83,7 @@ async function loginOrRegister(page) {
   await page.locator('#register-username').fill(member.username);
   await page.locator('#register-password').fill(member.password);
   await page.getByRole('button', { name: 'Create account' }).click();
-  await expect(page.locator('#chat-shell')).toBeVisible();
+  await completeRecoveryKeyStep(page);
 }
 
 test.describe.serial('ChitChat accessibility checks', () => {

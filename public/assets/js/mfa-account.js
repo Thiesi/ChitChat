@@ -49,6 +49,7 @@ function buildCard() {
       <button id="mfa-recovery-regenerate" class="secondary-button" type="button">Generate new recovery codes</button>
       <span id="mfa-recovery-status" class="account-muted"></span>
     </div>
+    <p class="account-muted">Recovery codes stand in for your passkey. Your recovery key, under Password and recovery, resets a forgotten password. Keep them apart.</p>
     <div class="account-action-row">
       <button id="mfa-disable" class="danger-button" type="button">Disable multi-factor authentication</button>
       <span class="account-muted">Disabling MFA invalidates your other sessions.</span>
