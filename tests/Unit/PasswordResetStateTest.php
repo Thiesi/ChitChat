@@ -55,7 +55,7 @@ final class PasswordResetStateTest extends TestCase
         SessionManager::beginMfaLogin($user, '192.0.2.1', 300);
         self::assertArrayNotHasKey('pending_password_reset', $_SESSION);
         SessionManager::beginPasswordReset($user, $hash, str_repeat('a', 32), '192.0.2.1', 300);
-        SessionManager::login($user);
+        SessionManager::login($user, new \ChitChat\Auth\IssuedLogin(str_repeat('A', 43), $user->id, $user->sessionVersion, str_repeat('a', 64)));
         self::assertArrayNotHasKey('pending_password_reset', $_SESSION);
         self::assertArrayNotHasKey('privileged_step_up', $_SESSION);
     }

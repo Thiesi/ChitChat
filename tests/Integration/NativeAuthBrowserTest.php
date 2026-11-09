@@ -61,7 +61,7 @@ final class NativeAuthBrowserTest extends DatabaseTestCase
     private function start(?AuthenticatedUser $actor = null, string $purpose = 'login'): array
     {
         if ($actor !== null) {
-            SessionManager::login($actor);
+            SessionManager::login($actor, (new \ChitChat\Auth\LoginSessionRepository($this->pdo))->issue($actor));
             if ($purpose === 'link') SessionManager::establishPrivilegedStepUp($actor, 'password');
         }
         $state = NativeConfig::token();
@@ -166,7 +166,7 @@ final class NativeAuthBrowserTest extends DatabaseTestCase
         $view = $this->browser->bootstrapView($bootstrap['cookie']);
         $this->rejects('csrf_failed', fn () => $this->browser->validateBootstrap($bootstrap['cookie'], 'wrong', 'entry'));
         $other = (new AuthService($this->pdo, $this->config))->register('Other', 'a different secure password', '192.0.2.3');
-        SessionManager::login($other);
+        SessionManager::login($other, (new \ChitChat\Auth\LoginSessionRepository($this->pdo))->issue($other));
         $sid = session_id();
         $proof = $this->browser->validateBootstrap($bootstrap['cookie'], $view['csrf_token'], 'entry');
         self::assertNull($this->browser->continueBootstrap($proof, '198.51.100.1'));

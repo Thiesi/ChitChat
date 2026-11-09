@@ -129,6 +129,12 @@ final readonly class NativeAuthGuard
     {
         $requiresActor = in_array($row['purpose'], ['link', 'step_up', 'picture'], true);
         if ($requiresActor) {
+            $login = SessionManager::loginBinding();
+            if ($login === null || ($row['login_session_id'] ?? null) !== $login['id']) throw self::failure('native_session_changed');
+            if ((new \ChitChat\Auth\LoginSessionRepository($this->pdo))->invalidReason(
+                $login['user_id'], $login['version'], $login['id'], $login['hash']) !== null) throw self::failure('native_session_changed');
+        }
+        if ($requiresActor) {
             if ($actor === null || $actor->guest || $actor->id !== (int) $row['user_id']
                 || $actor->sessionVersion !== (int) $row['user_version']) throw self::failure('native_session_changed');
         } elseif ($actor !== null) {

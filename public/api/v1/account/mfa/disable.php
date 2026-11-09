@@ -20,7 +20,7 @@ Endpoint::run($config, static function () use ($config): ApiResult {
     $actor = SessionManager::requireUser(new UserRepository($pdo));
     SessionManager::requirePrivilegedStepUp($actor, $config);
     $user = (new MfaService($pdo, $config))->disable($actor, Request::clientIp());
-    SessionManager::login($user);
+    SessionManager::login($user, (new \ChitChat\Auth\LoginSessionRepository($pdo))->issue($user, $_SERVER['HTTP_USER_AGENT'] ?? null));
 
     return ApiResult::ok([
         'csrf_token' => SessionManager::csrfToken(),

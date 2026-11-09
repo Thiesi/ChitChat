@@ -327,7 +327,7 @@ final class OidcService
             return '/?mfa=continue';
         }
         (new AuthService($this->pdo, $this->config))->completeLogin($user, $ipAddress);
-        SessionManager::login($user);
+        SessionManager::login($user, (new \ChitChat\Auth\LoginSessionRepository($this->pdo))->issue($user, $_SERVER['HTTP_USER_AGENT'] ?? null));
 
         return '/';
     }
@@ -456,7 +456,7 @@ final class OidcService
         } catch (ApiException $exception) {
             throw new OidcRedirectException($returnTo, $exception->getMessage());
         }
-        SessionManager::login($user);
+        SessionManager::login($user, (new \ChitChat\Auth\LoginSessionRepository($this->pdo))->issue($user, $_SERVER['HTTP_USER_AGENT'] ?? null));
 
         return '/';
     }

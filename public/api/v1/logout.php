@@ -9,7 +9,6 @@ use ChitChat\Database;
 use ChitChat\Http\ApiResult;
 use ChitChat\Http\Endpoint;
 use ChitChat\Http\Request;
-use ChitChat\WebPush\PushSubscriptionService;
 
 /** @var ChitChat\Config $config */
 $config = require dirname(__DIR__, 3) . '/bootstrap/http.php';
@@ -22,7 +21,8 @@ Endpoint::run($config, static function () use ($config): ApiResult {
         $pdo = Database::connect($config);
         $user = SessionManager::currentUser(new UserRepository($pdo));
         if ($user !== null && !$user->guest) {
-            (new PushSubscriptionService($pdo))->logout($user, SessionManager::pushBindingHash());
+            $binding = SessionManager::loginBinding();
+            if ($binding !== null) (new \ChitChat\Auth\LoginSessionRepository($pdo))->logout($user->id, $binding['id'], $binding['hash']);
         }
         if ($user !== null && $user->guest) {
             (new GuestService($pdo))->leave($user, Request::clientIp());

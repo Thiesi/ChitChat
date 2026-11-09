@@ -81,8 +81,15 @@ final readonly class NativeAuthTransactions
             if ($purpose === 'step_up' && $actor !== null && (new MfaService($this->pdo, $this->config))->requiresMfaForLogin($actor)) {
                 throw new ApiException(403, 'passkey_step_up_required', 'Use your passkey or recovery code in the app.');
             }
+            $loginId = null;
+            if ($actor !== null) {
+                $login = SessionManager::loginBinding() ?? throw NativeAuthGuard::failure('native_session_changed');
+                (new \ChitChat\Auth\LoginSessionRepository($this->pdo))->requireBound($actor, $login['hash']);
+                $loginId = $login['id'];
+            }
             $this->rows->supersedeBinding($binding);
             $created = $this->rows->insert([
+                'login_session_id' => $loginId,
                 'id' => $id, 'native_binding_hash' => $binding, 'entry_hash' => hash('sha256', $entry),
                 'state_hash' => hash('sha256', $state), 'return_state' => $state, 'code_challenge' => $challenge,
                 'client_id' => $client, 'redirect_uri' => $redirect,

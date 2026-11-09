@@ -21,8 +21,8 @@ final class WebPushTest extends DatabaseTestCase
         $member = $auth->register('Member', 'a very secure password', '127.0.0.1');
 
         $subscriptions = PushFixtures::subscriptions($this->pdo);
-        $subscriptions->subscribe($member, 'https://push.example.org/abc', PushFixtures::key(), PushFixtures::auth(), 'TestAgent/1.0', str_repeat('a', 64));
-        $subscriptions->subscribe($member, 'https://push.example.org/abc', PushFixtures::key(1), PushFixtures::auth(1), 'TestAgent/2.0', str_repeat('a', 64));
+        $subscriptions->subscribe($member, 'https://push.example.org/abc', PushFixtures::key(), PushFixtures::auth(), 'TestAgent/1.0', PushFixtures::login($this->pdo, $member, str_repeat('a', 64)));
+        $subscriptions->subscribe($member, 'https://push.example.org/abc', PushFixtures::key(1), PushFixtures::auth(1), 'TestAgent/2.0', PushFixtures::login($this->pdo, $member, str_repeat('a', 64)));
 
         self::assertSame(
             1,
@@ -54,8 +54,7 @@ final class WebPushTest extends DatabaseTestCase
                 'http://push.example.org/abc',
                 PushFixtures::key(),
                 PushFixtures::auth(),
-                null,
-                str_repeat('a', 64),
+                null, PushFixtures::login($this->pdo, $member, str_repeat('a', 64)),
             );
             self::fail('Expected a non-https endpoint to be rejected.');
         } catch (ApiException $exception) {
@@ -70,7 +69,7 @@ final class WebPushTest extends DatabaseTestCase
         $outsider = $auth->register('Outsider', 'another secure password', '127.0.0.2');
 
         $subscriptions = PushFixtures::subscriptions($this->pdo);
-        $subscriptions->subscribe($owner, 'https://push.example.org/owned', PushFixtures::key(), PushFixtures::auth(), null, str_repeat('a', 64));
+        $subscriptions->subscribe($owner, 'https://push.example.org/owned', PushFixtures::key(), PushFixtures::auth(), null, PushFixtures::login($this->pdo, $owner, str_repeat('a', 64)));
         $deviceId = $subscriptions->list($owner)[0]['id'];
 
         $subscriptions->revoke($outsider, $deviceId);

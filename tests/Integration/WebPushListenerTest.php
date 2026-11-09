@@ -48,7 +48,7 @@ final class WebPushListenerTest extends DatabaseTestCase
     public function testCommittedNotificationWakesTheLoopBeforeItsSafetySweepWithoutNetwork(): void
     {
         $member = (new AuthService($this->pdo, $this->config))->register('Member', 'a very secure password', '127.0.0.1');
-        (PushFixtures::subscriptions($this->pdo))->subscribe($member, 'https://push.example/test', PushFixtures::key(), PushFixtures::auth(), null, str_repeat('a', 64));
+        (PushFixtures::subscriptions($this->pdo))->subscribe($member, 'https://push.example/test', PushFixtures::key(), PushFixtures::auth(), null, PushFixtures::login($this->pdo, $member, str_repeat('a', 64)));
         $reader = Database::connect($this->config);
         $config = $this->enabledConfig();
         $transport = new ScriptedPushTransport();

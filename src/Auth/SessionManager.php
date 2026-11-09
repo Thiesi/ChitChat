@@ -52,33 +52,42 @@ final class SessionManager
         }
     }
 
-    public static function login(AuthenticatedUser $user, bool $preserveNativeBinding = false): void
+    public static function login(AuthenticatedUser $user, IssuedLogin $login, bool $preserveNativeBinding = false): void
     {
+        if ($login->userId !== $user->id || $login->sessionVersion !== $user->sessionVersion) {
+            throw new ApiException(500, 'session_unavailable', 'The issued sign-in does not match this account.');
+        }
         if (!$preserveNativeBinding) \ChitChat\Auth\NativeAuth\NativeAuthSession::invalidate();
         self::rotateSessionIdentifier();
         $_SESSION['auth'] = [
             'user_id' => $user->id,
             'session_version' => $user->sessionVersion,
             'authenticated_at' => time(),
-            'push_token' => bin2hex(random_bytes(32)),
+            'push_token' => $login->token,
+            'login_session_id' => $login->id,
         ];
         unset($_SESSION['pending_mfa'], $_SESSION['privileged_step_up'], $_SESSION['webauthn_ceremony'],
             $_SESSION['pending_password_reset'], $_SESSION['password_reset_challenge']);
         $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
     }
 
-    /** Server-only login binding; never expose the underlying session token to a client. */
+    /** @return array{id:string,user_id:int,version:int,hash:string}|null */
+    public static function loginBinding(): ?array
+    {
+        $auth = $_SESSION['auth'] ?? null;
+        if (!is_array($auth) || !is_int($auth['user_id'] ?? null) || !is_int($auth['session_version'] ?? null)
+            || !is_string($auth['login_session_id'] ?? null) || !is_string($auth['push_token'] ?? null)
+            || preg_match('/\A[A-Za-z0-9_-]{43}\z/D', $auth['login_session_id']) !== 1
+            || preg_match('/\A[0-9a-f]{64}\z/D', $auth['push_token']) !== 1) return null;
+        return ['id' => $auth['login_session_id'], 'user_id' => $auth['user_id'],
+            'version' => $auth['session_version'], 'hash' => hash('sha256', $auth['push_token'])];
+    }
+
+    /** Server-only binding. A legacy or damaged session never creates a new credential. */
     public static function pushBindingHash(): string
     {
-        if (!is_array($_SESSION['auth'] ?? null)) {
-            throw new ApiException(401, 'authentication_required', 'Sign in before managing push.');
-        }
-        $token = $_SESSION['auth']['push_token'] ?? null;
-        if (!is_string($token) || preg_match('/\A[0-9a-f]{64}\z/D', $token) !== 1) {
-            $token = bin2hex(random_bytes(32));
-            $_SESSION['auth']['push_token'] = $token;
-        }
-        return hash('sha256', $token);
+        return self::loginBinding()['hash']
+            ?? throw new ApiException(401, 'authentication_required', 'Sign in before managing push.');
     }
 
     public static function beginPasswordReset(
@@ -292,6 +301,16 @@ final class SessionManager
         $user = $users->findAuthenticatedById($userId);
         if ($user === null || $user->sessionVersion !== $sessionVersion || $users->activeBan($userId) !== null) {
             self::clearAuthentication();
+            return null;
+        }
+        $binding = self::loginBinding();
+        $reason = $binding === null ? 'authentication_required' : $users->loginSessions()->invalidReason(
+            $user->id, $user->sessionVersion, $binding['id'], $binding['hash'], true);
+        if ($reason !== null) {
+            self::clearAuthentication();
+            if ($reason === 'session_revoked') {
+                throw new ApiException(401, 'session_revoked', 'You were signed out from another device. Sign in again.');
+            }
             return null;
         }
         // A guest session ends when it idles out or expires, or guest access is switched off.

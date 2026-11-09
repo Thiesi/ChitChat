@@ -41,7 +41,7 @@ Endpoint::run($config, static function () use ($config): ApiResult {
         $user = (new AccountClosureService($pdo, $config))->completeRestore($user->id, $ipAddress);
     }
     (new AuthService($pdo, $config))->completeLogin($user, $ipAddress);
-    SessionManager::login($user);
+    SessionManager::login($user, (new \ChitChat\Auth\LoginSessionRepository($pdo))->issue($user, $_SERVER['HTTP_USER_AGENT'] ?? null));
     SessionManager::establishPrivilegedStepUp($user, 'passkey');
 
     return ApiResult::ok([

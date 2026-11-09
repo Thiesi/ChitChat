@@ -85,6 +85,11 @@ SQL);
         ];
     }
 
+    public function loginSessions(): LoginSessionRepository
+    {
+        return new LoginSessionRepository($this->pdo);
+    }
+
     public function findAuthenticatedById(int $userId): ?AuthenticatedUser
     {
         $statement = $this->pdo->prepare(<<<'SQL'

@@ -55,7 +55,7 @@ final class NativeAuthSessionTest extends TestCase
             NativeAuthSession::nativeHash(true);
             NativeAuthSession::setContinuation(NativeConfig::token(), 'provider-subject');
             match ($action) {
-                'login' => SessionManager::login($user),
+                'login' => SessionManager::login($user, new \ChitChat\Auth\IssuedLogin(str_repeat('A', 43), $user->id, $user->sessionVersion, str_repeat('a', 64))),
                 'mfa' => SessionManager::beginMfaLogin($user, '192.0.2.1', 300),
                 default => SessionManager::beginPasswordReset($user, password_hash('fixture password', PASSWORD_DEFAULT),
                     str_repeat('a', 32), '192.0.2.1', 300),

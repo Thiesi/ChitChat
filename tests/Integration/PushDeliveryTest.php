@@ -349,7 +349,7 @@ final class PushDeliveryTest extends DatabaseTestCase
 
     private function subscribe(AuthenticatedUser $member, string $suffix): int
     {
-        (PushFixtures::subscriptions($this->pdo))->subscribe($member, 'https://push.example/' . $suffix, PushFixtures::key(), PushFixtures::auth(), null, str_repeat('a', 64));
+        (PushFixtures::subscriptions($this->pdo))->subscribe($member, 'https://push.example/' . $suffix, PushFixtures::key(), PushFixtures::auth(), null, PushFixtures::login($this->pdo, $member, str_repeat('a', 64)));
         return (int) $this->pdo->query('SELECT MAX(id) FROM push_subscriptions')->fetchColumn();
     }
 

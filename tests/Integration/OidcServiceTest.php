@@ -344,7 +344,9 @@ final class OidcServiceTest extends DatabaseTestCase
 
     private function signInAs(AuthenticatedUser $user): void
     {
-        $_SESSION['auth'] = ['user_id' => $user->id, 'session_version' => $user->sessionVersion, 'authenticated_at' => time()];
+        $issued = (new \ChitChat\Auth\LoginSessionRepository($this->pdo))->issue($user);
+        $_SESSION['auth'] = ['user_id' => $user->id, 'session_version' => $user->sessionVersion,
+            'authenticated_at' => time(), 'login_session_id' => $issued->id, 'push_token' => $issued->token];
     }
 
     /** @return array{AuthenticatedUser, AuthenticatedUser} */

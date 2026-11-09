@@ -96,6 +96,7 @@ final class CleanupService
                     'SELECT COUNT(*) FROM realtime_events WHERE (expires_at IS NOT NULL AND expires_at <= NOW()) OR created_at < :cutoff',
                     $cutoffs['event'],
                 ),
+                'retired_login_sessions' => $this->scalarCount("SELECT COUNT(*) FROM login_sessions WHERE revoked_at < clock_timestamp() - interval '7 days'"),
                 'login_attempts' => $this->count(
                     'SELECT COUNT(*) FROM login_attempts WHERE created_at < :cutoff',
                     $cutoffs['login'],
@@ -147,6 +148,7 @@ final class CleanupService
                     'DELETE FROM realtime_events WHERE (expires_at IS NOT NULL AND expires_at <= NOW()) OR created_at < :cutoff',
                     $cutoffs['event'],
                 );
+                $result['retired_login_sessions'] = (new \ChitChat\Auth\LoginSessionRepository($this->pdo))->prune();
                 $result['login_attempts'] = $this->delete(
                     'DELETE FROM login_attempts WHERE created_at < :cutoff',
                     $cutoffs['login'],

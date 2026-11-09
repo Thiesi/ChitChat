@@ -317,3 +317,5 @@ challenge is checked before rules acceptance and account mutation. Login remains
 available while rules acceptance is pending. See [policy contract](policies.md).
 
 See [password recovery](password-recovery.md) for the private `user.recovery_key` status, once-only key disclosure, dedicated reset MFA flow, and password-change/admin-reset rotation policy.
+
+Registered logins are enforced on every authenticated request. A revoked holder receives 401 session_revoked once before its local PHP authentication is cleared. A fresh bootstrap establishes the anonymous CSRF context for signing in again. Version-invalidated logins retain the previous behavior. See [signed-in sessions](signed-in-sessions.md) and the [one-time upgrade sign-in](../operations/session-registry-upgrade.md).
