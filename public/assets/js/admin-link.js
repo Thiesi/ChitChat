@@ -45,14 +45,19 @@ window.addEventListener('DOMContentLoaded', () => {
         link.classList.add('hidden');
         return;
       }
+      // Stewarding, as on the shell's rail (shell.js): administrators and room
+      // owners go to administration, moderators (global or room) to the queue.
+      // On phones this menu is how staff get there until You has it (S2b).
       const roles = Array.isArray(session.user.roles) ? session.user.roles : [];
-      let allowed = roles.some((role) => ['super_admin', 'admin', 'chat_admin'].includes(role));
-      if (!allowed) {
+      let destination = roles.some((role) => ['super_admin', 'admin', 'chat_admin'].includes(role)) ? '/admin.php' : null;
+      if (!destination) {
         const response = await apiGet('/api/v1/rooms/list.php');
         const rooms = Array.isArray(response.rooms) ? response.rooms : [];
-        allowed = rooms.some((room) => room.member_role === 'owner');
+        if (rooms.some((room) => room.member_role === 'owner')) destination = '/admin.php';
+        else if (roles.includes('global_moderator') || rooms.some((room) => room.member_role === 'moderator')) destination = '/moderation.php';
       }
-      link.classList.toggle('hidden', !allowed);
+      if (destination) link.href = destination;
+      link.classList.toggle('hidden', !destination);
     } catch {
       link.classList.add('hidden');
     } finally {

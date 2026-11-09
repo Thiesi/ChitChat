@@ -226,6 +226,22 @@ test.describe('phones: the bottom bar', () => {
     await page.screenshot({ path: testInfo.outputPath('shell-360.png') });
   });
 
+  // Until You carries Stewarding on phones (S2b), the account menu does, for every kind of staff.
+  for (const [label, options, destination] of [
+    ['an administrator', { user: { ...member, roles: ['admin'] } }, '/admin.php'],
+    ['a global moderator', { user: { ...member, roles: ['global_moderator'] } }, '/moderation.php'],
+    ['a room moderator', { roomRole: 'moderator' }, '/moderation.php'],
+  ]) {
+    test(`${label} reaches Stewarding from the account menu`, async ({ page }) => {
+      await fixture(page, options);
+      await openRooms(page);
+      await page.getByRole('button', { name: 'Account menu' }).click();
+      const link = page.locator('#user-menu').getByRole('link', { name: 'Stewarding' });
+      await expect(link).toBeVisible();
+      await expect(link).toHaveAttribute('href', destination);
+    });
+  }
+
   test('the bar leaves while typing and comes back after', async ({ page }) => {
     await fixture(page);
     await openRooms(page);
