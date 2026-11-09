@@ -59,10 +59,25 @@ final class SessionManager
             'user_id' => $user->id,
             'session_version' => $user->sessionVersion,
             'authenticated_at' => time(),
+            'push_token' => bin2hex(random_bytes(32)),
         ];
         unset($_SESSION['pending_mfa'], $_SESSION['privileged_step_up'], $_SESSION['webauthn_ceremony'],
             $_SESSION['pending_password_reset'], $_SESSION['password_reset_challenge']);
         $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+    }
+
+    /** Server-only login binding; never expose the underlying session token to a client. */
+    public static function pushBindingHash(): string
+    {
+        if (!is_array($_SESSION['auth'] ?? null)) {
+            throw new ApiException(401, 'authentication_required', 'Sign in before managing push.');
+        }
+        $token = $_SESSION['auth']['push_token'] ?? null;
+        if (!is_string($token) || preg_match('/\A[0-9a-f]{64}\z/D', $token) !== 1) {
+            $token = bin2hex(random_bytes(32));
+            $_SESSION['auth']['push_token'] = $token;
+        }
+        return hash('sha256', $token);
     }
 
     public static function beginPasswordReset(

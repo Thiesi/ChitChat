@@ -61,6 +61,9 @@ final readonly class Config
         public string $oidcRedirectOrigin = '',
         /** Canonical public installation origin, independent of enabled auth providers. */
         public string $applicationOrigin = '',
+        /** @var list<array{origin:string,cidrs:list<string>}> */
+        public array $webPushPrivateProviders = [],
+        public string $webPushDnsResolvConf = '/etc/resolv.conf',
     ) {
         if ($this->databasePort < 1 || $this->databasePort > 65535) {
             throw new InvalidArgumentException('DB_PORT must be between 1 and 65535.');
@@ -129,6 +132,11 @@ final readonly class Config
         $this->validateApplicationOrigin();
         $this->validateWebAuthnConfiguration();
         $this->validateWebPushConfiguration();
+        new \ChitChat\WebPush\PushAddressPolicy($this->webPushPrivateProviders);
+        if ($this->webPushDnsResolvConf !== '/etc/resolv.conf'
+            && (!is_file($this->webPushDnsResolvConf) || !is_readable($this->webPushDnsResolvConf))) {
+            throw new InvalidArgumentException('WEB_PUSH_DNS_RESOLV_CONF must be a readable file.');
+        }
         $this->rateLimits = $rateLimits ?? RateLimitPolicySet::defaults(
             $this->loginMaxAttempts,
             $this->loginLockMinutes * 60,
@@ -183,6 +191,8 @@ final readonly class Config
             oidcProviders: self::oidcProviders(self::env('APP_ENV', 'production')),
             oidcRedirectOrigin: self::normalizeOrigin(self::env('OIDC_REDIRECT_ORIGIN', self::env('WEBAUTHN_ORIGIN', ''))),
             applicationOrigin: self::normalizeOrigin(self::env('APP_ORIGIN', '')),
+            webPushPrivateProviders: \ChitChat\WebPush\PushAddressPolicy::fromJson(self::env('WEB_PUSH_PRIVATE_PROVIDERS', '[]')),
+            webPushDnsResolvConf: self::pushDnsResolvConf(),
         );
     }
 
@@ -217,6 +227,19 @@ final readonly class Config
         return $providers;
     }
 
+    private static function pushDnsResolvConf(): string
+    {
+        $override = self::env('WEB_PUSH_DNS_RESOLV_CONF', '');
+        // An absent Unix default on Windows disables hostname validation, not the
+        // application or literal-IP endpoints. An explicit override must be usable.
+        if ($override === '') {
+            return '/etc/resolv.conf';
+        }
+        if (!is_file($override) || !is_readable($override)) {
+            throw new InvalidArgumentException('WEB_PUSH_DNS_RESOLV_CONF must be a readable file.');
+        }
+        return $override;
+    }
     public function oidcEnabled(): bool
     {
         return $this->oidcProviders !== [] && $this->oidcRedirectOrigin !== '';

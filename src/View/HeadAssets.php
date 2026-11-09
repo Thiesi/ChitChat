@@ -18,6 +18,7 @@ final class HeadAssets
   <link rel="icon" href="/assets/app-icons/favicon-32.png" type="image/png" sizes="32x32">
   <link rel="apple-touch-icon" href="/assets/app-icons/apple-touch-icon.png">
   <link rel="manifest" href="/manifest.php">
+  <script type="module" src="/assets/js/push-lifecycle.js"></script>
   <meta name="theme-color" content="#FBF7F1" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#14111C" media="(prefers-color-scheme: dark)">
 HTML;

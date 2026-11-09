@@ -21,17 +21,20 @@ Endpoint::run($config, static function () use ($config): ApiResult {
     $pdo = Database::connect($config);
     $actor = SessionManager::requireUser(new UserRepository($pdo));
     (new RateLimiter($pdo, $config->rateLimits))->consume(
-        'push_subscription_management',
+        'push_subscription_refresh',
         'user:' . $actor->id,
     );
 
-    (new PushSubscriptionService($pdo))->subscribe(
+    $registration = (new PushSubscriptionService($pdo, limiter: new RateLimiter($pdo, $config->rateLimits)))->subscribe(
         $actor,
         Request::string($payload, 'endpoint'),
         Request::string($payload, 'p256dh'),
         Request::string($payload, 'auth'),
         trim((string) ($_SERVER['HTTP_USER_AGENT'] ?? '')) !== '' ? (string) $_SERVER['HTTP_USER_AGENT'] : null,
+        SessionManager::pushBindingHash(),
+        Request::optionalInteger($payload, 'replaces_id'),
+        Request::optionalString($payload, 'device_label'),
     );
 
-    return ApiResult::ok(['subscribed' => true]);
+    return ApiResult::ok($registration);
 });
