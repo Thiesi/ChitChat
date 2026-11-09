@@ -23,6 +23,9 @@ The deployed browser client has no Node.js runtime dependency and uses no npm pa
    ```
 
 3. Adjust the database values in `.env`.
+   Leave `APP_VERSION` unset: the version comes from the deployed release.
+   Set it only for a custom build. This keeps `/health.php` and
+   `/api/v1/session.php` application.version aligned with the installed source.
 4. For plain HTTP local development, keep `SESSION_COOKIE_SECURE=0`. Production HTTPS deployments must use `SESSION_COOKIE_SECURE=1`.
    Set `APP_ORIGIN=https://chat.example.org` to the canonical public scheme, host and optional port (no path).
    This is especially important behind a TLS-terminating proxy: policy discovery and privacy-notification links
@@ -88,7 +91,7 @@ For local passkey evaluation use `WEBAUTHN_RP_ID=localhost`, `WEBAUTHN_ORIGIN=ht
 
 The first account created through the browser becomes Super-Administrator. That account can create the first room and use **Administration** for users, rooms, audit visibility, direct-message inspection policy, optional revision review, administrative-MFA enforcement, operational settings, and system status.
 
-For a production-like single-server deployment, use Nginx and PHP-FPM as described in `docs/operations/nginx-php-fpm.md`; do not use PHP's development server. That Nginx instance must terminate the client's TCP connection directly — see [Do not add another proxy or CDN in front of this Nginx](docs/operations/nginx-php-fpm.md#do-not-add-another-proxy-or-cdn-in-front-of-this-nginx) before placing any CDN, load balancer, or additional reverse proxy in front of it.
+For a production-like single-server deployment, use Nginx and PHP-FPM as described in `docs/operations/nginx-php-fpm.md`; do not use PHP's development server. That Nginx instance must terminate the client's TCP connection directly — see [Do not add another proxy or CDN in front of this Nginx](docs/operations/nginx-php-fpm.md#do-not-add-another-proxy-or-cdn-in-front-of-this-nginx) before placing any CDN, load balancer, or additional reverse proxy in front of it. On NetBSD with rc.d, cron, and Apache 2.4 plus PHP-FPM, follow [`docs/operations/netbsd-apache.md`](docs/operations/netbsd-apache.md) instead; the same rule applies to that Apache instance.
 
 ## Upgrade from v1.0.0
 
@@ -98,6 +101,9 @@ For a production-like single-server deployment, use Nginx and PHP-FPM as describ
 2. Back up PostgreSQL and the complete attachment-storage directory together.
 3. Preserve `.env` and the configured attachment-storage path.
 4. Deploy the intended ChitChat source or release.
+   If your `.env` sets `APP_VERSION`, remove it (recommended) or update it to the
+   deployed version; an old pin would keep health and client discovery reporting
+   the previous release.
 5. Run:
 
    ```sh
@@ -132,6 +138,18 @@ When passkeys are configured, users may enroll one or more credentials under **A
 A correct password for an MFA-enabled account does not create an authenticated session or record a successful login. It creates a short-lived pending context bound to the account, session version, source IP, CSRF token and expiry. The client then completes a registered passkey assertion or consumes one recovery code through the endpoints documented in `docs/api/mfa.md`.
 
 Account restoration follows the same rule: username and password validate eligibility, but the account remains closure-pending until the second factor succeeds. A cancelled or expired MFA attempt does not cancel closure.
+
+### Native Android passkeys
+
+Set **NATIVE_ANDROID_APPS** to verified package/SHA-256 app-signing certificate
+pairs (default **[]**) alongside the existing WebAuthn RP and web origin.
+Deploy the exact **/.well-known/assetlinks.json** mapping from the
+[Nginx example](docs/operations/nginx-php-fpm.md), including the RP domain if it
+differs from the web host. Existing static declarations take precedence.
+See [Android trust](docs/operations/passkeys.md#android-credential-manager-trust)
+for certificate rotation, Play signing, debug trust and native acceptance.
+This keeps password-first MFA and the existing endpoints. No host configuration
+is installed by updating the application; the operator deploys and verifies it.
 
 ### Privileged step-up
 

@@ -1,0 +1,77 @@
+#!/bin/sh
+#
+# Supervise ChitChat's immediate web push listener for one instance.
+# Started by /etc/rc.d/APPUSER_push as the instance's own user; the
+# per-minute crontab sweep stays as the fallback.
+#
+# Usage: chitchat-push-supervise <app dir> <run dir>
+#
+# - restart on any exit not caused by a stop, after 5 s;
+# - exit 2 (bad arguments) is not restarted;
+# - give up after 5 starts within 60 s;
+# - SIGTERM is passed on; the rc.d script allows 20 s, then SIGKILLs;
+# - virtual memory capped at 256 MB, nice 10, umask 077.
+# pcntl is loaded here with -d, not globally, so PHP-FPM does not load it.
+
+APP=$1
+RUN=$2
+PHP=/usr/pkg/bin/php
+umask 077
+cd "$APP" || exit 1
+
+child=""
+stopping=0
+log() { echo "$(date '+%Y-%m-%d %H:%M:%S') supervisor: $*"; }
+on_term()
+{
+	stopping=1
+	[ -n "$child" ] && kill -TERM "$child" 2>/dev/null
+}
+trap on_term TERM INT
+
+starts=""
+while :; do
+	now=$(date +%s)
+	recent=""
+	n=0
+	for t in $starts; do
+		if [ $((now - t)) -lt 60 ]; then
+			recent="$recent $t"
+			n=$((n + 1))
+		fi
+	done
+	if [ "$n" -ge 5 ]; then
+		log "5 starts within 60 s, giving up (check the errors above)"
+		exit 1
+	fi
+	starts="$recent $now"
+
+	log "starting listener"
+	( ulimit -v 262144; exec nice -n 10 "$PHP" -d extension=pcntl.so bin/dispatch-web-push --listen ) &
+	child=$!
+	echo "$child" > "$RUN/listener.pid"
+	# A trapped signal interrupts wait; keep waiting until the child is gone.
+	while :; do
+		wait "$child"
+		rc=$?
+		kill -0 "$child" 2>/dev/null || break
+	done
+	child=""
+	rm -f "$RUN/listener.pid"
+
+	if [ "$stopping" = 1 ]; then
+		log "stopped (listener exit $rc)"
+		exit 0
+	fi
+	if [ "$rc" = 2 ]; then
+		log "listener exit 2 (bad arguments), not restarting"
+		exit 2
+	fi
+	log "listener exited with $rc, restarting in 5 s"
+	sleep 5 &
+	wait $!
+	if [ "$stopping" = 1 ]; then
+		log "stopped"
+		exit 0
+	fi
+done

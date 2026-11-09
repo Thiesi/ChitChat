@@ -89,3 +89,79 @@ The named policies are:
 - `mfa_management`: enrollment and credential-management operations.
 
 Successful and failed MFA login/step-up attempts are audited without storing challenges, credential IDs, signatures, public keys, recovery-code plaintext, or recovery hashes. Credential-management audits use the internal credential row ID and non-secret state such as the algorithm and backup eligibility.
+
+## Android Credential Manager trust
+
+Native Android passkeys use the existing WebAuthn RP and MFA endpoints. Configure
+**NATIVE_ANDROID_APPS** as a JSON list of package/certificate pairs; the default
+is an empty list, so no Android origin is accepted:
+
+~~~dotenv
+NATIVE_ANDROID_APPS=[]
+~~~
+
+Each entry has exactly **package** and **sha256_cert_fingerprint** string keys.
+Use the exact application ID and SHA-256 signing-certificate digest: 32
+colon-separated hexadecimal bytes (case-insensitive, normalized to uppercase).
+The list accepts at most 32 entries before deduplication and 16384 UTF-8 bytes.
+Malformed JSON, extra fields, invalid packages or digests fail configuration
+loading. Identical pairs are deduplicated. Repeat the package with each approved
+certificate during rotation; remove obsolete certificates deliberately.
+
+The CCM release package is **de.networkxxiii.chitchat**; its debug package is
+**de.networkxxiii.chitchat.debug**. Add only verified signing certificates.
+For a Play-distributed app, obtain the **app signing** SHA-256 certificate from
+Play Console after enrollment, not the upload certificate. Debug certificates
+belong to individual developers and require explicit installation trust. There
+is no shipped or universal debug/production fingerprint.
+
+The server derives each allowed origin as **android:apk-key-hash:** followed by
+unpadded Base64URL of the raw 32 digest bytes. It does not encode the hexadecimal
+text or hash the digest again. Matching is exact; the configured browser origin
+remains accepted unchanged. Android origins identify a signing certificate,
+not an independently attested package: packages sharing a signing key share
+this origin. Package declarations in Digital Asset Links do not add package
+attestation to the WebAuthn assertion.
+
+Both **WEBAUTHN_RP_ID** and **WEBAUTHN_ORIGIN** must still enable WebAuthn.
+Android credentials use that same RP ID. Challenge, ceremony purpose,
+session/account/version/IP binding, expiry, user presence and verification,
+credential uniqueness, accepted algorithms and signature-counter checks all
+remain in force. This adds no passwordless route or first-factor bypass.
+Enrollment and privileged actions still require their existing authorization;
+login, restoration and password reset retain their separate pending-MFA flows.
+
+### Digital Asset Links deployment
+
+Apply the exact-path mapping in [Nginx and PHP-FPM](nginx-php-fpm.md) through
+your normal deployment review. The committed example and CI rehearsal do not
+install or reload a host configuration. Verify the public HTTPS URL
+**https://YOUR-RP-ID/.well-known/assetlinks.json** returns HTTP 200,
+application/json, no redirect and no authentication requirement. If the RP ID
+is a parent domain of the web origin, serve the declaration on that RP domain
+as well; a working URL only on the chat subdomain is insufficient for that RP.
+
+The dynamic route uses configuration only, without opening a session or database.
+GET and HEAD have a five-minute public cache lifetime. Statements are grouped by
+package with deduplicated certificates and contain only
+**delegate_permission/common.get_login_creds**; this does not authorize App
+Links (**handle_all_urls**). Empty trust produces **[]**. Invalid configuration
+returns a generic, non-cacheable 500 without publishing its contents.
+
+An existing static **public/.well-known/assetlinks.json** wins over dynamic
+generation. Its owner must keep it consistent with the environment trust list
+and set its cache policy; changing the environment does not rewrite that file.
+Allow cache expiry when removing a certificate. Server-side origin trust changes
+take effect when the new configuration is loaded, independently of cached DAL.
+
+The public session capability **native_passkey_origins** is true only with
+WebAuthn enabled and nonempty Android trust. It describes server configuration,
+not successful DAL deployment or a device acceptance test. A signed CCM build
+must still prove enrollment, MFA login and step-up against the deployed RP
+through Android Credential Manager. Synthetic cryptographic/HTTP fixtures and
+green CI do not constitute that native acceptance. **native_auth_handoff**
+remains false; browser OIDC handoff is a separate feature.
+
+Android setup references: [Credential Manager prerequisites](https://developer.android.com/identity/credential-manager/prerequisites),
+[passkey creation](https://developer.android.com/identity/passkeys/create-passkeys),
+and [app signing](https://developer.android.com/studio/publish/app-signing).

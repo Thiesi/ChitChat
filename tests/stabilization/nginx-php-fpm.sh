@@ -81,6 +81,18 @@ http {
         index index.php;
         client_max_body_size 12m;
 
+        location = /.well-known/assetlinks.json {
+            default_type application/json;
+            try_files \$uri @chitchat_assetlinks;
+        }
+
+        location @chitchat_assetlinks {
+            include /etc/nginx/fastcgi_params;
+            fastcgi_param SCRIPT_FILENAME \$document_root/assetlinks.php;
+            fastcgi_param SCRIPT_NAME /assetlinks.php;
+            fastcgi_pass 127.0.0.1:9070;
+        }
+
         location / {
             try_files \$uri \$uri/ /index.php?\$query_string;
         }
@@ -102,6 +114,9 @@ http {
             fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
             fastcgi_pass 127.0.0.1:9070;
             fastcgi_read_timeout 60s;
+        }
+        location ~ /\\. {
+            deny all;
         }
     }
 }

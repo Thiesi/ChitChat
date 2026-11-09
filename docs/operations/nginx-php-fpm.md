@@ -67,6 +67,19 @@ server {
 
     client_max_body_size 12m; # slightly above ATTACHMENT_MAX_BYTES
 
+    # Existing operator-managed static declarations take precedence.
+    location = /.well-known/assetlinks.json {
+        default_type application/json;
+        try_files $uri @chitchat_assetlinks;
+    }
+
+    location @chitchat_assetlinks {
+        include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME $document_root/assetlinks.php;
+        fastcgi_param SCRIPT_NAME /assetlinks.php;
+        fastcgi_pass unix:/run/php/chitchat.sock;
+    }
+
     location / {
         try_files $uri $uri/ /index.php?$query_string;
     }
@@ -100,6 +113,22 @@ server {
 The exact SSE location must take precedence over the general PHP location. ChitChat also sends `X-Accel-Buffering: no`, but the explicit Nginx directives are retained because proxy behavior must not depend solely on an upstream response header.
 
 Do not add `proxy_buffering` directives to a FastCGI location; use `fastcgi_buffering off`. Do not enable gzip on the event stream. The upstream timeout must exceed the approximately 25-second stream lifetime.
+
+## Android credential association
+
+The exact **/.well-known/assetlinks.json** location above bypasses the general
+hidden-path deny for this document alone. It serves an existing static file
+first and otherwise invokes **assetlinks.php** directly, without a redirect.
+The dynamic response is JSON, public for 300 seconds, and opens no PHP session
+or database. An operator-managed static file needs its own appropriate cache
+policy and must stay consistent with **NATIVE_ANDROID_APPS**.
+
+Deploy this mapping through the owner's normal Nginx configuration process;
+the example and CI rehearsal do not install it. Verify HTTPS 200 with no
+Location or Set-Cookie header on the RP ID's domain. If **WEBAUTHN_RP_ID** is
+the parent of the chat hostname, that parent domain also needs the association;
+the chat host alone does not establish it. Other hidden paths remain denied.
+See [Android passkey trust](passkeys.md#android-credential-manager-trust).
 
 ## Verification
 
