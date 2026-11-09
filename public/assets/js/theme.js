@@ -5,7 +5,8 @@
 // localStorage; the scheme defaults to Lantern, shared with ChitChat Mobile
 // (S0, #167). Explicit choices of the other schemes are kept. Lounge was the
 // default before and choosing it stored nothing, so earlier Lounge picks can't
-// be told apart from "never chose" and move to Lantern. A guest's choices last
+// be told apart from "never chose" and move to Lantern; from now on every
+// explicit choice is stored, Lantern included. A guest's choices last
 // only for the visit: they go to sessionStorage and leave the device's own alone.
 (() => {
   const storageKey = 'chitchat-theme';
@@ -114,11 +115,9 @@
     setScheme(value) {
       const chosen = schemes.includes(value) ? value : fallback;
       try {
-        if (chosen === fallback && !guest()) {
-          window.localStorage.removeItem(schemeKey);
-        } else {
-          store().setItem(schemeKey, chosen);
-        }
+        // Every explicit choice is stored, the default included, so "nothing
+        // stored" keeps meaning only "never chose" if the default changes again.
+        store().setItem(schemeKey, chosen);
       } catch {
         // Storage can be unavailable; the scheme then lasts for this page only.
       }
