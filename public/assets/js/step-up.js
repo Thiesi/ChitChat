@@ -1,6 +1,7 @@
 import { ApiError, apiGet, apiPost } from './api.js';
 import { getPasskey, webAuthnSupported } from './webauthn.js';
 import { withProviderIcon } from './provider-icons.js';
+import { buildTotpForm, describeTotpError } from './totp-common.js';
 
 let verificationPromise = null;
 let passwordDialog = null;
@@ -178,12 +179,20 @@ function showMfaDialog(status) {
   elements.unsupported.textContent = webAuthnSupported()
     ? ''
     : 'Passkeys are unavailable here. Use a recovery code.';
+  // An authenticator code (#204) has the same authority as a passkey: equal choices.
+  const withApp = Array.isArray(status.usable_methods) && status.usable_methods.includes('totp');
+  elements.totp.form.hidden = !withApp;
+  elements.totp.form.reset();
+  elements.explanation.textContent = withApp
+    ? 'Enter the code from your authenticator app, or use a passkey. A one-time recovery code works when neither is at hand.'
+    : 'Use a registered passkey. A one-time recovery code is available when your authenticator is unavailable.';
   elements.dialog.showModal();
-  (elements.passkey.disabled ? elements.recovery : elements.passkey).focus();
+  (withApp ? elements.totp.input : (elements.passkey.disabled ? elements.recovery : elements.passkey)).focus();
 
   return new Promise((resolve, reject) => {
     let settled = false;
     const cleanup = () => {
+      elements.onTotp = null;
       elements.passkey.removeEventListener('click', usePasskey);
       elements.recoveryForm.removeEventListener('submit', useRecovery);
       elements.cancel.removeEventListener('click', cancel);
@@ -235,6 +244,20 @@ function showMfaDialog(status) {
         setMfaBusy(elements, false);
       }
     };
+    const useTotp = async () => {
+      elements.error.textContent = '';
+      setMfaBusy(elements, true);
+      try {
+        await apiPost('/api/v1/mfa/step-up-totp.php', { code: elements.totp.input.value });
+        finish(resolve);
+      } catch (error) {
+        elements.error.textContent = describeTotpError(error);
+        elements.totp.input.select();
+      } finally {
+        setMfaBusy(elements, false);
+      }
+    };
+    elements.onTotp = useTotp;
     elements.passkey.addEventListener('click', usePasskey);
     elements.recoveryForm.addEventListener('submit', useRecovery);
     elements.cancel.addEventListener('click', cancel);
@@ -314,10 +337,12 @@ function ensureMfaDialog() {
   remaining.className = 'optional-label';
   const error = alertNode();
   const cancel = button('Cancel', 'secondary-button');
-  wrap.append(title, explanation, passkey, unsupported, recoveryForm, remaining, error, cancel);
+  // Built once; it calls whichever confirmation is open.
+  const totp = buildTotpForm('step-up-totp-code', () => mfaDialog?.onTotp?.());
+  wrap.append(title, explanation, totp.form, passkey, unsupported, recoveryForm, remaining, error, cancel);
   dialog.append(wrap);
   document.body.append(dialog);
-  mfaDialog = { dialog, passkey, unsupported, recoveryForm, recovery, recoverySubmit, remaining, error, cancel };
+  mfaDialog = { dialog, explanation, totp, onTotp: null, passkey, unsupported, recoveryForm, recovery, recoverySubmit, remaining, error, cancel };
   return mfaDialog;
 }
 
@@ -348,6 +373,10 @@ function setMfaBusy(elements, busy) {
   elements.passkey.disabled = busy || !webAuthnSupported();
   elements.recovery.disabled = busy;
   elements.recoverySubmit.disabled = busy;
+  if (elements.totp) {
+    elements.totp.input.disabled = busy;
+    elements.totp.submit.disabled = busy;
+  }
   elements.cancel.disabled = busy;
 }
 

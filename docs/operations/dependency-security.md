@@ -29,6 +29,10 @@ Dependabot pull requests must pass the same application, browser, release-rehear
 
 Repository administrators remain responsible for enabling the desired Dependabot security-update and alert settings in GitHub. The checked-in configuration controls version-update pull requests but cannot configure every repository-level security setting.
 
+## Vendored front-end files
+
+The web client has no build step and loads no scripts from CDNs, so the few third-party browser files it uses are copied into `public/assets/vendor/<name>/`, unchanged, beside their `LICENSE` and a `PROVENANCE.md` that records the source URL, the exact released version and the SHA-256 of every file. They are outside `package-lock.json`, so Dependabot and `npm audit` don't see them. Review them by hand: check the project's advisories and releases when touching the feature that uses them, and at least once per release. To update, download the new version's npm tarball, verify its registry integrity, copy the file and the matching tag's `LICENSE` unchanged, update `PROVENANCE.md`, and run the feature's presentation specs. Today this is only `qrcode-generator` (the authenticator-setup QR code, #204).
+
 ## CodeQL evaluation
 
 GitHub CodeQL currently supports the browser JavaScript and GitHub Actions portions of ChitChat but does not support PHP. PHP contains the primary server-side authorization, data-access, privacy, and retention trust boundaries. A CodeQL-only green result would therefore be materially incomplete.

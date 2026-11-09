@@ -354,3 +354,8 @@
 .icon-swatch-chip[data-swatch="paper"] { background: #FBF7F1; }
 .icon-tab-light { background: #F1ECE4; color: #1D1A24; }
 .icon-tab-dark { background: #24202E; color: #F3EFE8; }
+/* Authenticator setup (#204): a QR code scans reliably only as dark modules
+   on a light ground with a quiet zone, so it keeps black on white in every
+   scheme and theme. */
+.totp-qr { background: #FFFFFF; }
+.totp-qr path { fill: #000000; }
