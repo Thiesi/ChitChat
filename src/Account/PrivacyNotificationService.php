@@ -26,6 +26,9 @@ final class PrivacyNotificationService
         'login_attempt_retention_days' => 'Login-attempt retention (days)',
     ];
 
+    /** @var array<int,?array{id:int,username:string}> */
+    private array $directSenders = [];
+
     public function __construct(private readonly PDO $pdo)
     {
     }
@@ -79,11 +82,28 @@ SQL);
         $statement->bindValue(':limit', $limit, PDO::PARAM_INT);
         $statement->execute();
 
-        $notifications = [];
-        foreach ($statement->fetchAll() as $row) {
-            if (is_array($row)) {
-                $notifications[] = $this->present($row);
+        $rows = $statement->fetchAll();
+        $senderIds = [];
+        foreach ($rows as $row) {
+            if (is_array($row) && $row['kind'] === 'direct_message_received') {
+                $context = $this->decodeContext((string) $row['context']);
+                $senderId = $context['sender_user_id'] ?? null;
+                if (is_int($senderId) && $senderId > 0) {
+                    $senderIds[$senderId] = $senderId;
+                }
             }
+        }
+        // One batched current-identity lookup, not one query per timeline row.
+        $this->loadDirectSenders(array_values($senderIds));
+        $notifications = [];
+        try {
+            foreach ($rows as $row) {
+                if (is_array($row)) {
+                    $notifications[] = $this->present($row);
+                }
+            }
+        } finally {
+            $this->directSenders = [];
         }
 
         return [
@@ -245,6 +265,12 @@ SQL);
             $title = 'Installation policy changed';
             $message = 'A Super-Administrator changed one or more installation policies.';
             $details = $this->policyDetails($context);
+        } elseif ($kind === 'direct_message_received') {
+            $id = $context['sender_user_id'] ?? null;
+            $sender = is_int($id) && $id > 0 ? $this->directSender($id) : null;
+            $title = 'New direct message';
+            $message = ($sender['username'] ?? 'Someone') . ' sent you a direct message.';
+            $link = $sender === null ? '/messages.php' : sprintf('/messages.php?with=%d', $sender['id']);
         } elseif ($kind === 'mentioned') {
             [$title, $message] = $this->mentionText($context);
             $link = $this->mentionLink($context);
@@ -352,6 +378,33 @@ SQL);
         return 'not set';
     }
 
+    /** @param list<int> $ids */
+    private function loadDirectSenders(array $ids): void
+    {
+        $this->directSenders = array_fill_keys($ids, null);
+        if ($ids === []) {
+            return;
+        }
+        $statement = $this->pdo->prepare('SELECT id, username FROM users WHERE id IN ('
+            . implode(',', array_fill(0, count($ids), '?'))
+            . ") AND account_state = 'active' AND account_kind = 'member'");
+        $statement->execute($ids);
+        foreach ($statement->fetchAll() as $row) {
+            $this->directSenders[(int) $row['id']] = ['id' => (int) $row['id'], 'username' => (string) $row['username']];
+        }
+    }
+
+    /** @return array{id:int,username:string}|null */
+    private function directSender(int $id): ?array
+    {
+        if (array_key_exists($id, $this->directSenders)) {
+            return $this->directSenders[$id];
+        }
+        $this->loadDirectSenders([$id]);
+        $sender = $this->directSenders[$id];
+        $this->directSenders = [];
+        return $sender;
+    }
     private function nonEmptyString(mixed $value): ?string
     {
         return is_string($value) && trim($value) !== '' ? $value : null;
@@ -404,10 +457,11 @@ SQL);
         }
 
         return sprintf(
-            '/messages.php?user_id=%d&peer_name=%s&message_id=%d',
+            '/messages.php?user_id=%d&peer_name=%s&message_id=%d&with=%d',
             $senderUserId,
             rawurlencode($senderUsername),
             $messageId,
+            $senderUserId,
         );
     }
 }

@@ -26,5 +26,6 @@ Endpoint::run($config, static function () use ($config): ApiResult {
         beforeId: Request::optionalQueryInteger('before_id'),
         limit: Request::optionalQueryInteger('limit') ?? 50,
         subjectKind: Request::optionalQueryString('subject_kind'),
+        subjectUserId: Request::optionalQueryInteger('subject_user_id'),
     ));
 });

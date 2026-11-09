@@ -327,6 +327,8 @@ SQL);
             $mentions = DirectMessageMentionResolver::resolve($recipientUserId, $recipient->username, $body);
             $this->mentionNotifier->recordDirectMessageMentions($messageId, $actor->id, $actor->username, $mentions);
 
+            (new DirectMessageNotifier($this->pdo))->record($messageId);
+
             $senderMessage = $this->messageById($messageId, $actor->id);
             $recipientMessage = $this->messageById($messageId, $recipientUserId);
 
@@ -356,24 +358,27 @@ SQL);
     public function markRead(AuthenticatedUser $actor, int $otherUserId): int
     {
         $this->requireOtherUser($actor, $otherUserId);
+        // One statement snapshot defines exactly the covered message IDs. A
+        // concurrent new message and its notification cannot be swept in later.
         $statement = $this->pdo->prepare(<<<'SQL'
-UPDATE direct_messages
-SET recipient_read_at = NOW()
-WHERE sender_user_id = :sender_user_id
-  AND recipient_user_id = :recipient_user_id
-  AND recipient_read_at IS NULL
+WITH covered AS (
+    UPDATE direct_messages SET recipient_read_at = NOW()
+    WHERE sender_user_id = :sender_user_id AND recipient_user_id = :recipient_user_id
+      AND recipient_read_at IS NULL
+    RETURNING id, recipient_read_at
+), notified AS (
+    UPDATE account_notifications n SET read_at = covered.recipient_read_at
+    FROM covered
+    WHERE n.user_id = :notification_user AND n.kind = 'direct_message_received'
+      AND n.context_json->>'message_id' = covered.id::text AND n.read_at IS NULL
+    RETURNING n.id
+)
+SELECT COUNT(*) FROM covered
 SQL);
-        if ($statement === false) {
-            throw new RuntimeException('Unable to prepare direct-message read acknowledgement.');
-        }
-        $statement->execute([
-            'sender_user_id' => $otherUserId,
-            'recipient_user_id' => $actor->id,
-        ]);
-
-        return $statement->rowCount();
+        $statement->execute(['sender_user_id' => $otherUserId, 'recipient_user_id' => $actor->id,
+            'notification_user' => $actor->id]);
+        return (int) $statement->fetchColumn();
     }
-
     private function requireOtherUser(AuthenticatedUser $actor, int $otherUserId): AuthenticatedUser
     {
         if ($otherUserId < 1) {
