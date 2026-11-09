@@ -23,18 +23,20 @@ test('the theme follows the system by default and remembers an explicit choice o
   await page.emulateMedia({ colorScheme: 'dark' });
   await expect(html(page)).toHaveAttribute('data-theme', 'dark');
 
-  await page.getByRole('button', { name: 'Account menu' }).click();
-  const appearance = page.getByRole('group', { name: 'Appearance' });
-  await expect(appearance.getByRole('radio', { name: 'System' })).toBeChecked();
-  await appearance.getByRole('radio', { name: 'Light' }).check();
+  // The theme is chosen on You since the account menu went (#168, S2b).
+  await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'You', exact: true }).click();
+  const theme = page.locator('#account-shell').getByRole('combobox', { name: 'Theme' });
+  await expect(theme).toHaveValue('system');
+  await theme.selectOption('light');
   await expect(html(page)).toHaveAttribute('data-theme', 'light');
 
   // The choice applies before paint on every page and survives reloads.
   await page.reload();
   await expect(html(page)).toHaveAttribute('data-theme', 'light');
-  await page.goto('/account.php');
+  await page.goto('/');
   await expect(html(page)).toHaveAttribute('data-theme', 'light');
-  await expect(page.locator('#account-shell').getByRole('combobox', { name: 'Theme' })).toHaveValue('light');
+  await page.goto('/account.php');
+  await expect(theme).toHaveValue('light');
 
   // Firefox does not keep media emulation across navigations, so set it again here.
   await page.emulateMedia({ colorScheme: 'dark' });

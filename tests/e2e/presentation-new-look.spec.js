@@ -69,10 +69,10 @@ test('choosing any scheme retires the note', async ({ page }) => {
   await page.goto('/');
   const note = page.locator('#new-look-note');
   await expect(note).toBeVisible();
-  await page.locator('#user-menu-button').click();
+  // Colour schemes live on You since the account menu went (S2b).
+  await page.goto('/account.php');
   await page.locator('label.scheme-option', { hasText: 'Dusk' }).first().click();
-  await expect(note).toBeHidden();
-  await page.reload();
+  await page.goto('/');
   await expect(page.locator('#chat-shell')).toBeVisible();
   await expect(note).toBeHidden();
   expect(await page.evaluate(() => document.documentElement.dataset.scheme)).toBe('dusk');
@@ -83,7 +83,7 @@ test('choosing Lantern, the default, is stored like any other choice', async ({ 
   await page.goto('/');
   await expect(page.locator('#new-look-note')).toBeVisible();
   expect(await page.evaluate(() => localStorage.getItem('chitchat-scheme'))).toBeNull();
-  await page.locator('#user-menu-button').click();
+  await page.goto('/account.php');
   // Lantern starts out checked (the default), so switch away and back.
   await page.locator('label.scheme-option', { hasText: 'Dusk' }).first().click();
   await page.locator('label.scheme-option', { hasText: 'Lantern' }).first().click();
@@ -93,7 +93,7 @@ test('choosing Lantern, the default, is stored like any other choice', async ({ 
   expect(await page.evaluate(() => localStorage.getItem('chitchat-scheme'))).toBe('lantern');
   // The stored choice alone keeps the note away, even without the seen flag.
   await page.evaluate(() => localStorage.removeItem('chitchat-new-look-seen'));
-  await page.reload();
+  await page.goto('/');
   await expect(page.locator('#chat-shell')).toBeVisible();
   await expect(page.locator('#new-look-note')).toBeHidden();
   expect(await page.evaluate(() => window.chitchatTheme.hasStoredScheme())).toBe(true);

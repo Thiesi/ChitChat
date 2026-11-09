@@ -23,8 +23,8 @@ async function readDownload(download) {
 
 test('account page downloads a step-up-protected scoped JSON export', async ({ page }) => {
   await login(page);
-  await page.getByRole('button', { name: 'Account menu' }).click();
-  await page.getByRole('link', { name: 'Account', exact: true }).click();
+  // The account page is the shell's You since the account menu went (#168, S2b).
+  await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'You', exact: true }).click();
   await expect(page).toHaveURL(/\/account\.php$/);
   await expect(page.getByRole('heading', { name: 'Your account', exact: true })).toBeVisible();
   await expect(page.locator('#account-identity')).toContainText(member.username);

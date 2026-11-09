@@ -145,6 +145,18 @@ function renderNotification(notification) {
       link.className = 'secondary-button';
       link.href = notification.link;
       link.textContent = 'View message';
+      // Opening an unread item marks it read on the way, as the old bell preview did.
+      if (hasUnreadAction) {
+        link.addEventListener('click', async (event) => {
+          event.preventDefault();
+          try {
+            await apiPost('/api/v1/account/notifications/read.php', { ids: [notification.id] });
+          } catch {
+            // The link still opens; the item stays unread until marked.
+          }
+          window.location.assign(notification.link);
+        });
+      }
       actions.append(link);
     }
     if (hasUnreadAction) {

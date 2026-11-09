@@ -1,27 +1,23 @@
-// Chat-page navigation: the phone drawer, the members panel, the
-// notifications and account popovers, and the sidebar's direct messages.
-import { ApiError, apiGet, apiPost } from './api.js';
+// Chat-page navigation: the phone drawer, the members panel and the
+// sidebar's direct messages. The bell and the account menu are gone (S2b,
+// #168): Activity and You are destinations in the shell. This module still
+// keeps the unread count fresh for the shell's Activity badge.
+import { ApiError, apiGet } from './api.js';
 import { miniAvatar } from './avatar.js';
-import { setSoundEnabled, soundEnabled } from './attention.js';
-import { formatDateTime } from './datetime.js';
 
 const BADGE_REFRESH_MS = 60_000;
 const RECENT_CONVERSATIONS = 8;
-const PREVIEW_NOTIFICATIONS = 5;
 const MEMBERS_PANEL_KEY = 'chitchat.membersPanel';
 const phone = window.matchMedia('(max-width: 34rem)');
 
 let elements = {};
 let badgeTimer = null;
 let conversationTimer = null;
-let openPopover = null;
 
 window.addEventListener('DOMContentLoaded', () => {
   for (const id of [
     'chat-shell', 'sidebar', 'drawer-toggle', 'drawer-close', 'drawer-backdrop',
-    'members-toggle', 'members-close', 'presence-panel',
-    'notifications-button', 'notifications-popover', 'notifications-preview', 'notifications-mark-all',
-    'notification-badge', 'user-menu-button', 'user-menu', 'dm-list',
+    'members-toggle', 'members-close', 'presence-panel', 'dm-list',
   ]) {
     const element = document.getElementById(id);
     if (!element) return;
@@ -30,31 +26,17 @@ window.addEventListener('DOMContentLoaded', () => {
 
   bindDrawer();
   bindMembersPanel();
-  for (const toggle of document.querySelectorAll('input[data-sound]')) {
-    toggle.checked = soundEnabled(toggle.dataset.sound);
-    toggle.addEventListener('change', () => setSoundEnabled(toggle.dataset.sound, toggle.checked));
-  }
-  bindPopover(elements['notifications-button'], elements['notifications-popover'], refreshNotifications);
-  bindPopover(elements['user-menu-button'], elements['user-menu']);
-  elements['notifications-mark-all'].addEventListener('click', markAllRead);
   elements['drawer-backdrop'].addEventListener('click', closeOverlays);
 
   document.addEventListener('keydown', (event) => {
     if (event.key !== 'Escape') return;
-    if (openPopover) {
-      const { button } = openPopover;
-      closePopover();
-      button.focus();
-    } else if (isDrawerOpen()) {
+    if (isDrawerOpen()) {
       setDrawerOpen(false);
       elements['drawer-toggle'].focus();
     } else if (phone.matches && elements['chat-shell'].classList.contains('members-open')) {
       setMembersOpen(false);
       elements['members-toggle'].focus();
     }
-  });
-  document.addEventListener('click', (event) => {
-    if (openPopover && !openPopover.anchor.contains(event.target)) closePopover();
   });
 
   window.addEventListener('chitchat:room-chosen', () => setDrawerOpen(false));
@@ -113,10 +95,7 @@ function isDrawerOpen() {
 function setDrawerOpen(open) {
   elements['chat-shell'].classList.toggle('drawer-open', open);
   elements['drawer-toggle'].setAttribute('aria-expanded', String(open));
-  if (open) {
-    closePopover();
-    elements['drawer-close'].focus();
-  }
+  if (open) elements['drawer-close'].focus();
 }
 
 // ---- Members panel ----
@@ -137,7 +116,6 @@ function setMembersOpen(open, remember = false) {
   elements['chat-shell'].classList.toggle('members-open', open);
   elements['presence-panel'].classList.toggle('hidden', !open);
   elements['members-toggle'].setAttribute('aria-pressed', String(open));
-  if (open) closePopover();
   if (remember && !phone.matches) writePreference(open ? 'open' : 'closed');
 }
 
@@ -157,40 +135,7 @@ function writePreference(value) {
   }
 }
 
-// ---- Popovers ----
-
-function bindPopover(button, popover, onOpen = null) {
-  const anchor = button.closest('.popover-anchor');
-  button.addEventListener('click', () => {
-    if (openPopover?.popover === popover) {
-      closePopover();
-      return;
-    }
-    closePopover();
-    setDrawerOpen(false);
-    if (phone.matches) setMembersOpen(false);
-    openPopover = { button, popover, anchor };
-    popover.classList.remove('hidden');
-    button.setAttribute('aria-expanded', 'true');
-    elements['chat-shell'].classList.toggle('sheet-open', phone.matches);
-    onOpen?.();
-    // The first control actually shown; guest-only or member-only items may be hidden.
-    [...popover.querySelectorAll('a[href], button, input')]
-      .find((control) => control.getClientRects().length > 0)
-      ?.focus();
-  });
-}
-
-function closePopover() {
-  if (!openPopover) return;
-  openPopover.popover.classList.add('hidden');
-  openPopover.button.setAttribute('aria-expanded', 'false');
-  elements['chat-shell'].classList.remove('sheet-open');
-  openPopover = null;
-}
-
 function closeOverlays() {
-  closePopover();
   setDrawerOpen(false);
   if (phone.matches) setMembersOpen(false);
 }
@@ -206,73 +151,9 @@ async function refreshBadge() {
   }
 }
 
+/** The shell's Activity badge (shell.js) shows the count; no badge lives on this page any more. */
 function renderBadge(count) {
-  const badge = elements['notification-badge'];
-  badge.textContent = count > 99 ? '99+' : String(count);
-  badge.classList.toggle('hidden', count === 0);
-  elements['notifications-button'].setAttribute(
-    'aria-label',
-    count === 0 ? 'Notifications, none unread' : `Notifications, ${count} unread`,
-  );
-  elements['notifications-mark-all'].classList.toggle('hidden', count === 0);
-  // The shell's Activity badge (shell.js) follows the same count.
   window.dispatchEvent(new CustomEvent('chitchat:activity-count', { detail: { count } }));
-}
-
-async function refreshNotifications() {
-  const list = elements['notifications-preview'];
-  try {
-    const payload = await apiGet(`/api/v1/account/notifications/list.php?limit=${PREVIEW_NOTIFICATIONS}`);
-    const notifications = Array.isArray(payload.notifications) ? payload.notifications : [];
-    renderBadge(Number.isInteger(payload.unread_count) ? payload.unread_count : 0);
-    list.replaceChildren(...(notifications.length > 0
-      ? notifications.map(buildNotification)
-      : [emptyItem('No notifications yet.')]));
-  } catch (error) {
-    list.replaceChildren(emptyItem('Notifications could not be loaded.'));
-    handleNotificationError(error);
-  }
-}
-
-function buildNotification(notification) {
-  const item = document.createElement('li');
-  const hasLink = typeof notification.link === 'string' && notification.link !== '';
-  const body = document.createElement(hasLink ? 'a' : 'div');
-  body.className = 'notification-item';
-  body.classList.toggle('unread', !notification.read);
-  if (hasLink) body.href = notification.link;
-
-  const title = document.createElement('strong');
-  title.textContent = typeof notification.title === 'string' ? notification.title : 'Notification';
-  const message = document.createElement('span');
-  message.textContent = typeof notification.message === 'string' ? notification.message : '';
-  const time = document.createElement('time');
-  time.dateTime = typeof notification.created_at === 'string' ? notification.created_at : '';
-  time.textContent = formatTime(notification.created_at);
-  body.append(title, message, time);
-
-  if (hasLink && !notification.read && Number.isInteger(notification.id)) {
-    body.addEventListener('click', async (event) => {
-      event.preventDefault();
-      try {
-        await apiPost('/api/v1/account/notifications/read.php', { ids: [notification.id] });
-      } finally {
-        window.location.assign(notification.link);
-      }
-    });
-  }
-  item.append(body);
-  return item;
-}
-
-async function markAllRead() {
-  try {
-    await apiPost('/api/v1/account/notifications/read.php', { all: true });
-  } catch (error) {
-    handleNotificationError(error);
-  }
-  await refreshNotifications();
-  elements['notifications-button'].focus();
 }
 
 function handleNotificationError(error) {
@@ -343,6 +224,3 @@ function emptyItem(text) {
   return item;
 }
 
-function formatTime(value) {
-  return formatDateTime(value, { dateStyle: 'short', timeStyle: 'short' });
-}

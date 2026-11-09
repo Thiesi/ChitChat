@@ -31,6 +31,8 @@ test('a cropped profile picture replaces initials in chat and on the profile car
   await page.locator('#avatar-crop-zoom').fill('1.5');
   await crop.getByRole('button', { name: 'Save picture' }).click();
   await expect(page.locator('#avatar-status')).toHaveText('Picture saved.');
+  // Your own picture shows on You, next to your name (the account menu went in #168, S2b).
+  await expect(page.locator('#you-avatar')).toHaveClass(/has-photo/);
 
   const rootContext = await browser.newContext({ baseURL });
   try {
@@ -40,7 +42,6 @@ test('a cropped profile picture replaces initials in chat and on the profile car
 
     await page.goto('/');
     await page.locator('.room-button', { hasText: '# General E2E' }).click();
-    await expect(page.locator('#user-menu-button')).toHaveClass(/has-photo/);
     const text = attemptText('Avatar check');
     await page.locator('#composer-input').fill(text);
     await page.locator('#composer-input').press('Enter');
