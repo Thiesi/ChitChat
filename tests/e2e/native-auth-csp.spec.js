@@ -5,8 +5,14 @@ import path from 'node:path';
 
 // A real PHP response and a second origin reproduce the POST -> 303 CSP check.
 test('native confirmation permits its provider redirect while global forms stay self only', async ({ page, request, browserName }) => {
-  let providerVisits = 0;
-  const provider = http.createServer((req, res) => { providerVisits++; res.end('Provider'); });
+  const providerVisits = [];
+  const provider = http.createServer((req, res) => {
+    // Firefox may request a favicon after landing here. It is not an
+    // authorization navigation and must not affect the CSP assertion.
+    if (req.url !== '/authorize') { res.writeHead(204).end(); return; }
+    providerVisits.push(req.method);
+    res.end('Provider');
+  });
   await new Promise(resolve => provider.listen(0, '127.0.0.1', resolve));
   const providerOrigin = `http://127.0.0.1:${provider.address().port}`;
   const portProbe = http.createServer();
@@ -38,12 +44,14 @@ test('native confirmation permits its provider redirect while global forms stay 
       const violation = page.waitForEvent('console', { predicate: msg => msg.type() === 'error' && msg.text().includes('form-action') });
       await page.getByRole('button', { name: 'Continue' }).click({ noWaitAfter: true });
       await violation;
-      expect(providerVisits).toBe(0);
+      expect(providerVisits).toEqual([]);
     }
     const native = await page.goto(origin + '/native');
     expect(native.headers()['content-security-policy']).toBe(globalPolicy + ' ' + providerOrigin);
     await Promise.all([page.waitForURL(providerOrigin + '/authorize'), page.getByRole('button', { name: 'Continue' }).click()]);
-    expect(providerVisits).toBe(1);
+    // Incidental browser asset requests must not count as authorization visits.
+    expect((await request.get(providerOrigin + '/favicon.ico')).status()).toBe(204);
+    expect(providerVisits).toEqual(['GET']);
     // A later ordinary page still receives the unchanged global policy.
     expect((await request.get(origin + '/rules.php')).headers()['content-security-policy']).toBe(globalPolicy);
   } finally {
