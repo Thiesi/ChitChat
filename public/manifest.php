@@ -13,20 +13,23 @@ $config = require dirname(__DIR__) . '/bootstrap/app.php';
 $name = \ChitChat\Admin\ApplicationNameService::resolve($config);
 $shortName = mb_strlen($name) <= 12 ? $name : rtrim(mb_substr($name, 0, 12));
 
-$repository = new \ChitChat\InstallationIcon\IconRepository(\ChitChat\Database::connect($config));
-$revision = $repository->currentRevision();
-$generation = $revision === null ? null : ($repository->find($revision)['generation'] ?? null);
+try {
+    $repository = new \ChitChat\InstallationIcon\IconRepository(\ChitChat\Database::connect($config));
+    $revision = $repository->currentRevision();
+} catch (\Throwable) {
+    // Match the existing installation-name fallback when the database is unavailable.
+    $revision = null;
+}
 $customIcons = null;
-if ($generation !== null) {
-    $renditions = $generation->renditions();
+if ($revision !== null) {
     $customIcons = [];
     foreach (['icon_192', 'icon_512', 'maskable'] as $variant) {
-        $icon = $renditions[$variant];
-        $customIcons[] = ['src' => $icon['url'], 'sizes' => $icon['width'] . 'x' . $icon['height'],
-            'type' => $icon['mime_type'], 'purpose' => $variant === 'maskable' ? 'maskable' : 'any'];
+        $spec = \ChitChat\InstallationIcon\IconGeneration::VARIANTS[$variant];
+        $customIcons[] = ['src' => '/installation-icon.php?revision=' . $revision . '&variant=' . $variant,
+            'sizes' => $spec['size'] . 'x' . $spec['size'], 'type' => $spec['mime'],
+            'purpose' => $variant === 'maskable' ? 'maskable' : 'any'];
     }
 }
-
 header('Content-Type: application/manifest+json; charset=utf-8');
 header('Cache-Control: no-cache');
 echo json_encode([
