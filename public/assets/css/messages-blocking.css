@@ -10,11 +10,11 @@
 }
 
 .dm-block-toggle[data-blocked="false"] {
-  border-color: var(--warning);
+  border-color: var(--unsure-line);
 }
 
 .dm-block-toggle[data-blocked="true"] {
-  border-color: var(--accent);
+  border-color: var(--signature-text);
 }
 
 @media (max-width: 34rem) {

@@ -8,7 +8,7 @@
 .moderation-notice,
 .moderation-queue,
 .moderation-detail {
-  border: 1px solid var(--border);
+  border: 1px solid var(--line);
   border-radius: 1rem;
   background: var(--surface);
   box-shadow: var(--shadow);
@@ -35,7 +35,7 @@
 
 .moderation-eyebrow {
   margin: 0 0 0.25rem;
-  color: var(--accent-strong);
+  color: var(--signature-text);
   font-size: 0.78rem;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -43,14 +43,14 @@
 }
 
 .moderation-muted {
-  color: var(--muted);
+  color: var(--text-muted);
 }
 
 .moderation-notice {
   margin-bottom: 1rem;
   padding: 1rem 1.2rem;
-  border-color: var(--warning);
-  background: color-mix(in srgb, var(--warning) 9%, var(--surface));
+  border-color: var(--unsure-line);
+  background: color-mix(in srgb, var(--unsure-line) 9%, var(--surface));
 }
 
 .moderation-notice p {
@@ -107,20 +107,20 @@
   width: 100%;
   gap: 0.35rem;
   padding: 0.85rem;
-  border: 1px solid var(--border);
+  border: 1px solid var(--field-line);
   border-radius: 0.8rem;
-  background: var(--surface-2);
+  background: var(--raised);
   color: var(--text);
   text-align: left;
 }
 
 .moderation-case-button:hover,
 .moderation-case-button.active {
-  border-color: var(--accent);
+  border-color: var(--signature-text);
 }
 
 .moderation-case-button.active {
-  background: color-mix(in srgb, var(--accent) 12%, var(--surface-2));
+  background: color-mix(in srgb, var(--signature) 12%, var(--raised));
 }
 
 .moderation-case-title {
@@ -129,7 +129,7 @@
 
 .moderation-case-meta,
 .moderation-case-assignment {
-  color: var(--muted);
+  color: var(--text-muted);
   font-size: 0.82rem;
 }
 
@@ -137,13 +137,13 @@
   display: grid;
   min-height: 20rem;
   place-items: center;
-  color: var(--muted);
+  color: var(--text-muted);
   text-align: center;
 }
 
 .moderation-detail-header {
   padding-bottom: 1rem;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--line);
 }
 
 .moderation-detail section,
@@ -155,9 +155,9 @@
   display: grid;
   gap: 0.75rem;
   padding: 1rem;
-  border: 1px solid var(--border);
+  border: 1px solid var(--line);
   border-radius: 0.85rem;
-  background: var(--surface-2);
+  background: var(--raised);
 }
 
 .moderation-report-card header {
@@ -175,9 +175,9 @@
 .moderation-evidence {
   margin: 0;
   padding: 0.85rem;
-  border: 1px solid var(--border);
+  border: 1px solid var(--line);
   border-radius: 0.65rem;
-  background: var(--bg);
+  background: var(--ground);
   font: inherit;
   line-height: 1.5;
   overflow-wrap: anywhere;
@@ -185,21 +185,21 @@
 }
 
 .moderation-evidence-meta {
-  color: var(--muted);
+  color: var(--text-muted);
   font-size: 0.82rem;
 }
 
 .moderation-resolution,
 .moderation-closed {
   padding-top: 1.25rem;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--line);
 }
 
 .moderation-closed {
   padding: 1rem;
-  border: 1px solid var(--border);
+  border: 1px solid var(--line);
   border-radius: 0.8rem;
-  background: var(--surface-2);
+  background: var(--raised);
 }
 
 .moderation-closed p {

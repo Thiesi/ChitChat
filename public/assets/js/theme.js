@@ -2,13 +2,18 @@
 // paints. Loaded as a classic, blocking script in <head> so there is no flash
 // of the wrong colours. Both choices are per device: the mode "system" (the
 // default) follows the operating system, "light" or "dark" are stored in
-// localStorage; the scheme defaults to Lounge. A guest's choices last only
-// for the visit: they go to sessionStorage and leave the device's own alone.
+// localStorage; the scheme defaults to Lantern, shared with ChitChat Mobile
+// (S0, #167). Explicit choices of the other schemes are kept. Lounge was the
+// default before and choosing it stored nothing, so earlier Lounge picks can't
+// be told apart from "never chose" and move to Lantern; from now on every
+// explicit choice is stored, Lantern included. A guest's choices last
+// only for the visit: they go to sessionStorage and leave the device's own alone.
 (() => {
   const storageKey = 'chitchat-theme';
   const schemeKey = 'chitchat-scheme';
   const guestKey = 'chitchat-guest';
-  const schemes = ['lounge', 'dusk', 'ember', 'rose', 'midnight', 'contrast'];
+  const schemes = ['lantern', 'lounge', 'dusk', 'ember', 'rose', 'midnight', 'contrast'];
+  const fallback = 'lantern';
   const lightQuery = window.matchMedia('(prefers-color-scheme: light)');
 
   function guest() {
@@ -44,14 +49,14 @@
   function scheme() {
     try {
       const value = stored(schemeKey);
-      return schemes.includes(value) ? value : 'lounge';
+      return schemes.includes(value) ? value : fallback;
     } catch {
-      return 'lounge';
+      return fallback;
     }
   }
 
   function applyScheme(value) {
-    if (value === 'lounge') {
+    if (value === fallback) {
       delete document.documentElement.dataset.scheme;
     } else {
       document.documentElement.dataset.scheme = value;
@@ -76,9 +81,19 @@
     }
   });
 
+  /** Whether this device (or guest visit) stores an explicit scheme choice. */
+  function hasStoredScheme() {
+    try {
+      return schemes.includes(stored(schemeKey));
+    } catch {
+      return false;
+    }
+  }
+
   window.chitchatTheme = {
     preference,
     scheme,
+    hasStoredScheme,
     schemes: [...schemes],
     set(value) {
       try {
@@ -98,17 +113,16 @@
       apply();
     },
     setScheme(value) {
-      const chosen = schemes.includes(value) ? value : 'lounge';
+      const chosen = schemes.includes(value) ? value : fallback;
       try {
-        if (chosen === 'lounge' && !guest()) {
-          window.localStorage.removeItem(schemeKey);
-        } else {
-          store().setItem(schemeKey, chosen);
-        }
+        // Every explicit choice is stored, the default included, so "nothing
+        // stored" keeps meaning only "never chose" if the default changes again.
+        store().setItem(schemeKey, chosen);
       } catch {
         // Storage can be unavailable; the scheme then lasts for this page only.
       }
       applyScheme(chosen);
+      window.dispatchEvent(new CustomEvent('chitchat:scheme-chosen', { detail: { scheme: chosen } }));
     },
     /** Starts or ends a guest visit; ending it forgets the guest's choices. */
     setGuest(on) {

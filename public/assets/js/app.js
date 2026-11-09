@@ -13,6 +13,7 @@ import { COMMANDS, SHRUG, attachCommandSuggestions, parseSlashCommand, showComma
 import { alertUser } from './attention.js';
 import { formatDateTime } from './datetime.js';
 import { guestBadge, isGuestName, markGuestAvatar } from './guest.js';
+import { renderNewLook } from './new-look.js';
 import { agreementErrorMessage, guestAgreement, registrationAgreement, renderSignedOutAgreements, startRulesGate } from './rules.js';
 import { openResetIfRequested, showKeyStepInCard } from './password-reset.js';
 import { issuedKey } from './recovery.js';
@@ -257,6 +258,7 @@ async function enterApplication(user) {
     }
   }
   renderGuestBanner();
+  renderNewLook(user);
   startRulesGate(user);
   setRecoveryNudgeUser(user.id);
   renderRecoveryNudge(user, { lockdown: document.getElementById('chat-lockdown')?.classList.contains('hidden') === false });

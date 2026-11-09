@@ -5,12 +5,12 @@ select:focus-visible,
 summary:focus-visible,
 textarea:focus-visible,
 [tabindex]:focus-visible {
-  outline: 3px solid var(--accent-strong);
+  outline: 3px solid var(--signature-text);
   outline-offset: 3px;
 }
 
 .search-result-target {
-  outline: 3px solid var(--accent-strong);
+  outline: 3px solid var(--signature-text);
   outline-offset: 3px;
 }
 

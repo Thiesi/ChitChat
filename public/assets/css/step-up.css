@@ -1,6 +1,6 @@
 .step-up-dialog {
   width: min(30rem, calc(100vw - 2rem));
-  border: 1px solid var(--border);
+  border: 1px solid var(--line);
   border-radius: 0.9rem;
   padding: 0;
   background: var(--surface);
@@ -9,7 +9,7 @@
 }
 
 .step-up-dialog::backdrop {
-  background: rgb(0 0 0 / 60%);
+  background: var(--scrim);
 }
 
 .step-up-form {

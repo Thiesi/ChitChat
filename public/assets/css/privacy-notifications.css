@@ -17,13 +17,13 @@
   display: grid;
   gap: 0.75rem;
   padding: 1rem;
-  border: 1px solid var(--border);
+  border: 1px solid var(--line);
   border-radius: 0.75rem;
-  background: var(--surface-2);
+  background: var(--raised);
 }
 
 .privacy-notification-unread {
-  border-inline-start: 0.35rem solid var(--accent-strong);
+  border-inline-start: 0.35rem solid var(--signature-text);
 }
 
 .privacy-notification-header {
@@ -45,7 +45,7 @@
 
 .privacy-notification time {
   flex: 0 0 auto;
-  color: var(--muted);
+  color: var(--text-muted);
   font-size: 0.85rem;
 }
 
@@ -58,7 +58,7 @@
   display: grid;
   gap: 0.35rem;
   padding-inline-start: 1.25rem;
-  color: var(--muted);
+  color: var(--text-muted);
 }
 
 .privacy-notification-actions {
@@ -75,7 +75,7 @@
   padding: 0 0.4rem;
   margin-inline-start: 0.35rem;
   border-radius: 999px;
-  background: var(--accent-strong);
+  background: var(--signature-text);
   color: var(--surface);
   font-size: 0.75rem;
   font-weight: 800;
@@ -109,9 +109,9 @@
   flex-wrap: wrap;
   gap: 0.75rem;
   padding: 0.75rem 1rem;
-  border: 1px solid var(--border);
+  border: 1px solid var(--line);
   border-radius: 0.75rem;
-  background: var(--surface-2);
+  background: var(--raised);
 }
 
 .push-device span:first-child {

@@ -15,7 +15,9 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <script type="module" src="/assets/js/theme-toggle.js"></script>
   <meta name="description" content="<?= $appName ?> self-hosted browser chat">
   <title><?= $appName ?></title>
+  <link rel="stylesheet" href="/assets/css/tokens.css">
   <link rel="stylesheet" href="/assets/css/app.css">
+<?= \ChitChat\View\HeadAssets::html() ?>
   <link rel="stylesheet" href="/assets/css/components.css">
   <link rel="stylesheet" href="/assets/css/accessibility.css">
   <link rel="stylesheet" href="/assets/css/person-reports.css">
@@ -160,6 +162,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
     <p id="chat-lockdown" class="lockdown-notice lockdown-banner hidden" role="status"><strong>Maintenance lockdown.</strong> <span data-lockdown-text></span> New sign-ins are paused; you can keep chatting.</p>
     <p class="rules-banner hidden" data-rules-gate role="status"><span><strong>The community rules have changed.</strong> Agree to keep writing.</span> <button class="secondary-button" type="button" data-rules-review>Review</button></p>
     <p id="recovery-nudge" class="recovery-nudge hidden" role="status"><span><strong>Forgot your password one day?</strong> Create a recovery key so you can reset it yourself.</span> <a class="secondary-button" href="/account.php?recovery=create">Create key</a> <button id="recovery-nudge-dismiss" class="icon-button close-button" type="button" aria-label="Dismiss">×</button></p>
+    <p id="new-look-note" class="new-look-note hidden" role="status"><span><strong><?= $appName ?> has a new look.</strong> Prefer the previous one? Choose Lounge in <a href="/account.php#appearance-heading">Appearance</a>.</span> <button id="new-look-dismiss" class="icon-button close-button" type="button" aria-label="Dismiss">×</button></p>
     <div id="guest-banner" class="guest-banner hidden" role="status">
       <span><strong>You are visiting as <span data-guest-name></span>.</strong><span class="guest-banner-more"> Look around and join in where guests can write. Nothing is kept after you leave.</span></span>
       <a href="/?register=1">Create an account</a>
@@ -258,6 +261,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
                   <label><input type="radio" name="theme-mode" value="dark" data-theme-radio><span>Dark</span></label>
                 </div>
                 <div class="scheme-picker" role="radiogroup" aria-label="Colour scheme">
+                  <label class="scheme-option" title="Lantern"><input type="radio" name="menu-scheme" value="lantern" data-scheme-radio><span class="scheme-swatch" data-swatch="lantern" aria-hidden="true"></span><span class="scheme-name">Lantern</span></label>
                   <label class="scheme-option" title="Lounge"><input type="radio" name="menu-scheme" value="lounge" data-scheme-radio><span class="scheme-swatch" data-swatch="lounge" aria-hidden="true"></span><span class="visually-hidden">Lounge</span></label>
                   <label class="scheme-option" title="Dusk"><input type="radio" name="menu-scheme" value="dusk" data-scheme-radio><span class="scheme-swatch" data-swatch="dusk" aria-hidden="true"></span><span class="visually-hidden">Dusk</span></label>
                   <label class="scheme-option" title="Ember"><input type="radio" name="menu-scheme" value="ember" data-scheme-radio><span class="scheme-swatch" data-swatch="ember" aria-hidden="true"></span><span class="visually-hidden">Ember</span></label>

@@ -36,7 +36,7 @@
 .admin-muted,
 .panel-heading p,
 .admin-card-meta {
-  color: var(--muted);
+  color: var(--text-muted);
 }
 
 .admin-eyebrow {
@@ -51,7 +51,7 @@
   font-size: clamp(2rem, 5vw, 3rem);
   font-family: var(--display-font);
   font-weight: 400;
-  letter-spacing: -0.045em;
+  letter-spacing: var(--display-tracking);
 }
 
 .admin-link-button {
@@ -63,7 +63,7 @@
   gap: 0.5rem;
   margin-bottom: 1rem;
   padding: 0.5rem;
-  border: 1px solid var(--border);
+  border: 1px solid var(--field-line);
   border-radius: 0.9rem;
   background: var(--surface);
 }
@@ -73,12 +73,12 @@
   border: 1px solid transparent;
   border-radius: 0.7rem;
   background: transparent;
-  color: var(--muted);
+  color: var(--text-muted);
 }
 
 .admin-tabs button[aria-pressed="true"] {
-  border-color: var(--accent);
-  background: var(--surface-2);
+  border-color: var(--signature-text);
+  background: var(--raised);
   color: var(--text);
 }
 
@@ -129,7 +129,7 @@
 .audit-entry,
 .admin-empty {
   padding: 1rem;
-  border: 1px solid var(--border);
+  border: 1px solid var(--line);
   border-radius: 0.9rem;
   background: var(--surface);
 }
@@ -152,15 +152,15 @@
 
 .role-badge {
   padding: 0.2rem 0.5rem;
-  border: 1px solid var(--border);
+  border: 1px solid var(--line);
   border-radius: 999px;
-  background: var(--surface-2);
+  background: var(--raised);
   font-size: 0.76rem;
 }
 
 .ban-badge {
-  border-color: var(--danger);
-  color: var(--danger);
+  border-color: var(--error);
+  color: var(--error);
 }
 
 /* Operational settings: panels share the width evenly and wrap as needed. */
@@ -210,7 +210,7 @@
 }
 .lockdown-fields textarea { min-height: 5.5rem; resize: vertical; }
 .settings-page .check-row { display: flex; align-items: flex-start; gap: 0.55rem; font-weight: 400; }
-.settings-page .check-row input { margin-top: 0.25rem; accent-color: var(--accent); }
+.settings-page .check-row input { margin-top: 0.25rem; accent-color: var(--signature-text); }
 .lockdown-card > .check-row { grid-column: 1 / -1; max-width: none; }
 
 /* Saving the policy is a bar under its cards. */
@@ -260,10 +260,10 @@
   min-width: 9rem;
 }
 
-.lockdown-card { border-color: color-mix(in srgb, var(--warning) 45%, var(--border)); }
-.lockdown-on { color: var(--warning); font-weight: 700; }
+.lockdown-card { border-color: color-mix(in srgb, var(--unsure-line) 45%, var(--line)); }
+.lockdown-on { color: var(--unsure-line); font-weight: 700; }
 
-.danger-card { border-color: color-mix(in srgb, var(--danger) 45%, var(--border)); }
+.danger-card { border-color: color-mix(in srgb, var(--error) 45%, var(--line)); }
 .danger-card .danger-button { justify-self: start; margin-top: 0.5rem; }
 .deleted-rooms { margin-top: 1rem; }
 .deleted-rooms h4 { margin: 0; }
@@ -272,7 +272,7 @@
   display: grid;
   gap: 0.55rem;
   padding: 1rem;
-  border: 1px solid var(--border);
+  border: 1px solid var(--field-line);
   border-radius: 0.8rem;
 }
 
@@ -301,18 +301,18 @@
   padding: 0.75rem;
   overflow: auto;
   border-radius: 0.6rem;
-  background: var(--bg);
+  background: var(--ground);
   font-size: 0.78rem;
 }
 
 .admin-empty {
-  color: var(--muted);
+  color: var(--text-muted);
   text-align: center;
 }
 
 .warning-text {
-  border-color: var(--warning);
-  background: color-mix(in srgb, var(--warning) 9%, var(--surface));
+  border-color: var(--unsure-line);
+  background: color-mix(in srgb, var(--unsure-line) 9%, var(--surface));
 }
 
 @media (max-width: 70rem) {

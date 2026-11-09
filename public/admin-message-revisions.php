@@ -15,7 +15,9 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <script src="/assets/js/theme.js"></script>
   <meta name="description" content="<?= $appName ?> administrative message revision review">
   <title>Revision review · <?= $appName ?></title>
+  <link rel="stylesheet" href="/assets/css/tokens.css">
   <link rel="stylesheet" href="/assets/css/app.css">
+<?= \ChitChat\View\HeadAssets::html() ?>
   <link rel="stylesheet" href="/assets/css/components.css">
   <link rel="stylesheet" href="/assets/css/admin.css">
   <link rel="stylesheet" href="/assets/css/message-revision-review.css">

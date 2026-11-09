@@ -12,7 +12,7 @@
 .message-mutation-button {
   border: 0;
   background: transparent;
-  color: var(--muted);
+  color: var(--text-muted);
   cursor: pointer;
   font: inherit;
   font-size: 0.78rem;
@@ -25,12 +25,12 @@
 .message-mutation-button:hover,
 .message-mutation-button:focus-visible {
   color: inherit;
-  background: var(--surface-2);
+  background: var(--raised);
 }
 
 .message-mutation-button.danger:hover,
 .message-mutation-button.danger:focus-visible {
-  color: var(--danger);
+  color: var(--error);
 }
 
 .message-edited-indicator {
