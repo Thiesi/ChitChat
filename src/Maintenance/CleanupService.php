@@ -55,7 +55,7 @@ final class CleanupService
                 : [];
             $purgedRoomKeys = $cutoffs['deleted_room'] instanceof DateTimeImmutable
                 ? $this->columnStrings(
-                    'SELECT a.storage_key FROM attachments a JOIN rooms r ON r.id = a.room_id WHERE r.deleted_at IS NOT NULL AND r.deleted_at < :cutoff',
+                    'SELECT file.storage_key FROM attachments a JOIN rooms r ON r.id = a.room_id CROSS JOIN LATERAL unnest(ARRAY[a.storage_key, a.preview_storage_key]) file(storage_key) WHERE file.storage_key IS NOT NULL AND r.deleted_at IS NOT NULL AND r.deleted_at < :cutoff',
                     $cutoffs['deleted_room'],
                 )
                 : [];
@@ -77,7 +77,13 @@ final class CleanupService
                     'SELECT COUNT(*) FROM room_pings WHERE created_at < :cutoff',
                     $cutoffs['room'],
                 ),
-                'deleted_attachments' => count($deletedKeys),
+                'deleted_attachments' => $this->optionalCount(
+                    'SELECT COUNT(*) FROM attachments WHERE deleted_at IS NOT NULL AND deleted_at < :cutoff',
+                    $cutoffs['deleted_attachment'],
+                ) + $this->optionalCount(
+                    'SELECT COUNT(*) FROM direct_message_attachments WHERE deleted_at IS NOT NULL AND deleted_at < :cutoff',
+                    $cutoffs['deleted_attachment'],
+                ),
                 'purged_rooms' => $this->optionalCount(
                     'SELECT COUNT(*) FROM rooms WHERE deleted_at IS NOT NULL AND deleted_at < :cutoff',
                     $cutoffs['deleted_room'],
@@ -322,7 +328,7 @@ SQL);
     private function keysForRoomRetention(DateTimeImmutable $cutoff): array
     {
         return $this->columnStrings(
-            'SELECT a.storage_key FROM attachments a JOIN room_messages m ON m.id = a.message_id WHERE m.created_at < :cutoff',
+            'SELECT file.storage_key FROM attachments a JOIN room_messages m ON m.id = a.message_id CROSS JOIN LATERAL unnest(ARRAY[a.storage_key, a.preview_storage_key]) file(storage_key) WHERE file.storage_key IS NOT NULL AND m.created_at < :cutoff',
             $cutoff,
         );
     }
@@ -331,7 +337,7 @@ SQL);
     private function keysForDirectRetention(DateTimeImmutable $cutoff): array
     {
         return $this->columnStrings(
-            'SELECT a.storage_key FROM direct_message_attachments a JOIN direct_messages m ON m.id = a.direct_message_id WHERE m.created_at < :cutoff',
+            'SELECT file.storage_key FROM direct_message_attachments a JOIN direct_messages m ON m.id = a.direct_message_id CROSS JOIN LATERAL unnest(ARRAY[a.storage_key, a.preview_storage_key]) file(storage_key) WHERE file.storage_key IS NOT NULL AND m.created_at < :cutoff',
             $cutoff,
         );
     }
@@ -340,13 +346,15 @@ SQL);
     private function keysForDeletedAttachments(DateTimeImmutable $cutoff): array
     {
         return $this->columnStrings(<<<'SQL'
-SELECT storage_key
-FROM attachments
-WHERE deleted_at IS NOT NULL AND deleted_at < :cutoff
+SELECT file.storage_key
+FROM attachments a
+CROSS JOIN LATERAL unnest(ARRAY[a.storage_key, a.preview_storage_key]) file(storage_key)
+WHERE file.storage_key IS NOT NULL AND a.deleted_at IS NOT NULL AND a.deleted_at < :cutoff
 UNION
-SELECT storage_key
-FROM direct_message_attachments
-WHERE deleted_at IS NOT NULL AND deleted_at < :cutoff
+SELECT file.storage_key
+FROM direct_message_attachments a
+CROSS JOIN LATERAL unnest(ARRAY[a.storage_key, a.preview_storage_key]) file(storage_key)
+WHERE file.storage_key IS NOT NULL AND a.deleted_at IS NOT NULL AND a.deleted_at < :cutoff
 SQL, $cutoff);
     }
 
@@ -369,6 +377,10 @@ SQL, $cutoff);
 SELECT storage_key FROM attachments
 UNION
 SELECT storage_key FROM direct_message_attachments
+UNION
+SELECT preview_storage_key FROM attachments WHERE preview_storage_key IS NOT NULL
+UNION
+SELECT preview_storage_key FROM direct_message_attachments WHERE preview_storage_key IS NOT NULL
 UNION
 SELECT avatar_key FROM users WHERE avatar_key IS NOT NULL
 SQL);

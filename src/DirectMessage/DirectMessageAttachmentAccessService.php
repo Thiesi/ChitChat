@@ -30,7 +30,7 @@ final class DirectMessageAttachmentAccessService
      *   mime_type:string,
      *   size_bytes:int,
      *   sha256:string,
-     *   previewable:bool
+     *   previewable:bool, width:?int, height:?int, preview:?array{url:string,width:int,height:int,mime_type:string,size_bytes:int,sha256:string}
      * }>
      */
     public function metadata(AuthenticatedUser $actor, array $messageIds): array
@@ -71,8 +71,8 @@ final class DirectMessageAttachmentAccessService
         ));
     }
 
-    /** @return array{path:string, name:string, mime_type:string, size_bytes:int, sha256:string, previewable:bool} */
-    public function authorizeDownload(AuthenticatedUser $actor, int $attachmentId): array
+    /** @return array{path:string, name:string, mime_type:string, size_bytes:int, sha256:string, previewable:bool, width:?int, height:?int, preview:?array{url:string,width:int,height:int,mime_type:string,size_bytes:int,sha256:string}} */
+    public function authorizeDownload(AuthenticatedUser $actor, int $attachmentId, string $variant = 'original'): array
     {
         if ($attachmentId < 1) {
             throw new ApiException(400, 'validation_error', 'id must be positive.');
@@ -92,6 +92,6 @@ final class DirectMessageAttachmentAccessService
             throw new ApiException(410, 'attachment_deleted', 'This attachment is no longer available.');
         }
 
-        return $this->attachments->authorizeDownload($actor, $attachmentId);
+        return $this->attachments->authorizeDownload($actor, $attachmentId, $variant);
     }
 }

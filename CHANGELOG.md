@@ -6,7 +6,20 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ## [Unreleased]
 
-No changes since `v3.3.0`.
+### Added
+
+- Room/direct attachment metadata includes nullable oriented display dimensions and an optional bounded WebP rendition with a same-origin preview URL. New previews use a maximum 1024 px long edge, preserve aspect ratio without upscaling, strip source metadata, and show GIFs as a static first frame. Authorized rendition downloads support private ETag revalidation; original downloads remain compatible.
+- An optional bounded image-preview backfill CLI with dry-run, table-specific cursors and the existing maintenance-cleanup lock. Migration `0044_attachment_image_previews.sql` adds nullable metadata without processing existing files.
+
+### Fixed
+
+- No-op global imports no longer put PHP compiler warnings ahead of room/DM download bytes, SSE events, metrics text or administration-role JSON when error display is enabled. A guard checks public PHP routes against recurrence.
+
+### Operator notes
+
+- Backfill is an explicit host change: the maintainer decides whether and when to run it. Deployment and scheduled maintenance never start it automatically. See [image-preview backfill](docs/operations/image-preview-backfill.md).
+- Rendition generation requires GD with WebP/source-codec support. For large-photo previews, PHP-FPM should have `memory_limit` of at least `256M`, sized for the workload; the common `128M` setting can skip a preview while still returning header dimensions. Original uploads stay accepted when rendering is unavailable.
+- Continue backing up PostgreSQL and complete attachment storage together, including the new private renditions.
 
 ## [3.3.0] - 2026-11-08
 

@@ -6,7 +6,6 @@ use ChitChat\Database;
 use ChitChat\Observability\MetricsAuthorizer;
 use ChitChat\Observability\PrometheusEncoder;
 use ChitChat\Observability\SystemStatusService;
-use Throwable;
 
 /** @var ChitChat\Config $config */
 $config = require dirname(__DIR__) . '/bootstrap/app.php';

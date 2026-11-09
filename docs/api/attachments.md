@@ -69,7 +69,10 @@ Room history and `room_message` realtime events include an `attachment` field on
     "mime_type": "image/png",
     "size_bytes": 45123,
     "sha256": "64 lowercase hexadecimal characters",
-    "previewable": true
+    "previewable": true,
+    "width": 1280,
+    "height": 720,
+    "preview": {"url":"/api/v1/attachments/download.php?id=12&variant=preview","width":1024,"height":576,"mime_type":"image/webp","size_bytes":24000,"sha256":"rendition SHA-256"}
   },
   "deleted": false,
   "created_at": "2026-07-17T00:00:00+00:00",
@@ -107,7 +110,10 @@ Example response, HTTP 201:
       "mime_type": "image/png",
       "size_bytes": 45123,
       "sha256": "...",
-      "previewable": true
+      "previewable": true,
+      "width": 1280,
+      "height": 720,
+      "preview": {"url":"/api/v1/attachments/download.php?id=12&variant=preview","width":1024,"height":576,"mime_type":"image/webp","size_bytes":24000,"sha256":"rendition SHA-256"}
     },
     "deleted": false,
     "reply_to": null,
@@ -117,7 +123,7 @@ Example response, HTTP 201:
 }
 ```
 
-The message, attachment metadata, audit record and `room_message` event are committed together. If database work fails after the file is moved, ChitChat removes that file before returning the error.
+The message, attachment metadata, audit record and `room_message` event are committed together. If database work fails after the file is moved, ChitChat removes the original and any generated rendition before returning the error.
 
 Important errors include:
 
@@ -165,7 +171,10 @@ The endpoint applies room-history and age authorization, excludes deleted messag
       "mime_type": "image/png",
       "size_bytes": 45123,
       "sha256": "...",
-      "previewable": true
+      "previewable": true,
+      "width": 1280,
+      "height": 720,
+      "preview": {"url":"/api/v1/attachments/download.php?id=12&variant=preview","width":1024,"height":576,"mime_type":"image/webp","size_bytes":24000,"sha256":"rendition SHA-256"}
     }
   ]
 }
@@ -176,3 +185,7 @@ This bounded endpoint lets the browser enhance visible message nodes without exp
 ## Deletion and retention
 
 Authorized message deletion marks the linked attachment deleted in the same transaction and immediately blocks metadata and downloads. The physical opaque file is retained until the configured `deleted_attachment_retention_days` policy elapses, at which point `composer maintenance` removes the metadata and binary together; a failed upload's orphaned file is removed after the separate orphan grace period. See [`docs/operations/maintenance.md`](../operations/maintenance.md).
+
+## Image dimensions and preview renditions
+
+Attachment metadata also carries nullable `width`, `height` and `preview`. See [image previews](image-previews.md) for the oriented geometry, generation bounds, optional legacy backfill, feature detection, and `variant=preview` download. Original downloads keep private/no-store; preview downloads use private/no-cache with an authenticated ETag revalidation before reuse. Missing renditions return an explicit error and never fall back to original bytes. Both stored files follow the original lifecycle and failed upload transactions remove both.

@@ -122,3 +122,7 @@ Lowering a retention period can make a large amount of data, including closed mo
 ## Request limits
 
 Named PostgreSQL-backed request policies are documented in [`rate-limiting.md`](rate-limiting.md). Counters are shared by all PHP workers, and stale identifier/window rows are removed by maintenance after two days.
+
+## Optional image backfill
+
+The [bounded image-preview backfill](image-preview-backfill.md) is a separate operator command, serialized with cleanup. It is never automatically run by maintenance. Cleanup tracks original and rendition keys; attachment-row counts retain their meaning while tracked/removed-file counts include both.

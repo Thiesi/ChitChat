@@ -14,6 +14,8 @@ use ChitChat\Moderation\MuteService;
 use ChitChat\Reactions\ReactionHydrator;
 use ChitChat\Realtime\EventRepository;
 use ChitChat\Upload\AttachmentFileStore;
+use ChitChat\Upload\AttachmentImageMetadata;
+use ChitChat\Upload\AttachmentVariant;
 use ChitChat\Upload\AttachmentPolicy;
 use ChitChat\Upload\IncomingFile;
 use ChitChat\Policy\PolicyService;
@@ -148,6 +150,7 @@ SQL);
                 throw new RuntimeException('Direct-message attachment metadata did not return an ID.');
             }
             $attachmentId = (int) $attachmentIdValue;
+            AttachmentImageMetadata::save($this->pdo, 'direct_message_attachments', $attachmentId, $stored['image']);
 
             $senderMessage = $this->messageById($messageId, $actor->id);
             $recipientMessage = $this->messageById($messageId, $recipientUserId);
@@ -185,7 +188,7 @@ SQL);
             if ($this->pdo->inTransaction()) {
                 $this->pdo->rollBack();
             }
-            $this->files->remove($stored['storage_key']);
+            $this->files->removeStored($stored);
             throw $exception;
         }
     }
@@ -199,7 +202,7 @@ SQL);
      *   mime_type:string,
      *   size_bytes:int,
      *   sha256:string,
-     *   previewable:bool
+     *   previewable:bool, width:?int, height:?int, preview:?array{url:string,width:int,height:int,mime_type:string,size_bytes:int,sha256:string}
      * }>
      */
     public function metadata(AuthenticatedUser $actor, array $messageIds): array
@@ -223,7 +226,23 @@ SELECT dma.id,
        dma.original_name,
        dma.mime_type,
        dma.size_bytes,
-       dma.sha256
+       dma.sha256,
+       dma.image_width AS image_width,
+       dma.image_height AS image_height,
+       dma.preview_storage_key AS preview_storage_key,
+       dma.preview_width AS preview_width,
+       dma.preview_height AS preview_height,
+       dma.preview_size_bytes AS preview_size_bytes,
+       dma.preview_sha256 AS preview_sha256,
+       dma.deleted_at AS attachment_deleted_at,
+       dm.deleted_at AS message_deleted_at,
+       dma.image_width AS image_width,
+       dma.image_height AS image_height,
+       dma.preview_storage_key AS preview_storage_key,
+       dma.preview_width AS preview_width,
+       dma.preview_height AS preview_height,
+       dma.preview_size_bytes AS preview_size_bytes,
+       dma.preview_sha256 AS preview_sha256
 FROM direct_message_attachments dma
 JOIN direct_messages dm ON dm.id = dma.direct_message_id
 WHERE dma.direct_message_id IN (%s)
@@ -255,17 +274,18 @@ SQL;
                 'size_bytes' => (int) $row['size_bytes'],
                 'sha256' => (string) $row['sha256'],
                 'previewable' => AttachmentPolicy::isPreviewable($mimeType),
+                ...AttachmentImageMetadata::publicFields($row, 'direct', (int) $row['id']),
             ];
         }
-
         return $result;
     }
 
     /**
-     * @return array{path:string, name:string, mime_type:string, size_bytes:int, sha256:string, previewable:bool}
+     * @return array{path:string, name:string, mime_type:string, size_bytes:int, sha256:string, previewable:bool, width:?int, height:?int, preview:?array{url:string,width:int,height:int,mime_type:string,size_bytes:int,sha256:string}}
      */
-    public function authorizeDownload(AuthenticatedUser $actor, int $attachmentId): array
+    public function authorizeDownload(AuthenticatedUser $actor, int $attachmentId, string $variant = 'original'): array
     {
+        $variant = AttachmentVariant::normalize($variant);
         if ($attachmentId < 1) {
             throw new ApiException(400, 'validation_error', 'id must be positive.');
         }
@@ -275,6 +295,15 @@ SELECT dma.storage_key,
        dma.mime_type,
        dma.size_bytes,
        dma.sha256,
+       dma.image_width AS image_width,
+       dma.image_height AS image_height,
+       dma.preview_storage_key AS preview_storage_key,
+       dma.preview_width AS preview_width,
+       dma.preview_height AS preview_height,
+       dma.preview_size_bytes AS preview_size_bytes,
+       dma.preview_sha256 AS preview_sha256,
+       dma.deleted_at AS attachment_deleted_at,
+       dm.deleted_at AS message_deleted_at,
        dm.sender_user_id,
        dm.recipient_user_id
 FROM direct_message_attachments dma
@@ -293,14 +322,22 @@ SQL);
             throw new ApiException(404, 'attachment_not_found', 'Attachment not found.');
         }
 
+        if ($row['attachment_deleted_at'] !== null || $row['message_deleted_at'] !== null) {
+            throw new ApiException(410, 'attachment_deleted', 'This attachment is no longer available.');
+        }
+        $path = $this->files->resolve((string) $row['storage_key'], (int) $row['size_bytes']);
+        if ($variant === 'preview') {
+            return AttachmentVariant::preview($this->files, $row, 'direct', $attachmentId);
+        }
         $mimeType = (string) $row['mime_type'];
         return [
-            'path' => $this->files->resolve((string) $row['storage_key'], (int) $row['size_bytes']),
+            'path' => $path,
             'name' => (string) $row['original_name'],
             'mime_type' => $mimeType,
             'size_bytes' => (int) $row['size_bytes'],
             'sha256' => (string) $row['sha256'],
             'previewable' => AttachmentPolicy::isPreviewable($mimeType),
+            ...AttachmentImageMetadata::publicFields($row, 'direct', $attachmentId),
         ];
     }
 
