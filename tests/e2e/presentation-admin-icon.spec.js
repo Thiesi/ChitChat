@@ -32,7 +32,7 @@ const customIcon = {
   renditions: Object.fromEntries(Object.keys(defaultIcon.renditions).map((name) => [name, rendition(variant(name), 32)])),
 };
 
-async function fixture(page, { icon = defaultIcon, updates = [], onUpdate = null } = {}) {
+async function fixture(page, { icon = defaultIcon, updates = [], onUpdate = null, getReply = null } = {}) {
   await page.route('**/installation-icon.php*', (route) => route.fulfill({ contentType: 'image/png', body: PNG }));
   await page.route('**/api/v1/**', async (route) => {
     const request = route.request();
@@ -41,12 +41,18 @@ async function fixture(page, { icon = defaultIcon, updates = [], onUpdate = null
       const body = request.postDataBuffer()?.toString('latin1') ?? '';
       const field = (name) => new RegExp(`name="${name}"\\r\\n\\r\\n([^\\r]*)`).exec(body)?.[1] ?? null;
       const entry = { dryRun: field('dry_run') === '1', background: field('background'), hasFile: body.includes('name="icon"') };
+      const fileName = /name="icon"; filename="([^"]*)"/.exec(body)?.[1];
+      if (fileName) Object.defineProperty(entry, 'fileName', { value: fileName, enumerable: false });
       updates.push(entry);
       if (onUpdate) return onUpdate(route, entry);
       if (entry.dryRun) return route.fulfill({ json: { preview: { favicon: DATA_PNG, apple_touch: DATA_PNG, maskable: DATA_PNG }, maskable_scale: 0.6, background: entry.background } });
       return route.fulfill({ json: { application_icon: { ...customIcon, background: entry.background ?? '#14111C' } } });
     }
     if (path === 'admin/settings/application-icon/reset.php') return route.fulfill({ json: { application_icon: defaultIcon } });
+    if (path === 'admin/settings/application-icon/get.php' && getReply) {
+      const reply = getReply();
+      if (reply) return route.fulfill(reply);
+    }
     const responses = {
       'session.php': { user: admin, csrf_token: 'fixture', registration_enabled: true, sign_in_providers: [] },
       'admin/settings/get.php': { settings: { registration_enabled: true, guest_access_enabled: false, mfa_required_for_admin_roles: false, audit_retention_days: 365, deleted_attachment_retention_days: 30, deleted_room_grace_days: 30, direct_message_retention_days: 0, login_attempt_retention_days: 30, orphan_attachment_grace_hours: 24, realtime_event_retention_hours: 24, room_message_retention_days: 0, updated_at: '2026-11-01T10:00:00Z' } },
@@ -184,11 +190,18 @@ test('errors are plain: too large, wrong size, and a concurrent change', async (
   await expect(card(page).locator('#icon-error')).toHaveText(/Someone else changed the icon just now/);
 });
 
-test('uploads unavailable on this server: says so and hides the file field', async ({ page }) => {
+test('uploads unavailable: PHP limits are named only when max_bytes is 0', async ({ page }) => {
   await fixture(page, { icon: { ...defaultIcon, upload_policy: { ...policy, enabled: false, max_bytes: 0 } } });
   await open(page);
   await expect(card(page).getByLabel('Upload an image')).toBeHidden();
-  await expect(card(page).locator('#icon-file-help')).toHaveText(/Uploads aren’t available on this server/);
+  await expect(card(page).locator('#icon-file-help')).toHaveText('Uploads aren’t available on this server: its PHP upload limits don’t allow them.');
+});
+
+test('uploads unavailable for another reason (no image support): ask the operator', async ({ page }) => {
+  await fixture(page, { icon: { ...defaultIcon, upload_policy: { ...policy, enabled: false } } });
+  await open(page);
+  await expect(card(page).getByLabel('Upload an image')).toBeHidden();
+  await expect(card(page).locator('#icon-file-help')).toHaveText('Uploads aren’t available on this server right now. Ask the server operator.');
 });
 
 for (const theme of ['light', 'dark']) {
@@ -203,3 +216,108 @@ for (const theme of ['light', 'dark']) {
     expect(result.violations).toEqual([]);
   });
 }
+
+/** A dry-run handler that holds each preview until the test releases it. */
+function heldPreviews() {
+  const held = [];
+  const handler = (route, entry) => {
+    if (!entry.dryRun) return route.fulfill({ json: { application_icon: { ...customIcon, background: entry.background } } });
+    // Each preview answers with a data URL naming its file, so the test can tell them apart.
+    const marker = `data:image/png;base64,${PNG.toString('base64')}#${entry.fileName}-${entry.background}`;
+    return new Promise((resolve) => {
+      held.push({
+        entry,
+        release: () => resolve(route.fulfill({ json: { preview: { favicon: marker, apple_touch: marker, maskable: marker }, maskable_scale: 0.6, background: entry.background } })),
+      });
+    });
+  };
+  return { held, handler };
+}
+
+test('a preview that arrives after Reset never replaces the saved icon', async ({ page }) => {
+  const { held, handler } = heldPreviews();
+  await fixture(page, { icon: customIcon, onUpdate: handler });
+  await open(page);
+  await card(page).getByLabel('Upload an image').setInputFiles({ name: 'late.png', mimeType: 'image/png', buffer: PNG });
+  await expect.poll(() => held.length).toBe(1);
+  await expect(card(page).getByRole('button', { name: 'Use this icon' })).toBeDisabled();
+  page.once('dialog', (dialog) => dialog.accept());
+  await card(page).getByRole('button', { name: 'Use the ChitChat icon' }).click();
+  await expect(card(page).locator('#icon-status')).toHaveText('Back to the ChitChat icon.');
+  held[0].release();
+  await page.waitForTimeout(300);
+  await expect(card(page).locator('#icon-preview-label')).toHaveText('Current icon: the ChitChat icon');
+  await expect(previewImages(page, 'maskable').first()).toHaveAttribute('src', '/assets/app-icons/icon-maskable-512.png');
+  await expect(card(page).getByRole('button', { name: 'Use this icon' })).toBeHidden();
+});
+
+test('changing the file while a preview is pending keeps only the newest preview, and saves that file', async ({ page }) => {
+  const { held, handler } = heldPreviews();
+  const updates = await fixture(page, { onUpdate: handler });
+  await open(page);
+  const file = card(page).getByLabel('Upload an image');
+  await file.setInputFiles({ name: 'first.png', mimeType: 'image/png', buffer: PNG });
+  await expect.poll(() => held.length).toBe(1);
+  await file.setInputFiles({ name: 'second.png', mimeType: 'image/png', buffer: PNG });
+  await expect.poll(() => held.length).toBe(2);
+  const use = card(page).getByRole('button', { name: 'Use this icon' });
+  await expect(use).toBeDisabled();
+  held[1].release();
+  await expect(previewImages(page, 'maskable').first()).toHaveAttribute('src', /#second\.png-#14111C$/);
+  await expect(use).toBeEnabled();
+  held[0].release();
+  await page.waitForTimeout(300);
+  await expect(previewImages(page, 'maskable').first()).toHaveAttribute('src', /#second\.png-#14111C$/);
+  // A background change makes the shown preview stale until its own preview arrives.
+  await card(page).getByRole('radio', { name: 'Paper' }).check();
+  await expect(use).toBeDisabled();
+  await expect.poll(() => held.length).toBe(3);
+  held[2].release();
+  await expect(use).toBeEnabled();
+  await use.click();
+  await expect(card(page).locator('#icon-status')).toHaveText('Icon saved. Pages and new installs use it the next time they load.');
+  const saved = updates.filter((entry) => !entry.dryRun);
+  expect(saved).toHaveLength(1);
+  expect(saved[0].fileName).toBe('second.png');
+  expect(saved[0].background).toBe('#FBF7F1');
+});
+
+test('an invalid custom colour is explained and blocks the preview and saving', async ({ page }) => {
+  const updates = await fixture(page);
+  await open(page);
+  await card(page).getByLabel('Upload an image').setInputFiles({ name: 'logo.png', mimeType: 'image/png', buffer: PNG });
+  const use = card(page).getByRole('button', { name: 'Use this icon' });
+  await expect(use).toBeEnabled();
+  await card(page).getByLabel('Custom background colour, as #RRGGBB').fill('#12');
+  await expect(card(page).locator('#icon-error')).toHaveText('Enter a colour as #RRGGBB, for example #14111C.');
+  await expect(card(page).getByLabel('Custom background colour, as #RRGGBB')).toHaveAttribute('aria-invalid', '');
+  await expect(use).toBeDisabled();
+  await page.waitForTimeout(700);
+  expect(updates.filter((entry) => entry.dryRun)).toHaveLength(1);
+  expect(updates.some((entry) => !entry.dryRun)).toBe(false);
+});
+
+test('an invalid colour on a saved icon cannot be saved as its background', async ({ page }) => {
+  const updates = await fixture(page, { icon: customIcon });
+  await open(page);
+  const hex = card(page).getByLabel('Custom background colour, as #RRGGBB');
+  await hex.fill('#2a6');
+  await expect(card(page).getByRole('button', { name: 'Save background' })).toBeEnabled();
+  await hex.fill('nope');
+  await expect(card(page).getByRole('button', { name: 'Save background' })).toBeDisabled();
+  await expect(card(page).locator('#icon-error')).toHaveText('Enter a colour as #RRGGBB, for example #14111C.');
+  expect(updates).toEqual([]);
+});
+
+test('a failed load says so and can be retried', async ({ page }) => {
+  let failures = 1;
+  await fixture(page, { getReply: () => (failures-- > 0 ? { status: 500, json: { error: { code: 'server_error', message: 'Boom.' } } } : null) });
+  await page.goto('/admin-settings.php');
+  const failed = card(page).locator('#icon-load-error');
+  await expect(failed).toBeVisible();
+  await expect(failed).toContainText('The icon settings couldn’t be loaded.');
+  await expect(card(page).locator('#icon-body')).toBeHidden();
+  await failed.getByRole('button', { name: 'Try again' }).click();
+  await expect(card(page).locator('#icon-body')).toBeVisible();
+  await expect(failed).toBeHidden();
+});

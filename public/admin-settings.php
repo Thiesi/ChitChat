@@ -167,6 +167,10 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
         your own.
       </p>
       <p id="icon-unavailable" class="admin-muted hidden">Installation icon settings aren’t available on this server yet.</p>
+      <div id="icon-load-error" class="icon-load-error hidden" role="alert">
+        <p class="error-text">The icon settings couldn’t be loaded. Check your connection and try again.</p>
+        <button id="icon-retry" class="secondary-button" type="button">Try again</button>
+      </div>
 
       <div id="icon-body" class="icon-body hidden">
         <div class="icon-previews" id="icon-previews" data-mode="current">
