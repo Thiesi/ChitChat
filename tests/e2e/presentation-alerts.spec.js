@@ -115,3 +115,44 @@ for (const theme of ['light', 'dark']) {
     expect(result.violations).toEqual([]);
   });
 }
+
+// #212: how long alerts stay on screen is the device's choice, explained in a
+// closed disclosure under "This browser", with no links or external assets.
+test('the "How long alerts stay on screen" note is closed, opens from the keyboard, and names the system settings', async ({ page }) => {
+  await withoutBrowserPush(page);
+  await fixture(page);
+  await page.goto('/notifications.php');
+  const help = page.locator('#push-help');
+  const summary = help.locator('summary');
+  await expect(summary).toHaveText('How long alerts stay on screen');
+  await expect(help).not.toHaveAttribute('open', /.*/);
+  await expect(help.getByText(/Dismiss notifications after this amount of time/)).toBeHidden();
+
+  await summary.focus();
+  await expect(summary).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(help).toHaveAttribute('open', '');
+  await expect(help.getByText('Your device shows alerts, so it decides where they appear and how long they stay.', { exact: false })).toBeVisible();
+  await expect(help.locator('li')).toHaveCount(3);
+  await expect(help.locator('li').nth(0)).toContainText('Settings ›, Accessibility ›, Visual effects ›, “Dismiss notifications after this amount of time”');
+  await expect(help.locator('li').nth(1)).toContainText('“Persistent”');
+  await expect(help.locator('li').nth(2)).toContainText('notification shade');
+  // The › separators are hidden from screen readers, which hear commas instead.
+  await expect(help.locator('li').nth(0).locator('[aria-hidden="true"]')).toHaveCount(3);
+  expect(await help.locator('a, img').count()).toBe(0);
+  await page.keyboard.press('Space');
+  await expect(help).not.toHaveAttribute('open', /.*/);
+});
+
+for (const theme of ['light', 'dark']) {
+  test(`${theme}: the open alerts help passes axe`, async ({ page }) => {
+    await page.addInitScript((choice) => localStorage.setItem('chitchat-theme', choice), theme);
+    await withoutBrowserPush(page);
+    await fixture(page);
+    await page.goto('/notifications.php');
+    await page.locator('#push-help summary').click();
+    await expect(page.locator('#push-help')).toHaveAttribute('open', '');
+    const result = await new AxeBuilder({ page }).include('#push-browser').withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
+    expect(result.violations).toEqual([]);
+  });
+}

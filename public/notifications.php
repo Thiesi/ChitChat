@@ -111,6 +111,16 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
           <button id="push-subscribe-toggle" class="secondary-button" type="button" disabled>Turn on alerts here</button>
         </div>
         <p class="account-muted">Alerts can arrive late or not at all. Your notifications here are always complete.</p>
+        <!-- #212: the device, not ChitChat, decides where alerts appear and how long they stay. -->
+        <details id="push-help" class="account-details push-help">
+          <summary>How long alerts stay on screen</summary>
+          <p>Your device shows alerts, so it decides where they appear and how long they stay. ChitChat can’t choose that. You can change it in your system’s notification settings, for example:</p>
+          <ul>
+            <li><strong>Windows:</strong> Settings<span aria-hidden="true"> ›</span><span class="visually-hidden">,</span> Accessibility<span aria-hidden="true"> ›</span><span class="visually-hidden">,</span> Visual effects<span aria-hidden="true"> ›</span><span class="visually-hidden">,</span> “Dismiss notifications after this amount of time”.</li>
+            <li><strong>macOS:</strong> System Settings<span aria-hidden="true"> ›</span><span class="visually-hidden">,</span> Notifications<span aria-hidden="true"> ›</span><span class="visually-hidden">,</span> your browser. Choose “Persistent” (called “Alerts” in older versions) to keep alerts until you close them.</li>
+            <li><strong>Android:</strong> alerts stay in the notification shade until you clear them.</li>
+          </ul>
+        </details>
       </div>
 
       <div id="push-devices" class="hidden">
