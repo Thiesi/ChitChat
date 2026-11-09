@@ -92,8 +92,7 @@ export function attachTranscriptKeys(list, options) {
       ref(own('.message-body'), 'body');
       ref(own('.message-time'), 'time');
     } else {
-      const author = own('.message-author')?.textContent?.trim()
-        || own('.dm-message-meta')?.textContent?.split(' · ')[0]?.trim() || 'Someone';
+      const author = article.dataset.author || own('.message-author')?.textContent?.trim() || 'Someone';
       const self = options.selfName();
       hiddenSpan('who', `${self && author === self ? 'You' : author}.`);
       const preview = own('.reply-preview');
@@ -224,6 +223,12 @@ export function attachTranscriptKeys(list, options) {
       event.preventDefault();
       openActions(article);
     }
+  });
+
+  list.addEventListener('click', (event) => {
+    const more = event.target instanceof HTMLElement ? event.target.closest('.message-more-button') : null;
+    const article = more?.closest(MESSAGE);
+    if (article) openActions(article);
   });
 
   list.addEventListener('focusin', (event) => {

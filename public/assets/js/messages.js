@@ -1,6 +1,6 @@
 import { ApiError, apiGet, apiPost, setCsrfToken } from './api.js';
 import { announce, announceIncoming, markKnown, resetAnnouncements } from './announcer.js';
-import { controlItem, reconcile, signatureOf, withDays } from './transcript.js';
+import { controlItem, moreButton, reactButton, reconcile, runPositions, signatureOf, withDays } from './transcript.js';
 import { attachTranscriptKeys } from './transcript-keys.js';
 import { attachEmojiPicker } from './emoji-picker.js';
 import { renderMessageBody, buildReplyPreview, buildReactionBar } from './message-content.js';
@@ -416,7 +416,12 @@ function renderMessages({ scrollToEnd = false, prepended = false } = {}) {
   const items = elements['dm-load-older'].classList.contains('hidden')
     ? []
     : [controlItem('load-older', elements['dm-load-older'])];
-  items.push(...withDays(state.messages, (message) => message.created_at, messageItem));
+  const runs = runPositions(state.messages, {
+    id: (message) => message.id,
+    sender: (message) => message.sender?.id ?? message.sender?.username,
+    date: (message) => message.created_at,
+  });
+  items.push(...withDays(state.messages, (message) => message.created_at, (message) => messageItem(message, runs.get(message.id) ?? 'single')));
   reconcile(list, items);
   for (const article of list.querySelectorAll('article')) {
     article.classList.toggle('search-result-target', article.dataset.messageId === list.dataset.highlightMessageId);
@@ -428,13 +433,13 @@ function renderMessages({ scrollToEnd = false, prepended = false } = {}) {
   else list.scrollTop = previousTop;
 }
 
-function messageItem(message) {
+function messageItem(message, run = 'single') {
   const { reactions, ...rest } = message;
   return {
     key: `m:${message.id}`,
-    signature: signatureOf([rest, state.user?.id ?? null, formatDateTime(message.created_at)]),
+    signature: signatureOf([rest, state.user?.id ?? null, formatDateTime(message.created_at), run]),
     reactions: signatureOf(reactions ?? []),
-    build: () => buildMessage(message),
+    build: () => buildMessage(message, run),
     patchReactions: (article) => {
       article.querySelector('.reaction-bar')?.replaceWith(reactionBarFor(message));
     },
@@ -460,21 +465,25 @@ function restoreFocus(list, focus) {
   target?.focus({ preventScroll: true });
 }
 
-function buildMessage(message) {
+function buildMessage(message, run = 'single') {
   const article = document.createElement('article');
   article.className = 'dm-message';
   article.classList.toggle('outgoing', Boolean(message.outgoing));
   article.dataset.messageId = String(message.id);
+  article.dataset.run = run;
+  article.dataset.author = message.sender?.username ?? 'Someone';
   // Re-apply a reply/search highlight, since renderMessages() rebuilds every node.
   article.classList.toggle(
     'search-result-target',
     elements['dm-message-list'].dataset.highlightMessageId === article.dataset.messageId,
   );
 
+  const bubble = document.createElement('div');
+  bubble.className = 'message-bubble';
   const preview = buildReplyPreview(message.reply_to);
   if (preview) {
     preview.addEventListener('click', () => focusReplyTarget(message.reply_to));
-    article.append(preview);
+    bubble.append(preview);
   }
 
   const body = document.createElement('div');
@@ -484,7 +493,9 @@ function buildMessage(message) {
   const meta = document.createElement('span');
   meta.className = 'dm-message-meta';
   const read = message.outgoing && message.read_at ? ' · read' : '';
-  meta.textContent = `${message.sender.username} · ${formatDateTime(message.created_at)}${read}`;
+  // The day heading carries the date and the transcript reads the sender; the bubble shows the time.
+  meta.textContent = `${formatDateTime(message.created_at, { dateStyle: null, timeStyle: 'short' })}${read}`;
+  meta.title = formatDateTime(message.created_at);
 
   const actions = document.createElement('span');
   actions.className = 'dm-message-actions';
@@ -495,7 +506,11 @@ function buildMessage(message) {
   replyButton.addEventListener('click', () => setReplyTo(message));
   actions.append(replyButton);
 
-  article.append(body, meta, actions);
+  const header = document.createElement('div');
+  header.className = 'message-header';
+  header.append(reactButton(), actions, moreButton());
+  bubble.append(body, meta);
+  article.append(header, bubble);
   article.append(reactionBarFor(message));
   return article;
 }

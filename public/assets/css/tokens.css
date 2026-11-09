@@ -30,6 +30,17 @@
 
 /* Lantern, dark: Persimmon on Night ink. */
 :root {
+  /* Identity hues for people (pebbles) and rooms (lanterns), the same in every theme;
+     index from identity-hue.js (shared with ChitChat Mobile). Text on them is --hue-ink. */
+  --hue-0: #F7A072;
+  --hue-1: #F5C451;
+  --hue-2: #A8D672;
+  --hue-3: #7FD1C1;
+  --hue-4: #8DB8F5;
+  --hue-5: #B7A3F5;
+  --hue-6: #F29BC4;
+  --hue-7: #D9B08C;
+  --hue-ink: #14111C;
   color-scheme: dark;
   font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --display-font: "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;

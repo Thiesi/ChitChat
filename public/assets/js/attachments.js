@@ -1,4 +1,5 @@
 import { apiGet, apiUpload } from './api.js';
+import { imageBox } from './image-box.js';
 
 const elements = {};
 let enhancementQueued = false;
@@ -182,7 +183,7 @@ async function enhanceVisibleMessages() {
     }
     existingCard?.remove();
     article.dataset.attachmentId = attachmentId;
-    article.append(buildAttachmentCard(attachment));
+    placeCard(article, buildAttachmentCard(attachment));
   }
 }
 
@@ -191,19 +192,7 @@ function buildAttachmentCard(attachment) {
   card.className = 'attachment-card';
 
   if (attachment.previewable) {
-    const previewLink = document.createElement('a');
-    previewLink.href = `/api/v1/attachments/download.php?id=${attachment.id}&inline=1`;
-    previewLink.target = '_blank';
-    previewLink.rel = 'noopener';
-
-    const preview = document.createElement('img');
-    preview.className = 'attachment-preview';
-    preview.src = previewLink.href;
-    preview.alt = attachment.name;
-    preview.loading = 'lazy';
-    preview.decoding = 'async';
-    previewLink.append(preview);
-    card.append(previewLink);
+    card.append(imageBox(attachment, `/api/v1/attachments/download.php?id=${attachment.id}&inline=1`));
   }
 
   const details = document.createElement('div');
@@ -258,4 +247,15 @@ function showToast(message, kind = 'info') {
 
 function errorMessage(error) {
   return error instanceof Error ? error.message : 'The attachment request failed.';
+}
+
+// The file sits inside the message bubble, before its time (S1c); older markup gets it appended.
+function placeCard(article, card) {
+  const bubble = article.querySelector(".message-bubble");
+  if (!bubble) {
+    article.append(card);
+    return;
+  }
+  const time = bubble.querySelector(":scope > .message-time, :scope > .dm-message-meta");
+  bubble.insertBefore(card, time);
 }

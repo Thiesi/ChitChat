@@ -93,3 +93,233 @@
   .dm-message-list article:focus-visible { outline: 2px solid CanvasText; }
   .message-menu { border: 1px solid CanvasText; }
 }
+
+/* ---------- S1c: the approved transcript (bubbles, runs, pebbles, chit) ---------- */
+.message-list,
+.dm-message-list { gap: 0.25rem; }
+
+/* A new run, a notice or a day starts with more room; a run stays together. */
+.message-list > li:has(> article[data-run="start"], > article[data-run="single"], > .ping-notice, > .room-notice, > .ignored-message),
+.dm-message-list > li:has(> article[data-run="start"], > article[data-run="single"]),
+.message-list > .transcript-day,
+.dm-message-list > .transcript-day,
+.message-list > .transcript-marker { margin-top: 0.9rem; }
+
+.message-list .message[data-run] {
+  row-gap: 0.25rem;
+  padding-left: 2.75rem;
+  justify-items: start;
+}
+
+/* People are pebbles in their identity hue, shown once, at the end of a run. */
+.message-list .message[data-run] > .message-avatar {
+  top: auto;
+  bottom: 0;
+  width: 2rem;
+  height: 2rem;
+  border: 0;
+  border-radius: 50%;
+  font-size: 0.72rem;
+}
+.message-list .message[data-run="start"] > .message-avatar,
+.message-list .message[data-run="middle"] > .message-avatar { visibility: hidden; }
+.message-avatar[data-hue="0"] { background: var(--hue-0); color: var(--hue-ink); }
+.message-avatar[data-hue="1"] { background: var(--hue-1); color: var(--hue-ink); }
+.message-avatar[data-hue="2"] { background: var(--hue-2); color: var(--hue-ink); }
+.message-avatar[data-hue="3"] { background: var(--hue-3); color: var(--hue-ink); }
+.message-avatar[data-hue="4"] { background: var(--hue-4); color: var(--hue-ink); }
+.message-avatar[data-hue="5"] { background: var(--hue-5); color: var(--hue-ink); }
+.message-avatar[data-hue="6"] { background: var(--hue-6); color: var(--hue-ink); }
+.message-avatar[data-hue="7"] { background: var(--hue-7); color: var(--hue-ink); }
+
+/* Your own messages: no name or pebble, on the right, in the outgoing colour. */
+.message-list .message.mine { padding-left: 0; justify-items: end; }
+.message-list .message.mine > .message-avatar { display: none; }
+
+/* The name line: shown at the start of someone else's run. */
+.message[data-run] > .message-header { width: 100%; font-size: 0.82rem; }
+.message[data-run="middle"] .message-author,
+.message[data-run="end"] .message-author,
+.message.mine .message-author,
+.message[data-run="middle"] .guest-badge,
+.message[data-run="end"] .guest-badge,
+.message.mine .guest-badge { display: none; }
+.message[data-run] .message-edited-indicator { color: var(--text-muted); font-size: 0.72rem; }
+
+/* Actions appear on hover and focus only (never read state or typing here). */
+.message[data-run] .message-react-button { order: 9; margin-left: auto; }
+.message[data-run] .message-reply-button { order: 10; }
+.message[data-run] .message-mutation-actions { order: 11; }
+.message[data-run] .message-more-button { order: 12; }
+.message[data-run]:is([data-run="middle"], [data-run="end"], .mine) > .message-header,
+.dm-message > .message-header {
+  position: absolute;
+  z-index: 2;
+  top: -0.85rem;
+  right: 0;
+  width: auto;
+  padding: 0.15rem;
+  border-radius: 1rem;
+  background: var(--surface);
+  box-shadow: 0 4px 14px var(--shadow-soft), inset 0 0 0 1px var(--line);
+}
+.message[data-run] .message-react-button,
+.message[data-run] .message-reply-button,
+.message[data-run] .message-mutation-actions,
+.message[data-run] .message-more-button,
+.dm-message .message-header,
+.dm-message > .message-mutation-actions,
+:is(.message[data-run], .dm-message) .reaction-add-button { opacity: 0; transition: opacity 0.12s ease; }
+.message[data-run]:is(:hover, :focus-within) .message-react-button,
+:is(.message[data-run], .dm-message):is(:hover, :focus-within) .reaction-add-button,
+.message[data-run]:is(:hover, :focus-within) .message-reply-button,
+.message[data-run]:is(:hover, :focus-within) .message-mutation-actions,
+.message[data-run]:is(:hover, :focus-within) .message-more-button,
+.dm-message:is(:hover, :focus-within) .message-header,
+.dm-message:is(:hover, :focus-within) > .message-mutation-actions { opacity: 1; }
+.message[data-run]:is([data-run="middle"], [data-run="end"], .mine):not(:hover, :focus-within) > .message-header { background: transparent; box-shadow: none; }
+/* A reaction bar with nothing in it takes no room, unless its picker is open. */
+:is(.message[data-run], .dm-message) .reaction-bar:not(:has(.reaction-button)):not(:has(.reaction-picker:not([hidden]))) { display: none; }
+
+.message-react-button,
+.message-more-button {
+  display: inline-grid;
+  width: 2rem;
+  height: 1.75rem;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 0.9rem;
+  background: none;
+  color: var(--text-muted);
+}
+.message-react-button:hover,
+.message-react-button:focus-visible,
+.message-more-button:hover,
+.message-more-button:focus-visible { background: var(--raised); color: var(--text); }
+
+/* The bubble: reply quote, text and time; the chit sits beside the last one of a run. */
+.message-bubble {
+  position: relative;
+  max-width: min(100%, 42rem);
+  padding: 0.55rem 0.9rem;
+  border-radius: 20px;
+  background: var(--raised);
+  color: var(--text);
+}
+.message.mine .message-bubble,
+.dm-message.outgoing .message-bubble { background: var(--outgoing); color: var(--on-outgoing); }
+.message-bubble .message-body,
+.message-bubble .dm-message-body { line-height: 1.45; }
+.message-bubble > .message-time,
+.message-bubble > .dm-message-meta {
+  float: inline-end;
+  margin: 0.4rem 0 -0.15rem 0.75rem;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+.message.mine .message-bubble > .message-time,
+.dm-message.outgoing .message-bubble > .dm-message-meta { color: var(--on-outgoing); }
+.message-bubble > .reply-preview {
+  display: grid;
+  width: calc(100% + 0.6rem);
+  margin: 0 -0.3rem 0.4rem;
+  padding: 0.35rem 0.6rem;
+  border: 0;
+  border-radius: 12px;
+  background: color-mix(in srgb, currentColor 8%, transparent);
+  color: inherit;
+  text-align: start;
+}
+.message:is([data-run="single"], [data-run="end"]) .message-bubble::after,
+.dm-message:is([data-run="single"], [data-run="end"]) .message-bubble::after {
+  position: absolute;
+  bottom: -4px;
+  left: -11px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: inherit;
+  content: "";
+}
+.message.mine:is([data-run="single"], [data-run="end"]) .message-bubble::after,
+.dm-message.outgoing:is([data-run="single"], [data-run="end"]) .message-bubble::after { right: -11px; left: auto; }
+.message.deleted .message-bubble,
+.dm-message.deleted .message-bubble { background: transparent; box-shadow: inset 0 0 0 1px var(--line); color: var(--text-muted); font-style: italic; }
+.message.mine > .reaction-bar,
+.message.mine > .attachment-card { justify-self: end; }
+
+/* Direct messages: the article is now only a frame; the bubble carries the look. */
+.dm-message-list > li > .dm-message,
+.dm-message-list > li > .dm-message.outgoing {
+  position: relative;
+  max-width: min(42rem, 84%);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+}
+.dm-message-list > li > .dm-message.outgoing { justify-items: end; }
+
+/* One image box for room and DM attachments (#158): space reserved from the image's ratio. */
+.image-box {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  width: min(100%, 22rem);
+  aspect-ratio: 4 / 3;
+  border-radius: 14px;
+  background: var(--raised);
+}
+.image-box[data-sized="true"] {
+  width: min(100%, 22rem, calc(20rem * var(--image-ratio)));
+  aspect-ratio: var(--image-ratio);
+}
+.image-box img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.image-box-unavailable { display: grid; height: 100%; place-items: center; color: var(--text-muted); font-size: 0.85rem; }
+.image-box-label {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  padding: 0.05rem 0.45rem;
+  border-radius: 0.5rem;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+/* Inside a bubble the file needs no frame of its own: the image box and the name and size. */
+.message-bubble > .attachment-card {
+  width: min(22rem, 100%);
+  margin: 0 0 0.25rem;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+.message-bubble > .attachment-card .attachment-metadata { color: inherit; opacity: 1; }
+
+/* The composer: a pill field and a round Send button. */
+.composer { border-radius: 1.75rem; }
+.send-round {
+  display: inline-grid;
+  width: 3rem;
+  min-width: 3rem;
+  height: 3rem;
+  min-height: 3rem;
+  place-items: center;
+  padding: 0;
+  border-radius: 50%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .message[data-run] .message-reply-button,
+  .message[data-run] .message-mutation-actions,
+  .message[data-run] .message-more-button,
+  .dm-message .message-header,
+  .dm-message > .message-mutation-actions { transition: none; }
+}
+@media (forced-colors: active) {
+  .message-bubble { border: 1px solid CanvasText; }
+  .message-bubble::after { border: 1px solid CanvasText; }
+}

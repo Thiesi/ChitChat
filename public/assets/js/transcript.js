@@ -141,3 +141,68 @@ export function withDays(entries, dateOf, toItem) {
 export function signatureOf(value) {
   return JSON.stringify(value);
 }
+
+/** The toolbar's React button: opens the message's reaction picker. */
+export function reactButton() {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'message-react-button';
+  button.setAttribute('aria-label', 'Add reaction');
+  button.title = 'Add reaction';
+  button.innerHTML = '<svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M8.5 14.5a4.5 4.5 0 0 0 7 0"/><circle cx="9.5" cy="10" r=".6"/><circle cx="14.5" cy="10" r=".6"/></svg>';
+  button.addEventListener('click', () => {
+    button.closest('article')?.querySelector('.reaction-add-button')?.click();
+  });
+  return button;
+}
+
+/** The hover/focus toolbar's "More" button; transcript-keys.js opens the actions menu from it. */
+export function moreButton() {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'message-more-button';
+  button.setAttribute('aria-label', 'More actions');
+  button.title = 'More actions';
+  button.innerHTML = '<svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><circle cx="5.5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="18.5" cy="12" r="1.7"/></svg>';
+  return button;
+}
+
+/**
+ * Where each message sits in a run of consecutive messages from one sender
+ * ('single', 'start', 'middle' or 'end'). A run breaks on another sender, a
+ * new day, a gap of more than five minutes, or wherever `breakBefore` says
+ * (the "New messages" marker, a notice in between).
+ * @template T
+ * @param {T[]} messages in time order
+ * @param {{ sender: (m: T) => unknown, date: (m: T) => string, id: (m: T) => number,
+ *           groupable?: (m: T) => boolean, breakBefore?: (m: T) => boolean }} how
+ * @returns {Map<number, string>}
+ */
+export function runPositions(messages, how) {
+  const positions = new Map();
+  let group = [];
+  const flush = () => {
+    group.forEach((message, index) => {
+      const position = group.length === 1 ? 'single'
+        : index === 0 ? 'start' : (index === group.length - 1 ? 'end' : 'middle');
+      positions.set(how.id(message), position);
+    });
+    group = [];
+  };
+  for (const message of messages) {
+    if (how.groupable && !how.groupable(message)) {
+      flush();
+      continue;
+    }
+    const previous = group.at(-1);
+    const breaks = !previous
+      || how.sender(previous) !== how.sender(message)
+      || dayKey(how.date(previous)) !== dayKey(how.date(message))
+      || Date.parse(how.date(message)) - Date.parse(how.date(previous)) > 5 * 60_000
+      || Boolean(how.breakBefore?.(message));
+    if (breaks) flush();
+    group.push(message);
+  }
+  flush();
+  return positions;
+}
