@@ -6,6 +6,8 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ## [Unreleased]
 
+- Stop pinning `APP_VERSION` in the environment template so health and session discovery default to the deployed release. If your `.env` sets `APP_VERSION`, remove it (recommended) or update it; keep explicit overrides only for custom builds. Release publication rejects active template pins.
+
 - Add staff user filters/counts and sign-in cursors, account-filtered audit entries, and scoped subject-case history for Stewarding.
 
 - Opt-in incoming DM alerts (default off) create content-free timeline notices for new text/files, share one delivery event with overlapping mentions, and follow exact conversation read acknowledgments. Apply migration 0048. Existing preference requests preserve the new choice; clients can detect its boolean field.
