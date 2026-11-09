@@ -22,7 +22,7 @@ Endpoint::run($config, static function () use ($config): ApiResult {
     SessionManager::requireCsrf(Request::csrfHeader());
     $payload = Request::json();
     $pdo = Database::connect($config);
-    if (SessionManager::currentUser(new UserRepository($pdo)) !== null) {
+    if (SessionManager::currentUserOrNull(new UserRepository($pdo)) !== null) {
         throw new ApiException(409, 'already_signed_in', 'You are already signed in.');
     }
 
@@ -36,7 +36,7 @@ Endpoint::run($config, static function () use ($config): ApiResult {
         time(),
     );
     $guest = (new GuestService($pdo))->start($ipAddress, $payload['accepted_rules_version'] ?? null);
-    SessionManager::login($guest);
+    SessionManager::login($guest, (new \ChitChat\Auth\LoginSessionRepository($pdo))->issue($guest, $_SERVER['HTTP_USER_AGENT'] ?? null));
 
     return ApiResult::created([
         'csrf_token' => SessionManager::csrfToken(),

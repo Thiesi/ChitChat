@@ -30,8 +30,8 @@ final class SseEncoder
         return ': heartbeat ' . gmdate(DATE_ATOM) . "\n\n";
     }
 
-    public static function sessionInvalidated(): string
+    public static function sessionInvalidated(string $reason = 'session_invalidated'): string
     {
-        return "event: forced_logout\ndata: {\"reason\":\"session_invalidated\"}\n\n";
+        return "event: forced_logout\ndata: " . json_encode(['reason' => $reason], JSON_THROW_ON_ERROR) . "\n\n";
     }
 }

@@ -236,9 +236,9 @@ final class MfaService
 
     /**
      * @param array<string,mixed> $credential
-     * @param callable(callable():void):array{user:AuthenticatedUser,recovery_key:string} $complete
+     * @param callable(callable():void):array{user:AuthenticatedUser,recovery_key:string,login:IssuedLogin} $complete
      *
-     * @return array{user:AuthenticatedUser,recovery_key:string}
+     * @return array{user:AuthenticatedUser,recovery_key:string,login:IssuedLogin}
      */
     public function completeResetWithAssertion(AuthenticatedUser $user, array $credential, string $ipAddress, callable $complete): array
     {
@@ -257,9 +257,9 @@ final class MfaService
     }
 
     /**
-     * @param callable(callable():void):array{user:AuthenticatedUser,recovery_key:string} $complete
+     * @param callable(callable():void):array{user:AuthenticatedUser,recovery_key:string,login:IssuedLogin} $complete
      *
-     * @return array{user:AuthenticatedUser,recovery_key:string}
+     * @return array{user:AuthenticatedUser,recovery_key:string,login:IssuedLogin}
      */
     public function completeResetWithRecoveryCode(AuthenticatedUser $user, #[\SensitiveParameter] string $code, string $ipAddress, callable $complete): array
     {

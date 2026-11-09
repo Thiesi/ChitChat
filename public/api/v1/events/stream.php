@@ -44,6 +44,7 @@ try {
     ignore_user_abort(true);
     set_time_limit(0);
     ini_set('zlib.output_compression', '0');
+    $login = SessionManager::loginBinding();
     session_write_close();
 
     $tracker = new SseConnectionTracker($pdo, $config->sseConnectionLeaseSeconds);
@@ -62,21 +63,20 @@ try {
     $lastLeaseRefresh = microtime(true);
 
     while (microtime(true) < $deadline && connection_aborted() === 0) {
+        $current = $users->findAuthenticatedById($actor->id);
+        $reason = $current === null || $current->sessionVersion !== $actor->sessionVersion
+            || $users->activeBan($actor->id) !== null ? 'session_invalidated'
+            : ($login === null ? 'session_invalidated' : (new \ChitChat\Auth\LoginSessionRepository($pdo))->invalidReason(
+                $actor->id, $actor->sessionVersion, $login['id'], $login['hash']));
+        if ($reason !== null) {
+            echo SseEncoder::sessionInvalidated($reason === 'session_revoked' ? 'session_revoked' : 'session_invalidated');
+            flush();
+            break;
+        }
         $batch = $events->visibleAfter($actor, $afterId, 100);
         foreach ($batch as $event) {
             echo SseEncoder::event($event);
             $afterId = $event->id;
-        }
-
-        $current = $users->findAuthenticatedById($actor->id);
-        if (
-            $current === null
-            || $current->sessionVersion !== $actor->sessionVersion
-            || $users->activeBan($actor->id) !== null
-        ) {
-            echo SseEncoder::sessionInvalidated();
-            flush();
-            break;
         }
 
         $now = microtime(true);

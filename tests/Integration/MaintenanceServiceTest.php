@@ -25,6 +25,26 @@ final class MaintenanceServiceTest extends DatabaseTestCase
         parent::tearDown();
     }
 
+    public function testRetiredLoginCleanupCountsDryRunsAndNeverDeletesAnActiveHolder(): void
+    {
+        $config = $this->configWithStorage($this->temporaryDirectory(create: true));
+        $member = (new AuthService($this->pdo, $config))->register('Member', 'a very secure password', '127.0.0.1');
+        $_SESSION = [];
+        $logins = new \ChitChat\Auth\LoginSessionRepository($this->pdo);
+        $old = $logins->issue($member);
+        $recent = $logins->issue($member);
+        $active = $logins->issue($member);
+        $this->pdo->exec("UPDATE login_sessions SET revoked_at = NOW() - interval '8 days' WHERE id = '" . $old->id . "'");
+        $this->pdo->exec("UPDATE login_sessions SET revoked_at = NOW() - interval '6 days' WHERE id = '" . $recent->id . "'");
+        $cleanup = new \ChitChat\Maintenance\CleanupService($this->pdo, $config);
+        self::assertSame(1, $cleanup->run(true)['retired_login_sessions']);
+        self::assertSame(3, (int) $this->pdo->query('SELECT COUNT(*) FROM login_sessions')->fetchColumn());
+        self::assertSame(1, $cleanup->run(false)['retired_login_sessions']);
+        self::assertSame(2, (int) $this->pdo->query('SELECT COUNT(*) FROM login_sessions')->fetchColumn());
+        self::assertNull($logins->invalidReason($member->id, $member->sessionVersion, $active->id, hash('sha256', $active->token)));
+        $_SESSION = [];
+    }
+
     public function testDryRunAndCleanupApplyConfiguredRetention(): void
     {
         $storage = $this->temporaryDirectory(create: true);

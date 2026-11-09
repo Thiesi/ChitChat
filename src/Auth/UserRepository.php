@@ -85,6 +85,11 @@ SQL);
         ];
     }
 
+    public function loginSessions(): LoginSessionRepository
+    {
+        return new LoginSessionRepository($this->pdo);
+    }
+
     public function findAuthenticatedById(int $userId): ?AuthenticatedUser
     {
         $statement = $this->pdo->prepare(<<<'SQL'
@@ -278,13 +283,15 @@ WITH valid AS (
     FROM valid
     WHERE users.id = valid.id
       AND valid.guest_last_seen_at < NOW() - INTERVAL '1 minute'
+      AND CAST(:touch AS integer) = 1
 )
 SELECT COUNT(*) FROM valid
 SQL);
         if ($statement === false) {
             throw new RuntimeException('Unable to prepare the guest session check.');
         }
-        $statement->execute(['user_id' => $userId, 'idle_seconds' => $idleSeconds]);
+        // Guest validation also stays read-only inside an outer transaction.
+        $statement->execute(['user_id' => $userId, 'idle_seconds' => $idleSeconds, 'touch' => $this->pdo->inTransaction() ? 0 : 1]);
 
         return (int) $statement->fetchColumn() === 1;
     }

@@ -36,7 +36,7 @@ Endpoint::run($config, static function () use ($config): ApiResult {
     }
 
     $auth->completeLogin($user, $ipAddress);
-    SessionManager::login($user);
+    SessionManager::login($user, (new \ChitChat\Auth\LoginSessionRepository($pdo))->issue($user, $_SERVER['HTTP_USER_AGENT'] ?? null));
     return ApiResult::ok([
         'csrf_token' => SessionManager::csrfToken(),
         'user' => $user->toSessionArray(),

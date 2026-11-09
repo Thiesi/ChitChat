@@ -107,7 +107,10 @@ SQL, ['user' => $candidate->userId, 'message' => (string) $messageId])->fetchAll
                     $subscriptions = $this->query(<<<'SQL'
 SELECT id, user_id, endpoint, p256dh_key, auth_key, session_version, delivery_binding, generation FROM push_subscriptions
 WHERE user_id = :user AND generation_started_at <= :created
- AND session_version = (SELECT session_version FROM users WHERE id = push_subscriptions.user_id) ORDER BY id
+ AND session_version = (SELECT session_version FROM users WHERE id = push_subscriptions.user_id)
+ AND EXISTS (SELECT 1 FROM login_sessions l WHERE l.user_id = push_subscriptions.user_id
+    AND l.session_version = push_subscriptions.session_version
+    AND l.binding_hash = push_subscriptions.session_binding_hash AND l.revoked_at IS NULL) ORDER BY id
 SQL, ['user' => $notification->userId, 'created' => self::time($sources[0]->createdAt)])->fetchAll();
                     if ($subscriptions === []) {
                         $reason = 'no_subscriptions';
@@ -258,6 +261,8 @@ SELECT d.id, d.subscription_fingerprint, d.attempts,
        s.id AS subscription_id, s.user_id, s.endpoint, s.p256dh_key, s.auth_key, s.session_version, s.delivery_binding, s.generation
 FROM push_deliveries d LEFT JOIN push_subscriptions s ON s.id = d.subscription_id
  AND s.session_version = (SELECT session_version FROM users WHERE id = s.user_id)
+ AND EXISTS (SELECT 1 FROM login_sessions l WHERE l.user_id = s.user_id AND l.session_version = s.session_version
+    AND l.binding_hash = s.session_binding_hash AND l.revoked_at IS NULL)
 WHERE d.job_id = :job AND d.state = 'pending'
   AND (d.next_attempt_at <= :due OR :expired::timestamptz >= :deadline::timestamptz)
 ORDER BY d.id LIMIT 1
@@ -412,6 +417,8 @@ SQL, ['now' => self::time($now), 'age_now' => self::time($now)])->fetch();
         $row = $this->query(<<<'SQL'
 SELECT s.* FROM push_subscriptions s JOIN users u ON u.id = s.user_id
 WHERE s.id = :id AND s.session_version = u.session_version
+ AND EXISTS (SELECT 1 FROM login_sessions l WHERE l.user_id = s.user_id AND l.session_version = s.session_version
+    AND l.binding_hash = s.session_binding_hash AND l.revoked_at IS NULL)
 SQL, ['id' => $claim->subscription['id']])->fetch();
         return is_array($row) && hash_equals($claim->fingerprint, self::fingerprint(self::subscription($row)));
     }

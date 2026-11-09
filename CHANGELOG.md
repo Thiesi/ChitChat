@@ -6,6 +6,13 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ## [Unreleased]
 
+**Upgrade action: everyone will need to sign in again once after this update.**
+Migration 0051 replaces unregistered PHP logins with the signed-in session registry.
+Guest visitors must restart guest access. Tell participants before upgrading using
+the [ready-to-post announcement and upgrade notes](docs/operations/session-registry-upgrade.md).
+
+- Add an enforced registry of server-issued logins with private list/revocation, atomic push cleanup, and per-connection SSE revocation. A revoked holder receives HTTP 401 session_revoked; password/version invalidation retains its existing behavior. Add capability signed_in_sessions, safe client hints, 50-login cap and seven-day retired-record cleanup.
+
 - Recognize mentions followed by sentence punctuation using the longest mentionable username, shared by room/DM notification resolution and browser rendering. Preserve real trailing-punctuation names, room broadcasts, literal message bodies and email boundaries.
 
 ## [3.6.0] - 2026-11-09

@@ -342,9 +342,35 @@ final class OidcServiceTest extends DatabaseTestCase
         self::assertSame($browserAuth, $_SESSION['auth']);
     }
 
+    public static function optionalPurposes(): iterable
+    {
+        foreach (['link', 'step_up', 'picture'] as $purpose) yield $purpose => [$purpose];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('optionalPurposes')]
+    public function testRevokedHolderFinishesAnOptionalWebFlowWithItsNormalRedirect(string $purpose): void
+    {
+        [, $member] = $this->users();
+        $this->signInAs($member);
+        $query = $this->authorize($purpose, $member);
+        $binding = SessionManager::loginBinding();
+        self::assertNotNull($binding);
+        (new \ChitChat\Auth\LoginSessionRepository($this->pdo))->logout($member->id, $binding['id'], $binding['hash']);
+        try {
+            $this->oidc->complete(['state' => $query['state'], 'code' => 'c'], '127.0.0.2');
+            self::fail('The revoked web holder continued a sensitive action.');
+        } catch (OidcRedirectException $exception) {
+            self::assertStringContainsString('session changed', $exception->getMessage());
+        }
+        self::assertArrayNotHasKey('auth', $_SESSION);
+        self::assertSame(0, (int) $this->pdo->query('SELECT COUNT(*) FROM user_identities')->fetchColumn());
+    }
+
     private function signInAs(AuthenticatedUser $user): void
     {
-        $_SESSION['auth'] = ['user_id' => $user->id, 'session_version' => $user->sessionVersion, 'authenticated_at' => time()];
+        $issued = (new \ChitChat\Auth\LoginSessionRepository($this->pdo))->issue($user);
+        $_SESSION['auth'] = ['user_id' => $user->id, 'session_version' => $user->sessionVersion,
+            'authenticated_at' => time(), 'login_session_id' => $issued->id, 'push_token' => $issued->token];
     }
 
     /** @return array{AuthenticatedUser, AuthenticatedUser} */

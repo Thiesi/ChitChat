@@ -22,7 +22,14 @@ final readonly class NativeAuthOutcome
         #[\SensitiveParameter] public ?string $subject,
         public int $remainingSeconds,
         public ?string $factorMethod = null,
+        public ?\ChitChat\Auth\IssuedLogin $login = null,
     ) {}
+
+    public function withLogin(\ChitChat\Auth\IssuedLogin $login): self
+    {
+        return new self($this->transactionId, $this->purpose, $this->provider, $this->outcome, $this->user,
+            $this->subject, $this->remainingSeconds, $this->factorMethod, $login);
+    }
 
     /** @return array<string,mixed> */
     public function install(Config $config, string $ip, OidcService $oidc): array
@@ -50,7 +57,7 @@ final readonly class NativeAuthOutcome
                 'restoration_pending' => $this->purpose === 'restore'];
         }
         if (in_array($this->purpose, ['login', 'restore', 'sign_up'], true)) {
-            SessionManager::login($this->user, true);
+            SessionManager::login($this->user, $this->login ?? throw new \RuntimeException('Native login issuance is missing.'), true);
             NativeAuthSession::clearContinuation();
             unset($_SESSION['oidc_sign_up']);
         } else {

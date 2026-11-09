@@ -69,7 +69,8 @@ final readonly class NativeAuthContinuation
         $snapshot = $this->snapshot('pending_mfa');
         $pendingUser = SessionManager::pendingMfaUser(new UserRepository($this->pdo));
         $complete = function (callable $verify) use ($snapshot, $ip, $method): NativeAuthOutcome {
-            $this->guard->lockAccountPolicy((int) $snapshot['user_id'], $snapshot['purpose'] === 'restore');
+            $this->guard->lockAccountPolicy((int) $snapshot['user_id'], $snapshot['purpose'] === 'restore',
+                SessionManager::replacedLoginBinding()['user_id'] ?? null);
             $row = $this->snapshot('pending_mfa', true);
             $user = $this->guard->account($row) ?? throw NativeAuthGuard::failure('account_changed');
             (new LockdownService($this->pdo))->assertSignInAllowed($user);
@@ -86,7 +87,8 @@ final readonly class NativeAuthContinuation
             $this->usable($row);
             $this->rows->consume((string) $row['id'], 'completed');
             $this->audit($row, $user->id, $ip);
-            return new NativeAuthOutcome((string) $row['id'], (string) $row['purpose'], (string) $row['provider'], 'completed', $user, null, 0, $method);
+            return (new NativeAuthOutcome((string) $row['id'], (string) $row['purpose'], (string) $row['provider'], 'completed', $user, null, 0, $method))
+                ->withLogin((new \ChitChat\Auth\LoginSessionRepository($this->pdo))->issue($user, $_SERVER['HTTP_USER_AGENT'] ?? null, SessionManager::replacedLoginBinding()));
         };
         $mfa = new MfaService($this->pdo, $this->config);
         if ($method === 'passkey' && is_array($proof)) {
@@ -119,7 +121,8 @@ final readonly class NativeAuthContinuation
                 ['id' => $row['id'], 'user_id' => $user->id, 'version' => $user->sessionVersion]);
             $this->rows->consume((string) $row['id'], 'completed');
             $this->audit($row, $user->id, $ip);
-            $outcome = new NativeAuthOutcome((string) $row['id'], 'sign_up', (string) $row['provider'], 'completed', $user, null, 0);
+            $outcome = (new NativeAuthOutcome((string) $row['id'], 'sign_up', (string) $row['provider'], 'completed', $user, null, 0))
+                ->withLogin((new \ChitChat\Auth\LoginSessionRepository($this->pdo))->issue($user, $_SERVER['HTTP_USER_AGENT'] ?? null, SessionManager::replacedLoginBinding()));
             $this->pdo->commit();
         } catch (\Throwable $exception) {
             $this->rollBack();

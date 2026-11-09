@@ -54,9 +54,9 @@ final readonly class NativeAuthRepository
         $statement = $this->statement(<<<'SQL'
 INSERT INTO native_auth_transactions
 (id, native_binding_hash, entry_hash, state_hash, return_state, code_challenge,
- client_id, redirect_uri, config_hash, provider, purpose, user_id, user_version, created_at, expires_at)
+ client_id, redirect_uri, config_hash, provider, purpose, user_id, user_version, login_session_id, created_at, expires_at)
 VALUES (:id, :native_binding_hash, :entry_hash, :state_hash, :return_state, :code_challenge,
- :client_id, :redirect_uri, :config_hash, :provider, :purpose, :user_id, :user_version, statement_timestamp(), statement_timestamp() + make_interval(secs => :ttl))
+ :client_id, :redirect_uri, :config_hash, :provider, :purpose, :user_id, :user_version, :login_session_id, statement_timestamp(), statement_timestamp() + make_interval(secs => :ttl))
 RETURNING expires_at
 SQL, $values);
         $expires = $statement->fetchColumn();

@@ -189,7 +189,7 @@ SQL);
      * @param array{user_id:int,session_version:int,password_hash:string,key_generation:string,ip_address:string,expires_at:int} $pending
      * @param callable():void $verify
      *
-     * @return array{user:AuthenticatedUser,recovery_key:string}
+     * @return array{user:AuthenticatedUser,recovery_key:string,login:IssuedLogin}
      */
     private function completePending(#[\SensitiveParameter] array $pending, string $ipAddress, callable $verify): array
     {
@@ -249,7 +249,7 @@ SQL);
         return [$user, $state];
     }
 
-    /** @return array{user:AuthenticatedUser,recovery_key:string} */
+    /** @return array{user:AuthenticatedUser,recovery_key:string,login:IssuedLogin} */
     private function commitChanges(AuthenticatedUser $user, #[\SensitiveParameter] string $passwordHash, string $ipAddress, bool $mfa): array
     {
         $this->users->updatePassword($user->id, $passwordHash);
@@ -260,11 +260,12 @@ SQL);
         }
         (new AuthService($this->pdo, $this->config))->completeLogin($fresh, $ipAddress);
         $this->audit->log($fresh->id, 'auth.password_reset_succeeded', 'user', (string) $fresh->id, ['mfa' => $mfa], $ipAddress);
-        return ['user' => $fresh, 'recovery_key' => $key['recovery_key']];
+        return ['user' => $fresh, 'recovery_key' => $key['recovery_key'],
+            'login' => (new LoginSessionRepository($this->pdo))->issue($fresh, $_SERVER['HTTP_USER_AGENT'] ?? null)];
     }
 
     /**
-     * @param array{user:AuthenticatedUser,recovery_key:string} $result
+     * @param array{user:AuthenticatedUser,recovery_key:string,login:IssuedLogin} $result
      * @return array<string,mixed>
      */
     private function signedIn(#[\SensitiveParameter] array $result): array
@@ -272,14 +273,14 @@ SQL);
         // The DB commit already happened. Clear pending state before fallible session-ID
         // rotation, so a failed response cannot later acknowledge this reset as cancelled.
         unset($_SESSION['pending_password_reset'], $_SESSION['password_reset_challenge']);
-        SessionManager::login($result['user']); // Clears elevation; never grants step-up.
+        SessionManager::login($result['user'], $result['login']); // Clears elevation; never grants step-up.
         return ['status' => 'complete', 'user' => $result['user']->toSessionArray(),
             'csrf_token' => SessionManager::csrfToken(), 'recovery_key' => $result['recovery_key']];
     }
 
     private function requireAnonymous(): void
     {
-        if (SessionManager::currentUser($this->users) !== null) {
+        if (SessionManager::currentUserOrNull($this->users) !== null) {
             throw new ApiException(409, 'already_signed_in', 'Sign out before using password recovery.');
         }
     }

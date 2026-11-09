@@ -179,3 +179,5 @@ Kicks, bans, and administrator password resets publish a targeted forced-logout 
 Reverse proxies must not buffer the SSE response. The endpoint sends `X-Accel-Buffering: no`; Nginx and other proxies should also be configured to pass the stream through without response buffering and with an upstream timeout longer than 25 seconds.
 
 The implementation intentionally uses short-lived reconnecting streams rather than holding a PHP worker indefinitely.
+
+Registered-login revocation is checked **before each event batch**. Only the revoked connection receives event: forced_logout with data: {"reason":"session_revoked"}. Single-login revocation does not alter the account-wide event log; other devices continue. Account/version invalidation keeps reason session_invalidated.

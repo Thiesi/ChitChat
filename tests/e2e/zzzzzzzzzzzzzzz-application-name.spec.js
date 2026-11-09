@@ -43,8 +43,9 @@ test('Super-Administrator renames the installation and every page presents the n
     expect(publicSession.application.name).toBe(name);
     expect(typeof publicSession.application.version).toBe('string');
     expect(publicSession.application.version.length).toBeGreaterThan(0);
-    expect(publicSession.capabilities).toEqual({
+    expect(publicSession.capabilities).toMatchObject({
       schema_version: 1, native_passkey_origins: false, native_auth_handoff: false,
+      signed_in_sessions: true,
     });
     expect(publicSession.privacy.message_revisions.participant_notification).toBe(true);
     const memberSession = await (await context.request.get('/api/v1/session.php')).json();

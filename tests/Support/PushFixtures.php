@@ -34,6 +34,16 @@ final class PushFixtures
         }, new PushAddressPolicy());
     }
 
+    /** A deterministic fake holder for transport tests; production always generates its token. */
+    public static function login(PDO $pdo, \ChitChat\Auth\AuthenticatedUser $actor, string $seed): string
+    {
+        $hash = hash('sha256', $actor->id . ':' . $seed);
+        $query = $pdo->prepare("INSERT INTO login_sessions (id,user_id,session_version,binding_hash,client_hint) VALUES (:id,:user,:version,:hash,'Push fixture') ON CONFLICT (binding_hash) DO NOTHING");
+        $query->execute(['id' => \ChitChat\Auth\Base64Url::encode(random_bytes(32)), 'user' => $actor->id,
+            'version' => $actor->sessionVersion, 'hash' => $hash]);
+        return $hash;
+    }
+
     public static function subscriptions(PDO $pdo): PushSubscriptionService
     {
         return new PushSubscriptionService($pdo, self::guard());
