@@ -78,6 +78,12 @@ export function attachMentionAutocomplete(textarea, fetchSuggestions) {
         event.preventDefault();
         select(index);
       });
+      // Hovering makes an option the active one, so there's only ever one highlight.
+      option.addEventListener('pointermove', () => {
+        if (activeIndex === index) return;
+        activeIndex = index;
+        updateActiveDescendant();
+      });
       list.append(option);
     });
     position();
@@ -99,6 +105,7 @@ export function attachMentionAutocomplete(textarea, fetchSuggestions) {
     });
     if (activeIndex >= 0) {
       textarea.setAttribute('aria-activedescendant', `${listboxId}-${activeIndex}`);
+      list.children[activeIndex]?.scrollIntoView({ block: 'nearest' });
     } else {
       textarea.removeAttribute('aria-activedescendant');
     }

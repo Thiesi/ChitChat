@@ -34,6 +34,17 @@ textarea:focus-visible,
 }
 
 @media (forced-colors: active) {
+  /* The active "@" or "/" suggestion: system highlight, plus an outline. */
+  .mention-autocomplete-option.active {
+    forced-color-adjust: none;
+    border-inline-start-color: HighlightText;
+    outline: 2px solid CanvasText;
+    outline-offset: -2px;
+    background: Highlight;
+    color: HighlightText;
+  }
+  .mention-autocomplete-option.active span { color: HighlightText; }
+
   a:focus-visible,
   button:focus-visible,
   input:focus-visible,
