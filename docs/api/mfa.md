@@ -106,3 +106,30 @@ For an MFA-enabled account it returns HTTP 202 without changing the account stat
 The client then uses the ordinary pending-MFA passkey or recovery-code endpoints. Successful completion performs the restoration transaction, rechecks the deadline and current administrative-MFA policy, records the completed login, and returns `restored: true`. A failed, cancelled or expired second-factor attempt leaves the account closure-pending.
 
 See [password recovery](password-recovery.md) for the private `user.recovery_key` status, once-only key disclosure, dedicated reset MFA flow, and password-change/admin-reset rotation policy.
+
+## Native Android passkey clients
+
+The existing enrollment, MFA login, step-up, restoration and password-reset MFA
+routes accept exact configured Android certificate origins alongside the exact
+browser origin. No new authentication endpoint, RP ID or passwordless flow is
+introduced. Native clients keep the PHP session cookie and CSRF token through
+each ceremony and return Credential Manager's credential response in the same
+**{credential}** envelope with unpadded Base64URL binary fields. Option objects
+retain **public_key**; the client must not replace the server challenge or RP.
+
+Check **capabilities.native_passkey_origins === true** in session bootstrap
+before offering native passkeys. Missing means unknown; false means unavailable.
+This flag requires configured WebAuthn plus a nonempty native trust list, but
+cannot prove the operator deployed Digital Asset Links or trusts this particular
+build's signing certificate. Unapproved origins are rejected by the same MFA
+verification path; all existing authorization, purpose, challenge, IP, expiry,
+UP/UV and counter checks remain. **native_auth_handoff** stays false.
+
+The public **/.well-known/assetlinks.json** document declares configured
+packages/certificates with only **delegate_permission/common.get_login_creds**.
+It needs no cookie, CSRF token, login or database. Dynamic GET/HEAD responses are
+JSON, HTTP 200, and publicly cached for 300 seconds; empty trust returns **[]**.
+Other methods return 405. Configuration errors return a generic no-store 500.
+The Nginx exact-path mapping and RP-domain deployment are operator requirements;
+an existing static declaration takes precedence. See
+[Android trust and deployment](../operations/passkeys.md#android-credential-manager-trust).

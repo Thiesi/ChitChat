@@ -1,0 +1,16 @@
+# Per-instance crontab: install with `crontab -u APPUSER crontab.example`
+# after replacing APPUSER and the times. Offset maintenance/backup per instance.
+SHELL=/bin/sh
+PATH=/usr/bin:/bin:/usr/pkg/bin
+# NetBSD 11 base OpenSSL ships no /etc/openssl/openssl.cnf; Web Push (VAPID) needs one.
+OPENSSL_CONF=/usr/share/examples/openssl/openssl.cnf
+
+# Web Push sweep: the fallback to the --listen worker (cron's floor is one minute).
+# The JSON summary is discarded; errors are kept.
+*	*	*	*	*	cd /home/APPUSER/app && php bin/dispatch-web-push >/dev/null 2>>/home/APPUSER/log/web-push.log
+
+# Daily maintenance.
+17	4	*	*	*	cd /home/APPUSER/app && php bin/maintenance-cleanup >>/home/APPUSER/log/maintenance.log 2>&1
+
+# Live backup set. The tool never prunes old sets; manage retention separately.
+45	2	*	*	*	cd /home/APPUSER/app && php bin/chitchat-backup --destination /home/APPUSER/backups >>/home/APPUSER/log/backup.log 2>&1

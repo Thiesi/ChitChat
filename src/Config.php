@@ -11,7 +11,13 @@ final readonly class Config
 {
     public RateLimitPolicySet $rateLimits;
 
-    /** @param 'Lax'|'Strict'|'None' $sessionCookieSameSite */
+    /** @var list<array{package:string,sha256_cert_fingerprint:string}> */
+    public array $nativeAndroidApps;
+
+    /**
+     * @param 'Lax'|'Strict'|'None' $sessionCookieSameSite
+     * @param list<array{package:string,sha256_cert_fingerprint:string}> $nativeAndroidApps
+     */
     public function __construct(
         public string $environment,
         public bool $debug,
@@ -64,6 +70,7 @@ final readonly class Config
         /** @var list<array{origin:string,cidrs:list<string>}> */
         public array $webPushPrivateProviders = [],
         public string $webPushDnsResolvConf = '/etc/resolv.conf',
+        array $nativeAndroidApps = [],
     ) {
         if ($this->databasePort < 1 || $this->databasePort > 65535) {
             throw new InvalidArgumentException('DB_PORT must be between 1 and 65535.');
@@ -129,6 +136,7 @@ final readonly class Config
                 throw new InvalidArgumentException('Required application configuration is missing.');
             }
         }
+        $this->nativeAndroidApps = \ChitChat\Auth\NativeAndroidApps::normalize($nativeAndroidApps);
         $this->validateApplicationOrigin();
         $this->validateWebAuthnConfiguration();
         $this->validateWebPushConfiguration();
@@ -151,7 +159,7 @@ final readonly class Config
             environment: self::env('APP_ENV', 'production'),
             debug: self::envBool('APP_DEBUG', false),
             applicationName: self::env('APP_NAME', 'ChitChat'),
-            applicationVersion: self::env('APP_VERSION', '3.4.0'),
+            applicationVersion: self::env('APP_VERSION', '3.5.0'),
             databaseHost: self::env('DB_HOST', '127.0.0.1'),
             databasePort: self::envInt('DB_PORT', 5432),
             databaseName: self::env('DB_NAME', 'chitchat'),
@@ -193,6 +201,7 @@ final readonly class Config
             applicationOrigin: self::normalizeOrigin(self::env('APP_ORIGIN', '')),
             webPushPrivateProviders: \ChitChat\WebPush\PushAddressPolicy::fromJson(self::env('WEB_PUSH_PRIVATE_PROVIDERS', '[]')),
             webPushDnsResolvConf: self::pushDnsResolvConf(),
+            nativeAndroidApps: \ChitChat\Auth\NativeAndroidApps::fromJson(self::env('NATIVE_ANDROID_APPS', '[]')),
         );
     }
 
