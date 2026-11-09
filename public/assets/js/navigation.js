@@ -215,6 +215,8 @@ function renderBadge(count) {
     count === 0 ? 'Notifications, none unread' : `Notifications, ${count} unread`,
   );
   elements['notifications-mark-all'].classList.toggle('hidden', count === 0);
+  // The shell's Activity badge (shell.js) follows the same count.
+  window.dispatchEvent(new CustomEvent('chitchat:activity-count', { detail: { count } }));
 }
 
 async function refreshNotifications() {

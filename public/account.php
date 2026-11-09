@@ -25,18 +25,19 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <link rel="stylesheet" href="/assets/css/rules.css">
   <link rel="stylesheet" href="/assets/css/recovery.css">
   <link rel="stylesheet" href="/assets/css/step-up.css" data-step-up-styles="true">
+  <link rel="stylesheet" href="/assets/css/shell.css">
 </head>
 <body>
   <div id="account-loading" class="app-loading" role="status">Loading account…</div>
 
-  <main id="account-shell" class="account-shell hidden">
+  <?= \ChitChat\View\AppShell::open('you', 'account-shell') ?>
+  <main id="account-shell" tabindex="-1" class="account-shell hidden">
     <header class="account-header">
       <div>
         <p class="account-eyebrow"><?= $appName ?></p>
         <h1>Your account</h1>
         <p id="account-identity" class="account-muted"></p>
       </div>
-      <a class="secondary-button" href="/">Back to chat</a>
     </header>
 
     <section class="account-card" aria-labelledby="avatar-heading">
@@ -243,6 +244,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
     <p id="account-error" class="error-text" role="alert"></p>
     <?= \ChitChat\View\PoweredBy::html($config) ?>
   </main>
+  <?= \ChitChat\View\AppShell::close() ?>
 
   <dialog id="avatar-crop-dialog" class="room-dialog avatar-crop-dialog" aria-labelledby="avatar-crop-title">
     <form method="dialog" class="form-stack">
@@ -274,5 +276,6 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <script type="module" src="/assets/js/account-recovery.js"></script>
   <script type="module" src="/assets/js/typing-settings.js"></script>
   <script type="module" src="/assets/js/account-rules.js"></script>
+  <script type="module" src="/assets/js/shell.js"></script>
 </body>
 </html>

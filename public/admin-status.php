@@ -21,11 +21,13 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <link rel="stylesheet" href="/assets/css/components.css">
   <link rel="stylesheet" href="/assets/css/admin.css">
   <link rel="stylesheet" href="/assets/css/admin-status.css">
+  <link rel="stylesheet" href="/assets/css/shell.css">
 </head>
 <body>
   <div id="status-loading" class="app-loading" role="status">Loading system status…</div>
 
-  <main id="status-shell" class="admin-shell hidden">
+  <?= \ChitChat\View\AppShell::open('stewarding', 'status-shell') ?>
+  <main id="status-shell" tabindex="-1" class="admin-shell hidden">
     <header class="admin-header">
       <div>
         <p class="admin-eyebrow"><?= $appName ?></p>
@@ -34,7 +36,6 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
       </div>
       <div class="action-row">
         <button id="status-refresh" class="secondary-button" type="button">Refresh</button>
-        <a class="secondary-button admin-link-button" href="/admin.php">Back to administration</a>
       </div>
     </header>
 
@@ -125,7 +126,9 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
     </div>
     <?= \ChitChat\View\PoweredBy::html($config) ?>
   </main>
+  <?= \ChitChat\View\AppShell::close() ?>
 
   <script type="module" src="/assets/js/admin-status.js"></script>
+  <script type="module" src="/assets/js/shell.js"></script>
 </body>
 </html>

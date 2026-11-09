@@ -19,11 +19,13 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
 <?= \ChitChat\View\HeadAssets::html(\ChitChat\InstallationIcon\IconService::resolve($config)) ?>
   <link rel="stylesheet" href="/assets/css/components.css">
   <link rel="stylesheet" href="/assets/css/admin.css">
+  <link rel="stylesheet" href="/assets/css/shell.css">
 </head>
 <body>
   <div id="admin-loading" class="app-loading" role="status">Loading administration…</div>
 
-  <main id="admin-shell" class="admin-shell hidden">
+  <?= \ChitChat\View\AppShell::open('stewarding', 'admin-shell') ?>
+  <main id="admin-shell" tabindex="-1" class="admin-shell hidden">
     <header class="admin-header">
       <div>
         <p class="admin-eyebrow"><?= $appName ?></p>
@@ -35,7 +37,6 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
         <a id="system-settings-link" class="secondary-button admin-link-button hidden" href="/admin-settings.php">Operational settings</a>
         <a id="dm-inspection-link" class="secondary-button admin-link-button hidden" href="/admin-messages.php">DM inspection</a>
         <a id="revision-review-link" class="secondary-button admin-link-button hidden" href="/admin-message-revisions.php">Revision review</a>
-        <a class="secondary-button admin-link-button" href="/">Back to chat</a>
       </div>
     </header>
 
@@ -149,6 +150,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
     </section>
     <?= \ChitChat\View\PoweredBy::html($config) ?>
   </main>
+  <?= \ChitChat\View\AppShell::close() ?>
 
   <dialog id="room-create-dialog" class="room-dialog" aria-labelledby="room-create-title">
     <form id="room-create-form" class="form-stack">
@@ -235,5 +237,6 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <div id="toast-region" class="toast-region" aria-live="assertive"></div>
   <script type="module" src="/assets/js/admin.js"></script>
   <script type="module" src="/assets/js/admin-dm-link.js"></script>
+  <script type="module" src="/assets/js/shell.js"></script>
 </body>
 </html>

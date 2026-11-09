@@ -21,11 +21,13 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <link rel="stylesheet" href="/assets/css/components.css">
   <link rel="stylesheet" href="/assets/css/accessibility.css">
   <link rel="stylesheet" href="/assets/css/message-search.css">
+  <link rel="stylesheet" href="/assets/css/shell.css">
 </head>
 <body>
   <div id="message-search-loading" class="app-loading" role="status">Loading message search…</div>
 
-  <main id="message-search-shell" class="message-search-shell hidden">
+  <?= \ChitChat\View\AppShell::open('rooms', 'message-search-shell') ?>
+  <main id="message-search-shell" tabindex="-1" class="message-search-shell hidden">
     <header class="message-search-header">
       <div>
         <p class="message-search-eyebrow"><?= $appName ?></p>
@@ -34,7 +36,6 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
       </div>
       <nav class="message-search-actions" aria-label="Message navigation">
         <a class="secondary-button" href="/messages.php">Direct messages</a>
-        <a class="secondary-button" href="/">Back to chat</a>
       </nav>
     </header>
 
@@ -70,7 +71,9 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
     </section>
     <?= \ChitChat\View\PoweredBy::html($config) ?>
   </main>
+  <?= \ChitChat\View\AppShell::close() ?>
 
   <script type="module" src="/assets/js/message-search.js"></script>
+  <script type="module" src="/assets/js/shell.js"></script>
 </body>
 </html>
