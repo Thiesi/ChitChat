@@ -50,6 +50,10 @@ The `registration` policy's environment values are server defaults: a Super-Admi
 | `registration` | 5 / 3600 s | Account registration by source IP |
 | `guest_start` | 5 / 3600 s | Starting a guest session by source IP |
 | `privileged_step_up` | 10 / 900 s | Current-password step-up by account and IP |
+| `native_auth_start` | 10 / 900 s | Native handoff starts, separately by source IP and private app binding |
+| `native_auth_exchange` | 30 / 900 s | Native one-use exchanges, separately by source IP and private app binding |
+| `native_auth_browser` | 60 / 900 s | Browser actions/callbacks by source IP and transaction; native cancellation by binding/IP |
+| `native_auth_status` | 120 / 60 s | Read-only native status by source IP and private binding |
 | `mfa_assertion` | 20 / 900 s | Passkey assertion attempts |
 | `mfa_recovery` | 10 / 3600 s | One-time recovery-code attempts |
 | `mfa_management` | 20 / 3600 s | Passkey and recovery-code management |

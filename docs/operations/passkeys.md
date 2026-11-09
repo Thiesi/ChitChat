@@ -160,7 +160,8 @@ not successful DAL deployment or a device acceptance test. A signed CCM build
 must still prove enrollment, MFA login and step-up against the deployed RP
 through Android Credential Manager. Synthetic cryptographic/HTTP fixtures and
 green CI do not constitute that native acceptance. **native_auth_handoff**
-remains false; browser OIDC handoff is a separate feature.
+has separate provider/origin/confirmation requirements; see the
+[native handoff API](../api/native-auth.md).
 
 Android setup references: [Credential Manager prerequisites](https://developer.android.com/identity/credential-manager/prerequisites),
 [passkey creation](https://developer.android.com/identity/passkeys/create-passkeys),

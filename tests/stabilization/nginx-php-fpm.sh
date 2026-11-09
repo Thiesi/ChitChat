@@ -68,7 +68,13 @@ events {
 http {
     include /etc/nginx/mime.types;
     default_type application/octet-stream;
-    log_format timed '\$remote_addr [\$time_local] "\$request" \$status \$body_bytes_sent \$request_time';
+    map \$uri \$chitchat_log_request {
+        default \$request;
+        ~^/native-auth\\.php\$ "\$request_method \$uri \$server_protocol";
+        ~^/api/v1/native-auth/ "\$request_method \$uri \$server_protocol";
+        ~^/api/v1/oidc/callback\\.php\$ "\$request_method \$uri \$server_protocol";
+    }
+    log_format timed '\$remote_addr [\$time_local] "\$chitchat_log_request" \$status \$body_bytes_sent \$request_time';
     access_log $work_root/nginx-access.log timed;
     client_body_temp_path $work_root/nginx/client-body;
     fastcgi_temp_path $work_root/nginx/fastcgi-temp;
@@ -108,6 +114,14 @@ http {
             gzip off;
         }
 
+        location ~ ^/(native-auth\\.php|api/v1/native-auth/.*|api/v1/oidc/callback\\.php)\$ {
+            error_log /dev/null;
+            try_files \$uri =404;
+            include /etc/nginx/fastcgi_params;
+            fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
+            fastcgi_pass 127.0.0.1:9070;
+            fastcgi_read_timeout 60s;
+        }
         location ~ \.php$ {
             try_files \$uri =404;
             include /etc/nginx/fastcgi_params;

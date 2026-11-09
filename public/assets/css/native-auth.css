@@ -1,0 +1,91 @@
+/* The browser confirmation page for the native app handoff (#146). Born
+   Lantern: one card on the ground colour, phone-first (it opens in a Custom
+   Tab), both themes. Uses only existing tokens. */
+
+body { background: var(--ground); }
+
+.native-auth {
+  display: grid;
+  min-height: 100dvh;
+  place-items: start center;
+  padding: clamp(1rem, 6vw, 4rem) 1rem;
+}
+
+.native-auth-card {
+  display: grid;
+  gap: 1rem;
+  width: min(100%, 28rem);
+  padding: clamp(1.25rem, 5vw, 2rem);
+  border: 1px solid var(--line);
+  border-radius: 1.5rem;
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
+  color: var(--text);
+}
+
+.native-auth-card > * { margin: 0; }
+
+.native-auth-header {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-width: 0;
+}
+
+.native-auth-mark { flex: none; width: 2.5rem; height: 2.5rem; }
+
+.native-auth-header h1 {
+  margin: 0;
+  min-width: 0;
+  font-family: var(--display-font);
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: var(--display-tracking);
+  overflow-wrap: anywhere;
+}
+
+#native-auth-heading {
+  font-family: var(--display-font);
+  font-size: clamp(1.3rem, 5vw, 1.6rem);
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: var(--display-tracking);
+  overflow-wrap: anywhere;
+}
+
+.native-auth-card p { line-height: 1.55; overflow-wrap: anywhere; }
+
+.native-auth-details {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 0.9rem;
+  background: var(--raised);
+}
+
+.native-auth-details > div { display: grid; grid-template-columns: 5rem minmax(0, 1fr); gap: 0.5rem; }
+.native-auth-details dt { color: var(--text-muted); }
+.native-auth-details dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+
+.native-auth-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.native-auth-actions form { display: contents; }
+
+.native-auth-actions .primary-button,
+.native-auth-actions .secondary-button {
+  flex: 1 1 10rem;
+  min-height: 3rem;
+  padding: 0.75rem 1rem;
+  text-align: center;
+  text-decoration: none;
+}
+
+a.native-auth-return { display: inline-flex; align-items: center; justify-content: center; }
+
+.native-auth-small { color: var(--text-muted); font-size: 0.875rem; }
+.native-auth-small a { color: var(--signature-text); font-weight: 600; text-underline-offset: 0.15em; }

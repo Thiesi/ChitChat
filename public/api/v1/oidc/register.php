@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use ChitChat\Admin\RegistrationProtectionService;
+use ChitChat\Auth\NativeAuth\NativeAuthContinuation;
+use ChitChat\Auth\NativeAuth\NativeAuthEndpoint;
 use ChitChat\Auth\Oidc\OidcService;
 use ChitChat\Auth\SessionManager;
 use ChitChat\Database;
@@ -38,6 +40,10 @@ Endpoint::run($config, static function () use ($config): ApiResult {
         $payload['challenge_solution'] ?? null,
         time(),
     );
+    if (NativeAuthContinuation::pending()) {
+        return ApiResult::created(NativeAuthEndpoint::protect(static fn (): array => (new NativeAuthContinuation($pdo, $config))->finishSignUp(
+            Request::string($payload, 'username'), $birthDate, $payload['accepted_rules_version'] ?? null, $ipAddress)));
+    }
     $user = (new OidcService($pdo, $config))->completeSignUp(
         Request::string($payload, 'username'),
         $birthDate,

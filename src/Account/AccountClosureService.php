@@ -228,19 +228,32 @@ SQL, 'account-restoration lookup');
     {
         $this->pdo->beginTransaction();
         try {
-            $mfaPolicyRequired = $this->lockGlobalAccountPolicy();
-            $user = $this->userForUpdate($userId);
-            if ((string) $user['account_state'] === 'closed') {
-                throw new ApiException(410, 'account_closed', 'This account has already been permanently closed.');
-            }
-            if ((string) $user['account_state'] !== 'closure_pending') {
-                throw new ApiException(409, 'account_not_pending', 'This account is not awaiting closure.');
-            }
-            if (new DateTimeImmutable((string) $user['closure_finalizes_at']) <= new DateTimeImmutable()) {
-                throw new ApiException(410, 'account_restoration_expired', 'The account-restoration deadline has passed.');
-            }
+            $restored = $this->completeRestoreInTransaction($userId, $ipAddress);
+            $this->pdo->commit();
+            return $restored;
+        } catch (Throwable $exception) {
+            $this->rollBack();
+            throw $exception;
+        }
+    }
 
-            $closureLookup = $this->prepare(<<<'SQL'
+    /** Restoration and a native grant/factor consumption commit or roll back together. */
+    public function completeRestoreInTransaction(int $userId, string $ipAddress, bool $nativeHandoff = false): AuthenticatedUser
+    {
+        if (!$this->pdo->inTransaction()) throw new RuntimeException('Restoration requires an outer transaction.');
+        $mfaPolicyRequired = $this->lockGlobalAccountPolicy();
+        $user = $this->userForUpdate($userId, $nativeHandoff);
+        if ((string) $user['account_state'] === 'closed') {
+            throw new ApiException(410, 'account_closed', 'This account has already been permanently closed.');
+        }
+        if ((string) $user['account_state'] !== 'closure_pending') {
+            throw new ApiException(409, 'account_not_pending', 'This account is not awaiting closure.');
+        }
+        if (new DateTimeImmutable((string) $user['closure_finalizes_at']) <= new DateTimeImmutable()) {
+            throw new ApiException(410, 'account_restoration_expired', 'The account-restoration deadline has passed.');
+        }
+
+        $closureLookup = $this->prepare(<<<'SQL'
 SELECT id, role_snapshot::text AS role_snapshot
 FROM account_closures
 WHERE user_id = :user_id
@@ -248,68 +261,63 @@ WHERE user_id = :user_id
   AND finalized_at IS NULL
 FOR UPDATE
 SQL, 'pending account-closure lookup');
-            $closureLookup->execute(['user_id' => $userId]);
-            $closure = $closureLookup->fetch();
-            if (!is_array($closure)) {
-                throw new RuntimeException('Pending account-closure lifecycle is missing.');
-            }
+        $closureLookup->execute(['user_id' => $userId]);
+        $closure = $closureLookup->fetch();
+        if (!is_array($closure)) {
+            throw new RuntimeException('Pending account-closure lifecycle is missing.');
+        }
 
-            $snapshotRoles = $this->decodeRoles((string) $closure['role_snapshot']);
-            $restoredRoles = $snapshotRoles;
-            $withheldRoles = [];
-            if ($mfaPolicyRequired && !$this->hasPasskeyMfa($userId)) {
-                $restoredRoles = [];
-                $withheldRoles = $snapshotRoles;
-            }
+        $snapshotRoles = $this->decodeRoles((string) $closure['role_snapshot']);
+        $restoredRoles = $snapshotRoles;
+        $withheldRoles = [];
+        if ($mfaPolicyRequired && !$this->hasPasskeyMfa($userId)) {
+            $restoredRoles = [];
+            $withheldRoles = $snapshotRoles;
+        }
 
-            $this->execute(
-                'UPDATE account_closures SET restored_at = NOW() WHERE id = :id',
-                ['id' => (int) $closure['id']],
-                'closure restoration record',
-            );
-            $this->execute(<<<'SQL'
+        $this->execute(
+            'UPDATE account_closures SET restored_at = NOW() WHERE id = :id',
+            ['id' => (int) $closure['id']],
+            'closure restoration record',
+        );
+        $this->execute(<<<'SQL'
 UPDATE users
 SET account_state = 'active',
-    closure_requested_at = NULL,
-    closure_finalizes_at = NULL,
-    closed_at = NULL,
-    session_version = session_version + 1,
-    updated_at = NOW()
+closure_requested_at = NULL,
+closure_finalizes_at = NULL,
+closed_at = NULL,
+session_version = session_version + 1,
+updated_at = NOW()
 WHERE id = :user_id
 SQL, ['user_id' => $userId], 'account restoration');
 
-            $insertRole = $this->prepare(
-                'INSERT INTO user_roles (user_id, role) VALUES (:user_id, :role) ON CONFLICT DO NOTHING',
-                'restored role assignment',
-            );
-            foreach ($restoredRoles as $role) {
-                $insertRole->execute(['user_id' => $userId, 'role' => $role]);
-            }
-
-            $this->audit->log(
-                $userId,
-                'account.closure_restored',
-                'user',
-                (string) $userId,
-                [
-                    'closure_id' => (int) $closure['id'],
-                    'restored_roles' => $restoredRoles,
-                    'withheld_roles' => $withheldRoles,
-                ],
-                $ipAddress,
-            );
-            $this->pdo->commit();
-
-            $restored = $this->users->findAuthenticatedById($userId);
-            if ($restored === null) {
-                throw new RuntimeException('Restored account could not be reloaded.');
-            }
-
-            return $restored;
-        } catch (Throwable $exception) {
-            $this->rollBack();
-            throw $exception;
+        $insertRole = $this->prepare(
+            'INSERT INTO user_roles (user_id, role) VALUES (:user_id, :role) ON CONFLICT DO NOTHING',
+            'restored role assignment',
+        );
+        foreach ($restoredRoles as $role) {
+            $insertRole->execute(['user_id' => $userId, 'role' => $role]);
         }
+
+        $this->audit->log(
+            $userId,
+            'account.closure_restored',
+            'user',
+            (string) $userId,
+            [
+                'closure_id' => (int) $closure['id'],
+                'restored_roles' => $restoredRoles,
+                'withheld_roles' => $withheldRoles,
+            ],
+            $ipAddress,
+        );
+
+        $restored = $this->users->findAuthenticatedById($userId);
+        if ($restored === null) {
+            throw new RuntimeException('Restored account could not be reloaded.');
+        }
+
+        return $restored;
     }
 
     public function dueCount(): int
@@ -458,9 +466,9 @@ SQL, 'restored-role MFA validation');
     }
 
     /** @return array<string, mixed> */
-    private function userForUpdate(int $userId): array
+    private function userForUpdate(int $userId, bool $nativeHandoff = false): array
     {
-        $statement = $this->prepare('SELECT * FROM users WHERE id = :id FOR UPDATE', 'account lifecycle lock');
+        $statement = $this->prepare('SELECT * FROM users WHERE id = :id ' . ($nativeHandoff ? 'FOR NO KEY UPDATE' : 'FOR UPDATE'), 'account lifecycle lock');
         $statement->execute(['id' => $userId]);
         $row = $statement->fetch();
         if (!is_array($row)) {

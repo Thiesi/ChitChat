@@ -25,6 +25,7 @@ $config = require dirname(__DIR__, 3) . '/bootstrap/http.php';
 Endpoint::run($config, static function () use ($config): ApiResult {
     Request::requireMethod('GET');
     $pdo = Database::connect($config);
+    (new \ChitChat\Auth\NativeAuth\NativeAuthContinuation($pdo, $config))->reconcileSession();
     $users = new UserRepository($pdo);
     $user = SessionManager::currentUser($users);
     $statement = $pdo->query(<<<'SQL'

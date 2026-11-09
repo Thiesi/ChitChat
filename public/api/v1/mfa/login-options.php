@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use ChitChat\Auth\NativeAuth\NativeAuthContinuation;
+use ChitChat\Auth\NativeAuth\NativeAuthEndpoint;
 use ChitChat\Auth\MfaService;
 use ChitChat\Auth\SessionManager;
 use ChitChat\Auth\UserRepository;
@@ -18,11 +20,11 @@ Endpoint::run($config, static function () use ($config): ApiResult {
     Request::requireMethod('POST');
     SessionManager::requireCsrf(Request::csrfHeader());
     $ipAddress = Request::clientIp();
-    if (!hash_equals(SessionManager::pendingMfaIpAddress(), $ipAddress)) {
-        SessionManager::clearPendingMfa();
-        throw new ApiException(401, 'mfa_login_expired', 'The multi-factor sign-in context changed. Start again.');
-    }
     $pdo = Database::connect($config);
+    if (NativeAuthContinuation::pending()) {
+        return ApiResult::ok(NativeAuthEndpoint::protect(static fn (): array => (new NativeAuthContinuation($pdo, $config))->mfaOptions($ipAddress)));
+    }
+    SessionManager::assertPendingMfaTransport($ipAddress);
     $user = SessionManager::pendingMfaUser(new UserRepository($pdo));
 
     return ApiResult::ok([
