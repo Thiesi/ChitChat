@@ -56,54 +56,88 @@ final class PushDeliveryQueue
 SELECT n.id, n.user_id, n.kind, n.context_json::text AS context, n.created_at, n.read_at
 FROM account_notifications n
 WHERE n.push_dispatched_at IS NULL AND n.kind <> 'privacy_policy_updated'
-  AND NOT EXISTS (SELECT 1 FROM push_dispatch_sources source WHERE source.notification_id = n.id)
+  AND NOT EXISTS (SELECT 1 FROM push_dispatch_sources s WHERE s.notification_id = n.id)
 ORDER BY n.id LIMIT 1 FOR UPDATE OF n SKIP LOCKED
 SQL)->fetch();
                 if (!is_array($row)) {
                     $this->pdo->commit();
                     break;
                 }
-                // A worker can commit between our MVCC scan and row-lock acquisition.
-                // Use a fresh statement snapshot after owning the notification lock.
                 if ($this->query('SELECT 1 FROM push_dispatch_sources WHERE notification_id = :id',
                     ['id' => $row['id']])->fetchColumn() !== false) {
                     $this->pdo->commit();
                     continue;
                 }
-                $notification = $this->notification($row);
-                $deadline = $notification->createdAt->modify('+' . PushDeliveryPolicy::lifetime($notification->kind) . ' seconds');
-                $reason = $notification->read ? 'read' : ($deadline <= $now ? 'expired' : $suppression($notification));
-                if ($reason !== null) {
-                    $this->markSource($notification->id, $reason, $now);
-                    $counts['skipped_' . $reason] = ($counts['skipped_' . $reason] ?? 0) + 1;
-                } else {
+                $candidate = $this->notification($row);
+                $messageId = self::directMessageId($candidate);
+                $eventKey = $messageId === null ? 'notification:' . $candidate->id : 'direct:' . $messageId;
+                $sources = [$candidate];
+                if ($messageId !== null) {
+                    // Another worker may own the sibling notification. Never wait
+                    // for the group lock while retaining a different source lock.
+                    $locked = $this->query('SELECT pg_try_advisory_xact_lock(hashtextextended(:event, 0))',
+                        ['event' => 'push:' . $candidate->userId . ':' . $eventKey])->fetchColumn();
+                    if (!in_array($locked, [true, 't', 1, '1'], true)) {
+                        $this->pdo->commit();
+                        continue;
+                    }
+                    $rows = $this->query(<<<'SQL'
+SELECT n.id, n.user_id, n.kind, n.context_json::text AS context, n.created_at, n.read_at
+FROM account_notifications n
+WHERE n.user_id = :user AND n.kind IN ('mentioned', 'direct_message_received')
+ AND n.context_json->>'message_kind' = 'direct'
+ AND n.context_json->>'message_id' = :message
+ AND jsonb_typeof(n.context_json->'message_id') = 'number'
+ AND n.push_dispatched_at IS NULL
+ AND NOT EXISTS (SELECT 1 FROM push_dispatch_sources s WHERE s.notification_id = n.id)
+ORDER BY n.id FOR UPDATE OF n
+SQL, ['user' => $candidate->userId, 'message' => (string) $messageId])->fetchAll();
+                    $sources = array_map(fn (array $source): PushNotification => $this->notification($source), $rows);
+                }
+                if ($sources === []) {
+                    $this->pdo->commit();
+                    continue;
+                }
+                $deadline = $sources[0]->createdAt->modify('+' . PushDeliveryPolicy::lifetime($sources[0]->kind) . ' seconds');
+                $selection = $this->selectSource(array_values($sources), $suppression);
+                $notification = $selection['notification'];
+                $reason = $deadline <= $now ? 'expired' : $selection['reason'];
+                $subscriptions = [];
+                if ($reason === null) {
                     $subscriptions = $this->query(<<<'SQL'
 SELECT id, user_id, endpoint, p256dh_key, auth_key, session_version, delivery_binding, generation FROM push_subscriptions
 WHERE user_id = :user AND generation_started_at <= :created
  AND session_version = (SELECT session_version FROM users WHERE id = push_subscriptions.user_id) ORDER BY id
-SQL, ['user' => $notification->userId, 'created' => $row['created_at']])->fetchAll();
+SQL, ['user' => $notification->userId, 'created' => self::time($sources[0]->createdAt)])->fetchAll();
                     if ($subscriptions === []) {
-                        $this->markSource($notification->id, 'no_subscriptions', $now);
-                        $counts['skipped_no_subscriptions'] = ($counts['skipped_no_subscriptions'] ?? 0) + 1;
-                    } else {
-                        $jobId = (int) $this->query(<<<'SQL'
-INSERT INTO push_dispatch_jobs (user_id, event_key, expires_at, created_at)
-VALUES (:user, :event, :expires, :created) RETURNING id
-SQL, ['user' => $notification->userId, 'event' => 'notification:' . $notification->id,
-                            'expires' => self::time($deadline), 'created' => self::time($now)])->fetchColumn();
+                        $reason = 'no_subscriptions';
+                    }
+                }
+                if ($reason !== null) {
+                    foreach ($sources as $source) {
+                        $this->markSource($source->id, $reason, $now);
+                    }
+                    $counts['skipped_' . $reason] = ($counts['skipped_' . $reason] ?? 0) + count($sources);
+                } else {
+                    $jobId = (int) $this->query(<<<'SQL'
+INSERT INTO push_dispatch_jobs (user_id, event_key, expires_at, created_at, selected_notification_id)
+VALUES (:user, :event, :expires, :created, :selected) RETURNING id
+SQL, ['user' => $notification->userId, 'event' => $eventKey, 'selected' => $notification->id,
+                        'expires' => self::time($deadline), 'created' => self::time($now)])->fetchColumn();
+                    foreach ($sources as $source) {
                         $this->query('INSERT INTO push_dispatch_sources (notification_id, job_id) VALUES (:source, :job)',
-                            ['source' => $notification->id, 'job' => $jobId]);
-                        foreach ($subscriptions as $subscriptionRow) {
-                            $subscription = self::subscription($subscriptionRow);
-                            $this->query(<<<'SQL'
+                            ['source' => $source->id, 'job' => $jobId]);
+                    }
+                    foreach ($subscriptions as $subscriptionRow) {
+                        $subscription = self::subscription($subscriptionRow);
+                        $this->query(<<<'SQL'
 INSERT INTO push_deliveries (job_id, subscription_id, subscription_fingerprint, next_attempt_at)
 VALUES (:job, :subscription, :fingerprint, :due)
 SQL, ['job' => $jobId, 'subscription' => $subscription['id'],
-                                'fingerprint' => self::fingerprint($subscription), 'due' => self::time($now)]);
-                        }
+                            'fingerprint' => self::fingerprint($subscription), 'due' => self::time($now)]);
                     }
                 }
-                $counts['processed']++;
+                $counts['processed'] += count($sources);
                 $this->pdo->commit();
             } catch (Throwable $exception) {
                 $this->pdo->rollBack();
@@ -113,6 +147,82 @@ SQL, ['job' => $jobId, 'subscription' => $subscription['id'],
         return $counts;
     }
 
+    private static function directMessageId(PushNotification $notification): ?int
+    {
+        $id = $notification->context['message_id'] ?? null;
+        return in_array($notification->kind, ['mentioned', 'direct_message_received'], true)
+            && ($notification->context['message_kind'] ?? null) === 'direct' && is_int($id) && $id > 0 ? $id : null;
+    }
+
+    /**
+     * @param non-empty-list<PushNotification> $sources
+     * @param Closure(PushNotification):?string $suppression
+     * @return array{notification:PushNotification,reason:?string}
+     */
+    private function selectSource(array $sources, Closure $suppression, bool $frozen = false, ?int $selectedId = null): array
+    {
+        usort($sources, static fn (PushNotification $a, PushNotification $b): int =>
+            (($a->kind === 'mentioned' ? 0 : 1) <=> ($b->kind === 'mentioned' ? 0 : 1)) ?: ($a->id <=> $b->id));
+        if ($frozen) {
+            foreach ($sources as $source) {
+                if ($source->id === $selectedId) {
+                    return ['notification' => $source, 'reason' => $source->read ? 'read' : $suppression($source)];
+                }
+            }
+            return ['notification' => $sources[0], 'reason' => 'forbidden'];
+        }
+        $firstReason = null;
+        foreach ($sources as $source) {
+            $reason = $source->read ? 'read' : $suppression($source);
+            if ($reason === null) {
+                return ['notification' => $source, 'reason' => null];
+            }
+            $firstReason ??= $reason;
+        }
+        return ['notification' => $sources[0], 'reason' => $firstReason];
+    }
+
+    /**
+     * Re-select under the existing event lease immediately before HTTP.
+     * @param Closure(PushNotification):?string $suppression
+     * @return array{claim:PushClaim,reason:?string}|null Null means a stale lease.
+     */
+    public function prepare(PushClaim $claim, DateTimeImmutable $now, Closure $suppression): ?array
+    {
+        $this->pdo->beginTransaction();
+        try {
+            $job = $this->query(<<<'SQL'
+SELECT selected_notification_id, selection_frozen FROM push_dispatch_jobs
+WHERE id = :id AND claim_token = :token AND lease_until > :now AND finished_at IS NULL FOR UPDATE
+SQL, ['id' => $claim->jobId, 'token' => $claim->token, 'now' => self::time($now)])->fetch();
+            if (!is_array($job)) {
+                $this->pdo->commit();
+                return null;
+            }
+            $rows = $this->query(<<<'SQL'
+SELECT n.id, n.user_id, n.kind, n.context_json::text AS context, n.created_at, n.read_at
+FROM push_dispatch_sources s JOIN account_notifications n ON n.id = s.notification_id
+WHERE s.job_id = :job ORDER BY n.id
+SQL, ['job' => $claim->jobId])->fetchAll();
+            $sources = array_map(fn (array $row): PushNotification => $this->notification($row), $rows);
+            if ($sources === []) {
+                $selection = ['notification' => $claim->notification, 'reason' => 'forbidden'];
+            } else {
+                $selection = $this->selectSource(array_values($sources), $suppression,
+                    in_array($job['selection_frozen'], [true, 't', 1, '1'], true),
+                    $job['selected_notification_id'] === null ? null : (int) $job['selected_notification_id']);
+                if ($selection['reason'] === null) {
+                    $this->query('UPDATE push_dispatch_jobs SET selected_notification_id = :selected WHERE id = :id',
+                        ['selected' => $selection['notification']->id, 'id' => $claim->jobId]);
+                }
+            }
+            $this->pdo->commit();
+            return ['claim' => $claim->forNotification($selection['notification']), 'reason' => $selection['reason']];
+        } catch (Throwable $exception) {
+            $this->pdo->rollBack();
+            throw $exception;
+        }
+    }
     /** One event is leased to one worker, for one device attempt at a time. */
     public function claim(DateTimeImmutable $now): ?PushClaim
     {
@@ -191,6 +301,12 @@ SQL, ['id' => $claim->jobId, 'token' => $claim->token, 'now' => self::time($now)
             if ($owned === false) {
                 $this->pdo->commit();
                 return null;
+            }
+            if ($state === 'sent') {
+                $this->query(<<<'SQL'
+UPDATE push_dispatch_jobs SET selected_notification_id = :selected, selection_frozen = TRUE
+WHERE id = :job AND NOT selection_frozen
+SQL, ['selected' => $claim->notification->id, 'job' => $claim->jobId]);
             }
             // Subscription/cascade rows precede the ledger, matching revoke/rotation.
             $pruned = 0;

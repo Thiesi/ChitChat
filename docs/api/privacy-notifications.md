@@ -81,3 +81,24 @@ At most 100 explicit positive IDs are accepted. IDs belonging to another account
 ## Browser behavior
 
 `/notifications.php` (titled **Notifications**, since it also lists @mentions) provides the signed-in notification center with pagination, individual read controls, and a mark-all-read action. In the chat top bar, the bell shows a capped unread badge, refreshed once per minute while the signed-in shell is active, and opens a preview of the five newest notifications with a mark-all-read action; opening an unread linked notification marks it read. The notification center is usable without realtime delivery; durable database state is always authoritative.
+
+## Opt-in direct-message participation notices
+
+The additive `direct_message_received` kind is created for opted-in recipients
+of new text/attachment DMs, transactionally with the message. The absent
+`direct_message_push_enabled` preference is false. Opting in never backfills,
+and editing/reactions do not create another notice.
+
+Context stores only `message_kind: "direct"`, `message_id` and `sender_user_id`.
+The server renders the current name as "Rowan sent you a direct message." and
+links to `/messages.php?with=<id>`; an unavailable/closed/deleted sender uses
+"Someone" and `/messages.php`. Message bodies, captions and filenames never enter
+this notification or its push. Current identities are fetched in one batch for
+the timeline.
+
+Both DM and mention semantic records can coexist and contribute to unread
+counts, but the shared dispatcher sends one selected event per device. See the
+[overlap contract](web-push.md#opt-in-incoming-direct-message-alerts).
+Reading a conversation marks exactly its covered DM notice rows read, atomically
+with the underlying messages. Mention notification read state stays independent.
+Older clients must tolerate this additional kind and ignore unknown fields.

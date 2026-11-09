@@ -236,3 +236,19 @@ The history query and inspection audit insert are one transaction. Content is re
 A successful password verification has its own `auth.privileged_step_up_succeeded` record and does not replace the per-page inspection audit.
 
 Message bodies and passwords are never duplicated into audit metadata. Unauthorized, disabled, stale-step-up, or invalid requests return no content and do not create a successful-inspection record.
+
+## Background alert opt-in
+
+The preference API may expose `direct_message_push_enabled` (default false).
+When explicitly enabled, each eligible new incoming text or attachment DM creates
+a content-free `direct_message_received` timeline record in the send transaction.
+There is no sender alert and no backfill on enabling, edits or reactions.
+Mentions remain independent semantic records; their overlap produces one device
+alert under the [Web Push contract](web-push.md#opt-in-incoming-direct-message-alerts).
+
+The existing `read.php` body and changed-message count are unchanged. Its single
+statement snapshot also marks the DM notices for the exact message IDs it
+acknowledged, using their read timestamps. A concurrent message inserted after
+that snapshot and its notice remain unread. This adds no client-supplied read
+cutoff and makes no claim that every acknowledged message was displayed.
+Mention timeline rows retain their existing independent read state.
