@@ -37,8 +37,8 @@ test('account closure blocks ordinary login and supports explicit cooling-off re
 
 async function closeAndRestore(page, onClosureRequested) {
   await signIn(page);
-  await page.getByRole('button', { name: 'Account menu' }).click();
-  await page.getByRole('link', { name: 'Account', exact: true }).click();
+  // The account page is the shell's You since the account menu went (#168, S2b).
+  await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'You', exact: true }).click();
   await expect(page).toHaveURL(/\/account\.php$/);
 
   await page.getByLabel(/I understand that I will be signed out immediately/).check();

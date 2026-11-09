@@ -113,7 +113,9 @@ body:not(:has(.app-frame.has-nav)) .skip-link { display: none; }
   .app-nav-steward { margin-top: auto; }
 }
 
-/* Phones: CCM's bottom bar, gone while typing so the composer keeps its room. */
+/* Phones: CCM's bottom bar, gone while typing so the composer keeps its room:
+   a focused message box, or (data-keyboard, shell.js) any on-screen keyboard.
+   Other fields don't count by focus alone, since autofocus opens no keyboard. */
 @media (max-width: 47.99rem) {
   .app-frame.has-nav { --bar-space: calc(var(--bar-height) + env(safe-area-inset-bottom, 0px)); padding-bottom: var(--bar-space); }
   .app-nav {
@@ -128,10 +130,10 @@ body:not(:has(.app-frame.has-nav)) .skip-link { display: none; }
   /* On phones Stewarding lives inside You (S2b); until then the account menu has it. */
   .app-nav-steward { display: none; }
 
-  .app-frame.has-nav:is([data-keyboard], :has(:is(textarea, input:not([type]), input[type="text"], input[type="search"], input[type="email"], input[type="password"]):focus)) {
+  .app-frame.has-nav:is([data-keyboard], :has(textarea:focus)) {
     --bar-space: 0px;
   }
-  .app-frame.has-nav:is([data-keyboard], :has(:is(textarea, input:not([type]), input[type="text"], input[type="search"], input[type="email"], input[type="password"]):focus)) > .app-nav {
+  .app-frame.has-nav:is([data-keyboard], :has(textarea:focus)) > .app-nav {
     display: none;
   }
 

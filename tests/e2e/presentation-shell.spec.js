@@ -166,10 +166,10 @@ test('members without a staff role don’t see Stewarding', async ({ page }) => 
   await expect(nav(page).locator('.app-nav-steward')).toBeHidden();
 });
 
-test('guests get Rooms only', async ({ page }) => {
-  await fixture(page, { user: { id: 9, username: 'Guest 4821', roles: [], session_version: 1 } });
+test('guests get Rooms and a short You', async ({ page }) => {
+  await fixture(page, { user: { id: 9, username: 'Guest 4821', roles: [], session_version: 1, guest: true } });
   await openRooms(page);
-  expect(await linkNames(page)).toEqual(['Rooms']);
+  expect(await linkNames(page)).toEqual(['Rooms', 'You']);
 });
 
 test('signed out: no navigation and no skip link', async ({ page }) => {
@@ -226,17 +226,17 @@ test.describe('phones: the bottom bar', () => {
     await page.screenshot({ path: testInfo.outputPath('shell-360.png') });
   });
 
-  // Until You carries Stewarding on phones (S2b), the account menu does, for every kind of staff.
+  // On phones Stewarding is on You, for every kind of staff (the bar has no room for it).
   for (const [label, options, destination] of [
     ['an administrator', { user: { ...member, roles: ['admin'] } }, '/admin.php'],
     ['a global moderator', { user: { ...member, roles: ['global_moderator'] } }, '/moderation.php'],
     ['a room moderator', { roomRole: 'moderator' }, '/moderation.php'],
   ]) {
-    test(`${label} reaches Stewarding from the account menu`, async ({ page }) => {
+    test(`${label} reaches Stewarding from You`, async ({ page }) => {
       await fixture(page, options);
-      await openRooms(page);
-      await page.getByRole('button', { name: 'Account menu' }).click();
-      const link = page.locator('#user-menu').getByRole('link', { name: 'Stewarding' });
+      await page.goto('/account.php');
+      await nav(page).getByRole('link', { name: 'You', exact: true }).waitFor();
+      const link = page.getByRole('link', { name: 'Open Stewarding' });
       await expect(link).toBeVisible();
       await expect(link).toHaveAttribute('href', destination);
     });

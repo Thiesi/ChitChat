@@ -24,7 +24,7 @@ async function initialize() {
       return;
     }
 
-    elements.identity.textContent = `Signed in as ${session.user.username}`;
+    elements.identity.textContent = `${session.user.guest === true ? 'Visiting as' : 'Signed in as'} ${session.user.username}`;
     elements.exportButton.addEventListener('click', downloadExport);
     elements.closureConfirm.addEventListener('change', () => {
       elements.closureButton.disabled = !elements.closureConfirm.checked;

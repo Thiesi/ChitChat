@@ -116,10 +116,9 @@ for (const theme of ['dark', 'light']) {
     await page.locator('#drawer-toggle').click();
     await expect(page.getByRole('navigation', { name: 'Rooms' })).toBeVisible();
     await page.keyboard.press('Escape');
-    await page.locator('#user-menu-button').click();
-    await expect(page.getByRole('link', { name: 'Account', exact: true })).toBeVisible();
+    // The account menu is gone (S2b): You is in the bottom bar.
+    await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'You', exact: true })).toBeVisible();
     await noOverflow(page);
-    await page.keyboard.press('Escape');
     await page.locator('#composer-input').fill('A little hello.');
     await page.locator('#emoji-button').click();
     await expect(page.locator('.emoji-picker')).toBeVisible();

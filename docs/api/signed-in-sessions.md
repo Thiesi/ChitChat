@@ -13,6 +13,8 @@ All responses use Cache-Control: no-store.
 {"sessions":[{"id":"<opaque 43-character id>","current":true,"created_at":"2026-11-09T12:00:00+00:00","last_active_at":"2026-11-09T12:05:00+00:00","client_hint":"Firefox on Windows","device_label":null}],"maximum_sessions":50}
 ~~~
 
+`client_hint` is a short, server-derived classification of the User-Agent seen at sign-in (only the classification is stored). Native clients should send a User-Agent containing `ChitChat-Mobile` (for example `ChitChat-Mobile/1.4.0 (Android 15)`) on every request, so their logins show as "ChitChat app on Android". Anything unrecognised shows as "Unknown client".
+
 Current comes first; others sort by last activity then ID descending. Only active
 logins for this account/version appear. These are server-issued logins, **not
 online devices or proof a client still holds a cookie**. Authenticated background
@@ -75,3 +77,5 @@ public metadata only, excluding private bindings.
 
 Migration 0051 deliberately signs out previous unregistered sessions once.
 See the [operator notes and announcement](../operations/session-registry-upgrade.md).
+
+An SSE stream re-checks its registered login after fetching a visible batch and before writing that batch. If the holder was revoked, the fetched events are discarded and only the top-level forced_logout event with reason session_revoked is emitted for that connection. Other invalid/retired holder proofs use session_invalidated. Other registered logins keep their own streams. This check does not create an account-wide forced_logout event in the event ledger.
