@@ -52,8 +52,9 @@ async function revealMessage(selector, loadButton) {
     const message = document.querySelector(selector);
     if (message instanceof HTMLElement) {
       // The list re-applies this highlight to rebuilt nodes; see buildMessageElement().
-      if (message.parentElement && message.dataset.messageId) message.parentElement.dataset.highlightMessageId = message.dataset.messageId;
-      if (message.parentElement && message.dataset.pingId) message.parentElement.dataset.highlightPingId = message.dataset.pingId;
+      const list = message.closest('.message-list, .dm-message-list');
+      if (list instanceof HTMLElement && message.dataset.messageId) list.dataset.highlightMessageId = message.dataset.messageId;
+      if (list instanceof HTMLElement && message.dataset.pingId) list.dataset.highlightPingId = message.dataset.pingId;
       message.classList.add('search-result-target');
       message.tabIndex = -1;
       message.focus({ preventScroll: true });

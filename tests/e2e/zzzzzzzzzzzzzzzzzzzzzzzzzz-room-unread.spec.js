@@ -66,7 +66,7 @@ test('unread messages show in the room list and behind a divider until read', as
     await openRoom(memberPage, roomName);
     const divider = memberPage.locator('.new-messages-divider');
     await expect(divider).toBeVisible();
-    await expect(memberPage.locator('.new-messages-divider + .message')).toContainText('First thing you missed');
+    await expect(memberPage.locator('li:has(> .new-messages-divider) + li > .message')).toContainText('First thing you missed');
     await expect(room.locator('.unread-count')).toHaveCount(0);
     await marked;
 

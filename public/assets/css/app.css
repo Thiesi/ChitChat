@@ -902,6 +902,9 @@ button.user-name.mention { padding: 0 0.2rem; border-radius: 0.25rem; background
   z-index: 50;
   right: auto;
   width: 17rem;
+  max-height: calc(100dvh - 1rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .name-menu-actions { display: grid; }

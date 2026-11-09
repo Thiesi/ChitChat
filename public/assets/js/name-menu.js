@@ -314,6 +314,12 @@ function ensureMenu() {
   backdrop.setAttribute('aria-hidden', 'true');
   backdrop.addEventListener('click', close);
   document.body.append(backdrop, menu);
+  // The moderation part arrives after the card opens and makes it taller,
+  // so place it again whenever its size changes.
+  new ResizeObserver(() => {
+    const anchor = currentOpener();
+    if (anchor && !menu.classList.contains('hidden')) position(anchor);
+  }).observe(menu);
 }
 
 function position(button) {
@@ -326,8 +332,12 @@ function position(button) {
   const width = menu.offsetWidth;
   const height = menu.offsetHeight;
   const left = Math.min(Math.max(8, rect.left), window.innerWidth - width - 8);
+  // Below the name if it fits, else above it, else as low as still fits; a
+  // card taller than the window scrolls inside itself (CSS max-height).
   const below = rect.bottom + 6;
-  const top = below + height > window.innerHeight - 8 ? Math.max(8, rect.top - height - 6) : below;
+  const above = rect.top - height - 6;
+  const bottomLimit = window.innerHeight - height - 8;
+  const top = below <= bottomLimit ? below : (above >= 8 ? above : Math.max(8, bottomLimit));
   menu.style.left = `${left}px`;
   menu.style.top = `${top}px`;
 }

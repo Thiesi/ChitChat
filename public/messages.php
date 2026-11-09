@@ -19,6 +19,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <link rel="stylesheet" href="/assets/css/app.css">
 <?= \ChitChat\View\HeadAssets::html(\ChitChat\InstallationIcon\IconService::resolve($config)) ?>
   <link rel="stylesheet" href="/assets/css/components.css">
+  <link rel="stylesheet" href="/assets/css/transcript.css">
   <link rel="stylesheet" href="/assets/css/accessibility.css">
   <link rel="stylesheet" href="/assets/css/person-reports.css">
   <link rel="stylesheet" href="/assets/css/messages.css">
@@ -28,6 +29,8 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <link rel="stylesheet" href="/assets/css/rules.css">
 </head>
 <body>
+  <!-- One polite announcer per page, fed by events (announcer.js); the transcript itself never speaks. -->
+  <div id="announcer" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></div>
   <div id="messages-loading" class="app-loading" role="status">Loading messages…</div>
 
   <main id="messages-shell" class="messages-shell hidden">
@@ -81,9 +84,9 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
         </header>
 
         <div id="dm-empty-state" class="dm-empty-state">No conversation selected.</div>
-        <section id="dm-message-list" class="dm-message-list" aria-live="polite" aria-label="Direct messages">
-          <button id="dm-load-older" class="secondary-button hidden" type="button">Load older messages</button>
-        </section>
+        <button id="dm-load-older" class="secondary-button hidden" type="button">Load older messages</button>
+        <ol id="dm-message-list" class="dm-message-list" aria-label="Direct messages">
+        </ol>
 
         <div class="muted-notice rules-notice hidden" data-rules-gate role="status">
           <div><strong>Agree to the updated community rules to write.</strong><span>You can still read along.</span></div>
