@@ -99,7 +99,12 @@ test('the note and the recovery-key nudge share the chat without breaking its la
     await page.goto('/');
     await expect(page.locator('#new-look-note')).toBeVisible();
     await expect(page.locator('#recovery-nudge')).toBeVisible();
-    // Each strip gets its own row, so the composer stays whole and on screen.
+    // Each strip gets its own row: neither stretches into the chat's row,
+    // and the composer stays whole and on screen.
+    for (const strip of ['#new-look-note', '#recovery-nudge']) {
+      const box = await page.locator(strip).boundingBox();
+      expect(box.height, strip).toBeLessThan(size.height * 0.2);
+    }
     const composer = await page.locator('#composer-input').boundingBox();
     expect(composer).not.toBeNull();
     expect(composer.height).toBeGreaterThan(20);
