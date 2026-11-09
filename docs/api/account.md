@@ -193,6 +193,15 @@ The endpoint requires the anonymous session's CSRF token and is limited by the `
 
 Restoration increments the session version again, restores the saved global-role snapshot, records `account.closure_restored`, creates a fresh authenticated session, and returns the ordinary session user envelope. It does not silently occur during normal login.
 
+Restoration completion and finalization use the same lifecycle lock order.
+Completion rechecks the account state and deadline after any lock wait: an
+already finalized account returns `410 account_closed`, an elapsed deadline
+returns `410 account_restoration_expired`, and an already restored account
+returns `409 account_not_pending`. These completion failures leave the account,
+role snapshot and session version unchanged and record no restoration. A fresh
+request must still pass the ordinary authentication and MFA checks; this does
+not expose closed accounts through the username/password lookup.
+
 ## Finalization and retained shared data
 
 Ordinary maintenance finalizes pending closures whose deadline has passed. Finalization:
