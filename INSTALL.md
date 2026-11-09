@@ -23,6 +23,9 @@ The deployed browser client has no Node.js runtime dependency and uses no npm pa
    ```
 
 3. Adjust the database values in `.env`.
+   Leave `APP_VERSION` unset: the version comes from the deployed release.
+   Set it only for a custom build. This keeps `/health.php` and
+   `/api/v1/session.php` application.version aligned with the installed source.
 4. For plain HTTP local development, keep `SESSION_COOKIE_SECURE=0`. Production HTTPS deployments must use `SESSION_COOKIE_SECURE=1`.
    Set `APP_ORIGIN=https://chat.example.org` to the canonical public scheme, host and optional port (no path).
    This is especially important behind a TLS-terminating proxy: policy discovery and privacy-notification links
@@ -98,6 +101,9 @@ For a production-like single-server deployment, use Nginx and PHP-FPM as describ
 2. Back up PostgreSQL and the complete attachment-storage directory together.
 3. Preserve `.env` and the configured attachment-storage path.
 4. Deploy the intended ChitChat source or release.
+   If your `.env` sets `APP_VERSION`, remove it (recommended) or update it to the
+   deployed version; an old pin would keep health and client discovery reporting
+   the previous release.
 5. Run:
 
    ```sh

@@ -54,8 +54,9 @@ TAG="v${VERSION}"
 NOTES_FILE="docs/releases/${TAG}.md"
 
 [[ -f .env.example ]] || fail '.env.example is missing'
-grep -Fqx "APP_VERSION=${VERSION}" .env.example \
-    || fail ".env.example does not declare APP_VERSION=${VERSION}"
+if grep -Eq '^[[:space:]]*(export[[:space:]]+)?APP_VERSION[[:space:]]*=' .env.example; then
+    fail '.env.example must leave APP_VERSION unset so the deployed release default is used'
+fi
 
 grep -Fq "applicationVersion: self::env('APP_VERSION', '${VERSION}')" src/Config.php \
     || fail "src/Config.php does not default APP_VERSION to ${VERSION}"

@@ -4,9 +4,13 @@ Use this checklist for every ChitChat pre-release and stable release.
 
 ## Prepare
 
-- [ ] Choose a semantic version and update the default `APP_VERSION` and `.env.example`.
+- [ ] Choose a semantic version and update the release default in `src/Config.php`
+      and its existing unit-test expectation. Keep `APP_VERSION` commented out in
+      `.env.example`; do not add a version pin when updating release metadata.
 - [ ] Add a dated `CHANGELOG.md` entry with security/privacy defaults, known limitations, and upgrade notes.
 - [ ] Add or update the detailed release note under `docs/releases/`.
+- [ ] Include the upgrade instruction: if `.env` sets `APP_VERSION`, remove it
+      (recommended) or update it to the deployed release.
 - [ ] Confirm no secrets, dumps, uploaded files, test artifacts, or local `.env` changes are tracked.
 - [ ] Confirm all forward migrations are committed and no previously released migration was rewritten.
 - [ ] Confirm Composer and npm lockfiles match their manifests.

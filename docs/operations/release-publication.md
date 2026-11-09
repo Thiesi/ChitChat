@@ -24,10 +24,13 @@ A `required_reviewers` entry in that output means dispatching `stable` or `prere
 2. Wait for the `main` push workflows to finish.
 3. Copy the full 40-character merge commit SHA.
 4. Confirm the version is declared consistently in:
-   - `.env.example`;
    - the default in `src/Config.php`;
    - the dated `CHANGELOG.md` entry;
    - `docs/releases/v<version>.md`.
+5. Keep `APP_VERSION` unset/commented in `.env.example`. Publication validation
+   rejects an active pin in that template; the release default in Config is the
+   version source. Upgrade notes tell operators to remove an old `.env` pin
+   (recommended), or update an intentional override.
 
 The release workflow must itself be dispatched from `main`, and it does not publish an arbitrary branch commit. The requested commit must be reachable from `main`.
 
