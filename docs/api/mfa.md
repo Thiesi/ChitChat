@@ -123,7 +123,7 @@ This flag requires configured WebAuthn plus a nonempty native trust list, but
 cannot prove the operator deployed Digital Asset Links or trusts this particular
 build's signing certificate. Unapproved origins are rejected by the same MFA
 verification path; all existing authorization, purpose, challenge, IP, expiry,
-UP/UV and counter checks remain. **native_auth_handoff** stays false.
+UP/UV and counter checks remain. **native_auth_handoff** is independent; see [Native browser authentication](native-auth.md).
 
 The public **/.well-known/assetlinks.json** document declares configured
 packages/certificates with only **delegate_permission/common.get_login_creds**.

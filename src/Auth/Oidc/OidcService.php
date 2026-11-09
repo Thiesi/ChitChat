@@ -77,7 +77,7 @@ final class OidcService
      * ('link'), confirming a sensitive action ('step_up') or fetching its
      * profile picture there ('picture', the one round trip that asks for it).
      */
-    public function begin(string $providerName, string $purpose, ?AuthenticatedUser $user): string
+    public function begin(string $providerName, string $purpose, ?AuthenticatedUser $user, ?string $nativeTransaction = null): string
     {
         $provider = OidcProvider::require($this->config, $providerName);
         $needsUser = in_array($purpose, ['link', 'step_up', 'picture'], true);
@@ -85,7 +85,10 @@ final class OidcService
             throw new ApiException(400, 'validation_error', 'Unsupported sign-in purpose.');
         }
 
-        $state = $this->randomToken();
+        if ($nativeTransaction === null && in_array($purpose, ['login', 'restore'], true)) {
+            \ChitChat\Auth\NativeAuth\NativeAuthSession::invalidate();
+        }
+        $state = ($nativeTransaction === null ? '' : 'native.') . $this->randomToken();
         $nonce = $this->randomToken();
         $verifier = $this->randomToken();
         $flows = $this->pendingFlows();
@@ -96,6 +99,7 @@ final class OidcService
             'nonce' => $nonce,
             'verifier' => $verifier,
             'created_at' => time(),
+            ...($nativeTransaction === null ? [] : ['native_transaction' => $nativeTransaction]),
         ];
         // Keep only the newest few, so abandoned attempts cannot pile up.
         uasort($flows, static fn (array $left, array $right): int => $right['created_at'] <=> $left['created_at']);
@@ -135,12 +139,11 @@ final class OidcService
     }
 
     /**
-     * Finishes a sign-in attempt from the provider's redirect and returns the
-     * page to send the browser to next.
+     * Verifies and consumes only the provider round trip, without account or session-authentication effects.
      *
      * @param array<string, mixed> $query
      */
-    public function complete(array $query, string $ipAddress): string
+    public function verifyCallback(array $query): OidcVerification
     {
         $state = is_string($query['state'] ?? null) ? $query['state'] : '';
         $flows = $this->pendingFlows();
@@ -151,7 +154,7 @@ final class OidcService
             throw new ApiException(400, 'oidc_flow_expired', 'This sign-in attempt has expired or was already used. Please start again.');
         }
         $provider = OidcProvider::require($this->config, $flow['provider']);
-        $returnTo = self::RETURN_TO[$flow['purpose']] ?? '/';
+        $returnTo = $flow['native_transaction'] === null ? (self::RETURN_TO[$flow['purpose']] ?? '/') : '/native-auth.php';
         if (isset($query['error'])) {
             throw new OidcRedirectException($returnTo, sprintf('Signing in with %s was cancelled.', $provider->label));
         }
@@ -165,13 +168,28 @@ final class OidcService
         } catch (ApiException $exception) {
             throw new OidcRedirectException($returnTo, $exception->getMessage());
         }
-        $subject = (string) $claims['sub'];
+        return new OidcVerification($provider, $flow['purpose'], $flow['user_id'],
+            $flow['created_at'], $flow['native_transaction'], $claims);
+    }
 
-        return match ($flow['purpose']) {
-            'link' => $this->link((int) $flow['user_id'], $provider, $subject, $ipAddress),
-            'step_up' => $this->stepUp((int) $flow['user_id'], $provider, $claims, $flow['created_at'], $ipAddress),
+    /**
+     * Ordinary web completion retains its existing effects. Native proof can never fall through here.
+     * @param array<string,mixed> $query
+     */
+    public function complete(array $query, string $ipAddress): string
+    {
+        $verified = $this->verifyCallback($query);
+        if ($verified->nativeTransaction !== null) {
+            throw new ApiException(403, 'native_flow_required', 'Finish this request through the native handoff.');
+        }
+        $provider = $verified->provider;
+        $claims = $verified->claims;
+        $subject = (string) $claims['sub'];
+        return match ($verified->purpose) {
+            'link' => $this->link((int) $verified->userId, $provider, $subject, $ipAddress),
+            'step_up' => $this->stepUp((int) $verified->userId, $provider, $claims, $verified->startedAt, $ipAddress),
             'restore' => $this->restore($provider, $subject, $ipAddress),
-            'picture' => $this->importPicture((int) $flow['user_id'], $provider, $claims, $ipAddress),
+            'picture' => $this->importPicture((int) $verified->userId, $provider, $claims, $ipAddress),
             default => $this->signIn($provider, $subject, $ipAddress),
         };
     }
@@ -183,6 +201,9 @@ final class OidcService
      */
     public function pendingSignUp(): ?array
     {
+        if (\ChitChat\Auth\NativeAuth\NativeAuthContinuation::pending()) {
+            (new \ChitChat\Auth\NativeAuth\NativeAuthContinuation($this->pdo, $this->config))->reconcileSession();
+        }
         $pending = $this->signUpStash();
         if ($pending === null) {
             return null;
@@ -199,9 +220,15 @@ final class OidcService
      */
     public function completeSignUp(string $username, ?string $birthDate, string $ipAddress, mixed $acceptedRulesVersion = null): AuthenticatedUser
     {
+        if (\ChitChat\Auth\NativeAuth\NativeAuthContinuation::pending()) {
+            (new \ChitChat\Auth\NativeAuth\NativeAuthContinuation($this->pdo, $this->config))->reconcileSession();
+        }
         $pending = $this->signUpStash();
         if ($pending === null) {
             throw new ApiException(400, 'oidc_sign_up_expired', 'This sign-up has expired. Please continue with Google or Twitch again.');
+        }
+        if (isset($_SESSION['oidc_sign_up']['native_transaction'])) {
+            throw new ApiException(403, 'native_flow_required', 'Finish this request through the native handoff.');
         }
         $user = (new AuthService($this->pdo, $this->config))->registerWithProvider(
             $username,
@@ -218,6 +245,10 @@ final class OidcService
 
     public function cancelSignUp(): void
     {
+        if (\ChitChat\Auth\NativeAuth\NativeAuthContinuation::pending()) {
+            (new \ChitChat\Auth\NativeAuth\NativeAuthContinuation($this->pdo, $this->config))->cancelSignUp();
+            return;
+        }
         unset($_SESSION['oidc_sign_up']);
     }
 
@@ -564,7 +595,7 @@ SQL);
         $statement->execute(['provider' => $provider, 'subject' => $subject]);
     }
 
-    /** @return array<string, array{provider:string, purpose:string, user_id:?int, nonce:string, verifier:string, created_at:int}> */
+    /** @return array<string, array{provider:string, purpose:string, user_id:?int, nonce:string, verifier:string, created_at:int, native_transaction:?string}> */
     private function pendingFlows(): array
     {
         $stored = $_SESSION['oidc_flows'] ?? [];
@@ -589,6 +620,7 @@ SQL);
                 'nonce' => $flow['nonce'],
                 'verifier' => $flow['verifier'],
                 'created_at' => $flow['created_at'],
+                'native_transaction' => is_string($flow['native_transaction'] ?? null) ? $flow['native_transaction'] : null,
             ];
         }
 

@@ -1,6 +1,7 @@
 # API documentation
 
 - [Authentication and sessions](authentication.md)
+- [Native browser authentication handoff](native-auth.md)
 - [Password recovery keys and reset](password-recovery.md)
 - [Session bootstrap and public installation metadata](session.md)
 - [Guest access](guest-access.md)

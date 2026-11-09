@@ -45,6 +45,7 @@ final class MaintenanceCoordinator
             $result['guests_ended'] = $dryRun ? $this->guests->expiredCount() : $this->guests->endExpired();
             $result['expired_guest_blocks'] = $this->guests->purgeExpiredBlocks($dryRun);
             $result['expired_sse_connections'] = $this->expiredSseConnections($dryRun);
+            $result += (new \ChitChat\Auth\NativeAuth\NativeAuthRepository($this->pdo))->cleanup($dryRun);
             $result['maintenance_run_rows'] = $this->oldMaintenanceRuns($dryRun, $runId);
             $durationMs = self::durationMs($started);
             $fileFailures = (int) ($result['file_removal_failures'] ?? 0);

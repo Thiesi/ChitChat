@@ -58,12 +58,21 @@ The SSE endpoint closes after approximately 25 seconds and reconnects. A deploym
 ## Nginx server
 
 ```nginx
+# In the http {} context, before this server block:
+map $uri $chitchat_log_request {
+    default $request;
+    ~^/native-auth\.php$ "$request_method $uri $server_protocol";
+    ~^/api/v1/native-auth/ "$request_method $uri $server_protocol";
+    ~^/api/v1/oidc/callback\.php$ "$request_method $uri $server_protocol";
+}
+log_format chitchat '$remote_addr [$time_local] "$chitchat_log_request" $status $body_bytes_sent $request_time';
 server {
     listen 443 ssl http2;
     server_name chat.example.org;
 
     root /srv/chitchat/public;
     index index.php;
+    access_log /var/log/nginx/chitchat-access.log chitchat;
 
     client_max_body_size 12m; # slightly above ATTACHMENT_MAX_BYTES
 
@@ -96,6 +105,16 @@ server {
         gzip off;
     }
 
+    # Keep upstream error diagnostics from including the raw sensitive request.
+    # The application records generic native failure classes in its protected log.
+    location ~ ^/(native-auth\.php|api/v1/native-auth/.*|api/v1/oidc/callback\.php)$ {
+        error_log /dev/null;
+        try_files $uri =404;
+        include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        fastcgi_pass unix:/run/php/chitchat.sock;
+        fastcgi_read_timeout 60s;
+    }
     location ~ \.php$ {
         try_files $uri =404;
         include fastcgi_params;
@@ -113,6 +132,16 @@ server {
 The exact SSE location must take precedence over the general PHP location. ChitChat also sends `X-Accel-Buffering: no`, but the explicit Nginx directives are retained because proxy behavior must not depend solely on an upstream response header.
 
 Do not add `proxy_buffering` directives to a FastCGI location; use `fastcgi_buffering off`. Do not enable gzip on the event stream. The upstream timeout must exceed the approximately 25-second stream lifetime.
+
+## Native authentication log privacy
+
+Keep the native location before the general PHP regex. Its access log uses the
+query-redacting format above; its Nginx error log is suppressed because upstream
+errors can include the original request URL. Protected application logs retain
+generic native failure classes without codes, state, claims, verifier or cookie
+values. Apply equivalent redaction to any additional logs, telemetry and request
+capture. Never log request bodies or cookies for these endpoints. This is an
+example and rehearsal change; it does not install or reload a deployed Nginx.
 
 ## Android credential association
 

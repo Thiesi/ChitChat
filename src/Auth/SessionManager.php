@@ -52,8 +52,9 @@ final class SessionManager
         }
     }
 
-    public static function login(AuthenticatedUser $user): void
+    public static function login(AuthenticatedUser $user, bool $preserveNativeBinding = false): void
     {
+        if (!$preserveNativeBinding) \ChitChat\Auth\NativeAuth\NativeAuthSession::invalidate();
         self::rotateSessionIdentifier();
         $_SESSION['auth'] = [
             'user_id' => $user->id,
@@ -87,6 +88,7 @@ final class SessionManager
         string $ipAddress,
         int $ttlSeconds,
     ): void {
+        \ChitChat\Auth\NativeAuth\NativeAuthSession::invalidate();
         self::rotateSessionIdentifier();
         unset($_SESSION['auth'], $_SESSION['pending_mfa'], $_SESSION['privileged_step_up'],
             $_SESSION['webauthn_ceremony'], $_SESSION['password_reset_challenge']);
@@ -136,9 +138,15 @@ final class SessionManager
         string $ipAddress,
         int $ttlSeconds,
         string $flow = 'login',
+        ?string $nativeTransaction = null,
     ): void {
         if (!in_array($flow, self::MFA_FLOWS, true)) {
             throw new ApiException(500, 'invalid_mfa_flow', 'Unsupported multi-factor sign-in flow.');
+        }
+        if ($nativeTransaction === null) {
+            \ChitChat\Auth\NativeAuth\NativeAuthSession::invalidate();
+        } elseif (\ChitChat\Auth\NativeAuth\NativeAuthSession::nativeHash() === null) {
+            throw new ApiException(401, 'native_session_changed', 'Start again from the app.');
         }
         self::rotateSessionIdentifier();
         unset($_SESSION['auth'], $_SESSION['privileged_step_up'], $_SESSION['webauthn_ceremony'],
@@ -149,6 +157,7 @@ final class SessionManager
             'ip_address' => $ipAddress,
             'flow' => $flow,
             'expires_at' => time() + $ttlSeconds,
+            ...($nativeTransaction === null ? [] : ['native_transaction' => $nativeTransaction]),
         ];
         $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
     }
@@ -195,6 +204,29 @@ final class SessionManager
         return $flow;
     }
 
+    /** A native factor is session+transaction bound; ordinary web factors keep their IP pin. */
+    public static function assertPendingMfaTransport(string $ipAddress): void
+    {
+        $state = $_SESSION['pending_mfa'] ?? null;
+        $native = is_array($state) ? ($state['native_transaction'] ?? null) : null;
+        if (is_string($native)) {
+            $context = \ChitChat\Auth\NativeAuth\NativeAuthSession::continuation();
+            if ($context !== null && $context['transaction_id'] === $native
+                && \ChitChat\Auth\NativeAuth\NativeAuthSession::nativeHash() !== null) return;
+        } elseif (hash_equals(self::pendingMfaIpAddress(), $ipAddress)) {
+            return;
+        }
+        self::clearPendingMfa();
+        throw new ApiException(401, 'mfa_login_expired', 'The multi-factor sign-in context changed. Start again.');
+    }
+
+    /** Rotate a same-account native action without discarding its valid account or binding. */
+    public static function rotateForNative(): void
+    {
+        self::rotateSessionIdentifier();
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+    }
+
     public static function pendingMfaIpAddress(): string
     {
         $state = $_SESSION['pending_mfa'] ?? null;
@@ -205,6 +237,7 @@ final class SessionManager
     public static function clearPendingMfa(): void
     {
         unset($_SESSION['pending_mfa'], $_SESSION['webauthn_ceremony']);
+        \ChitChat\Auth\NativeAuth\NativeAuthSession::clearContinuation();
         $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
     }
 
@@ -366,6 +399,7 @@ final class SessionManager
 
     private static function clearAuthentication(): void
     {
+        \ChitChat\Auth\NativeAuth\NativeAuthSession::invalidate();
         unset(
             $_SESSION['auth'],
             $_SESSION['pending_mfa'],

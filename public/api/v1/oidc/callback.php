@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use ChitChat\Auth\NativeAuth\NativeAuthController;
 use ChitChat\Auth\Oidc\OidcRedirectException;
 use ChitChat\Auth\Oidc\OidcService;
 use ChitChat\Database;
@@ -9,8 +10,13 @@ use ChitChat\Http\ApiException;
 use ChitChat\Http\Request;
 
 /** @var ChitChat\Config $config */
-$config = require dirname(__DIR__, 4) . '/bootstrap/http.php';
+$config = require dirname(__DIR__, 4) . '/bootstrap/app.php';
 
+// Native recognition must precede PHP session startup, including unknown/expired native states.
+if (is_string($_GET['state'] ?? null) && str_starts_with($_GET['state'], 'native.')) {
+    NativeAuthController::callback($config);
+}
+\ChitChat\Auth\SessionManager::start($config);
 header('Cache-Control: no-store');
 header('Referrer-Policy: no-referrer');
 
