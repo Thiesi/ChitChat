@@ -1,5 +1,29 @@
 # ADR 0006: Notification preferences and Web Push
 
+## 2026-11-09 update: durable per-device dispatch (#148)
+
+This update supersedes the original single-attempt dispatch description below.
+Event jobs and per-subscription delivery outcomes now live in PostgreSQL, with
+short SKIP LOCKED claim transactions, token-fenced 60-second leases and HTTP
+outside database transactions. The original timeline remains authoritative;
+`push_dispatched_at` now denotes terminal processing on all snapshotted devices.
+
+Unread state, preferences, quiet hours and source authorization are rechecked
+before delivery/retry. Transient failures retry with bounded backoff, successful
+devices do not repeat, and only 404/410 removes the exact expired registration.
+Remaining TTL is explicit: 30 minutes from creation for attention kinds and six
+hours for other kinds. Quiet-hour suppression remains terminal. Attempts are
+best effort and can duplicate after ambiguous provider acceptance; they do not
+promise exactly once. Terminal transport history is retained for seven days
+without payloads or routing secrets.
+
+The library's encryption and signer are retained behind an explicit PSR-18
+transport; a project-owned adapter fixes the VAPID audience for non-default
+HTTPS ports. Redirects and environment proxies are disabled. See the current
+[operations contract](../operations/web-push.md) for the policy and counters.
+The original release decisions below are historical.
+
+
 - Status: Accepted; implemented as migration `0022_web_push.sql`, released in `v2.0.0`
 - Date: 2026-08-15
 

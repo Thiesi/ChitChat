@@ -140,7 +140,7 @@ final class WebPushTest extends DatabaseTestCase
         $summary = (new WebPushDispatcher($this->pdo, $this->config))->dispatch();
         self::assertSame(
             ['processed' => 0, 'sent' => 0, 'skipped_muted' => 0, 'skipped_quiet_hours' => 0, 'pruned_subscriptions' => 0],
-            $summary,
+            array_intersect_key($summary, array_flip(['processed', 'sent', 'skipped_muted', 'skipped_quiet_hours', 'pruned_subscriptions'])),
         );
         self::assertNull(
             $this->pdo->query('SELECT push_dispatched_at FROM account_notifications LIMIT 1')->fetchColumn() ?: null,
