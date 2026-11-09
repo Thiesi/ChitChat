@@ -8,6 +8,12 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 - Add opt-in Android passkey certificate origins through NATIVE_ANDROID_APPS, preserving existing password-first MFA and the web origin. Publish grouped credential-only Digital Asset Links through a documented exact Nginx mapping (existing static files win); no deployment is performed. Native capability discovery requires configured WebAuthn and nonempty trust. Signed-device acceptance remains separate from fixture/CI proof; native OIDC handoff remains disabled.
 
+## [3.5.0] - 2026-11-09
+
+The new Lantern look shared with ChitChat Mobile, rebuilt push notifications and opt-in direct-message alerts, additive to API v1, with four forward-only database migrations (`0045` to `0048`) and the `react/dns` dependency; back up before upgrading. See the [`v3.5.0` release notes](docs/releases/v3.5.0.md).
+
+- The web client adopts ChitChat Mobile's Lantern look as the default scheme: tokens, a self-hosted Bricolage Grotesque display font, icons, a favicon, and a web app manifest for installation. Layouts are unchanged, and the other schemes stay selectable with explicit choices kept. Earlier Lounge picks can't be told apart from no choice and move to Lantern, with a one-time note pointing to Appearance.
+
 - Stop pinning `APP_VERSION` in the environment template so health and session discovery default to the deployed release. If your `.env` sets `APP_VERSION`, remove it (recommended) or update it; keep explicit overrides only for custom builds. Release publication rejects active template pins.
 
 - Add staff user filters/counts and sign-in cursors, account-filtered audit entries, and scoped subject-case history for Stewarding.
