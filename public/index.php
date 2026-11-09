@@ -19,6 +19,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <link rel="stylesheet" href="/assets/css/app.css">
 <?= \ChitChat\View\HeadAssets::html() ?>
   <link rel="stylesheet" href="/assets/css/components.css">
+  <link rel="stylesheet" href="/assets/css/transcript.css">
   <link rel="stylesheet" href="/assets/css/accessibility.css">
   <link rel="stylesheet" href="/assets/css/person-reports.css">
   <link rel="stylesheet" href="/assets/css/recovery.css">
@@ -28,6 +29,8 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <link rel="stylesheet" href="/assets/css/rules.css">
 </head>
 <body>
+  <!-- One polite announcer per page, fed by events (announcer.js); the transcript itself never speaks. -->
+  <div id="announcer" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></div>
   <div id="app-loading" class="app-loading" role="status">Loading <?= $appName ?>…</div>
 
   <main id="auth-shell" class="auth-shell hidden">
@@ -288,9 +291,9 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
       </header>
 
       <div id="empty-state" class="empty-state">Choose a room to begin.</div>
-      <section id="message-list" class="message-list" aria-live="polite" aria-label="Messages">
-        <button id="load-older-button" class="secondary-button hidden" type="button">Load older messages</button>
-      </section>
+      <button id="load-older-button" class="secondary-button hidden" type="button">Load older messages</button>
+      <ol id="message-list" class="message-list" aria-label="Messages">
+      </ol>
 
       <div id="composer-wrap" class="composer-wrap hidden">
         <button id="jump-latest" class="jump-latest hidden" type="button">Jump to latest</button>

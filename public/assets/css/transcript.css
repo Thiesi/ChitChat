@@ -1,0 +1,44 @@
+/* The shared transcript for rooms and direct messages (S1, #166).
+   Both lists are <ol>s of <li> items (transcript.js). Each item is a flex
+   column, so a message keeps aligning itself (DM outgoing to the end) as it
+   did when it was the list's direct child. */
+.message-list,
+.dm-message-list {
+  margin: 0;
+  list-style: none;
+}
+
+.message-list > li,
+.dm-message-list > li {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+/* Day headings: h3s inside the list, so H jumps between days in browse mode. */
+.transcript-day { align-items: center; }
+.transcript-day-label {
+  margin: 0;
+  padding: 0.15rem 0.75rem;
+  border-radius: 999px;
+  background: var(--raised);
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.6;
+}
+
+/* "New messages" is a heading too; it keeps the divider's look. */
+.new-messages-label {
+  margin: 0;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+}
+
+.transcript-control { align-items: center; }
+
+@media (forced-colors: active) {
+  .transcript-day-label { border: 1px solid CanvasText; }
+}

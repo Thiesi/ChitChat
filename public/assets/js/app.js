@@ -1,4 +1,6 @@
 import { ApiError, apiGet, apiPost, setCsrfToken } from './api.js';
+import { announce, announceIncoming, markKnown, resetAnnouncements } from './announcer.js';
+import { controlItem, dayItem, dayKey, newMessagesItem, reconcile, signatureOf } from './transcript.js';
 import { createPresenceClient } from './presence.js';
 import { renderMessageBody, buildReplyPreview, buildReactionBar } from './message-content.js';
 import { attachMentionAutocomplete } from './mention-autocomplete.js';
@@ -618,6 +620,7 @@ async function selectRoom(chosen) {
     }
   }
   state.currentRoom = room;
+  resetAnnouncements();
   setModerationRoom(room.id, room.name);
   roomTyping?.clear();
   // Where this visit's "New messages" divider goes; it stays put while here.
@@ -648,6 +651,8 @@ async function selectRoom(chosen) {
   // Open at the first unread message when there is one, else at the end.
   const divider = elements['message-list'].querySelector('.new-messages-divider');
   if (divider) elements['message-list'].scrollTop = Math.max(0, divider.offsetTop - 16);
+  const unread = room.unread_count ?? 0;
+  if (unread > 0) announce(`${room.name}. ${unread} new ${unread === 1 ? 'message' : 'messages'}.`);
   updateJumpButton();
   scheduleMarkRead();
   void loadRoomMembers(room);
@@ -866,6 +871,11 @@ async function loadMessages({ replace = false, beforeId = null, pings = null } =
   }
 
   elements['load-older-button'].disabled = true;
+  const older = beforeId !== null;
+  if (older) {
+    elements['message-list'].setAttribute('aria-busy', 'true');
+    announce('Loading older messages…');
+  }
   try {
     const parameters = new URLSearchParams({
       room_id: String(room.id),
@@ -903,6 +913,12 @@ async function loadMessages({ replace = false, beforeId = null, pings = null } =
     state.oldestMessageId = state.messages[0]?.id ?? null;
     elements['load-older-button'].classList.toggle('hidden', incoming.length < 100);
     renderMessages({ scrollToEnd: replace && beforeId === null, prepended: beforeId !== null });
+    markKnown(newMessages.map((message) => `room:${message.id}`));
+    if (older) {
+      announce(newMessages.length > 0
+        ? `${newMessages.length} older ${newMessages.length === 1 ? 'message' : 'messages'} loaded.`
+        : 'No older messages.');
+    }
   } catch (error) {
     if (error instanceof ApiError && ['age_requirement_not_met', 'birth_date_required'].includes(error.code)) {
       showEmptyState(error.message);
@@ -912,6 +928,7 @@ async function loadMessages({ replace = false, beforeId = null, pings = null } =
     handleApiFailure(error);
   } finally {
     elements['load-older-button'].disabled = false;
+    if (older) elements['message-list'].setAttribute('aria-busy', 'false');
   }
 }
 
@@ -929,7 +946,6 @@ function renderMessages({ scrollToEnd = false, prepended = false } = {}) {
   const previousTop = list.scrollTop;
   const previousHeight = list.scrollHeight;
   const focus = focusedListItem(list);
-  list.replaceChildren();
 
   const entries = timeline();
   if (entries.length === 0) {
@@ -938,12 +954,21 @@ function renderMessages({ scrollToEnd = false, prepended = false } = {}) {
   }
 
   elements['empty-state'].classList.add('hidden');
+  const items = [];
   if (!elements['load-older-button'].classList.contains('hidden')) {
-    list.append(elements['load-older-button']);
+    items.push(controlItem('load-older', elements['load-older-button']));
   }
 
+  // Only what changed is touched (transcript.js), so focus, decorations and
+  // the screen reader's place survive arrivals, edits and reactions.
   let dividerPlaced = false;
+  let lastDay = null;
   for (const entry of entries) {
+    const day = dayKey(entry.item.created_at);
+    if (day !== lastDay) {
+      items.push(dayItem(entry.item.created_at));
+      lastDay = day;
+    }
     if (
       !dividerPlaced
       && state.readMarker !== null
@@ -952,11 +977,13 @@ function renderMessages({ scrollToEnd = false, prepended = false } = {}) {
       && entry.item.sender_id !== state.user?.id
       && !isIgnored(entry.item.sender_id)
     ) {
-      list.append(newMessagesDivider());
+      items.push(newMessagesItem());
       dividerPlaced = true;
     }
-    list.append(entry.kind === 'ping' ? buildPingElement(entry.item) : buildMessageElement(entry.item));
+    items.push(entry.kind === 'ping' ? pingItem(entry.item) : messageItem(entry.item));
   }
+  reconcile(list, items);
+  applyHighlight(list);
   restoreFocus(list, focus);
 
   if (scrollToEnd) {
@@ -988,6 +1015,41 @@ function restoreFocus(list, focus) {
   if (!article) return;
   const target = focus.self ? article : [...article.querySelectorAll('button, a[href], [tabindex]')][focus.index];
   target?.focus({ preventScroll: true });
+}
+
+function messageItem(message) {
+  const { reactions, ...rest } = message;
+  const collapsed = isIgnored(message.sender_id) && !state.revealed.has(message.id);
+  const guest = guestReadOnly(state.currentRoom);
+  const hasReactions = message.type !== 'system' && !collapsed && !message.deleted;
+  return {
+    key: `m:${message.id}`,
+    signature: signatureOf([
+      rest, collapsed, guest, canReplyInCurrentRoom(), state.user?.id ?? null, formatPageDateTime(message.created_at),
+    ]),
+    reactions: hasReactions ? signatureOf([reactions ?? [], guest]) : '',
+    build: () => buildMessageElement(message),
+    patchReactions: (article) => {
+      article.querySelector('.reaction-bar')?.replaceWith(reactionBarFor(message));
+    },
+  };
+}
+
+function pingItem(ping) {
+  return {
+    key: `ping:${ping.id}`,
+    signature: signatureOf([ping, state.user?.id ?? null, formatPageDateTime(ping.created_at)]),
+    build: () => buildPingElement(ping),
+  };
+}
+
+// A reply or search highlight is a class on the kept node, not a rebuild.
+function applyHighlight(list) {
+  for (const article of list.querySelectorAll('article')) {
+    const target = (article.dataset.messageId && article.dataset.messageId === list.dataset.highlightMessageId)
+      || (article.dataset.pingId && article.dataset.pingId === list.dataset.highlightPingId);
+    article.classList.toggle('search-result-target', Boolean(target));
+  }
 }
 
 function isIgnored(userId) {
@@ -1111,19 +1173,21 @@ function buildMessageElement(message) {
     article.append(preview);
   }
   article.append(body);
-  if (!message.deleted) {
-    const reactions = buildReactionBar(message.reactions, state.user?.id, (emoji, reactedByMe) => {
-      toggleReaction(message.id, emoji, reactedByMe);
-    });
-    // Reacting is joining in: a guest who may only read sees reactions but adds none.
-    if (guestReadOnly(state.currentRoom)) {
-      reactions.querySelector('.reaction-add-button')?.remove();
-      reactions.querySelector('.reaction-picker')?.remove();
-      for (const button of reactions.querySelectorAll('button')) button.disabled = true;
-    }
-    article.append(reactions);
-  }
+  if (!message.deleted) article.append(reactionBarFor(message));
   return article;
+}
+
+function reactionBarFor(message) {
+  const reactions = buildReactionBar(message.reactions, state.user?.id, (emoji, reactedByMe) => {
+    toggleReaction(message.id, emoji, reactedByMe);
+  });
+  // Reacting is joining in: a guest who may only read sees reactions but adds none.
+  if (guestReadOnly(state.currentRoom)) {
+    reactions.querySelector('.reaction-add-button')?.remove();
+    reactions.querySelector('.reaction-picker')?.remove();
+    for (const button of reactions.querySelectorAll('button')) button.disabled = true;
+  }
+  return reactions;
 }
 
 async function toggleReaction(messageId, emoji, reactedByMe) {
@@ -1334,7 +1398,7 @@ async function withButtonBusy(work) {
 
 function appendMessage(message, scrollToEnd = false) {
   if (!message || state.messageIds.has(message.id)) {
-    return;
+    return false;
   }
   // Someone reading further up keeps their place; a button offers the way back.
   const own = message.sender_id === state.user?.id;
@@ -1347,18 +1411,7 @@ function appendMessage(message, scrollToEnd = false) {
   if (scrollToEnd && !follow) state.newWhileAway += 1;
   updateJumpButton();
   if (follow) scheduleMarkRead();
-}
-
-function newMessagesDivider() {
-  const divider = document.createElement('div');
-  divider.className = 'new-messages-divider';
-  divider.setAttribute('role', 'separator');
-  divider.setAttribute('aria-label', 'New messages');
-  const label = document.createElement('span');
-  label.setAttribute('aria-hidden', 'true');
-  label.textContent = 'New messages';
-  divider.append(label);
-  return divider;
+  return true;
 }
 
 function isNearBottom() {
@@ -1460,8 +1513,8 @@ function startEventStream() {
     const message = envelope?.payload?.message;
     countUnread(message);
     if (message) roomTyping?.remove(message.sender_id);
-    if (message && message.room_id === state.currentRoom?.id) {
-      appendMessage(message, true);
+    if (message && message.room_id === state.currentRoom?.id && appendMessage(message, true)) {
+      announceRoomMessage(message);
     }
     const own = state.user?.id;
     if (message && message.sender_id !== own && !isIgnored(message.sender_id) && message.mentions?.some((mention) => mention.user_id === own)) {
@@ -1498,6 +1551,9 @@ function startEventStream() {
       return;
     }
     addPing(ping);
+    if (ping.target?.id === state.user?.id && ping.room_id === state.currentRoom?.id) {
+      announceIncoming({ key: `ping:${ping.id}`, kind: 'ping', sender: ping.sender?.username, body: ping.message });
+    }
     if (ping.target?.id === state.user?.id) {
       alertUser('ping', `Ping from ${ping.sender.username}`);
       window.dispatchEvent(new CustomEvent('chitchat:notifications-changed'));
@@ -1553,6 +1609,24 @@ function startEventStream() {
       reason = envelope.payload.reason;
     }
     forceSignedOut(reason);
+  });
+}
+
+// The transcript is not a live region; new messages from others are spoken
+// here, once each, through the page's announcer.
+function announceRoomMessage(message) {
+  const key = `room:${message.id}`;
+  if (message.sender_id === state.user?.id || isIgnored(message.sender_id)) {
+    markKnown([key]);
+    return;
+  }
+  announceIncoming({
+    key,
+    kind: message.type === 'system' ? 'notice' : (message.type === 'emote' ? 'emote' : 'message'),
+    sender: message.username,
+    body: message.body,
+    mentionsMe: Boolean(message.mentions?.some((mention) => mention.user_id === state.user?.id)),
+    fileName: message.attachment?.name ?? null,
   });
 }
 
@@ -1696,7 +1770,7 @@ function clearAuthError() {
 }
 
 function showEmptyState(message) {
-  elements['message-list'].replaceChildren();
+  reconcile(elements['message-list'], []);
   elements['empty-state'].textContent = message;
   elements['empty-state'].classList.remove('hidden');
 }
