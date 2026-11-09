@@ -327,6 +327,8 @@ test('administrators publish rules and choose whether members agree again', asyn
   await accessible(page);
   await page.locator('.policies-card').screenshot({ path: testInfo.outputPath('admin-policies.png') });
   await rules.getByRole('button', { name: 'Save community rules' }).click();
+  // The request arrives after the click resolves; wait for it rather than racing it.
+  await expect.poll(() => requests.some((entry) => entry.path === 'admin/policies/update.php')).toBe(true);
   const saved = requests.find((entry) => entry.path === 'admin/policies/update.php').body;
   expect(saved).toMatchObject({ document: 'rules', source: 'hosted', material: true, change_summary: 'Kindness, always.' });
   await expect(rules.locator('.policy-change')).toBeHidden();

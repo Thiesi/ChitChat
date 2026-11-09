@@ -1,6 +1,7 @@
 import { ApiError, apiGet, apiPost, setCsrfToken } from './api.js';
 import { announce, announceIncoming, markKnown, resetAnnouncements } from './announcer.js';
-import { controlItem, dayItem, dayKey, newMessagesItem, reconcile, signatureOf } from './transcript.js';
+import { controlItem, dayItem, dayKey, moreButton, newMessagesItem, reactButton, reconcile, runPositions, signatureOf } from './transcript.js';
+import { identityHueIndex } from './identity-hue.js';
 import { attachTranscriptKeys } from './transcript-keys.js';
 import { createPresenceClient } from './presence.js';
 import { renderMessageBody, buildReplyPreview, buildReactionBar } from './message-content.js';
@@ -980,6 +981,16 @@ function renderMessages({ scrollToEnd = false, prepended = false } = {}) {
 
   // Only what changed is touched (transcript.js), so focus, decorations and
   // the screen reader's place survive arrivals, edits and reactions.
+  // Consecutive messages from one person form a run: one name above, one
+  // pebble and one chit at its end (the approved transcript, S1c).
+  const firstUnreadId = firstUnreadMessageId(entries);
+  const runs = runPositions(entries.filter((entry) => entry.kind === 'message').map((entry) => entry.item), {
+    id: (message) => message.id,
+    sender: (message) => message.sender_id,
+    date: (message) => message.created_at,
+    groupable: (message) => message.type !== 'system' && !(isIgnored(message.sender_id) && !state.revealed.has(message.id)),
+    breakBefore: (message) => message.id === firstUnreadId,
+  });
   let dividerPlaced = false;
   let lastDay = null;
   for (const entry of entries) {
@@ -999,7 +1010,7 @@ function renderMessages({ scrollToEnd = false, prepended = false } = {}) {
       items.push(newMessagesItem());
       dividerPlaced = true;
     }
-    items.push(entry.kind === 'ping' ? pingItem(entry.item) : messageItem(entry.item));
+    items.push(entry.kind === 'ping' ? pingItem(entry.item) : messageItem(entry.item, runs.get(entry.item.id) ?? 'single'));
   }
   reconcile(list, items);
   applyHighlight(list);
@@ -1037,7 +1048,15 @@ function restoreFocus(list, focus) {
   target?.focus({ preventScroll: true });
 }
 
-function messageItem(message) {
+// Runs break at the first unread message, where "New messages" goes.
+function firstUnreadMessageId(entries) {
+  if (state.readMarker === null) return null;
+  const first = entries.find((entry) => entry.kind === 'message' && entry.item.id > state.readMarker
+    && entry.item.sender_id !== state.user?.id && !isIgnored(entry.item.sender_id));
+  return first?.item.id ?? null;
+}
+
+function messageItem(message, run = 'single') {
   const { reactions, ...rest } = message;
   const collapsed = isIgnored(message.sender_id) && !state.revealed.has(message.id);
   const guest = guestReadOnly(state.currentRoom);
@@ -1045,10 +1064,10 @@ function messageItem(message) {
   return {
     key: `m:${message.id}`,
     signature: signatureOf([
-      rest, collapsed, guest, canReplyInCurrentRoom(), state.user?.id ?? null, formatPageDateTime(message.created_at),
+      rest, collapsed, guest, canReplyInCurrentRoom(), state.user?.id ?? null, formatPageDateTime(message.created_at), run,
     ]),
     reactions: hasReactions ? signatureOf([reactions ?? [], guest]) : '',
-    build: () => buildMessageElement(message),
+    build: () => buildMessageElement(message, run),
     patchReactions: (article) => {
       article.querySelector('.reaction-bar')?.replaceWith(reactionBarFor(message));
     },
@@ -1109,7 +1128,7 @@ function buildNoticeElement(message) {
   return article;
 }
 
-function buildMessageElement(message) {
+function buildMessageElement(message, run = 'single') {
   if (message.type === 'system') {
     return buildNoticeElement(message);
   }
@@ -1121,6 +1140,9 @@ function buildMessageElement(message) {
   article.classList.toggle('emote', message.type === 'emote');
   article.classList.toggle('deleted', Boolean(message.deleted));
   article.dataset.messageId = String(message.id);
+  article.dataset.run = run;
+  article.dataset.author = message.username ?? 'Someone';
+  article.classList.toggle('mine', Number.isInteger(message.sender_id) && message.sender_id === state.user?.id);
   // Re-apply a reply/search highlight, since renderMessages() rebuilds every node.
   article.classList.toggle(
     'search-result-target',
@@ -1147,6 +1169,9 @@ function buildMessageElement(message) {
   avatar.setAttribute('aria-hidden', 'true');
   avatar.textContent = initials(message.username ?? 'System');
   avatar.dataset.tone = String(avatarTone(message.sender_id ?? message.username));
+  // People are pebbles in their identity hue, the same as in ChitChat Mobile.
+  const hue = identityHueIndex(message.sender_id);
+  if (hue !== null) avatar.dataset.hue = String(hue);
   if (fromGuest) {
     markGuestAvatar(avatar);
   } else if (Number.isInteger(message.sender_id)) {
@@ -1158,11 +1183,12 @@ function buildMessageElement(message) {
   const time = document.createElement('time');
   time.className = 'message-time';
   time.dateTime = message.created_at;
-  time.textContent = formatPageDateTime(message.created_at);
+  // The day heading carries the date; the bubble shows the time, the title the full moment.
+  time.textContent = formatDateTime(message.created_at, { dateStyle: null, timeStyle: 'short' });
+  time.title = formatPageDateTime(message.created_at);
 
   header.append(author);
   if (fromGuest) header.append(guestBadge());
-  header.append(time);
 
   if (canReplyInCurrentRoom() && !message.deleted) {
     const replyButton = document.createElement('button');
@@ -1186,13 +1212,19 @@ function buildMessageElement(message) {
     renderMessageBody(body, message.body ?? '', message.mentions, { nameButtons: true });
   }
 
+  // React · Reply · … More: the toolbar from the approved mockup.
+  if (!message.deleted && !guestReadOnly(state.currentRoom)) header.prepend(reactButton());
+  header.append(moreButton());
   article.append(header);
+  const bubble = document.createElement('div');
+  bubble.className = 'message-bubble';
   const preview = buildReplyPreview(message.reply_to);
   if (preview) {
     preview.addEventListener('click', () => focusReplyTarget(message.reply_to));
-    article.append(preview);
+    bubble.append(preview);
   }
-  article.append(body);
+  bubble.append(body, time);
+  article.append(bubble);
   if (!message.deleted) article.append(reactionBarFor(message));
   return article;
 }

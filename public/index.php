@@ -333,7 +333,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
               accept="image/jpeg,image/png,image/gif,image/webp,application/pdf,text/plain,text/csv,application/json,application/zip"
             >
           </div>
-          <button id="send-button" class="primary-button" type="submit">Send</button>
+          <button id="send-button" class="primary-button send-round" type="submit"><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h13M13 6l6 6-6 6"/></svg><span class="visually-hidden">Send</span></button>
           <div class="attachment-selection">
             <span id="attachment-name" class="attachment-name" aria-live="polite"></span>
             <button id="attachment-clear" class="secondary-button hidden" type="button">Remove</button>
