@@ -21,15 +21,24 @@ final class TotpHttpTest extends DatabaseTestCase
     private array $csrf = [];
     private array $headers = [];
 
-    public function testProductionRoutesPreserveCsrfLoginBindingMfaAuthorityOneUseSecretsAndRetryMetadata(): void
+    /** @return iterable<string,array{string}> */
+    public static function keySources(): iterable
+    {
+        yield 'server ring' => ['server'];
+        yield 'database key' => ['database'];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('keySources')]
+    public function testProductionRoutesPreserveCsrfLoginBindingMfaAuthorityOneUseSecretsAndRetryMetadata(string $source): void
     {
         $key = random_bytes(32);
         $keys = json_encode(['fixture' => base64_encode($key)], JSON_THROW_ON_ERROR);
-        $this->config = $this->configWith(['totpKeyRing' => TotpKeyRing::fromJson($keys, 'fixture')]);
+        $configuredKeys = $source === 'server' ? $keys : '{}';
+        $activeKey = $source === 'server' ? 'fixture' : '';
+        $this->config = $this->configWith(['totpKeyRing' => TotpKeyRing::fromJson($configuredKeys, $activeKey)]);
         $auth = new AuthService($this->pdo, $this->config);
         $root = $auth->register('Root', 'initial strong secret', '127.0.0.1');
         $member = $auth->register('Member', 'initial strong secret', '127.0.0.2');
-        $memberSeed = TestTotp::seed($this->pdo, $this->config, $member->id);
         $this->pdo->exec('UPDATE system_settings SET registration_min_fill_seconds = 0, registration_proof_of_work_bits = 0 WHERE id = 1');
         $socket = stream_socket_server('tcp://127.0.0.1:0', $code, $message);
         self::assertIsResource($socket, $message);
@@ -40,8 +49,8 @@ final class TotpHttpTest extends DatabaseTestCase
         $log = TestScratch::file('totp-http-log');
         $sessions = TestScratch::directory('totp-http-sessions');
         $environment = getenv();
-        $environment['TOTP_ENCRYPTION_KEYS'] = $keys;
-        $environment['TOTP_ACTIVE_KEY_ID'] = 'fixture';
+        $environment['TOTP_ENCRYPTION_KEYS'] = $configuredKeys;
+        $environment['TOTP_ACTIVE_KEY_ID'] = $activeKey;
         $process = proc_open([PHP_BINARY, '-d', 'session.save_path=' . $sessions, '-S', $address,
             '-t', dirname(__DIR__, 2) . '/public'], [0 => ['pipe', 'r'], 1 => ['file', $log, 'a'], 2 => ['file', $log, 'a']],
             $pipes, dirname(__DIR__, 2), $environment);
@@ -52,7 +61,7 @@ final class TotpHttpTest extends DatabaseTestCase
             foreach (['one', 'two', 'member'] as $jar) {
                 [$status, $bootstrap] = $this->request($jar, '/api/v1/session.php');
                 self::assertSame(200, $status);
-                self::assertTrue($bootstrap['capabilities']['totp'], 'Enrollment ships only with integrated web UI.');
+                self::assertSame($source === 'server', $bootstrap['capabilities']['totp'], 'Enrollment needs both integrated UI and an enabled key source.');
             }
             foreach (['one', 'two'] as $jar) {
                 self::assertSame(200, $this->request($jar, '/api/v1/login.php', ['username' => 'Root', 'password' => 'initial strong secret'])[0]);
@@ -63,6 +72,15 @@ final class TotpHttpTest extends DatabaseTestCase
             foreach (['one', 'two'] as $jar) {
                 self::assertSame(200, $this->request($jar, '/api/v1/step-up.php', ['password' => 'initial strong secret'])[0]);
             }
+            if ($source === 'database') {
+                self::assertSame('unavailable', $this->request('one', '/api/v1/admin/settings/totp/get.php')[1]['totp']['mode']);
+                [$status, $enabled] = $this->request('one', '/api/v1/admin/settings/totp/update.php', ['database_key_enabled' => true]);
+                self::assertSame(200, $status);
+                self::assertSame('database', $enabled['totp']['mode']);
+                self::assertTrue($enabled['totp']['database_key_enabled']);
+            }
+            self::assertTrue($this->request('one', '/api/v1/session.php')[1]['capabilities']['totp']);
+            $memberSeed = TestTotp::seed($this->pdo, $this->config, $member->id);
             [$status, $begin] = $this->request('one', $beginRoute, []);
             self::assertSame(200, $status);
             self::assertSame(32, strlen($begin['secret']));
@@ -94,11 +112,19 @@ final class TotpHttpTest extends DatabaseTestCase
             self::assertTrue($stepUp['security']['privileged_step_up']['active']);
             self::assertSame('last_mfa_method', $this->request('one', '/api/v1/account/mfa/totp/remove.php', [])[1]['error']['code']);
             $setting = $this->request('one', '/api/v1/admin/settings/totp/get.php')[1]['totp'];
-            self::assertSame('server', $setting['mode']);
-            self::assertFalse($setting['database_key_switch_available']);
+            self::assertSame($source, $setting['mode']);
+            self::assertSame($source === 'database', $setting['database_key_switch_available']);
             self::assertArrayNotHasKey('key', $setting);
-            self::assertSame('totp_server_keys_configured',
-                $this->request('one', '/api/v1/admin/settings/totp/update.php', ['database_key_enabled' => true])[1]['error']['code']);
+            if ($source === 'server') {
+                self::assertSame('totp_server_keys_configured',
+                    $this->request('one', '/api/v1/admin/settings/totp/update.php', ['database_key_enabled' => true])[1]['error']['code']);
+            } else {
+                self::assertGreaterThanOrEqual(2, $setting['database_key_references']);
+                self::assertSame('totp_key_in_use',
+                    $this->request('one', '/api/v1/admin/settings/totp/update.php', ['database_key_enabled' => false])[1]['error']['code']);
+                $databaseKeyBase64 = (string) $this->pdo->query("SELECT encode(key_bytes, 'base64') FROM totp_database_key")->fetchColumn();
+                self::assertStringNotContainsString($databaseKeyBase64, json_encode($setting, JSON_THROW_ON_ERROR));
+            }
             [$status, $replacement] = $this->request('one', $beginRoute, []);
             self::assertSame(200, $status);
             self::assertSame(['cancelled' => true], $this->request('one', '/api/v1/account/mfa/totp/cancel.php',
@@ -126,7 +152,9 @@ final class TotpHttpTest extends DatabaseTestCase
             self::assertGreaterThan(0, $limited['error']['retry_after_seconds']);
             self::assertSame((string) $limited['error']['retry_after_seconds'], $this->headers['retry-after']);
             $audit = (string) $this->pdo->query('SELECT json_agg(audit_log)::text FROM audit_log')->fetchColumn();
-            foreach ([$begin['secret'], $replacement['secret'], $begin['otpauth_uri'], base64_encode($key)] as $secret) {
+            $forbidden = [$begin['secret'], $replacement['secret'], $begin['otpauth_uri'], base64_encode($key)];
+            if ($source === 'database') $forbidden[] = $databaseKeyBase64;
+            foreach ($forbidden as $secret) {
                 self::assertStringNotContainsString($secret, $audit);
                 self::assertStringNotContainsString($secret, (string) file_get_contents($log));
             }

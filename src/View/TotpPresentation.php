@@ -7,7 +7,7 @@ namespace ChitChat\View;
 /** Enabled only after the enrollment, proof and management UI has been integrated. */
 final class TotpPresentation
 {
-    public const INTEGRATED = false;
+    public const INTEGRATED = true;
 
     public static function integrated(): bool
     {
