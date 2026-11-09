@@ -21,18 +21,19 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <link rel="stylesheet" href="/assets/css/components.css">
   <link rel="stylesheet" href="/assets/css/admin.css">
   <link rel="stylesheet" href="/assets/css/message-revision-review.css">
+  <link rel="stylesheet" href="/assets/css/shell.css">
 </head>
 <body>
   <div id="revision-review-loading" class="app-loading" role="status">Loading revision-review controls…</div>
 
-  <main id="revision-review-shell" class="revision-review-shell hidden">
+  <?= \ChitChat\View\AppShell::open('stewarding', 'revision-review-shell') ?>
+  <main id="revision-review-shell" tabindex="-1" class="revision-review-shell hidden">
     <header class="admin-header">
       <div>
         <p class="admin-eyebrow"><?= $appName ?></p>
         <h1>Message revision review</h1>
         <p id="revision-review-identity" class="admin-muted"></p>
       </div>
-      <a class="secondary-button admin-link-button" href="/admin.php">Back to administration</a>
     </header>
 
     <section class="revision-review-warning" aria-labelledby="revision-review-warning-heading">
@@ -74,8 +75,10 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
     </section>
     <?= \ChitChat\View\PoweredBy::html($config) ?>
   </main>
+  <?= \ChitChat\View\AppShell::close() ?>
 
   <div id="toast-region" class="toast-region" aria-live="assertive"></div>
   <script type="module" src="/assets/js/admin-message-revisions.js"></script>
+  <script type="module" src="/assets/js/shell.js"></script>
 </body>
 </html>

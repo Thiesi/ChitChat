@@ -20,18 +20,19 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
 <?= \ChitChat\View\HeadAssets::html(\ChitChat\InstallationIcon\IconService::resolve($config)) ?>
   <link rel="stylesheet" href="/assets/css/components.css">
   <link rel="stylesheet" href="/assets/css/messages.css">
+  <link rel="stylesheet" href="/assets/css/shell.css">
 </head>
 <body>
   <div id="inspection-loading" class="app-loading" role="status">Loading inspection controls…</div>
 
-  <main id="inspection-shell" class="inspection-shell hidden">
+  <?= \ChitChat\View\AppShell::open('stewarding', 'inspection-shell') ?>
+  <main id="inspection-shell" tabindex="-1" class="inspection-shell hidden">
     <header class="inspection-header">
       <div>
         <p class="messages-eyebrow"><?= $appName ?></p>
         <h1>Direct-message inspection</h1>
         <p id="inspection-identity" class="messages-muted"></p>
       </div>
-      <a class="secondary-button" href="/admin.php">Back to administration</a>
     </header>
 
     <section class="inspection-warning" aria-labelledby="inspection-warning-heading">
@@ -80,8 +81,10 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
     </section>
     <?= \ChitChat\View\PoweredBy::html($config) ?>
   </main>
+  <?= \ChitChat\View\AppShell::close() ?>
 
   <div id="toast-region" class="toast-region" aria-live="assertive"></div>
   <script type="module" src="/assets/js/admin-messages.js"></script>
+  <script type="module" src="/assets/js/shell.js"></script>
 </body>
 </html>

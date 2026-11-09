@@ -204,6 +204,8 @@ function updateUnreadState() {
   elements.status.textContent = state.unreadCount === 0
     ? 'You have no unread notifications.'
     : `${state.unreadCount} unread notification${state.unreadCount === 1 ? '' : 's'}.`;
+  // The shell's Activity badge (shell.js) follows this page's count.
+  window.dispatchEvent(new CustomEvent('chitchat:activity-count', { detail: { count: state.unreadCount } }));
 }
 
 function formatTimestamp(value) {

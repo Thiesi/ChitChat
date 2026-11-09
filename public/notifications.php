@@ -22,18 +22,19 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <link rel="stylesheet" href="/assets/css/accessibility.css">
   <link rel="stylesheet" href="/assets/css/account.css">
   <link rel="stylesheet" href="/assets/css/privacy-notifications.css">
+  <link rel="stylesheet" href="/assets/css/shell.css">
 </head>
 <body>
   <div id="privacy-notifications-loading" class="app-loading" role="status">Loading notifications…</div>
 
-  <main id="privacy-notifications-shell" class="account-shell hidden">
+  <?= \ChitChat\View\AppShell::open('activity', 'privacy-notifications-shell', 'Skip to content', true) ?>
+  <main id="privacy-notifications-shell" tabindex="-1" class="account-shell hidden">
     <header class="account-header">
       <div>
         <p class="account-eyebrow"><?= $appName ?></p>
         <h1>Notifications</h1>
         <p id="privacy-notifications-identity" class="account-muted"></p>
       </div>
-      <a class="secondary-button" href="/">Back to chat</a>
     </header>
 
     <section class="account-card" aria-labelledby="push-heading">
@@ -158,8 +159,10 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
     <p id="privacy-notifications-error" class="error-text" role="alert"></p>
     <?= \ChitChat\View\PoweredBy::html($config) ?>
   </main>
+  <?= \ChitChat\View\AppShell::close() ?>
 
   <script type="module" src="/assets/js/push-notifications.js"></script>
   <script type="module" src="/assets/js/privacy-notifications.js"></script>
+  <script type="module" src="/assets/js/shell.js"></script>
 </body>
 </html>

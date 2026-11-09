@@ -22,18 +22,19 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <link rel="stylesheet" href="/assets/css/admin.css">
   <link rel="stylesheet" href="/assets/css/rules.css">
   <link rel="stylesheet" href="/assets/css/admin-icon.css">
+  <link rel="stylesheet" href="/assets/css/shell.css">
 </head>
 <body>
   <div id="settings-loading" class="app-loading" role="status">Loading operational settings…</div>
 
-  <main id="settings-shell" class="admin-shell settings-page hidden">
+  <?= \ChitChat\View\AppShell::open('stewarding', 'settings-shell') ?>
+  <main id="settings-shell" tabindex="-1" class="admin-shell settings-page hidden">
     <header class="admin-header">
       <div>
         <p class="admin-eyebrow"><?= $appName ?></p>
         <h1>Operational settings</h1>
         <p id="settings-identity" class="admin-muted"></p>
       </div>
-      <a class="secondary-button admin-link-button" href="/admin.php">Back to administration</a>
     </header>
 
     <p class="admin-card warning-text">
@@ -347,10 +348,12 @@ foreach ($policyForms as $kind => $form):
     </div>
     <?= \ChitChat\View\PoweredBy::html($config) ?>
   </main>
+  <?= \ChitChat\View\AppShell::close() ?>
 
   <div id="toast-region" class="toast-region" aria-live="assertive"></div>
   <script type="module" src="/assets/js/admin-settings.js"></script>
   <script type="module" src="/assets/js/admin-policies.js"></script>
   <script type="module" src="/assets/js/admin-icon.js"></script>
+  <script type="module" src="/assets/js/shell.js"></script>
 </body>
 </html>

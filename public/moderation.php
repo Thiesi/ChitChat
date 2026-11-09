@@ -22,18 +22,19 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <link rel="stylesheet" href="/assets/css/accessibility.css">
   <link rel="stylesheet" href="/assets/css/moderation.css">
   <link rel="stylesheet" href="/assets/css/person-reports.css">
+  <link rel="stylesheet" href="/assets/css/shell.css">
 </head>
 <body>
   <div id="moderation-loading" class="app-loading" role="status">Loading moderation queue…</div>
 
-  <main id="moderation-shell" class="moderation-shell hidden">
+  <?= \ChitChat\View\AppShell::open('stewarding', 'moderation-shell') ?>
+  <main id="moderation-shell" tabindex="-1" class="moderation-shell hidden">
     <header class="moderation-header">
       <div>
         <p class="moderation-eyebrow"><?= $appName ?></p>
         <h1>Moderation queue</h1>
         <p id="moderation-identity" class="moderation-muted"></p>
       </div>
-      <a class="secondary-button" href="/admin.php">Back to administration</a>
     </header>
 
     <section class="moderation-notice" aria-labelledby="moderation-notice-title">
@@ -138,8 +139,10 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
     </section>
     <?= \ChitChat\View\PoweredBy::html($config) ?>
   </main>
+  <?= \ChitChat\View\AppShell::close() ?>
 
   <div id="toast-region" class="toast-region" aria-live="assertive"></div>
   <script type="module" src="/assets/js/moderation.js"></script>
+  <script type="module" src="/assets/js/shell.js"></script>
 </body>
 </html>
