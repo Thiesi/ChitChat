@@ -334,7 +334,7 @@ test('review 5: React… moves focus into the picker; it closes when its message
 
   // The + button opens it too; moving to another message closes it.
   await page.keyboard.press('Tab');
-  const add = message(page, 5).getByRole('button', { name: 'Add reaction' });
+  const add = message(page, 5).locator('.reaction-add-button');
   await add.focus();
   await page.keyboard.press('Enter');
   await expect(picker).toBeVisible();
