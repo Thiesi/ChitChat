@@ -1443,6 +1443,7 @@ button.user-name.mention { padding: 0 0.2rem; border-radius: 0.25rem; background
   margin: 0 0 0.3rem;
   padding: 0.3rem;
   overflow-y: auto;
+  scroll-padding-block: 0.3rem; /* the active option scrolls into view clear of the edge */
   list-style: none;
   border: 1px solid var(--line);
   border-radius: 0.6rem;
@@ -1452,12 +1453,22 @@ button.user-name.mention { padding: 0 0.2rem; border-radius: 0.25rem; background
 
 .mention-autocomplete-option {
   padding: 0.4rem 0.6rem;
+  border-inline-start: 3px solid transparent;
   border-radius: 0.4rem;
   cursor: pointer;
 }
 
+/* The option Enter or Tab would pick (keyboard, or the pointer hovering it).
+   It gets an accent wash and, so it never depends on colour alone, an accent
+   bar at the start edge (--signature-text, at least 3:1 against the list). */
 .mention-autocomplete-option.active {
-  background: var(--raised);
+  border-inline-start-color: var(--signature-text);
+  background: color-mix(in srgb, var(--signature) 16%, var(--raised));
+  color: var(--text);
+}
+:root[data-scheme="contrast"] .mention-autocomplete-option.active {
+  outline: 2px solid var(--text);
+  outline-offset: -2px;
 }
 
 /* The "/" command list and the /help dialog. */
