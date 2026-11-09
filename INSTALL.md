@@ -91,7 +91,7 @@ For local passkey evaluation use `WEBAUTHN_RP_ID=localhost`, `WEBAUTHN_ORIGIN=ht
 
 The first account created through the browser becomes Super-Administrator. That account can create the first room and use **Administration** for users, rooms, audit visibility, direct-message inspection policy, optional revision review, administrative-MFA enforcement, operational settings, and system status.
 
-For a production-like single-server deployment, use Nginx and PHP-FPM as described in `docs/operations/nginx-php-fpm.md`; do not use PHP's development server. That Nginx instance must terminate the client's TCP connection directly — see [Do not add another proxy or CDN in front of this Nginx](docs/operations/nginx-php-fpm.md#do-not-add-another-proxy-or-cdn-in-front-of-this-nginx) before placing any CDN, load balancer, or additional reverse proxy in front of it.
+For a production-like single-server deployment, use Nginx and PHP-FPM as described in `docs/operations/nginx-php-fpm.md`; do not use PHP's development server. That Nginx instance must terminate the client's TCP connection directly — see [Do not add another proxy or CDN in front of this Nginx](docs/operations/nginx-php-fpm.md#do-not-add-another-proxy-or-cdn-in-front-of-this-nginx) before placing any CDN, load balancer, or additional reverse proxy in front of it. On NetBSD with rc.d, cron, and Apache 2.4 plus PHP-FPM, follow [`docs/operations/netbsd-apache.md`](docs/operations/netbsd-apache.md) instead; the same rule applies to that Apache instance.
 
 ## Upgrade from v1.0.0
 

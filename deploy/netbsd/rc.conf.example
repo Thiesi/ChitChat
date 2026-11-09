@@ -1,0 +1,13 @@
+# /etc/rc.conf additions (one APPUSER_push line per instance)
+pgsql=YES
+php_fpm83=YES
+php_fpm83_env="OPENSSL_CONF=/usr/share/examples/openssl/openssl.cnf"
+APPUSER_push=YES
+
+# /etc/copytruncate.conf, or another copy-then-truncate rotation
+# (rename-based rotation leaves the long-running listener writing to the old file):
+# /home/APPUSER/log/web-push-listener.log    4096    7
+
+# /usr/pkg/etc/php/8.3/php.d/pcntl.ini, installed by php83-pcntl: comment it out
+# so that PHP-FPM does not load pcntl. The supervisor loads it only for the listener.
+# ;extension= pcntl.so
