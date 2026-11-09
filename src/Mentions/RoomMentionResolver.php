@@ -42,21 +42,28 @@ final class RoomMentionResolver
             return [];
         }
 
+        $candidates = $this->candidateUsers($tokens);
+        $eligibility = [];
+        // Authorize lazily in longest-first order, memoized across all tokens.
+        // Shorter real names need no history/age queries once a longer name wins.
+        $canMention = function (string $name) use ($candidates, $roomId, $senderId, &$eligibility): bool {
+            if (!isset($candidates[$name])) return false;
+            return $eligibility[$name] ??= $candidates[$name] !== $senderId && $this->canBeMentioned($roomId, $candidates[$name]);
+        };
         $resolved = [];
         $seenUserIds = [];
         $broadcastRequested = false;
 
-        foreach ($tokens as $token) {
+        foreach ($tokens as $raw) {
+            $token = MentionParser::resolveToken($raw, $canMention, true);
+            if ($token === null) continue;
             if ($token === 'room' || $token === 'here') {
                 $broadcastRequested = true;
                 continue;
             }
 
-            $userId = $this->findActiveUserIdByCanonicalUsername($token);
-            if ($userId === null || $userId === $senderId || isset($seenUserIds[$userId])) {
-                continue;
-            }
-            if (!$this->canBeMentioned($roomId, $userId)) {
+            $userId = $candidates[$token];
+            if (isset($seenUserIds[$userId])) {
                 continue;
             }
 
@@ -107,18 +114,37 @@ final class RoomMentionResolver
         }
     }
 
-    private function findActiveUserIdByCanonicalUsername(string $canonicalUsername): ?int
+    /** Batch the spelling lookup; the resolver authorizes candidates lazily using existing history/age rules.
+     * @param list<string> $tokens
+     * @return array<array-key,int>
+     */
+    private function candidateUsers(array $tokens): array
     {
+        $names = [];
+        foreach ($tokens as $token) {
+            foreach (MentionParser::candidates($token) as $candidate) {
+                if ($candidate !== 'room' && $candidate !== 'here') {
+                    $names[$candidate] = true;
+                }
+            }
+        }
+        if ($names === []) {
+            return [];
+        }
         $statement = $this->pdo->prepare(
-            "SELECT id FROM users WHERE username_canonical = :username AND account_state = 'active'",
+            'SELECT id, username_canonical FROM users WHERE username_canonical IN ('
+            . implode(',', array_fill(0, count($names), '?'))
+            . ") AND account_state = 'active' AND account_kind = 'member'",
         );
         if ($statement === false) {
             throw new RuntimeException('Unable to prepare mention username lookup.');
         }
-
-        $statement->execute(['username' => $canonicalUsername]);
-        $id = $statement->fetchColumn();
-
-        return $id === false ? null : (int) $id;
+        $statement->execute(array_keys($names));
+        $result = [];
+        foreach ($statement->fetchAll() as $row) {
+            $id = (int) $row['id'];
+            $result[(string) $row['username_canonical']] = $id;
+        }
+        return $result;
     }
 }

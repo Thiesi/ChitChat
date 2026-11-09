@@ -1,7 +1,7 @@
+import { mentionTokens, resolveMention } from './mention-matching.js';
 import { parseInline, parseMessage } from './message-format.js';
 import { nameButton } from './name-menu.js';
 
-const MENTION_TOKEN = /@([A-Za-z0-9][A-Za-z0-9_.-]{2,31})/gu;
 const REACTION_EMOJI = ['👍', '❤️', '😂', '😮', '😢', '🎉'];
 let reactionBarInstanceCount = 0;
 
@@ -87,29 +87,27 @@ function appendInline(container, nodes, context) {
 
 function appendTextWithMentions(container, text, { nameButtons, mentionedIds, hasBroadcast }) {
   let cursor = 0;
-  MENTION_TOKEN.lastIndex = 0;
-  let match = MENTION_TOKEN.exec(text);
-  while (match !== null) {
-    const token = match[1].toLowerCase();
+  for (const match of mentionTokens(text)) {
+    const token = resolveMention(match.raw, name => mentionedIds.has(name), hasBroadcast);
+    if (token === null) continue;
     const isBroadcastToken = hasBroadcast && (token === 'room' || token === 'here');
-    if (mentionedIds.has(token) || isBroadcastToken) {
-      if (match.index > cursor) {
-        container.append(document.createTextNode(text.slice(cursor, match.index)));
-      }
-      const userId = mentionedIds.get(token);
-      if (nameButtons && !isBroadcastToken && Number.isInteger(userId)) {
-        const button = nameButton({ id: userId, username: match[1] }, 'mention');
-        button.textContent = match[0];
-        container.append(button);
-      } else {
-        const span = document.createElement('span');
-        span.className = isBroadcastToken ? 'mention mention-broadcast' : 'mention';
-        span.textContent = match[0];
-        container.append(span);
-      }
-      cursor = match.index + match[0].length;
+    if (match.index > cursor) {
+      container.append(document.createTextNode(text.slice(cursor, match.index)));
     }
-    match = MENTION_TOKEN.exec(text);
+    const spelling = match.raw.slice(0, token.length);
+    const userId = mentionedIds.get(token);
+    if (nameButtons && !isBroadcastToken && Number.isInteger(userId)) {
+      const button = nameButton({ id: userId, username: spelling }, 'mention');
+      button.textContent = '@' + spelling;
+      container.append(button);
+    } else {
+      const span = document.createElement('span');
+      span.className = isBroadcastToken ? 'mention mention-broadcast' : 'mention';
+      span.textContent = '@' + spelling;
+      container.append(span);
+    }
+    // Keep any stripped sentence punctuation as ordinary text outside the mention.
+    cursor = match.index + 1 + spelling.length;
   }
   if (cursor < text.length) {
     container.append(document.createTextNode(text.slice(cursor)));
