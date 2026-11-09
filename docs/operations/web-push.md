@@ -127,3 +127,105 @@ listener is a deployment host change that the maintainer decides. No migration,
 application request or Composer command installs or starts it automatically.
 Concurrent timer/listener instances share the same claims safely; the timer
 is a supported fallback.
+
+## Destination validation and private providers (#147)
+
+Apply migration 0047 before deploying the lifecycle code. Configure public HTTPS
+push services normally; this remains standard VAPID/Web Push, including
+compatible UnifiedPush distributors. There is no FCM registration, relay or
+vendor-specific native protocol.
+
+Both registration changes and each delivery resolve all A and AAAA records.
+The push-only react/dns resolver uses the system hosts file and resolv.conf
+nameservers with one combined three-second query deadline, no cross-call cache
+and no public fallback resolver. `WEB_PUSH_DNS_RESOLV_CONF` optionally selects a
+readable resolv.conf-format file, mainly for Windows development. Explicit
+missing/unreadable overrides fail startup with a redacted diagnostic. If the
+implicit `/etc/resolv.conf` default is absent (normally Windows), hostname
+endpoints fail closed; literal-IP HTTPS endpoints still work. Do not use the
+library's Windows WMIC convenience loader. Production Unix defaults need no
+change.
+
+DNS timeout/SERVFAIL is retryable and never deletes a subscription; NXDOMAIN or
+no addresses is a registration validation error. Every returned IP must pass
+the address policy. HTTP uses only checked addresses pinned through
+CURLOPT_RESOLVE, with the original Host/SNI and TLS verification. Literal IPs
+are validated directly and need no DNS. A fresh HTTPS-only connection has no
+redirects, proxies or netrc credentials, a three-second connection timeout and
+ten-second transfer timeout. Provider response bodies are capped at 64 KiB
+(with a progress abort for older libcurl). No routing secret, raw payload or
+provider exception text is logged.
+
+Private/self-hosted providers need an exact origin **and** an allowed resolved
+IP/CIDR, configured as JSON (empty by default):
+
+```env
+WEB_PUSH_PRIVATE_PROVIDERS='[{"origin":"https://push.internal.example:8443","cidrs":["10.42.0.0/16","fd42::/48"]}]'
+```
+
+At most 32 origins with 32 CIDRs each are accepted. The canonical origin includes
+a non-default port, with no path/query, credentials or wildcard. This exception
+does not disable TLS verification. Loopback, unspecified, link-local, multicast,
+known metadata addresses, IPv4-mapped IPv6 and translation/tunnel bypasses stay
+forbidden even with a broad exception. Non-global, documentation, shared and
+benchmark ranges are otherwise blocked by default. Address classification follows
+the [IANA IPv4](https://www.iana.org/assignments/iana-ipv4-special-registry) and
+[IPv6](https://www.iana.org/assignments/iana-ipv6-special-registry) registries;
+revisit the constants when allocations change. Network-level egress controls
+remain useful for deployment-specific routes and custom NAT64 prefixes.
+
+Old blocked rows are retained for the owner to revoke; validation never silently
+prunes them. CLI summaries add redacted `dns_unavailable`, `dns_no_addresses`
+and `destination_blocked` counts when those conditions occur. For
+`dns_unavailable`, check the configured resolver file/nameservers and network
+availability. These are diagnostic counts, not provider delivery receipts.
+
+## Session binding, rotation and logout
+
+New registrations are tied to the authenticated login session and its account
+session version, separately from the client-visible delivery binding. Cap:
+20 devices/account, enforced under an account lock. Foreign endpoint ownership
+returns 409, never transfers. `replaces_id` atomically replaces an owned
+endpoint at the cap; revoke-device uses the stable owned row ID, without needing
+the endpoint. Changing keys or login binding creates a new generation. Pending
+old-generation deliveries are suppressed; events created before that generation
+do not replay. Already accepted provider messages cannot be recalled.
+
+The web client refreshes an existing granted-permission subscription on every
+authenticated page load, including policy pages, without prompting permission.
+An unchanged owner/endpoint/keys/session registration uses the cheap refresh
+quota and skips registration DNS; every send still revalidates. New or changed
+registrations use the mutation quota and full destination validation. See
+[rate limiting](rate-limiting.md).
+
+Normal logout removes this session's registrations and any remaining unbound
+legacy rows for that account, preserving other bound devices. Version-invalid
+sessions cannot receive pushes. Account closure also clears subscriptions.
+Legacy installations do not replay historical processed rows; valid existing
+legacy queue fingerprints remain usable until the registration is rebound.
+The upgraded web worker drops unbound payloads until page-load re-registration
+supplies its binding.
+
+Before even attempting logout HTTP, the browser clears its durable marker,
+unsubscribes locally and closes visible notifications. Late responses are fenced
+and cannot restore it. Native clients must likewise drop keys/binding and
+notifications locally when logging out offline. A failed network request cannot
+prove server revocation: logout/revoke is best effort after provider acceptance.
+Removing a push device does not revoke its account login credentials; an
+authenticated client can register again. No endpoint-confirmation protocol or
+expiring registration lease is introduced in this version.
+
+Payload `event_id` and `binding` are opaque ASCII strings of at most 64 bytes;
+every bound push includes its binding. The existing four display fields retain
+their meaning, with kind/timeline ID added. Plaintext is below 3000 bytes.
+The web worker rejects mismatched bindings, keeps a bounded six-hour/256-event
+deduplication history, and uses event IDs as notification tags. Notification
+clicks use same-origin links only and re-check the current account/session
+before opening the contextual destination; uncertain/offline state opens the
+site root. Old clients may ignore the additive fields; only upgraded clients
+provide these stale-push presentation protections.
+
+The automated resolver, transport, database, HTTP and mocked browser tests do
+not demonstrate real distributor delivery. Actual browser delivery plus two
+compatible distributor/device deliveries remain a separately coordinated
+technical-lead/CCM acceptance gate.

@@ -6,7 +6,7 @@ namespace ChitChat\WebPush;
 
 use ChitChat\Config;
 use DateTimeImmutable;
-use Http\Client\Curl\Client;
+use InvalidArgumentException;
 use Minishlink\WebPush\Subscription;
 use Minishlink\WebPush\WebPush;
 use Throwable;
@@ -19,16 +19,8 @@ final class LibraryPushTransport implements PushTransport
 
     public function __construct(Config $config, ?ClientInterface $httpClient = null)
     {
-        $client = $httpClient ?? new Client(options: [
-            CURLOPT_CONNECTTIMEOUT => 3,
-            CURLOPT_TIMEOUT => 10,
-            CURLOPT_FOLLOWLOCATION => false,
-            CURLOPT_PROXY => '',
-            CURLOPT_NOPROXY => '*',
-            CURLOPT_PROTOCOLS => CURLPROTO_HTTPS,
-            CURLOPT_SSL_VERIFYPEER => true,
-            CURLOPT_SSL_VERIFYHOST => 2,
-        ]);
+        $client = $httpClient ?? new GuardedPushHttpClient(new PushDestinationGuard(
+            new ReactPushDnsResolver(resolvConf: $config->webPushDnsResolvConf), new PushAddressPolicy($config->webPushPrivateProviders)));
         $this->webPush = new WebPush([
             'VAPID' => [
                 'subject' => $config->webPushVapidSubject,
@@ -47,7 +39,13 @@ final class LibraryPushTransport implements PushTransport
                 'contentEncoding' => 'aes128gcm',
             ]);
             $report = $this->webPush->sendOneNotification($target, $payload, ['TTL' => $ttl, 'urgency' => $urgency]);
-        } catch (Throwable) {
+        } catch (Throwable $exception) {
+            if ($exception instanceof PushDnsException) {
+                return new PushSendResult($exception->retryable ? 'retry' : 'failed', failureReason: $exception->retryable ? 'dns_unavailable' : 'dns_no_addresses');
+            }
+            if ($exception instanceof InvalidArgumentException) {
+                return new PushSendResult('failed', failureReason: 'destination_blocked');
+            }
             // Malformed stored keys cannot be repaired by retry. No exception text may expose secrets.
             return new PushSendResult('failed');
         }

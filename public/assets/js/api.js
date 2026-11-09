@@ -15,6 +15,13 @@ const SESSION_CHANGE_ENDPOINTS = new Set([
   '/api/v1/account/restore.php',
 ]);
 
+// These flows can stage/complete a different identity without a full page load.
+const PUSH_IDENTITY_ENDPOINTS = new Set([
+  ...SESSION_CHANGE_ENDPOINTS,
+  '/api/v1/password-reset.php',
+  '/api/v1/oidc/register.php',
+]);
+
 export class ApiError extends Error {
   constructor(status, code, message, retryAfterSeconds = null) {
     super(message);
@@ -44,6 +51,11 @@ export function apiGet(path) {
 }
 
 export async function apiPost(path, body = {}) {
+  if (PUSH_IDENTITY_ENDPOINTS.has(path)) {
+    // Local revocation precedes the HTTP request, even when that request fails offline.
+    const { clearLocalPush } = await import('./push-lifecycle.js');
+    await clearLocalPush().catch(() => {});
+  }
   const send = () => request(path, {
     method: 'POST',
     headers: {

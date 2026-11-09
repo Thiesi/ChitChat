@@ -6,7 +6,7 @@ ChitChat can deliver a best-effort browser push notification for the same events
 
 Every endpoint below requires an authenticated session; all except the `GET` read requires the current `X-CSRF-Token`. A push payload never carries a raw message body — only the same sender-username/room-name/title text already considered safe for the in-app timeline. Push subscriptions and notification preferences belong to the signed-in account: a request can only create, read, or remove its own rows.
 
-All five endpoints share the named `push_subscription_management` rate-limit policy (see [`docs/operations/rate-limiting.md`](../operations/rate-limiting.md)).
+Mutations use the named `push_subscription_management` policy (20 attempts/hour per account). Subscribe has a cheap early `push_subscription_refresh` policy (600/hour); unchanged same-session registrations do not spend the mutation allowance or repeat DNS. The authenticated GET is uncharged. See [rate limiting](../operations/rate-limiting.md).
 
 ## `POST /api/v1/push/subscribe.php`
 
@@ -24,17 +24,34 @@ Request body:
 
 Fields:
 
-- `endpoint`: required, 1-2048 characters, must be an `https://` URL;
-- `p256dh`: required, non-empty;
-- `auth`: required, non-empty.
+- `endpoint`: required, an unambiguous ASCII HTTPS URI of at most 2048 bytes; encode non-ASCII path/query characters; credentials, fragments, controls, alternate IP spellings and IPv6 zones are rejected;
+- `p256dh`: required, base64url encoding of a 65-byte uncompressed, on-curve P-256 point;
+- `auth`: required, base64url encoding of exactly 16 bytes; canonical padded or unpadded inputs are accepted.
+- `replaces_id`: optional owned device ID; atomically replaces an obsolete endpoint without temporarily exceeding the device cap.
+- `device_label`: optional human label, at most 64 characters, without controls.
 
-`endpoint` is globally unique. Subscribing again with an endpoint already on file updates its keys, user agent, and `last_used_at` in place and reassigns it to the requesting account, rather than creating a duplicate row — the same browser registration cannot belong to two accounts at once. The request's `User-Agent` header is stored (truncated to 256 characters) for display in the device list; it is omitted if blank.
+`endpoint` is globally unique. Re-registering the same endpoint, keys and login-session binding refreshes its metadata idempotently. Changing keys or the login session rotates the delivery binding and generation. An endpoint owned by another account returns `409 push_subscription_conflict` and never transfers ownership — the same browser registration cannot belong to two accounts at once. The request's `User-Agent` header is stored (truncated to 256 characters) for display in the device list; it is omitted if blank.
 
 Response:
 
 ```json
-{"subscribed": true}
+{"subscribed": true, "id": 4, "binding": "opaque-ascii-delivery-binding"}
 ```
+
+The account cap is 20 devices, enforced atomically with account/session checks.
+A full account returns `409 push_subscription_limit`; `replaces_id` must be
+owned or returns `404 not_found`. Retrying a completed replacement with its now-missing old ID and the exact same new endpoint/keys/login binding returns the existing new ID/binding, without rotating it again. Retryable DNS failures return
+`503 push_provider_unavailable`; missing or forbidden destinations return
+`400 validation_error`. The server resolves both A and AAAA, rejects the whole
+answer set if any address is forbidden, and pins checked addresses again on
+every send. No push HTTP is performed by subscribe.
+
+The `binding` is a non-authenticating, case-sensitive opaque ASCII string of
+1–64 bytes. Store it for this local registration and compare it exactly on
+incoming pushes. The server-only session revocation token is never returned.
+The integer `id` lets an authenticated owner revoke a device after its endpoint
+changes. A missing binding on an older server means this lifecycle feature is
+unknown; older clients may ignore additive response fields.
 
 ## `POST /api/v1/push/unsubscribe.php`
 
@@ -71,6 +88,8 @@ Example response:
     {
       "id": 4,
       "user_agent": "Mozilla/5.0 (...) Firefox/128.0",
+      "device_label": "My laptop",
+      "current_session": true,
       "created_at": "2026-07-18T09:12:00+00:00",
       "last_used_at": "2026-08-01T21:03:00+00:00"
     }
@@ -78,7 +97,7 @@ Example response:
 }
 ```
 
-`quiet_hours` is `null` when no window is configured. `devices` is ordered newest-first and never includes the endpoint, key material, or any other value that could re-target a push.
+`quiet_hours` is `null` when no window is configured. `devices` is ordered newest-first and includes only current account-session versions. `current_session` identifies this login, not every browser owned by the account. The list never includes the endpoint, key material, or any other value that could re-target a push.
 
 ## `POST /api/v1/push/update-preferences.php`
 
@@ -135,10 +154,18 @@ Request body:
 
 ## Dispatch lifetime and retries
 
-The subscription/preference requests and the existing push payload
-`{title, body, link, app_name}` remain unchanged by #148. Extra payload
-discriminators and lifecycle binding are separate work; clients must not assume
-they are present.
+The existing `title`, `body`, `link` and `app_name` fields keep their meaning.
+The additive fields are `kind` (the exact timeline kind),
+`notification_id` (integer timeline row ID), `event_id` (opaque printable ASCII,
+1-64 bytes, stable across retries), and `binding` (present on every bound
+registration's push). Use `event_id` as a notification tag/deduplication key;
+do not parse it. A future mention/DM overlap shares the event identity.
+Clients must ignore unknown fields and tolerate their absence on older servers.
+
+Plaintext JSON is strictly below 3000 bytes; display text is clipped on UTF-8
+boundaries when necessary, never routing links or identifiers. Push text
+contains no message/caption/filename. Device generation changes prevent delivery
+of historical queued events to newly bound credentials.
 
 Push is derived from unread durable notifications. Read rows are skipped at
 claim time and rechecked before retries. Mention/ping alerts have a 30-minute
@@ -167,3 +194,22 @@ supported. An idle listener normally reacts within a few hundred milliseconds,
 while timer mode adds up to its cadence before provider delivery. Wakes contain
 no notification data, and no push HTTP runs inside the producing request.
 Enabling the listener is an explicit operator decision, not an API side effect.
+
+## Logout and client lifecycle
+
+`POST /api/v1/logout.php` additionally removes this login session's push
+registrations and the account's unbound legacy registrations; other bound
+devices survive. Global session-version invalidation also suppresses old
+registrations. Revocation cannot recall provider-accepted messages.
+
+Clients must clear their local subscription, keys/binding and visible
+notifications before trying logout HTTP, including offline logout. Re-register
+an existing browser subscription with its login binding on every authenticated
+page load when permission is already granted, without prompting automatically.
+The upgraded web worker drops unbound/old-binding pushes, deduplicates with
+`event_id`, and verifies the current account before following same-origin
+notification links. Removing push does not revoke account login credentials.
+
+There is no endpoint-confirmation protocol or expiring registration lease in
+this release. See [operations](../operations/web-push.md) for DNS, private-provider
+configuration, migration/cutover and proof boundaries.
