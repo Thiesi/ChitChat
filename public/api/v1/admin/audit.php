@@ -21,6 +21,7 @@ Endpoint::run($config, static function () use ($config): ApiResult {
         $actor,
         Request::optionalQueryInteger('before_id'),
         Request::optionalQueryInteger('limit') ?? 50,
+        Request::optionalQueryInteger('user_id'),
     );
 
     return ApiResult::ok(['entries' => $entries]);

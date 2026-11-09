@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use ChitChat\Admin\AdminService;
+use ChitChat\Admin\UserDirectoryService;
 use ChitChat\Auth\SessionManager;
 use ChitChat\Auth\UserRepository;
 use ChitChat\Database;
@@ -22,12 +22,15 @@ Endpoint::run($config, static function () use ($config): ApiResult {
         'admin_user_search',
         'user:' . $actor->id,
     );
-    $users = (new AdminService($pdo))->listUsers(
+    $page = (new UserDirectoryService($pdo))->page(
         $actor,
         Request::optionalQueryString('search') ?? '',
         Request::optionalQueryInteger('after_id') ?? 0,
         Request::optionalQueryInteger('limit') ?? 50,
+        Request::optionalQueryString('filter'),
+        Request::optionalQueryString('sort') ?? 'id',
+        Request::optionalQueryString('cursor'),
     );
 
-    return ApiResult::ok(['users' => $users]);
+    return ApiResult::ok($page);
 });
