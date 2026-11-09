@@ -107,3 +107,7 @@
 .icon-actions { display: flex; flex-wrap: wrap; gap: 0.6rem; }
 #icon-status:empty, #icon-error:empty { display: none; }
 .icon-ring-toggle { max-width: none; }
+.icon-load-error { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem 1rem; }
+.icon-load-error.hidden { display: none; }
+.icon-load-error p { margin: 0; }
+#icon-hex[aria-invalid] { border-color: var(--error); }
