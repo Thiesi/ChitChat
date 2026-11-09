@@ -143,12 +143,19 @@ final class NativeAuthController
 
     private static function failure(Config $config, \Throwable $exception): never
     {
+        if (self::bootstrapCookie() !== '' && $exception instanceof ApiException
+            && in_array($exception->errorCode, ['expired', 'code_expired', 'cancelled', 'superseded', 'already_used', 'bootstrap_mismatch'], true)) {
+            NativeAuthBootstrap::clear();
+        }
         $status = $exception instanceof ApiException ? $exception->status : 500;
         if ($exception instanceof ApiException && $exception->retryAfterSeconds !== null) header('Retry-After: ' . $exception->retryAfterSeconds);
         if (!$exception instanceof ApiException) error_log('Native auth browser operation failed (' . $exception::class . ').');
         http_response_code($status);
         header('Content-Type: text/html; charset=utf-8');
-        $phase = $exception instanceof ApiException && in_array($exception->errorCode, ['expired', 'code_expired', 'superseded'], true) ? 'expired' : 'disabled';
+        $phase = $exception instanceof ApiException ? match ($exception->errorCode) {
+            'expired', 'code_expired', 'superseded' => 'expired',
+            'already_used' => 'used', 'cancelled' => 'cancelled', default => 'disabled',
+        } : 'disabled';
         try {
             $view = (new NativeAuthViewModel(Database::connect($config), $config))->model(null, $phase, null, '');
             echo NativeAuthPage::render($view);

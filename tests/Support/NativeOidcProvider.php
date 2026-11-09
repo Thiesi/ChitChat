@@ -24,9 +24,9 @@ final class NativeOidcProvider implements OidcHttpClient
     public ?\Closure $beforeRequest = null;
     private \OpenSSLAsymmetricKey $key;
 
-    public function __construct()
+    public function __construct(private readonly string $issuer = self::ISSUER, ?string $pem = null)
     {
-        $key = openssl_pkey_new(['private_key_bits' => 2048, 'private_key_type' => OPENSSL_KEYTYPE_RSA]);
+        $key = $pem === null ? openssl_pkey_new(['private_key_bits' => 2048, 'private_key_type' => OPENSSL_KEYTYPE_RSA]) : openssl_pkey_get_private($pem);
         if (!$key instanceof \OpenSSLAsymmetricKey) {
             throw new \RuntimeException('Unable to generate a test key.');
         }
@@ -38,13 +38,13 @@ final class NativeOidcProvider implements OidcHttpClient
         $this->exchanges++;
         ($this->beforeRequest ?? static function (): void {})();
         $verifierHash = rtrim(strtr(base64_encode(hash('sha256', $fields['code_verifier'] ?? '', true)), '+/', '-_'), '=');
-        if ($url !== self::ISSUER . '/token' || $fields['client_secret'] !== self::CLIENT_SECRET || $verifierHash !== $this->challenge) {
+        if ($url !== $this->issuer . '/token' || $fields['client_secret'] !== self::CLIENT_SECRET || $verifierHash !== $this->challenge) {
             throw new ApiException(502, 'sign_in_provider_failed', 'The fake provider refused the token request.');
         }
         $now = time();
 
         $claims = [
-            'iss' => self::ISSUER,
+            'iss' => $this->issuer,
             'aud' => self::CLIENT_ID,
             'sub' => $this->subject,
             'nonce' => $this->nonceOverride ?? $this->nonce,

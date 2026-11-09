@@ -64,7 +64,7 @@ final readonly class NativeAuthGuard
         if (in_array($phase, ['cancelled', 'superseded', 'expired'], true)) {
             return is_string($row['error_code']) ? $row['error_code'] : $phase;
         }
-        if ($phase === 'consumed' && (!$continuation || (int) $row['active'] !== 1)) return 'already_used';
+        if ($phase === 'consumed' && (int) $row['active'] !== 1) return 'already_used';
         if (new DateTimeImmutable((string) $row['expires_at']) <= $now) return 'expired';
         if ($row['callback_expires_at'] !== null && new DateTimeImmutable((string) $row['callback_expires_at']) <= $now) return 'expired';
         if ($phase === 'staged' && $row['code_expires_at'] !== null
@@ -73,6 +73,7 @@ final readonly class NativeAuthGuard
             || !hash_equals((string) $row['config_hash'], NativeAuthConfiguration::fingerprint($this->config))) {
             return 'native_config_changed';
         }
+        if ($phase === 'consumed' && !$continuation) return 'already_used';
         return null;
     }
 
@@ -85,7 +86,7 @@ final readonly class NativeAuthGuard
     }
 
     /** Must precede the native transaction row and every credential/identity write lock. */
-    public function lockAccountPolicy(?int $userId): void
+    public function lockAccountPolicy(?int $userId, bool $restoration = false): void
     {
         if (!$this->pdo->inTransaction()) throw new RuntimeException('Native account locks require a transaction.');
         // Match registration and policy writes: rules, installation policy, account, then native row.
@@ -93,8 +94,15 @@ final readonly class NativeAuthGuard
         if ($rules === false || $rules->fetchColumn() === false) throw new RuntimeException('Rules policy is unavailable.');
         $statement = $this->pdo->query('SELECT id FROM system_settings WHERE id = 1 FOR UPDATE');
         if ($statement === false || $statement->fetchColumn() === false) throw new RuntimeException('Account policy is unavailable.');
+        if ($restoration && $userId !== null) {
+            // Match finalization: closure first, then account, then the native transaction.
+            $closure = $this->pdo->prepare('SELECT id FROM account_closures WHERE user_id = :id AND restored_at IS NULL AND finalized_at IS NULL FOR UPDATE');
+            if ($closure === false) throw new RuntimeException('Unable to prepare native closure lock.');
+            $closure->execute(['id' => $userId]);
+            if ($closure->fetchColumn() === false) throw self::failure('account_changed');
+        }
         if ($userId !== null) {
-            $statement = $this->pdo->prepare('SELECT id FROM users WHERE id = :id FOR UPDATE');
+            $statement = $this->pdo->prepare('SELECT id FROM users WHERE id = :id FOR NO KEY UPDATE');
             if ($statement === false) throw new RuntimeException('Unable to prepare native account lock.');
             $statement->execute(['id' => $userId]);
             if ($statement->fetchColumn() === false) throw self::failure('account_changed');

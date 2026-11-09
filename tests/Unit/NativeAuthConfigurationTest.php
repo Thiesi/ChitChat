@@ -61,4 +61,14 @@ final class NativeAuthConfigurationTest extends TestCase
         $this->expectException(ApiException::class);
         NativeConfig::requireState(str_repeat('a', 129));
     }
+    public function testTrustedPackagesMustAlsoFormAValidReturnSchemeWithoutChangingPasskeyTrust(): void
+    {
+        $app = ['package' => 'de.example.chat_debug', 'sha256_cert_fingerprint' => implode(':', array_fill(0, 32, 'AB'))];
+        $config = $this->config(['applicationOrigin' => 'https://chat.test', 'oidcRedirectOrigin' => 'https://chat.test',
+            'nativeAndroidApps' => [$app], 'oidcProviders' => ['google' => ['client_id' => 'client', 'client_secret' => 'secret', 'endpoint_override' => '']]]);
+        self::assertSame([$app], $config->nativeAndroidApps);
+        self::assertFalse(NativeConfig::configured($config));
+        $this->expectException(ApiException::class);
+        NativeConfig::redirect($config, $app['package']);
+    }
 }

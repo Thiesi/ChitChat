@@ -60,7 +60,10 @@ final class NativeAuthBrowserTest extends DatabaseTestCase
     /** @return array{id:string,entry:string,state:string,native:array<string,mixed>} */
     private function start(?AuthenticatedUser $actor = null, string $purpose = 'login'): array
     {
-        if ($actor !== null) SessionManager::login($actor);
+        if ($actor !== null) {
+            SessionManager::login($actor);
+            if ($purpose === 'link') SessionManager::establishPrivilegedStepUp($actor, 'password');
+        }
         $state = NativeConfig::token();
         $start = (new NativeAuthTransactions($this->pdo, $this->nativeConfig))->start([
             'client_id' => 'de.networkxxiii.chitchat', 'provider' => 'google', 'purpose' => $purpose,
@@ -206,6 +209,64 @@ final class NativeAuthBrowserTest extends DatabaseTestCase
         self::assertSame('cancelled', $this->browser->view()['phase']);
     }
 
+    /** @return iterable<string,array{string}> */
+    public static function purposes(): iterable
+    {
+        foreach (['link', 'step_up', 'picture', 'restore'] as $purpose) yield $purpose => [$purpose];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('purposes')]
+    public function testEveryPurposeAppliesOnlyInTheNativeExchange(string $purpose): void
+    {
+        if ($purpose === 'restore') (new \ChitChat\Account\AccountClosureService($this->pdo, $this->config))->request($this->member, '192.0.2.1');
+        if ($purpose === 'link') $this->pdo->exec('DELETE FROM user_identities');
+        $start = $this->start($purpose === 'restore' ? null : $this->member, $purpose);
+        if ($purpose === 'link') $this->provider->subject = 'second-subject';
+        if ($purpose === 'step_up') $this->provider->authTime = time();
+        if ($purpose === 'picture') {
+            $this->provider->pictureClaim = NativeOidcProvider::ISSUER . '/picture';
+            $this->provider->picture = (string) base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jxS8AAAAASUVORK5CYII=', true);
+        }
+        $query = $this->enter($start);
+        $this->flow->direct($query, '198.51.100.1');
+        self::assertSame('consent', $this->browser->view()['phase']);
+        self::assertArrayNotHasKey('auth', $_SESSION);
+        self::assertSame($purpose === 'link' ? 0 : 1, (int) $this->pdo->query('SELECT COUNT(*) FROM user_identities')->fetchColumn());
+        self::assertSame(0, (int) $this->pdo->query('SELECT COUNT(*) FROM avatar_imports')->fetchColumn());
+        self::assertArrayNotHasKey('privileged_step_up', $_SESSION);
+        if ($purpose === 'restore') self::assertSame('closure_pending', $this->pdo->query('SELECT account_state FROM users WHERE id = ' . $this->member->id)->fetchColumn());
+        $this->browser->approve('198.51.100.1');
+        parse_str((string) parse_url($this->browser->view()['return_url'], PHP_URL_QUERY), $grant);
+        $_SESSION = $start['native'];
+        $result = (new NativeAuthExchange($this->pdo, $this->nativeConfig))->exchange([
+            ...$grant, 'code_verifier' => 'dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk'], '203.0.113.1');
+        self::assertSame('completed', $result['outcome']);
+        self::assertSame($purpose, $result['purpose']);
+        self::assertSame($this->member->id, $result['user']['id']);
+        self::assertSame($this->member->id, $_SESSION['auth']['user_id']);
+        if ($purpose === 'link') self::assertSame(1, (int) $this->pdo->query('SELECT COUNT(*) FROM user_identities')->fetchColumn());
+        if ($purpose === 'picture') {
+            self::assertTrue($result['picture_ready']);
+            self::assertSame(1, (int) $this->pdo->query('SELECT COUNT(*) FROM avatar_imports')->fetchColumn());
+            self::assertNull($this->rows->require($start['id'])['picture']);
+        }
+        if ($purpose === 'step_up') self::assertTrue($result['security']['privileged_step_up']['active']);
+        if ($purpose === 'restore') {
+            self::assertTrue($result['restored']);
+            self::assertSame('active', $this->pdo->query('SELECT account_state FROM users WHERE id = ' . $this->member->id)->fetchColumn());
+        }
+    }
+    public function testLinkingADifferentAccountOfAnAlreadyConnectedProviderShowsIdentityMismatch(): void
+    {
+        $start = $this->start($this->member, 'link');
+        $query = $this->enter($start);
+        $this->provider->subject = 'different-provider-account';
+        $this->flow->direct($query, '198.51.100.1');
+        self::assertSame('identity_mismatch', $this->browser->view()['phase']);
+        self::assertNull($this->browser->view()['return_url']);
+        $this->rejects('consent_required', fn () => $this->browser->approve('198.51.100.1'));
+        self::assertSame(1, (int) $this->pdo->query('SELECT COUNT(*) FROM user_identities')->fetchColumn());
+    }
     private function rejects(string $code, callable $operation): void
     {
         try { $operation(); self::fail('Invalid native browser operation was accepted.'); }

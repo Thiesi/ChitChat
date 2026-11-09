@@ -6,7 +6,9 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ## [Unreleased]
 
-- Add opt-in Android passkey certificate origins through NATIVE_ANDROID_APPS, preserving existing password-first MFA and the web origin. Publish grouped credential-only Digital Asset Links through a documented exact Nginx mapping (existing static files win); no deployment is performed. Native capability discovery requires configured WebAuthn and nonempty trust. Signed-device acceptance remains separate from fixture/CI proof; native OIDC handoff remains disabled.
+- Add opt-in native browser OIDC handoff with explicit consent, PKCE/state, isolated app/browser sessions, atomic one-use purpose effects, and bounded native MFA/sign-up continuations. Apply migration 0049. Enable only with trusted apps and matching HTTPS application/provider callback origins; capability discovery also requires the integrated confirmation page. Committed Nginx examples redact native queries; deployment and signed-device acceptance remain separate.
+
+- Add opt-in Android passkey certificate origins through NATIVE_ANDROID_APPS, preserving existing password-first MFA and the web origin. Publish grouped credential-only Digital Asset Links through a documented exact Nginx mapping (existing static files win); no deployment is performed. Native capability discovery requires configured WebAuthn and nonempty trust. Signed-device acceptance remains separate from fixture/CI proof; native OIDC handoff has its own installation requirements.
 
 ## [3.5.0] - 2026-11-09
 

@@ -220,6 +220,9 @@ final class OidcService
      */
     public function pendingSignUp(): ?array
     {
+        if (\ChitChat\Auth\NativeAuth\NativeAuthContinuation::pending()) {
+            (new \ChitChat\Auth\NativeAuth\NativeAuthContinuation($this->pdo, $this->config))->reconcileSession();
+        }
         $pending = $this->signUpStash();
         if ($pending === null) {
             return null;
@@ -236,9 +239,15 @@ final class OidcService
      */
     public function completeSignUp(string $username, ?string $birthDate, string $ipAddress, mixed $acceptedRulesVersion = null): AuthenticatedUser
     {
+        if (\ChitChat\Auth\NativeAuth\NativeAuthContinuation::pending()) {
+            (new \ChitChat\Auth\NativeAuth\NativeAuthContinuation($this->pdo, $this->config))->reconcileSession();
+        }
         $pending = $this->signUpStash();
         if ($pending === null) {
             throw new ApiException(400, 'oidc_sign_up_expired', 'This sign-up has expired. Please continue with Google or Twitch again.');
+        }
+        if (isset($_SESSION['oidc_sign_up']['native_transaction'])) {
+            throw new ApiException(403, 'native_flow_required', 'Finish this request through the native handoff.');
         }
         $user = (new AuthService($this->pdo, $this->config))->registerWithProvider(
             $username,
@@ -255,6 +264,10 @@ final class OidcService
 
     public function cancelSignUp(): void
     {
+        if (\ChitChat\Auth\NativeAuth\NativeAuthContinuation::pending()) {
+            (new \ChitChat\Auth\NativeAuth\NativeAuthContinuation($this->pdo, $this->config))->cancelSignUp();
+            return;
+        }
         unset($_SESSION['oidc_sign_up']);
     }
 

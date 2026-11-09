@@ -17,7 +17,7 @@ final class NativeAuthConfiguration
 
     public static function configured(Config $config): bool
     {
-        return $config->nativeAndroidApps !== []
+        return array_filter($config->nativeAndroidApps, static fn (array $app): bool => self::validReturnScheme($app['package'])) !== []
             && str_starts_with($config->applicationOrigin, 'https://')
             && $config->oidcRedirectOrigin === $config->applicationOrigin
             && OidcProvider::configured($config) !== [];
@@ -39,13 +39,18 @@ final class NativeAuthConfiguration
     public static function redirect(Config $config, string $clientId): string
     {
         foreach ($config->nativeAndroidApps as $app) {
-            if ($app['package'] === $clientId) {
+            if ($app['package'] === $clientId && self::validReturnScheme($clientId)) {
                 return $clientId . ':/native-auth/callback';
             }
         }
         throw new ApiException(403, 'native_client_unavailable', 'This app is not approved for native sign-in here.');
     }
 
+    /** Android permits underscores in packages, but URI schemes do not. Passkey trust is unaffected. */
+    private static function validReturnScheme(string $clientId): bool
+    {
+        return preg_match('/\A[A-Za-z][A-Za-z0-9+.-]*\z/D', $clientId) === 1;
+    }
     public static function fingerprint(Config $config): string
     {
         return hash('sha256', json_encode([

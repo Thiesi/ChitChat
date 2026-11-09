@@ -238,11 +238,11 @@ SQL, 'account-restoration lookup');
     }
 
     /** Restoration and a native grant/factor consumption commit or roll back together. */
-    public function completeRestoreInTransaction(int $userId, string $ipAddress): AuthenticatedUser
+    public function completeRestoreInTransaction(int $userId, string $ipAddress, bool $nativeHandoff = false): AuthenticatedUser
     {
         if (!$this->pdo->inTransaction()) throw new RuntimeException('Restoration requires an outer transaction.');
         $mfaPolicyRequired = $this->lockGlobalAccountPolicy();
-        $user = $this->userForUpdate($userId);
+        $user = $this->userForUpdate($userId, $nativeHandoff);
         if ((string) $user['account_state'] === 'closed') {
             throw new ApiException(410, 'account_closed', 'This account has already been permanently closed.');
         }
@@ -466,9 +466,9 @@ SQL, 'restored-role MFA validation');
     }
 
     /** @return array<string, mixed> */
-    private function userForUpdate(int $userId): array
+    private function userForUpdate(int $userId, bool $nativeHandoff = false): array
     {
-        $statement = $this->prepare('SELECT * FROM users WHERE id = :id FOR UPDATE', 'account lifecycle lock');
+        $statement = $this->prepare('SELECT * FROM users WHERE id = :id ' . ($nativeHandoff ? 'FOR NO KEY UPDATE' : 'FOR UPDATE'), 'account lifecycle lock');
         $statement->execute(['id' => $userId]);
         $row = $statement->fetch();
         if (!is_array($row)) {

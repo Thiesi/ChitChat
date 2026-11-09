@@ -148,7 +148,7 @@ SQL, ['marker' => json_encode(['claim' => hash('sha256', $claim)], JSON_THROW_ON
             $target = in_array($snapshot['purpose'], ['login', 'restore'], true) ? $linked : ($snapshot['user_id'] === null ? null : (int) $snapshot['user_id']);
             $picture = $this->picture($snapshot, $verified, $linked, $target);
             $this->browser->transaction(function () use ($snapshot, $claim, $verified, $subject, $target, $picture): void {
-                $this->guard->lockAccountPolicy($target);
+                $this->guard->lockAccountPolicy($target, $snapshot['purpose'] === 'restore');
                 $row = $this->rows->require((string) $snapshot['id'], true);
                 $this->sameAttempt($row, $snapshot);
                 $this->claimed($row, $claim);
@@ -156,7 +156,10 @@ SQL, ['marker' => json_encode(['claim' => hash('sha256', $claim)], JSON_THROW_ON
                 $this->guard->browserOwner($row, $actor);
                 $linked = $this->guard->identityUser($verified->provider->name, $subject, true);
                 if (in_array($row['purpose'], ['login', 'restore'], true) && $linked !== $target) throw NativeAuthGuard::failure('identity_changed');
-                $mismatch = $row['purpose'] === 'link' ? ($linked !== null && $linked !== $target)
+                $ownSubject = $target !== null && $row['purpose'] === 'link'
+                    ? $this->rows->statement('SELECT subject FROM user_identities WHERE user_id = :id AND provider = :provider FOR SHARE',
+                        ['id' => $target, 'provider' => $row['provider']])->fetchColumn() : false;
+                $mismatch = $row['purpose'] === 'link' ? (($linked !== null && $linked !== $target) || (is_string($ownSubject) && $ownSubject !== $subject))
                     : (in_array($row['purpose'], ['step_up', 'picture', 'restore'], true) && ($target === null || $linked !== $target));
                 $version = $row['user_version'] === null ? null : (int) $row['user_version'];
                 if (!$mismatch && $target !== null) {

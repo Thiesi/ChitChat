@@ -126,3 +126,14 @@ Named PostgreSQL-backed request policies are documented in [`rate-limiting.md`](
 ## Optional image backfill
 
 The [bounded image-preview backfill](image-preview-backfill.md) is a separate operator command, serialized with cleanup. It is never automatically run by maintenance. Cleanup tracks original and rendition keys; attachment-row counts retain their meaning while tracked/removed-file counts include both.
+
+## Native authentication staging
+
+Migration 0049 adds short-lived native browser transactions. Maintenance reports
+`native_auth_expired` and `native_auth_tombstones`: at most 1000 expired active
+transactions and 1000 old terminal records per invocation. Expiry scrubs verified
+proof, private picture bytes, callback code/error fields, bootstrap hashes and
+return state. Terminal metadata is removed after one hour. Native requests also
+check deadlines and live trust, so delayed cleanup cannot authorize an expired
+code or continuation. Schedule maintenance regularly; repeated invocations drain
+larger backlogs. Dry-run counts are read-only. See the [native API](../api/native-auth.md).

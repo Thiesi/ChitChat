@@ -14,6 +14,19 @@ use ChitChat\Http\Request;
 /** Authentication credentials must never reach exception traces or debug error bodies. */
 final class NativeAuthEndpoint
 {
+    /** @template T
+     * @param callable():T $operation
+     * @return T
+     */
+    public static function protect(callable $operation): mixed
+    {
+        try { return $operation(); }
+        catch (ApiException | \JsonException $exception) { throw $exception; }
+        catch (\Throwable $exception) {
+            error_log('Native auth continuation failed (' . $exception::class . ').');
+            throw new ApiException(500, 'internal_error', 'Unable to complete this request. Check the app before starting again.');
+        }
+    }
     public static function run(Config $config, string $action): never
     {
         header('Cache-Control: no-store');

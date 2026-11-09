@@ -57,6 +57,9 @@ final readonly class NativeAuthEffects
                 SessionManager::requirePrivilegedStepUp($user, $this->config);
                 (new LockdownService($this->pdo))->assertSignInAllowed($user);
                 if ($identityUser !== null && $identityUser !== $user->id) throw NativeAuthGuard::failure('identity_changed');
+                $ownIdentity = $this->rows->statement('SELECT subject FROM user_identities WHERE user_id = :user_id AND provider = :provider FOR SHARE',
+                    ['user_id' => $user->id, 'provider' => $provider])->fetchColumn();
+                if (is_string($ownIdentity) && $ownIdentity !== $subject) throw NativeAuthGuard::failure('identity_changed');
                 if ($identityUser === null) {
                     $this->rows->statement('INSERT INTO user_identities (user_id,provider,subject) VALUES (:user_id,:provider,:subject)',
                         ['user_id' => $user->id, 'provider' => $provider, 'subject' => $subject]);
@@ -92,7 +95,7 @@ final readonly class NativeAuthEffects
                     if ($requiresMfa) {
                         $outcome = 'pending_mfa';
                     } else {
-                        if ($purpose === 'restore') $user = (new AccountClosureService($this->pdo, $this->config))->completeRestoreInTransaction($user->id, $ip);
+                        if ($purpose === 'restore') $user = (new AccountClosureService($this->pdo, $this->config))->completeRestoreInTransaction($user->id, $ip, nativeHandoff: true);
                         (new AuthService($this->pdo, $this->config))->completeLogin($user, $ip);
                     }
                     $this->audit->log($user->id, 'auth.oidc_sign_in', 'user', (string) $user->id, ['provider' => $provider], $ip);

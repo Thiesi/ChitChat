@@ -112,9 +112,9 @@ final readonly class NativeAuthBrowser
         $this->guard->browserOwner($row, $actor);
         $error = $this->guard->errorCode($row);
         $phase = (string) $row['phase'];
-        if ($phase === 'consumed') $phase = 'used';
-        elseif ($phase === 'superseded' || in_array($error, ['expired', 'code_expired'], true)) $phase = 'expired';
+        if ($phase === 'superseded' || in_array($error, ['expired', 'code_expired'], true)) $phase = 'expired';
         elseif ($error === 'native_config_changed') $phase = 'disabled';
+        elseif ($phase === 'consumed') $phase = 'used';
         $returnCode = $_SESSION['native_auth_browser']['return_code'] ?? null;
         return $this->views->model($row, $phase, is_string($row['outcome']) ? $row['outcome'] : null,
             SessionManager::csrfToken(), $actor, is_string($returnCode) ? $returnCode : null, authorizedStatus: true);
@@ -307,9 +307,10 @@ SQL, ['id' => (string) $row['id']]);
     private function lockedBrowser(array $snapshot, callable $operation): mixed
     {
         return $this->transaction(function () use ($snapshot, $operation): mixed {
-            $this->guard->lockAccountPolicy($snapshot['user_id'] === null ? null : (int) $snapshot['user_id']);
+            $this->guard->lockAccountPolicy($snapshot['user_id'] === null ? null : (int) $snapshot['user_id'], $snapshot['purpose'] === 'restore');
             $row = $this->rows->require((string) $snapshot['id'], true);
             $this->guard->browserOwner($row, $this->actor());
+            if ($row['user_id'] !== $snapshot['user_id'] || $row['user_version'] !== $snapshot['user_version']) throw NativeAuthGuard::failure('account_changed');
             $this->usable($row);
             return $operation($row);
         });

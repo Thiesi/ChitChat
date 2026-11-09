@@ -77,6 +77,10 @@ final readonly class NativeAuthTransactions
                     throw NativeAuthGuard::failure('account_changed');
                 }
             }
+            if ($purpose === 'link' && $actor !== null) SessionManager::requirePrivilegedStepUp($actor, $this->config);
+            if ($purpose === 'step_up' && $actor !== null && (new MfaService($this->pdo, $this->config))->requiresMfaForLogin($actor)) {
+                throw new ApiException(403, 'passkey_step_up_required', 'Use your passkey or recovery code in the app.');
+            }
             $this->rows->supersedeBinding($binding);
             $created = $this->rows->insert([
                 'id' => $id, 'native_binding_hash' => $binding, 'entry_hash' => hash('sha256', $entry),
@@ -91,12 +95,11 @@ final readonly class NativeAuthTransactions
             $this->rollBack();
             throw $exception;
         }
-        $pending = $_SESSION['pending_mfa'] ?? null;
-        if (is_array($pending) && isset($pending['native_transaction'])) {
-            unset($_SESSION['pending_mfa'], $_SESSION['webauthn_ceremony']);
+        // A new primary auth intent replaces older password/reset/provider continuations in this app jar.
+        if (in_array($purpose, ['login', 'restore'], true)) {
+            unset($_SESSION['pending_mfa'], $_SESSION['pending_password_reset'], $_SESSION['password_reset_challenge'],
+                $_SESSION['oidc_sign_up'], $_SESSION['oidc_flows'], $_SESSION['webauthn_ceremony']);
         }
-        $signup = $_SESSION['oidc_sign_up'] ?? null;
-        if (is_array($signup) && isset($signup['native_transaction'])) unset($_SESSION['oidc_sign_up']);
         NativeAuthSession::clearContinuation();
         unset($_SESSION['native_auth_browser']);
         return ['transaction_id' => $id,
