@@ -48,9 +48,9 @@ final class AttachmentServiceTest extends DatabaseTestCase
         $storedKey = $this->pdo->query('SELECT storage_key FROM attachments')->fetchColumn();
         self::assertIsString($storedKey);
         $storedPath = $storage
-            . '/' . substr($storedKey, 0, 2)
-            . '/' . substr($storedKey, 2, 2)
-            . '/' . $storedKey;
+            . DIRECTORY_SEPARATOR . substr($storedKey, 0, 2)
+            . DIRECTORY_SEPARATOR . substr($storedKey, 2, 2)
+            . DIRECTORY_SEPARATOR . $storedKey;
         self::assertFileExists($storedPath);
         self::assertSame("hello attachment\n", file_get_contents($storedPath));
 

@@ -56,11 +56,30 @@ final readonly class TestPasskey
      * @param array<string,mixed> $options
      * @return array<string,mixed>
      */
-    public function assertion(array $options, int $counter = 1, string $origin = 'https://chat.test', string $rpId = 'chat.test'): array
+    public function registration(array $options, string $origin = 'https://chat.test', string $rpId = 'chat.test'): array
+    {
+        $client = json_encode(['type' => 'webauthn.create', 'challenge' => $options['challenge'],
+            'origin' => $origin, 'crossOrigin' => false], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
+        $data = hash('sha256', $rpId, true) . chr(0x45) . pack('N', 0) . str_repeat("\0", 16)
+            . pack('n', strlen($this->credentialId)) . $this->credentialId . $this->cose;
+        $bytes = strlen($data) <= 255 ? "\x58" . chr(strlen($data)) : "\x59" . pack('n', strlen($data));
+        $attestation = "\xa3\x63fmt\x64none\x67attStmt\xa0\x68authData" . $bytes . $data;
+        return ['id' => Base64Url::encode($this->credentialId), 'rawId' => Base64Url::encode($this->credentialId),
+            'type' => 'public-key', 'response' => [
+                'clientDataJSON' => Base64Url::encode($client), 'attestationObject' => Base64Url::encode($attestation),
+                'transports' => ['internal'],
+            ]];
+    }
+
+    /**
+     * @param array<string,mixed> $options
+     * @return array<string,mixed>
+     */
+    public function assertion(array $options, int $counter = 1, string $origin = 'https://chat.test', string $rpId = 'chat.test', int $flags = 0x05): array
     {
         $clientData = json_encode(['type' => 'webauthn.get', 'challenge' => $options['challenge'],
             'origin' => $origin, 'crossOrigin' => false], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
-        $authenticator = hash('sha256', $rpId, true) . chr(0x05) . pack('N', $counter);
+        $authenticator = hash('sha256', $rpId, true) . chr($flags) . pack('N', $counter);
         $signature = '';
         if (!openssl_sign($authenticator . hash('sha256', $clientData, true), $signature, $this->privateKey, OPENSSL_ALGO_SHA256)) {
             throw new RuntimeException('Unable to sign the test assertion.');

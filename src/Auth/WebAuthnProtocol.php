@@ -13,12 +13,21 @@ final class WebAuthnProtocol
     public const RS256 = -257;
     private const MAX_CREDENTIAL_ID_LENGTH = 1023;
 
+    /** @param list<string> $nativeOrigins Exact configured Android certificate origins, not web URLs. */
     public function __construct(
         private readonly string $rpId,
         private readonly string $origin,
         private readonly string $rpName,
         private readonly int $timeoutMilliseconds = 300_000,
+        private readonly array $nativeOrigins = [],
     ) {
+        foreach ($nativeOrigins as $nativeOrigin) {
+            if (preg_match('/\Aandroid:apk-key-hash:[A-Za-z0-9_-]{43}\z/D', $nativeOrigin) !== 1
+                || ($digest = base64_decode(strtr(substr($nativeOrigin, 21), '-_', '+/') . '=', true)) === false
+                || strlen($digest) !== 32 || Base64Url::encode($digest) !== substr($nativeOrigin, 21)) {
+                throw new \InvalidArgumentException('Native WebAuthn origins must be exact Android SHA-256 certificate origins.');
+            }
+        }
     }
 
     /**
@@ -202,7 +211,8 @@ final class WebAuthnProtocol
         if (!is_string($challenge) || !hash_equals($expectedChallenge, Base64Url::decode($challenge, 'challenge'))) {
             throw new ApiException(403, 'webauthn_challenge_mismatch', 'The WebAuthn challenge is invalid or expired.');
         }
-        if (($decoded['origin'] ?? null) !== $this->origin) {
+        if (($decoded['origin'] ?? null) !== $this->origin
+            && !in_array($decoded['origin'] ?? null, $this->nativeOrigins, true)) {
             throw new ApiException(403, 'webauthn_origin_mismatch', 'The WebAuthn origin does not match this installation.');
         }
         if (($decoded['crossOrigin'] ?? false) !== false || array_key_exists('topOrigin', $decoded)) {

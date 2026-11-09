@@ -40,4 +40,19 @@ final class PublicSessionMetadataTest extends DatabaseTestCase
         self::assertSame($this->config->messageRevisionReviewRole, $policy['admin_review_role']);
         self::assertTrue($policy['participant_notification']);
     }
+
+    public function testNativePasskeysAdvertiseOnlyConfiguredTrustAndDoNotEnableHandoff(): void
+    {
+        $apps = [['package' => 'de.networkxxiii.chitchat', 'sha256_cert_fingerprint' => implode(':', array_fill(0, 32, 'AB'))]];
+        foreach ([
+            [[], '', '', false],
+            [$apps, '', '', false],
+            [[], 'chat.test', 'https://chat.test', false],
+            [$apps, 'chat.test', 'https://chat.test', true],
+        ] as [$trust, $rp, $origin, $expected]) {
+            $config = $this->configWith(['nativeAndroidApps' => $trust, 'webauthnRpId' => $rp, 'webauthnOrigin' => $origin]);
+            self::assertSame(['schema_version' => 1, 'native_passkey_origins' => $expected, 'native_auth_handoff' => false],
+                (new PublicSessionMetadata($this->pdo, $config))->capabilities());
+        }
+    }
 }
