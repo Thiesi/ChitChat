@@ -76,6 +76,15 @@ curl --fail --silent --show-error \
   --retry 30 --retry-delay 1 --retry-all-errors \
   "$base_url/ready.php" >/dev/null
 
+# The legacy favicon fallback runs through ordinary try_files, never a PHP session.
+curl --fail --silent --show-error --dump-header "$work_root/favicon.headers" \
+  --output "$work_root/favicon.ico" "$base_url/favicon.ico"
+cmp public/assets/app-icons/favicon.ico "$work_root/favicon.ico"
+! grep -Eqi '^Set-Cookie:' "$work_root/favicon.headers"
+grep -qi '^Content-Type: image/x-icon' "$work_root/favicon.headers"
+grep -qi '^Cache-Control: no-cache' "$work_root/favicon.headers"
+curl --fail --silent --show-error --head "$base_url/favicon.ico" > "$work_root/favicon-head.headers"
+! grep -Eqi '^Set-Cookie:' "$work_root/favicon-head.headers"
 # Unknown native callbacks never create a session, and sensitive query values
 # must not appear in the configured Nginx access/error logs.
 native_headers="$work_root/native.headers"

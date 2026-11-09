@@ -15,12 +15,13 @@ final readonly class PublicSessionMetadata
     {
     }
 
-    /** @return array{name:string, version:string} */
+    /** @return array{name:string, version:string,icon:array{url:string,width:int,height:int,mime_type:string,sha256:string}|null} */
     public function application(): array
     {
         return [
             'name' => (new ApplicationNameService($this->pdo, $this->config))->effective(),
             'version' => $this->config->applicationVersion,
+            'icon' => (new \ChitChat\InstallationIcon\IconService($this->pdo, $this->config))->publicIcon(),
         ];
     }
 

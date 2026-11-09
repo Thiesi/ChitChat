@@ -33,6 +33,8 @@ body { background: var(--ground); }
 }
 
 .native-auth-mark { flex: none; width: 2.5rem; height: 2.5rem; }
+/* An installation's own icon (#211), rounded like an app icon for consistency. */
+.native-auth-mark-custom { border-radius: 22%; object-fit: cover; }
 
 .native-auth-header h1 {
   margin: 0;

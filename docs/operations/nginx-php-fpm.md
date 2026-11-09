@@ -176,3 +176,10 @@ A command-line buffering probe can open an authenticated stream with `curl -N`, 
 ## Security boundary
 
 Only `/srv/chitchat/public` is the document root. The `.env` file, Composer metadata, `src/`, migrations, logs, PostgreSQL dumps, and attachment storage must remain outside it. Terminate TLS before issuing secure session cookies, set `SESSION_COOKIE_SECURE=1`, and preserve ChitChat's response security headers rather than replacing them with weaker values.
+
+
+## Installation icon
+
+Use the Super-Administrator Installation icon setting beside the installation name. Renditions are stored in the database and included in ordinary backups. GD with PNG/WebP is required to upload or preview; memory_limit >= 256M is recommended for 4000px sources. Existing try_files dispatch serves /favicon.ico without a session, writable docroot or additional server rule. See [the icon contract](../api/installation-icon.md).
+
+Legacy note: remove any hand-written icon Alias, static /favicon.ico or proxy location overrides used with older releases before adopting the setting, since existing static files and explicit mappings take precedence.

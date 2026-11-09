@@ -42,10 +42,14 @@ SET registration_enabled = TRUE,
     registration_min_fill_seconds = NULL,
     registration_proof_of_work_bits = NULL,
     application_name = NULL,
+    application_icon_revision = NULL,
+    application_icon_updated_at = NULL,
+    application_icon_updated_by = NULL,
     guest_access_enabled = FALSE,
     updated_at = NOW()
 WHERE id = 1
 SQL);
+        $this->pdo->exec('DELETE FROM installation_icons');
     }
 
     /**

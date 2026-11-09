@@ -52,7 +52,7 @@ final class PolicyPage
             . self::escape((string) $document['updated_at']) . '">' . $updated . '</time></p>';
         $back = $embedded ? '' : '<p class="policy-back"><a class="secondary-button" href="/">← Back to ' . $appName . '</a></p>';
         $footer = PoweredBy::html($config);
-        $headAssets = HeadAssets::html();
+        $headAssets = HeadAssets::html(\ChitChat\InstallationIcon\IconService::resolve($config));
 
         return <<<HTML
 <!doctype html>
@@ -92,7 +92,7 @@ HTML;
     {
         $appName = self::escape(ApplicationNameService::resolve($config));
         $title = self::TITLES[$kind] ?? 'Document';
-        $headAssets = HeadAssets::html();
+        $headAssets = HeadAssets::html(\ChitChat\InstallationIcon\IconService::resolve($config));
 
         return <<<HTML
 <!doctype html>
