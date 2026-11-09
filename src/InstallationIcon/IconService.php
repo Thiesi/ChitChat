@@ -115,7 +115,7 @@ final readonly class IconService
                 if ($generation !== null) {
                     $this->repository->insert($generation, $actor->id);
                 }
-                $this->repository->publish($generation?->revision, $old);
+                $this->repository->publish($generation?->revision, $old, $actor->id);
                 (new AuditLogger($this->pdo))->log(actorUserId: $actor->id,
                     action: $generation === null ? 'system.application_icon_reset' : 'system.application_icon_updated',
                     subjectType: 'system_settings', subjectId: '1',
@@ -152,11 +152,12 @@ final readonly class IconService
             }
         }
         $limits = self::limits();
+        $attribution = $generation === null ? null : $this->repository->attribution();
         return ['state' => $generation === null ? 'default' : 'custom', 'revision' => $revision,
             'background' => $generation === null ? '#14111C' : $generation->background,
             'source_width' => $generation?->sourceWidth, 'source_height' => $generation?->sourceHeight,
             'maskable_scale' => $generation === null ? null : $generation->maskableScale,
-            'updated_at' => $row['updated_at'] ?? null, 'updated_by' => $row['updated_by'] ?? null,
+            'updated_at' => $attribution['updated_at'] ?? null, 'updated_by' => $attribution['updated_by'] ?? null,
             'renditions' => $renditions,
             'upload_policy' => ['enabled' => IconRenderer::available() && $limits->maxBytes > 0,
                 'max_bytes' => $limits->maxBytes, 'minimum_side' => 512, 'maximum_side' => 4000,
@@ -166,17 +167,17 @@ final readonly class IconService
     /** @return array{url:string,width:int,height:int,mime_type:string,sha256:string}|null */
     public function publicIcon(): ?array
     {
-        $revision = $this->repository->currentRevision();
-        if ($revision === null) {
+        // One snapshot avoids a revision being pruned between separate pointer/hash reads.
+        $statement = $this->pdo->query('SELECT i.revision, i.icon_sha256 FROM system_settings s LEFT JOIN installation_icons i ON i.revision=s.application_icon_revision WHERE s.id=1');
+        $row = $statement === false ? false : $statement->fetch();
+        if (!is_array($row)) {
+            throw new RuntimeException('Installation icon settings are missing.');
+        }
+        if ($row['revision'] === null) {
             return null;
         }
-        $row = $this->repository->find($revision);
-        if ($row === null) {
-            throw new RuntimeException('The current installation icon is missing.');
-        }
-        $rendition = $row['generation']->renditions()['icon_512'];
-        unset($rendition['size_bytes']);
-        return $rendition;
+        return ['url' => '/installation-icon.php?revision=' . $row['revision'] . '&variant=icon_512',
+            'width' => 512, 'height' => 512, 'mime_type' => 'image/png', 'sha256' => (string)$row['icon_sha256']];
     }
 
     /** @return array{favicon_url:string,mark_url:string,apple_touch_url:string}|null */
@@ -188,13 +189,9 @@ final readonly class IconService
             if ($revision === null) {
                 return null;
             }
-            $row = $repository->find($revision);
-            if ($row === null) {
-                return null;
-            }
-            $renditions = $row['generation']->renditions();
-            return ['favicon_url' => $renditions['favicon']['url'], 'mark_url' => $renditions['icon_192']['url'],
-                'apple_touch_url' => $renditions['apple_touch']['url']];
+            $url = '/installation-icon.php?revision=' . $revision . '&variant=';
+            return ['favicon_url' => $url . 'favicon', 'mark_url' => $url . 'icon_192',
+                'apple_touch_url' => $url . 'apple_touch'];
         } catch (Throwable) {
             return null;
         }

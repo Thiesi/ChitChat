@@ -125,3 +125,6 @@ and `RATE_LIMIT_POLICY_PREVIEW_WINDOW_SECONDS`. It is checked after CSRF and
 Super-Administrator authorization; preview does not require privileged step-up.
 
 Password reset consumes its one-use challenge even on rejection or throttling. Its username/IP budgets and MFA assertion/recovery budgets are counted outside the password transaction, so failed completions cannot roll back abuse protection. Recovery challenge difficulty follows the effective registration proof-of-work setting, but recovery remains available when registration is disabled. Password-recovery keys are separate from MFA recovery codes.
+
+
+Installation icons use separate actor budgets after role/CSRF/current step-up checks: application_icon_update (20 attempts/hour for Save and Reset) and application_icon_preview (60 attempts/hour for dry_run=1). Both use the usual RATE_LIMIT_<NAME>_MAX_ATTEMPTS and RATE_LIMIT_<NAME>_WINDOW_SECONDS overrides and 429 metadata. Preview accounts for attempts but writes no icon or audit. See [the icon contract](../api/installation-icon.md).

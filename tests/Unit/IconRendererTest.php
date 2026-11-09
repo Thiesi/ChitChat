@@ -91,4 +91,38 @@ final class IconRendererTest extends TestCase
         $this->expectException(ApiException::class);
         IconRenderer::background('#nothex');
     }
+
+    public function testWebpAndTransparentSourcesAndMemoryPreflight(): void
+    {
+        $image = imagecreatetruecolor(512,512);
+        imagealphablending($image,false);
+        imagesavealpha($image,true);
+        imagefill($image,0,0,imagecolorallocatealpha($image,0,0,0,127));
+        ob_start();
+        imagewebp($image,null,90);
+        $webp = ob_get_clean();
+        imagedestroy($image);
+        self::assertIsString($webp);
+        $generation = (new IconRenderer())->create($webp,'#123');
+        self::assertSame(1.0,$generation->maskableScale);
+        $mask = imagecreatefromstring($generation->bytes['maskable']);
+        self::assertNotFalse($mask);
+        self::assertSame(0x112233,imagecolorat($mask,256,256)&0xffffff);
+        imagedestroy($mask);
+        $header = TestImages::png(512,512);
+        // Claimed maximum-size header: the budget guard must reject before attempting decode.
+        $header = substr_replace($header,pack('NN',4000,4000),16,8);
+        $old = ini_get('memory_limit');
+        try {
+            ini_set('memory_limit','64M');
+            try {
+                (new IconRenderer())->create($header,'#123');
+                self::fail('Over-budget header accepted.');
+            } catch (ApiException $e) {
+                self::assertSame('The icon exceeds the available rendering memory.',$e->getMessage());
+            }
+        } finally {
+            if (is_string($old)) ini_set('memory_limit',$old);
+        }
+    }
 }
