@@ -1,0 +1,132 @@
+#!/bin/sh
+#
+# ChitChat immediate web push listener for one instance.
+# Runs /usr/local/libexec/chitchat-push-supervise as the instance's user;
+# that loop runs and restarts `php bin/dispatch-web-push --listen`.
+# Restart this after a code deploy (after migrate) and after any .env or
+# VAPID change.
+#
+# PROVIDE: APPUSER_push
+# REQUIRE: NETWORKING pgsql
+# KEYWORD: shutdown
+
+. /etc/rc.subr
+
+inst="APPUSER"
+name="${inst}_push"
+rcvar=${name}
+load_rc_config $name
+
+home="/home/${inst}"
+app="${home}/app"
+run="${home}/run"
+logfile="${home}/log/web-push-listener.log"
+supervisor="/usr/local/libexec/chitchat-push-supervise"
+pidfile="${run}/supervisor.pid"
+stop_timeout=25		# the listener's own 20 s, plus the supervisor's exit
+
+start_cmd="push_start"
+stop_cmd="push_stop"
+status_cmd="push_status"
+extra_commands="status"
+
+# The pidfiles are written by the instance's account, so treat their contents
+# as untrusted: only a plain positive number (a "-1" would signal everything).
+push_read_pid()
+{
+	_pid=""
+	[ -f "$1" ] || return 1
+	read -r _pid < "$1" 2>/dev/null
+	case "${_pid}" in
+	"" | *[!0-9]*)	_pid=""; return 1 ;;
+	esac
+	[ "${_pid}" -ge 1 ] || { _pid=""; return 1; }
+	return 0
+}
+
+push_running()
+{
+	push_read_pid "${pidfile}" || return 1
+	kill -0 "${_pid}" 2>/dev/null || return 1
+	case "$(ps -ww -p "${_pid}" -o command= 2>/dev/null)" in
+	*"chitchat-push-supervise ${app} "*)	return 0 ;;
+	esac
+	return 1
+}
+
+push_listener_pid()
+{
+	push_read_pid "${run}/listener.pid" || return 1
+	kill -0 "${_pid}" 2>/dev/null || return 1
+	case "$(ps -ww -p "${_pid}" -o command= 2>/dev/null)" in
+	*"dispatch-web-push --listen"*)	return 0 ;;
+	esac
+	return 1
+}
+
+push_start()
+{
+	if push_running; then
+		echo "${name} already running as pid ${_pid}."
+		return 1
+	fi
+	if [ ! -f "${app}/bin/dispatch-web-push" ]; then
+		echo "${name}: ${app}/bin/dispatch-web-push is missing." >&2
+		return 1
+	fi
+	[ -d "${run}" ] || install -d -o "${inst}" -g "${inst}" -m 700 "${run}"
+	rm -f "${pidfile}" "${run}/listener.pid"
+	echo "Starting ${name}."
+	# The account's shell is /sbin/nologin; su -m runs $SHELL instead.
+	SHELL=/bin/sh su -m "${inst}" -c "env -i SHELL=/bin/sh HOME=\"${home}\" USER=\"${inst}\" LOGNAME=\"${inst}\" PATH=/usr/bin:/bin:/usr/pkg/bin OPENSSL_CONF=/usr/share/examples/openssl/openssl.cnf nohup /bin/sh \"${supervisor}\" \"${app}\" \"${run}\" >> \"${logfile}\" 2>&1 </dev/null & echo \$! > \"${pidfile}\""
+	sleep 3
+	if push_running && push_listener_pid; then
+		echo "${name} started (listener pid ${_pid})."
+	else
+		echo "${name} failed to start -- see ${logfile}." >&2
+		tail -5 "${logfile}" | tr -d '\000-\010\013\014\016-\037\177' >&2
+		return 1
+	fi
+}
+
+push_stop()
+{
+	if ! push_running; then
+		echo "${name} is not running."
+		rm -f "${pidfile}"
+		return 0
+	fi
+	_super=${_pid}
+	echo "Stopping ${name} (pid ${_super})."
+	kill -TERM "${_super}"
+	_waited=0
+	while kill -0 "${_super}" 2>/dev/null; do
+		if [ "${_waited}" -ge "${stop_timeout}" ]; then
+			echo "${name} did not stop in ${stop_timeout}s; sending SIGKILL." >&2
+			push_listener_pid && kill -KILL "${_pid}" 2>/dev/null
+			kill -KILL "${_super}" 2>/dev/null
+			break
+		fi
+		sleep 1
+		_waited=$((_waited + 1))
+	done
+	rm -f "${pidfile}" "${run}/listener.pid"
+	echo "${name} stopped."
+}
+
+push_status()
+{
+	if push_running; then
+		_super=${_pid}
+		if push_listener_pid; then
+			echo "${name} is running (supervisor pid ${_super}, listener pid ${_pid})."
+		else
+			echo "${name} supervisor is running as pid ${_super}; listener is restarting."
+		fi
+	else
+		echo "${name} is not running."
+		return 1
+	fi
+}
+
+run_rc_command "$1"

@@ -1,0 +1,45 @@
+# ChitChat-specific parts of an Apache 2.4 vhost (inside <VirtualHost *:443>).
+# ServerName, TLS, the port-80 redirect and logs come from your own vhost frame.
+# Modules: mod_proxy, mod_proxy_fcgi, mod_headers, mod_setenvif, mod_rewrite.
+
+DocumentRoot /home/APPUSER/app/public
+
+# PHP runs in the instance's own php-fpm pool. flushpackets=on forwards every
+# FastCGI chunk immediately, so the SSE stream (/api/v1/events/stream.php) is
+# not buffered; the timeout must exceed the stream's ~25 s lifetime.
+<Proxy "fcgi://APPUSER/">
+	ProxySet flushpackets=on timeout=60
+</Proxy>
+
+<Directory /home/APPUSER/app/public>
+	Options -Indexes
+	AllowOverride None
+	Require all granted
+	DirectoryIndex index.php
+	FallbackResource /index.php
+	<FilesMatch "\.php$">
+		SetHandler "proxy:unix:/var/run/php-fpm-APPUSER.sock|fcgi://APPUSER/"
+	</FilesMatch>
+</Directory>
+
+# Slightly above ATTACHMENT_MAX_BYTES (10 MiB) for multipart overhead.
+LimitRequestBody 12582912
+
+# Never compress the event stream.
+SetEnvIf Request_URI "^/api/v1/events/stream\.php$" no-gzip
+
+# Android credential association (v3.6.0+, #145). An exact path served by
+# assetlinks.php; an operator's own static file, if present, takes precedence.
+# Without this, FallbackResource would answer with the chat page.
+RewriteEngine On
+RewriteCond %{DOCUMENT_ROOT}%{REQUEST_URI} !-f
+RewriteRule "^/\.well-known/assetlinks\.json$" "/assetlinks.php" [PT,L]
+
+# Server-wide "Header always set X-Frame-Options ..." lines replace the value
+# ChitChat sends. If your server sets one, restore ChitChat's own value here.
+Header always set X-Frame-Options DENY
+
+# Optional: request logs without query strings (ChitChat's native sign-in
+# hand-off carries one-time values in the query). %U is the path only.
+# LogFormat "%h %l %u %t \"%m %U %H\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"" chitchat_noquery
+# CustomLog /var/log/httpd/APPUSER-access.log chitchat_noquery
