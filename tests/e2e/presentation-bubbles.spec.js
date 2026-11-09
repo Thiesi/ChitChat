@@ -119,6 +119,8 @@ test('actions appear on hover; the toolbar’s React opens the picker', async ({
   await expect(reply).toHaveCSS('opacity', '1');
   await message(page, 3).locator('.message-react-button').click();
   await expect(message(page, 3).locator('.reaction-picker')).toBeVisible();
+  // Review item 5: focus moves into the picker.
+  await expect(message(page, 3).locator('.reaction-picker button').first()).toBeFocused();
 });
 
 test('images reserve their space, use the rendition, and fall back once to the original', async ({ page }) => {
@@ -136,12 +138,22 @@ test('images reserve their space, use the rendition, and fall back once to the o
   await expect(gif.locator('img')).toHaveAttribute('src', /variant=preview/);
   await expect(gif.locator('.image-box-label')).toHaveText('GIF');
   await expect(gif).toHaveAttribute('aria-label', 'dice.gif, animated GIF, opens in a new tab');
+  // Review item 2: an image's message names the file, not the preview's "GIF" label.
+  await expect(message(page, 8)).toHaveAccessibleName(/ File: dice\.gif\.$/);
+  await expect(message(page, 7)).toHaveAccessibleName(/ File: \S+\.\w+\.$/);
 
   const missing = message(page, 9).locator('.image-box');
   await expect(missing).not.toHaveAttribute('data-sized', /.*/);
   await expect(missing.locator('.image-box-unavailable')).toHaveText('Preview unavailable');
   const unsized = await missing.boundingBox();
   expect(Math.abs(unsized.width / unsized.height - 4 / 3)).toBeLessThan(0.05);
+
+  // Review item 8: a rendition URL must be a path on this server.
+  const accepted = await page.evaluate(async () => {
+    const { isSameOriginPath } = await import('/assets/js/image-box.js');
+    return ['/api/v1/x.png', '//evil.example/x.png', '/\\evil.example/x.png', 'https://evil.example/x.png', null].map(isSameOriginPath);
+  });
+  expect(accepted).toEqual([true, false, false, false, false]);
 });
 
 test('direct messages use the same bubbles', async ({ page }) => {

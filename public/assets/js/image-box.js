@@ -31,9 +31,7 @@ export function imageBox(attachment, originalUrl) {
   image.alt = attachment.name;
   image.loading = 'lazy';
   image.decoding = 'async';
-  const previewUrl = typeof attachment.preview?.url === 'string' && attachment.preview.url.startsWith('/')
-    ? attachment.preview.url
-    : null;
+  const previewUrl = isSameOriginPath(attachment.preview?.url) ? attachment.preview.url : null;
   let fellBack = previewUrl === null;
   image.src = previewUrl ?? originalUrl;
   image.addEventListener('error', () => {
@@ -59,4 +57,9 @@ export function imageBox(attachment, originalUrl) {
     link.setAttribute('aria-label', `${attachment.name}, animated GIF, opens in a new tab`);
   }
   return link;
+}
+
+/** A path on this server: starts with one "/", not "//host" or "/\host" (both mean another host). */
+export function isSameOriginPath(value) {
+  return typeof value === 'string' && value.startsWith('/') && !value.startsWith('//') && !value.startsWith('/\\');
 }

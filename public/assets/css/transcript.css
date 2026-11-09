@@ -317,7 +317,9 @@
   .message[data-run] .message-mutation-actions,
   .message[data-run] .message-more-button,
   .dm-message .message-header,
-  .dm-message > .message-mutation-actions { transition: none; }
+  .dm-message > .message-mutation-actions,
+  .message[data-run] .message-react-button,
+  :is(.message[data-run], .dm-message) .reaction-add-button { transition: none; }
 }
 @media (forced-colors: active) {
   .message-bubble { border: 1px solid CanvasText; }

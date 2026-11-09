@@ -983,13 +983,13 @@ function renderMessages({ scrollToEnd = false, prepended = false } = {}) {
   // the screen reader's place survive arrivals, edits and reactions.
   // Consecutive messages from one person form a run: one name above, one
   // pebble and one chit at its end (the approved transcript, S1c).
+  const firstUnreadId = firstUnreadMessageId(entries);
   const runs = runPositions(entries.filter((entry) => entry.kind === 'message').map((entry) => entry.item), {
     id: (message) => message.id,
     sender: (message) => message.sender_id,
     date: (message) => message.created_at,
     groupable: (message) => message.type !== 'system' && !(isIgnored(message.sender_id) && !state.revealed.has(message.id)),
-    breakBefore: (message) => state.readMarker !== null && message.id > state.readMarker
-      && runsBreakAtMarker(message, entries),
+    breakBefore: (message) => message.id === firstUnreadId,
   });
   let dividerPlaced = false;
   let lastDay = null;
@@ -1048,11 +1048,12 @@ function restoreFocus(list, focus) {
   target?.focus({ preventScroll: true });
 }
 
-// The run breaks at the first unread message, where "New messages" goes.
-function runsBreakAtMarker(message, entries) {
+// Runs break at the first unread message, where "New messages" goes.
+function firstUnreadMessageId(entries) {
+  if (state.readMarker === null) return null;
   const first = entries.find((entry) => entry.kind === 'message' && entry.item.id > state.readMarker
     && entry.item.sender_id !== state.user?.id && !isIgnored(entry.item.sender_id));
-  return first?.item.id === message.id;
+  return first?.item.id ?? null;
 }
 
 function messageItem(message, run = 'single') {
