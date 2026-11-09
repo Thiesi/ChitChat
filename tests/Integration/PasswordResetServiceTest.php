@@ -185,6 +185,10 @@ SQL);
         [$user, $key] = $this->account();
         $passkey = TestPasskey::create();
         $passkey->seed($this->pdo, $user->id);
+        // Enrollment changes the private MFA policy generation. The later fixture
+        // confirmation represents a current proof, so reload its authenticated actor.
+        $user = (new UserRepository($this->pdo))->findAuthenticatedById($user->id);
+        self::assertNotNull($user);
         $before = $this->row($user->id);
         $service = new PasswordResetService($this->pdo, $this->config);
         $this->begin($user->username, $key);

@@ -28,6 +28,10 @@ Endpoint::run($config, static function () use ($config): ApiResult {
     (new \ChitChat\Auth\NativeAuth\NativeAuthContinuation($pdo, $config))->reconcileSession();
     $users = new UserRepository($pdo);
     $user = SessionManager::currentUser($users);
+    // Reconcile before reading csrf_token: expiring a pending context rotates it.
+    $mfaPending = $user === null && isset($_SESSION['pending_mfa'])
+        ? (new \ChitChat\Auth\MfaService($pdo, $config))->pendingSession(Request::clientIp())
+        : null;
     $statement = $pdo->query(<<<'SQL'
 SELECT registration_enabled::int, direct_message_retention_days
 FROM system_settings
@@ -49,6 +53,7 @@ SQL);
         'policies' => (new PolicyService($pdo, $config))->discovery(),
         'csrf_token' => SessionManager::csrfToken(),
         'user' => $user?->toSessionArray(),
+        'mfa_pending' => $mfaPending,
         'attachments' => AttachmentPolicy::forSession($config, $user),
         // Date and time display; null while signed out (the client then follows the browser).
         'preferences' => $user === null ? null : (new DisplayPreferenceService($pdo))->get($user->id),

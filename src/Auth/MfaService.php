@@ -75,6 +75,29 @@ final class MfaService
         return $methods;
     }
 
+    /** Browser bootstrap discovery, including a provider redirect to /?mfa=continue.
+     * @return array{methods:list<string>}|null
+     */
+    public function pendingSession(string $ipAddress): ?array
+    {
+        $state = $_SESSION['pending_mfa'] ?? null;
+        if ($state === null) return null;
+        if (!is_array($state)) {
+            SessionManager::clearPendingMfa();
+            return null;
+        }
+        try {
+            SessionManager::assertPendingMfaTransport($ipAddress);
+            $user = SessionManager::pendingMfaUser($this->users);
+            return ['methods' => $this->pendingMethods($user)];
+        } catch (ApiException $error) {
+            if (in_array($error->errorCode, ['mfa_login_required', 'mfa_login_expired', 'authentication_required'], true)) {
+                return null;
+            }
+            throw $error;
+        }
+    }
+
     public function requiresMfaForLogin(AuthenticatedUser $user): bool
     {
         $enabled = $this->mfa->isEnabled($user->id);
@@ -136,7 +159,8 @@ final class MfaService
         $this->pdo->beginTransaction();
         try {
             $this->mfa->userHandleForUpdate($actor->id);
-            $firstCredential = $this->mfa->credentialCount($actor->id) === 0
+            $firstCredential = $this->mfa->credentialCount($actor->id) === 0;
+            $firstPrimaryFactor = $firstCredential
                 && (new \ChitChat\Auth\Totp\TotpRepository($this->pdo))->credential($actor->id, 'active') === null;
             $credentialId = $this->mfa->insertCredential(
                 $actor->id,
@@ -149,7 +173,7 @@ final class MfaService
                 $verified['backup_state'],
                 $label,
             );
-            if ($firstCredential) {
+            if ($firstPrimaryFactor) {
                 $recoveryCodes = $this->replaceRecoveryCodes($actor->id);
                 $this->mfa->markEnabled($actor->id);
             }
@@ -162,6 +186,7 @@ final class MfaService
                     'algorithm' => $verified['algorithm'],
                     'backup_eligible' => $verified['backup_eligible'],
                     'first_credential' => $firstCredential,
+                    'first_primary_factor' => $firstPrimaryFactor,
                 ],
                 $ipAddress,
             );
@@ -514,6 +539,7 @@ final class MfaService
                 $ipAddress,
             );
             $this->pdo->commit();
+            unset($_SESSION['privileged_step_up']);
         } catch (Throwable $exception) {
             $this->rollBack();
             throw $exception;

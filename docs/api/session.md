@@ -82,3 +82,5 @@ See [password recovery](password-recovery.md) for the private `user.recovery_key
 The signed_in_sessions capability advertises the [registered-login list and revocation API](signed-in-sessions.md). Missing or false means unsupported. It does not assert that a device is online.
 
 The additive capabilities.totp flag is true only with integrated enrollment UI and a usable key source. Missing means unknown; false means enrollment is unavailable. It does not mean an account's enabled MFA is bypassed. See [TOTP](totp.md).
+
+Session bootstrap adds mfa_pending: {methods:[...]} | null for the session's valid pending MFA login/restoration, including provider redirects to /?mfa=continue. It returns only the existing method names, no account identity or primary-proof data. Absent, expired, version-invalid or wrong-transport contexts return null; native continuation retains its session/transaction binding and may change networks. Reconciliation happens before returning csrf_token, since clearing expired context rotates that token. Use this field on provider return instead of guessing from installation capabilities.

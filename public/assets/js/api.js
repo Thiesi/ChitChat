@@ -26,8 +26,10 @@ const PUSH_IDENTITY_ENDPOINTS = new Set([
   '/api/v1/oidc/register.php',
   '/api/v1/mfa/login-finish.php',
   '/api/v1/mfa/login-recovery.php',
+  '/api/v1/mfa/login-totp.php',
   '/api/v1/password-reset/mfa-finish.php',
   '/api/v1/password-reset/mfa-recovery.php',
+  '/api/v1/password-reset/mfa-totp.php',
 ]);
 
 export class ApiError extends Error {

@@ -128,3 +128,4 @@ A leaked database backup therefore exposes every authenticator secret. The UI
 must show the strong warning before enablement. Server keys are recommended.
 See [operator key management](../operations/totp.md) for generation, rotation,
 DB-to-server migration, escrow and restore drills.
+Session bootstrap adds mfa_pending: {methods:[...]} | null for the session's valid pending MFA login/restoration, including provider redirects to /?mfa=continue. It returns only the existing method names, no account identity or primary-proof data. Absent, expired, version-invalid or wrong-transport contexts return null; native continuation retains its session/transaction binding and may change networks. Reconciliation happens before returning csrf_token, since clearing expired context rotates that token. Use this field on provider return instead of guessing from installation capabilities.

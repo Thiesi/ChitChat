@@ -69,6 +69,36 @@ SQL, ['step' => $step, 'id' => $id, 'after' => $step]);
         if ($updated->rowCount() !== 1) throw new RuntimeException('Authenticator replay fence was not locked.');
     }
 
+    /** At most 100 expired pending enrollments per maintenance invocation. */
+    public function cleanupExpired(bool $dryRun): int
+    {
+        if ($this->pdo->inTransaction()) throw new RuntimeException('Authenticator cleanup must own its transaction.');
+        $users = $this->query("SELECT user_id FROM totp_credentials WHERE phase = 'pending' AND expires_at <= clock_timestamp() ORDER BY user_id LIMIT 100", [])
+            ->fetchAll(PDO::FETCH_COLUMN);
+        if ($dryRun) return count($users);
+        $this->pdo->beginTransaction();
+        try {
+            $count = 0;
+            foreach ($users as $userId) {
+                // Account -> pending factor, matching enrollment/revocation and avoiding
+                // a factor-first lock while confirmation owns the account.
+                $this->query('SELECT id FROM users WHERE id = :id FOR NO KEY UPDATE', ['id' => (int) $userId])->fetchColumn();
+                $count += $this->query("DELETE FROM totp_credentials WHERE user_id = :id AND phase = 'pending' AND expires_at <= clock_timestamp()",
+                    ['id' => (int) $userId])->rowCount();
+            }
+            $this->pdo->commit();
+            return $count;
+        } catch (\Throwable $error) {
+            $this->rollback();
+            throw $error;
+        }
+    }
+
+    private function rollback(): void
+    {
+        if ($this->pdo->inTransaction()) $this->pdo->rollBack();
+    }
+
     /** @param array<string,int|string> $parameters */
     private function query(string $sql, array $parameters): PDOStatement
     {
