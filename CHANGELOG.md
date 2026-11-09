@@ -6,6 +6,8 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ## [Unreleased]
 
+- Serialize web account restoration with closure finalization by locking the pending closure before the account. Recheck the deadline after any lock wait; expired or finalized completions preserve the account state and role snapshot.
+
 - Preserve the original web OIDC browser session when a Strict cookie is withheld on the provider return. The cookie-free recovery page runs before PHP session startup; invalid or replayed state still fails closed, and the default Lax path stays direct.
 
 - Add opt-in native browser OIDC handoff with explicit consent, PKCE/state, isolated app/browser sessions, atomic one-use purpose effects, and bounded native MFA/sign-up continuations. Apply migration 0049. Enable only with trusted apps and matching HTTPS application/provider callback origins; capability discovery also requires the integrated confirmation page. Committed Nginx examples redact native queries; deployment and signed-device acceptance remain separate.
