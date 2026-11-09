@@ -106,7 +106,7 @@ SQL);
                 SessionManager::beginPasswordReset($user, $passwordHash, $generation, $ipAddress, $this->config->mfaPendingLoginTtlSeconds);
                 $pending = SessionManager::pendingPasswordReset();
                 return ['status' => 'pending_mfa', 'mfa_required' => true,
-                    'csrf_token' => SessionManager::csrfToken(), 'methods' => ['passkey', 'recovery_code'],
+                    'csrf_token' => SessionManager::csrfToken(), 'methods' => $this->mfa->pendingMethods($user),
                     'expires_at' => gmdate(DATE_ATOM, $pending['expires_at'])];
             }
             $result = $this->commitChanges($user, $passwordHash, $ipAddress, false);
@@ -156,6 +156,25 @@ SQL);
         try {
             $result = $this->mfa->completeResetWithRecoveryCode($user, $code, $ipAddress,
                 fn (callable $verify): array => $this->completePending($pending, $ipAddress, $verify));
+            return $this->signedIn($result);
+        } catch (Throwable $exception) {
+            $this->failure($ipAddress, 'mfa');
+            $public = $this->publicFailure($exception);
+            if ($public instanceof ApiException && $public->errorCode === 'reset_failed') {
+                SessionManager::clearPendingPasswordReset();
+            }
+            throw $public;
+        }
+    }
+
+    /** @return array<string,mixed> */
+    public function finishTotp(#[\SensitiveParameter] string $code, string $ipAddress): array
+    {
+        [$user, $pending] = $this->pending($ipAddress);
+        try {
+            $result = (new \ChitChat\Auth\Totp\TotpService($this->pdo, $this->config))
+                ->complete($user, $code, 'mfa_password_reset', $ipAddress,
+                    fn (callable $verify): array => $this->completePending($pending, $ipAddress, $verify));
             return $this->signedIn($result);
         } catch (Throwable $exception) {
             $this->failure($ipAddress, 'mfa');

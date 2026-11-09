@@ -46,7 +46,15 @@ final class MfaService
     public function status(AuthenticatedUser $actor): array
     {
         $credentials = $this->mfa->credentialsForUser($actor->id);
+        $totp = (new \ChitChat\Auth\Totp\TotpService($this->pdo, $this->config))->status($actor->id);
+        $totp['available'] = $totp['available'] && \ChitChat\View\TotpPresentation::integrated();
+        $usable = [];
+        if ($this->config->webauthnEnabled() && $credentials !== []) $usable[] = 'passkey';
+        if ($totp['enabled'] && $totp['available']) $usable[] = 'totp';
+        if ($this->mfa->recoveryCodesRemaining($actor->id) > 0) $usable[] = 'recovery_code';
         return [
+            'usable_methods' => $usable,
+            'totp' => $totp,
             'available' => $this->config->webauthnEnabled(),
             'enabled' => $this->mfa->isEnabled($actor->id),
             'required_by_admin_policy' => $this->mfa->policyRequiresMfaForAdminRoles()
@@ -54,6 +62,17 @@ final class MfaService
             'recovery_codes_remaining' => $this->mfa->recoveryCodesRemaining($actor->id),
             'credentials' => array_map(fn (array $credential): array => $this->publicCredential($credential), $credentials),
         ];
+    }
+
+    /** Preserve legacy pending methods and add the confirmed, usable authenticator.
+     * @return list<string>
+     */
+    public function pendingMethods(AuthenticatedUser $user): array
+    {
+        $methods = ['passkey', 'recovery_code'];
+        $totp = (new \ChitChat\Auth\Totp\TotpService($this->pdo, $this->config))->status($user->id);
+        if (\ChitChat\View\TotpPresentation::integrated() && $totp['enabled'] && $totp['available']) $methods[] = 'totp';
+        return $methods;
     }
 
     public function requiresMfaForLogin(AuthenticatedUser $user): bool
@@ -117,7 +136,8 @@ final class MfaService
         $this->pdo->beginTransaction();
         try {
             $this->mfa->userHandleForUpdate($actor->id);
-            $firstCredential = $this->mfa->credentialCount($actor->id) === 0;
+            $firstCredential = $this->mfa->credentialCount($actor->id) === 0
+                && (new \ChitChat\Auth\Totp\TotpRepository($this->pdo))->credential($actor->id, 'active') === null;
             $credentialId = $this->mfa->insertCredential(
                 $actor->id,
                 $verified['credential_id'],
@@ -157,6 +177,7 @@ final class MfaService
             throw $exception;
         }
 
+        unset($_SESSION['privileged_step_up']);
         return ['mfa' => $this->status($actor), 'recovery_codes' => $recoveryCodes];
     }
 
@@ -476,7 +497,9 @@ final class MfaService
         }
         $this->pdo->beginTransaction();
         try {
-            if ($this->mfa->credentialCount($actor->id) <= 1) {
+            $this->mfa->userHandleForUpdate($actor->id);
+            if ($this->mfa->credentialCount($actor->id) <= 1
+                && (new \ChitChat\Auth\Totp\TotpRepository($this->pdo))->credential($actor->id, 'active') === null) {
                 throw new ApiException(409, 'last_passkey', 'The final passkey cannot be removed. Disable MFA instead when policy permits.');
             }
             if (!$this->mfa->deleteCredential($actor->id, $credentialId)) {
@@ -509,6 +532,7 @@ final class MfaService
             if ($this->mfa->policyRequiresMfaForAdminRoles() && $this->mfa->userHasAdministrativeRole($actor->id)) {
                 throw new ApiException(409, 'mfa_required_by_policy', 'MFA is required for this account by administrative policy.');
             }
+            $this->mfa->userHandleForUpdate($actor->id);
             $newVersion = $this->mfa->clearForUser($actor->id);
             $this->audit->log($actor->id, 'auth.mfa_disabled', 'user', (string) $actor->id, [], $ipAddress);
             $this->events->publish(

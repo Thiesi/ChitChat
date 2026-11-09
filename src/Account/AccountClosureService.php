@@ -155,7 +155,8 @@ SQL, 'account-closure state update');
         $this->rateLimiter->consume('account_restore_ip', 'ip:' . $ipAddress);
 
         $lookup = $this->prepare(<<<'SQL'
-SELECT id, username, password_hash, session_version, account_state, closure_finalizes_at
+SELECT id, username, password_hash, session_version, account_state, closure_finalizes_at,
+       mfa_policy_generation, mfa_enabled_at
 FROM users
 WHERE username_canonical = :canonical
 SQL, 'account-restoration authentication');
@@ -181,7 +182,8 @@ SQL, 'account-restoration authentication');
         (new LockdownService($this->pdo))->assertOpen();
         $this->rateLimiter->consume('account_restore_ip', 'ip:' . $ipAddress);
         $lookup = $this->prepare(<<<'SQL'
-SELECT id, username, session_version, account_state, closure_finalizes_at
+SELECT id, username, session_version, account_state, closure_finalizes_at,
+       mfa_policy_generation, mfa_enabled_at
 FROM users
 WHERE id = :id
 SQL, 'account-restoration lookup');
@@ -215,6 +217,8 @@ SQL, 'account-restoration lookup');
             username: (string) $user['username'],
             roles: [],
             sessionVersion: (int) $user['session_version'],
+            mfaPolicyGeneration: (int) $user['mfa_policy_generation'],
+            mfaEnabled: $user['mfa_enabled_at'] !== null,
         );
     }
 
@@ -272,7 +276,7 @@ SQL, 'pending account-closure lookup');
         $snapshotRoles = $this->decodeRoles((string) $closure['role_snapshot']);
         $restoredRoles = $snapshotRoles;
         $withheldRoles = [];
-        if ($mfaPolicyRequired && !$this->hasPasskeyMfa($userId)) {
+        if ($mfaPolicyRequired && !$this->hasCompleteMfa($userId)) {
             $restoredRoles = [];
             $withheldRoles = $snapshotRoles;
         }
@@ -454,11 +458,10 @@ SQL, [
         return (int) $required === 1;
     }
 
-    private function hasPasskeyMfa(int $userId): bool
+    private function hasCompleteMfa(int $userId): bool
     {
         $statement = $this->prepare(<<<'SQL'
-SELECT (u.mfa_enabled_at IS NOT NULL
-   AND EXISTS (SELECT 1 FROM webauthn_credentials wc WHERE wc.user_id = u.id))::int
+SELECT has_complete_mfa(u.id)::int
 FROM users u
 WHERE u.id = :user_id
 SQL, 'restored-role MFA validation');

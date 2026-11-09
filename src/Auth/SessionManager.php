@@ -9,7 +9,7 @@ use DateTimeImmutable;
 
 final class SessionManager
 {
-    private const STEP_UP_METHODS = ['password', 'passkey', 'recovery_code', 'google', 'twitch'];
+    private const STEP_UP_METHODS = ['password', 'passkey', 'totp', 'recovery_code', 'google', 'twitch'];
     private const MFA_FLOWS = ['login', 'restore'];
 
     public static function start(Config $config): void
@@ -383,6 +383,7 @@ final class SessionManager
         $_SESSION['privileged_step_up'] = [
             'user_id' => $user->id,
             'session_version' => $user->sessionVersion,
+            'mfa_policy_generation' => $user->mfaPolicyGeneration,
             'verified_at' => time(),
             'method' => $method,
         ];
@@ -407,6 +408,8 @@ final class SessionManager
             || !is_string($method)
             || $userId !== $user->id
             || $sessionVersion !== $user->sessionVersion
+            || ($state['mfa_policy_generation'] ?? null) !== $user->mfaPolicyGeneration
+            || ($user->mfaEnabled && !in_array($method, ['passkey', 'totp', 'recovery_code'], true))
             || !in_array($method, self::STEP_UP_METHODS, true)
             || $verifiedAt > $now
             || $verifiedAt + $config->privilegedStepUpMaxAgeSeconds <= $now

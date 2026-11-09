@@ -7,6 +7,7 @@
 - [Session bootstrap and public installation metadata](session.md)
 - [Guest access](guest-access.md)
 - [Multi-factor authentication (passkeys and recovery codes)](mfa.md)
+- [Authenticator codes (TOTP)](totp.md)
 - [Account (security, export, closure)](account.md)
 - [Rooms](rooms.md)
 - [Realtime events](realtime.md)

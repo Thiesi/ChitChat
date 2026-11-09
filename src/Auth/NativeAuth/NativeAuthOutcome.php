@@ -53,7 +53,7 @@ final readonly class NativeAuthOutcome
             NativeAuthSession::setContinuation($this->transactionId, (string) $this->subject);
             return ['outcome' => $this->outcome, 'purpose' => $this->purpose, 'user' => null,
                 'csrf_token' => SessionManager::csrfToken(), 'mfa_required' => true,
-                'methods' => ['passkey', 'recovery_code'], 'restored' => false,
+                'methods' => $oidc->pendingMfaMethods($this->user), 'restored' => false,
                 'restoration_pending' => $this->purpose === 'restore'];
         }
         if (in_array($this->purpose, ['login', 'restore', 'sign_up'], true)) {

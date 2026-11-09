@@ -80,3 +80,5 @@ unknown on older servers; None defaults preserve existing behavior.
 See [password recovery](password-recovery.md) for the private `user.recovery_key` status, once-only key disclosure, dedicated reset MFA flow, and password-change/admin-reset rotation policy.
 
 The signed_in_sessions capability advertises the [registered-login list and revocation API](signed-in-sessions.md). Missing or false means unsupported. It does not assert that a device is online.
+
+The additive capabilities.totp flag is true only with integrated enrollment UI and a usable key source. Missing means unknown; false means enrollment is unavailable. It does not mean an account's enabled MFA is bypassed. See [TOTP](totp.md).

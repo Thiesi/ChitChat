@@ -160,6 +160,45 @@ final class NativeAuthContinuationTest extends DatabaseTestCase
         self::assertArrayNotHasKey('pending_mfa', $_SESSION);
     }
 
+    /** @return iterable<string,array{string}> */
+    public static function totpPurposes(): iterable
+    {
+        yield 'login' => ['login'];
+        yield 'restore' => ['restore'];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('totpPurposes')]
+    public function testNativeTotpFollowsTheBoundSessionAcrossNetworksAndConsumesItsStep(string $purpose): void
+    {
+        $this->nativeConfig = $this->configWith([
+            'applicationOrigin' => $this->nativeConfig->applicationOrigin,
+            'oidcRedirectOrigin' => $this->nativeConfig->oidcRedirectOrigin,
+            'webauthnRpId' => $this->nativeConfig->webauthnRpId,
+            'webauthnOrigin' => $this->nativeConfig->webauthnOrigin,
+            'oidcProviders' => $this->nativeConfig->oidcProviders,
+            'nativeAndroidApps' => $this->nativeConfig->nativeAndroidApps,
+            'totpKeyRing' => \ChitChat\Auth\Totp\TotpKeyRing::fromJson(
+                json_encode(['fixture' => base64_encode(random_bytes(32))], JSON_THROW_ON_ERROR), 'fixture'),
+        ]);
+        $this->continuation = new NativeAuthContinuation($this->pdo, $this->nativeConfig);
+        $seed = \ChitChat\Tests\Support\TestTotp::seed($this->pdo, $this->nativeConfig, $this->member->id);
+        if ($purpose === 'restore') {
+            (new AccountClosureService($this->pdo, $this->nativeConfig))->request($this->member, '192.0.2.1');
+        }
+        $pending = $this->pending($purpose);
+        self::assertSame('pending_mfa', $pending['result']['outcome']);
+        $code = \ChitChat\Auth\Totp\TotpProtocol::codeAtStep($seed, intdiv(time(), 30));
+        $result = $this->continuation->finishMfa($code, 'totp', '203.0.113.9');
+        self::assertSame('completed', $result['outcome']);
+        self::assertSame('totp', $result['mfa_method']);
+        self::assertSame($purpose === 'restore', $result['restored']);
+        self::assertTrue($result['security']['privileged_step_up']['active']);
+        self::assertSame('totp', $result['security']['privileged_step_up']['method']);
+        self::assertGreaterThan(-1, (int) $this->pdo->query('SELECT last_accepted_step FROM totp_credentials')->fetchColumn());
+        self::assertSame(0, (int) $this->rows->require($pending['id'])['active']);
+        self::assertSame(1, (new MfaRepository($this->pdo))->recoveryCodesRemaining($this->member->id));
+    }
+
     private function rejects(string $code, callable $operation): void
     {
         try { $operation(); self::fail('Invalid native continuation was accepted.'); }

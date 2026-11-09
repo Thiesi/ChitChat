@@ -78,6 +78,7 @@ final class PersonalDataExportService
                     ],
                     'excludes' => [
                         'password hashes, password-recovery keys/hashes/generation identifiers, staged reset state, CSRF tokens, login binding tokens/hashes and privileged-step-up state',
+                        'authenticator seeds, pending enrollment, encryption keys, key identifiers and encrypted factor material',
                         'attachment file bytes and internal attachment storage keys',
                         'direct-message blocks created by other users',
                         'revision history for messages authored by other users',

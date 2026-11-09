@@ -11,6 +11,8 @@ final readonly class Config
 {
     public RateLimitPolicySet $rateLimits;
 
+    public \ChitChat\Auth\Totp\TotpKeyRing $totpKeyRing;
+
     /** @var list<array{package:string,sha256_cert_fingerprint:string}> */
     public array $nativeAndroidApps;
 
@@ -71,6 +73,7 @@ final readonly class Config
         public array $webPushPrivateProviders = [],
         public string $webPushDnsResolvConf = '/etc/resolv.conf',
         array $nativeAndroidApps = [],
+        ?\ChitChat\Auth\Totp\TotpKeyRing $totpKeyRing = null,
     ) {
         if ($this->databasePort < 1 || $this->databasePort > 65535) {
             throw new InvalidArgumentException('DB_PORT must be between 1 and 65535.');
@@ -136,6 +139,7 @@ final readonly class Config
                 throw new InvalidArgumentException('Required application configuration is missing.');
             }
         }
+        $this->totpKeyRing = $totpKeyRing ?? \ChitChat\Auth\Totp\TotpKeyRing::fromJson('{}', '');
         $this->nativeAndroidApps = \ChitChat\Auth\NativeAndroidApps::normalize($nativeAndroidApps);
         $this->validateApplicationOrigin();
         $this->validateWebAuthnConfiguration();
@@ -202,6 +206,9 @@ final readonly class Config
             webPushPrivateProviders: \ChitChat\WebPush\PushAddressPolicy::fromJson(self::env('WEB_PUSH_PRIVATE_PROVIDERS', '[]')),
             webPushDnsResolvConf: self::pushDnsResolvConf(),
             nativeAndroidApps: \ChitChat\Auth\NativeAndroidApps::fromJson(self::env('NATIVE_ANDROID_APPS', '[]')),
+            totpKeyRing: \ChitChat\Auth\Totp\TotpKeyRing::fromJson(
+                self::env('TOTP_ENCRYPTION_KEYS', '{}'), self::env('TOTP_ACTIVE_KEY_ID', ''),
+            ),
         );
     }
 

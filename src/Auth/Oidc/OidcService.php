@@ -61,6 +61,12 @@ final class OidcService
         $this->verifier = new IdTokenVerifier();
     }
 
+    /** @return list<string> */
+    public function pendingMfaMethods(AuthenticatedUser $user): array
+    {
+        return (new MfaService($this->pdo, $this->config))->pendingMethods($user);
+    }
+
     /** @return list<array{id:string, label:string}> */
     public function providers(): array
     {
