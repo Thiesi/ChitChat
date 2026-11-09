@@ -61,7 +61,7 @@ SQL, ['id' => $issued->id, 'user' => $user->id, 'version' => $user->sessionVersi
     {
         $ua = substr($userAgent ?? '', 0, 512);
         $client = match (true) {
-            str_contains($ua, 'ChitChat-Mobile') => 'ChitChat Mobile',
+            str_contains($ua, 'ChitChat-Mobile') => 'ChitChat app',
             str_contains($ua, 'Edg/') => 'Edge',
             str_contains($ua, 'Firefox/'), str_contains($ua, 'FxiOS/') => 'Firefox',
             str_contains($ua, 'Chrome/'), str_contains($ua, 'CriOS/') => 'Chrome',
