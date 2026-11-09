@@ -142,6 +142,17 @@ An account created through Google or Twitch has no password. It sets its first o
 
 Configured providers are listed in `session.php` as `sign_in_providers` (`[{"id":"google","label":"Google"}]`). Every round trip uses the OpenID Connect authorization-code flow with PKCE, a state bound to the browser session (single use, 10 minutes) and a nonce; only the `openid` scope is requested, and only the provider plus its `sub` identifier is stored. The provider redirects back to `GET /api/v1/oidc/callback.php`, which answers with a redirect; failures append `sign_in_error=<message>` to the page the attempt started from.
 
+When an opt-in `SESSION_COOKIE_SAMESITE=Strict` cookie is withheld on a provider's
+cross-site return, the web callback first answers with a non-cacheable HTML
+recovery page (200), with no `Set-Cookie` and without starting a PHP session.
+Its same-site document navigation carries the original cookie. Verification
+then uses only that session's unexpired, unused state; an existing signed-in
+account is preserved during recovery. A received cookie (including the default
+Lax mode) goes directly to verification. Missing or malformed state fails
+closed, and recovery without a cookie stops after one bounce. This does not
+relax the state, nonce, PKCE or purpose checks, or change API response fields.
+The separate [native handoff](native-auth.md) uses its own bound interstitial.
+
 ### `GET /api/v1/oidc/start.php?provider=google`
 
 Sign-in. Redirects to the provider. Afterwards:

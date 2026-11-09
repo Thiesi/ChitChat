@@ -45,9 +45,10 @@ async function stop(process) {
   await exited;
 }
 
-for (const sameSite of ['Strict', 'Lax']) {
-  test(`real cross-site ${sameSite} entry and provider return preserve the original browser session`, async ({ browser, browserName }, testInfo) => {
-    test.skip(browserName !== 'chromium', 'The native Custom Tabs cookie regression is proved in real Chromium.');
+const scenarios = ['native', 'web-login', 'web-step-up'].flatMap(flow => ['Strict', 'Lax'].map(sameSite => ({ flow, sameSite })));
+for (const { flow, sameSite } of scenarios) {
+  test(`real cross-site ${sameSite} ${flow} preserves the bound browser session`, async ({ browser, browserName }, testInfo) => {
+    test.skip(browserName !== 'chromium', 'Cross-site cookie delivery is proved in real Chromium.');
     test.setTimeout(90_000);
     const directory = testInfo.outputPath('native-cookie');
     fs.mkdirSync(directory, { recursive: true });
@@ -91,11 +92,73 @@ for (const sameSite of ['Strict', 'Lax']) {
       context = await browser.newContext({ ignoreHTTPSErrors: true });
       native = await apiFactory.newContext({ baseURL: origin, ignoreHTTPSErrors: true });
       const bootstrap = await (await context.request.get(origin + '/api/v1/session.php')).json();
-      const login = await context.request.post(origin + '/api/v1/login.php', { headers: { 'X-CSRF-Token': bootstrap.csrf_token }, data: { username, password: 'a very secure password' } });
-      expect(login.status()).toBe(200);
+      if (flow !== 'web-login') {
+        const login = await context.request.post(origin + '/api/v1/login.php', { headers: { 'X-CSRF-Token': bootstrap.csrf_token }, data: { username, password: 'a very secure password' } });
+        expect(login.status()).toBe(200);
+      }
       const sid = (await context.cookies(origin)).find(cookie => cookie.name === cookieName);
       expect(sid.sameSite).toBe(sameSite);
       expect(sid.secure).toBe(true);
+      if (flow !== 'native') {
+        const begun = flow === 'web-step-up'
+          ? await context.request.post(origin + '/api/v1/oidc/begin.php', {
+            headers: { 'X-CSRF-Token': (await (await context.request.get(origin + '/api/v1/session.php')).json()).csrf_token },
+            data: { provider: 'google', purpose: 'step_up' },
+          })
+          : await context.request.get(origin + '/api/v1/oidc/start.php?provider=google', { maxRedirects: 0 });
+        const authorization = flow === 'web-step-up' ? (await begun.json()).url : begun.headers().location;
+        expect(new URL(authorization).origin).toBe(providerOrigin);
+        const page = await context.newPage();
+        await page.goto(authorization);
+        // A different cookie jar cannot consume a valid flow owned by this browser.
+        const returnHref = await page.getByRole('link', { name: 'Return to chat' }).getAttribute('href');
+        await native.get('/api/v1/session.php');
+        const foreign = await native.get(returnHref, { maxRedirects: 0 });
+        expect(foreign.status()).toBe(302);
+        expect(foreign.headers().location).toContain('sign_in_error=');
+        expect((await (await native.get('/api/v1/session.php')).json()).user).toBeNull();
+        await native.dispose();
+        native = await apiFactory.newContext({ baseURL: origin, ignoreHTTPSErrors: true });
+        const callbackRequestPromise = page.waitForRequest(req => new URL(req.url()).pathname === '/api/v1/oidc/callback.php');
+        const callbackResponsePromise = page.waitForResponse(res => new URL(res.url()).pathname === '/api/v1/oidc/callback.php');
+        await page.getByRole('link', { name: 'Return to chat' }).click();
+        const firstRequest = await callbackRequestPromise;
+        const firstResponse = await callbackResponsePromise;
+        const received = await firstRequest.allHeaders();
+        expect(received['sec-fetch-site']).toBe('cross-site');
+        if (sameSite === 'Strict') {
+          expect(received.cookie ?? '').not.toContain(cookieName + '=');
+          expect(firstResponse.status()).toBe(200);
+          expect((await firstResponse.allHeaders())['set-cookie']).toBeUndefined();
+          expect(await firstResponse.text()).toContain('http-equiv="refresh"');
+        } else {
+          expect(received.cookie).toContain(`${cookieName}=${sid.value}`);
+          expect(firstResponse.status()).toBe(302);
+        }
+        await page.waitForURL(url => url.origin === origin && url.pathname === (flow === 'web-step-up' ? '/step-up-complete.php' : '/') && !url.searchParams.has('sign_in_error'));
+        const session = await (await context.request.get(origin + '/api/v1/session.php')).json();
+        expect(session.user.id).toBe(user.user_id);
+        const finalSid = (await context.cookies(origin)).find(cookie => cookie.name === cookieName).value;
+        if (flow === 'web-step-up') {
+          expect(page.url()).toContain('confirmed=1');
+          expect(session.security.privileged_step_up.method).toBe('google');
+          expect(finalSid).toBe(sid.value);
+        } else expect(finalSid).not.toBe(sid.value); // Ordinary sign-in rotates only after proof.
+        // A separate jar models the cross-site callback's temporarily withheld cookie.
+        // Missing/malformed state and a second cookie-less bounce must never create a SID.
+        for (const query of ['', '?state[]=bad', '?state=bad', `?state=${'x'.repeat(43)}&bounced=1`]) {
+          const rejected = await native.get('/api/v1/oidc/callback.php' + query, { maxRedirects: 0 });
+          expect(rejected.status()).toBe(302);
+          expect(rejected.headers()['set-cookie']).toBeUndefined();
+          expect(rejected.headers().location).toContain('sign_in_error=');
+        }
+        expect((await native.storageState()).cookies).toEqual([]);
+        const replay = await context.request.get(firstRequest.url() + '&bounced=1', { maxRedirects: 0 });
+        expect(replay.status()).toBe(302);
+        expect(replay.headers().location).toContain('sign_in_error=');
+        expect((await (await context.request.get(origin + '/api/v1/session.php')).json()).user.id).toBe(user.user_id);
+        return;
+      }
       const appBootstrap = await (await native.get('/api/v1/session.php')).json();
       const state = crypto.randomBytes(32).toString('base64url');
       const started = await native.post('/api/v1/native-auth/start.php', { headers: { 'X-CSRF-Token': appBootstrap.csrf_token }, data: {
@@ -174,8 +237,8 @@ for (const sameSite of ['Strict', 'Lax']) {
       expect((await (await native.get('/api/v1/session.php')).json()).user.id).toBe(user.user_id);
       expect((await context.cookies(origin)).find(cookie => cookie.name === cookieName).value).toBe(sid.value);
     } finally {
-      await context?.close();
-      await native?.dispose();
+      await context?.close().catch(() => {});
+      await native?.dispose().catch(() => {});
       if (proxy) { proxy.closeAllConnections(); await new Promise(resolve => proxy.close(resolve)); }
       await stop(app);
       await stop(provider);
