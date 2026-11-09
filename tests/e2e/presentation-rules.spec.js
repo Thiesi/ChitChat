@@ -294,6 +294,8 @@ test('administrators publish rules and choose whether members agree again', asyn
       'admin/settings/get.php': { settings: { registration_enabled: true, guest_access_enabled: false, mfa_required_for_admin_roles: false, audit_retention_days: 365, deleted_attachment_retention_days: 30, deleted_room_grace_days: 30, direct_message_retention_days: 0, login_attempt_retention_days: 30, orphan_attachment_grace_hours: 24, realtime_event_retention_hours: 24, room_message_retention_days: 0, updated_at: '2026-11-01T10:00:00Z' } },
       'admin/settings/lockdown/get.php': { lockdown: { enabled: false, custom_message: null, since: null } },
       'admin/settings/application-name/get.php': { application_name: { default: 'ChitChat', override: null } },
+      // #211's card loads beside the policies; this test doesn't look at it.
+      'admin/settings/application-icon/get.php': { application_icon: null },
       'admin/settings/registration-protection/get.php': { registration_protection: { overrides: { rate_limit_max_attempts: null, rate_limit_window_seconds: null, min_fill_seconds: null, proof_of_work_bits: null }, defaults: { rate_limit_max_attempts: 5, rate_limit_window_seconds: 3600, min_fill_seconds: 3, proof_of_work_bits: 16 }, effective: { rate_limit_max_attempts: 5, rate_limit_window_seconds: 3600, min_fill_seconds: 3, proof_of_work_bits: 16 } } },
       'admin/policies.php': { policies: {
         rules: { source: 'hosted', markdown: '## Be kind\n\nTreat people well.', url: null, version: 3, updated_at: '2026-11-08T09:00:00Z' },

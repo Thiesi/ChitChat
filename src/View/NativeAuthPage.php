@@ -45,6 +45,16 @@ final class NativeAuthPage
         $phase = self::text($view['phase'] ?? '');
         $card = self::card($view, $phase, $now ?? new DateTimeImmutable());
         $e = self::escape(...);
+        // #211: the installation's own icon when it has one; null or missing means Lantern.
+        $icon = is_array($view['installation_icon'] ?? null) ? $view['installation_icon'] : [];
+        $faviconUrl = self::isUrl($icon['favicon_url'] ?? null) ? (string) $icon['favicon_url'] : null;
+        $markUrl = self::isUrl($icon['mark_url'] ?? null) ? (string) $icon['mark_url'] : null;
+        $favicon = $faviconUrl !== null
+            ? '<link rel="icon" href="' . $e($faviconUrl) . '" type="image/png" sizes="32x32">'
+            : '<link rel="icon" href="/favicon.svg" type="image/svg+xml">';
+        $mark = $markUrl !== null
+            ? '<img class="native-auth-mark native-auth-mark-custom" src="' . $e($markUrl) . '" alt="" width="40" height="40">'
+            : '<img class="native-auth-mark" src="/favicon.svg" alt="" width="40" height="40">';
 
         return <<<HTML
 <!doctype html>
@@ -57,7 +67,7 @@ final class NativeAuthPage
   <meta name="referrer" content="no-referrer">
   <script src="/assets/js/theme.js"></script>
   <title>{$e($card['title'])} · {$e($installation)}</title>
-  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  {$favicon}
   <meta name="theme-color" content="#FBF7F1" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#14111C" media="(prefers-color-scheme: dark)">
   <link rel="stylesheet" href="/assets/css/tokens.css">
@@ -70,7 +80,7 @@ final class NativeAuthPage
   <main class="native-auth" data-phase="{$e($phase)}">
     <section class="native-auth-card" aria-labelledby="native-auth-heading">
       <header class="native-auth-header">
-        <img class="native-auth-mark" src="/favicon.svg" alt="" width="40" height="40">
+        {$mark}
         <h1>{$e($installation)}</h1>
       </header>
       <h2 id="native-auth-heading">{$e($card['heading'])}</h2>

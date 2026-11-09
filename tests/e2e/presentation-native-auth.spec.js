@@ -208,3 +208,21 @@ for (const [theme, width] of [['light', 360], ['dark', 1280]]) {
     expect(external).toEqual([]);
   });
 }
+
+// #211: an installation's own icon replaces the Lantern favicon and mark; null keeps Lantern.
+test('the installation icon replaces the favicon and mark when set', async ({ page }) => {
+  await page.route('**/installation-icon.php*', (route) => route.fulfill({ contentType: 'image/png',
+    body: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64') }));
+  const icon = { favicon_url: '/installation-icon.php?revision=r&variant=favicon', mark_url: '/installation-icon.php?revision=r&variant=icon_192',
+    apple_touch_url: '/installation-icon.php?revision=r&variant=apple_touch' };
+  const { html } = await open(page, view({ ...PHASES.entry, installation_icon: icon }));
+  await expect(page.locator('link[rel="icon"]')).toHaveAttribute('href', icon.favicon_url);
+  await expect(page.locator('.native-auth-mark')).toHaveAttribute('src', icon.mark_url);
+  await expect(page.locator('.native-auth-mark')).toHaveCSS('border-radius', /px|%/);
+  expect(html).not.toContain('/favicon.svg');
+  expect(html).not.toContain(icon.apple_touch_url);
+  await page.unrouteAll();
+  await open(page, view({ ...PHASES.entry, installation_icon: null }));
+  await expect(page.locator('link[rel="icon"]')).toHaveAttribute('href', '/favicon.svg');
+  await expect(page.locator('.native-auth-mark')).toHaveAttribute('src', '/favicon.svg');
+});

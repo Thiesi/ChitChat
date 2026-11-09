@@ -1,0 +1,109 @@
+/* Operational settings → Installation icon (#211). The previews show exactly
+   what the server renders: the maskable 512 as a circle and as a rounded
+   square (with the 40% safe zone on request), the 180 as a home-screen tile,
+   and the 32 favicon at actual size on light and dark tab strips. Uses only
+   existing tokens; the fixed swatch and tab colours live in tokens.css. */
+
+.icon-settings { grid-column: 1 / -1; display: grid; gap: 1rem; }
+.icon-body { display: grid; gap: 1rem; }
+
+.icon-previews {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 1rem 1.5rem;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  background: var(--ground);
+}
+.icon-previews[data-mode="preview"] { border-style: dashed; border-color: var(--signature-text); }
+.icon-preview-label { flex-basis: 100%; margin: 0; font-weight: 700; }
+.icon-previews[data-mode="preview"] .icon-preview-label { color: var(--signature-text); }
+
+.icon-figure { display: grid; justify-items: center; gap: 0.4rem; margin: 0; }
+.icon-figure figcaption { color: var(--text-muted); font-size: 0.85rem; }
+
+.icon-mask {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 6rem;
+  height: 6rem;
+  overflow: hidden;
+  background: var(--icon-live-background, transparent);
+  box-shadow: var(--shadow-soft);
+}
+.icon-mask-circle { border-radius: 50%; }
+.icon-mask-rounded { border-radius: 22%; }
+.icon-mask img { grid-area: 1 / 1; width: 100%; height: 100%; }
+.icon-mask.is-live img { width: calc(100% * var(--icon-live-scale, 1)); height: auto; }
+
+/* The W3C maskable safe zone: a centred circle of radius 40%. */
+.icon-safe-ring {
+  grid-area: 1 / 1;
+  width: 80%;
+  height: 80%;
+  border: 2px dashed var(--signature-text);
+  border-radius: 50%;
+  outline: 1px solid var(--surface);
+  pointer-events: none;
+  visibility: hidden;
+}
+.icon-previews.show-ring .icon-safe-ring { visibility: visible; }
+
+.icon-home {
+  display: grid;
+  justify-items: center;
+  gap: 0.35rem;
+  padding: 0.75rem 0.9rem 0.5rem;
+  border-radius: 1rem;
+  background: var(--raised);
+}
+.icon-home img {
+  width: 3.75rem;
+  height: 3.75rem;
+  border-radius: 22%;
+  background: var(--icon-live-background, transparent);
+  box-shadow: var(--shadow-soft);
+}
+.icon-home-name {
+  max-width: 5.5rem;
+  overflow: hidden;
+  font-size: 0.75rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.icon-figure-tabs { justify-items: stretch; min-width: min(100%, 14rem); }
+.icon-tab {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: 14rem;
+  padding: 0.45rem 0.7rem;
+  border-radius: 0.6rem 0.6rem 0 0;
+  font-size: 0.8rem;
+}
+.icon-tab img { flex: none; width: 16px; height: 16px; image-rendering: auto; }
+.icon-tab span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Light and dark browser chrome, whichever theme this page is in: colours in tokens.css. */
+
+.icon-form { display: grid; gap: 0.75rem; }
+.icon-form > label { display: grid; gap: 0.35rem; max-width: 32rem; font-weight: 600; }
+.icon-form > p { margin: 0; }
+
+.icon-background { display: grid; gap: 0.5rem; margin: 0; padding: 0; border: 0; min-width: 0; }
+.icon-background legend { padding: 0; font-weight: 600; }
+.icon-background p { margin: 0; }
+.icon-swatches { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1.25rem; }
+.icon-swatch { display: inline-flex; align-items: center; gap: 0.45rem; min-height: 2.75rem; font-weight: 400; }
+.icon-swatch input { width: auto; margin: 0; accent-color: var(--signature-text); }
+.icon-swatch-chip { width: 1.25rem; height: 1.25rem; border: 1px solid var(--field-line); border-radius: 50%; }
+.icon-custom { display: inline-flex; align-items: center; gap: 0.5rem; }
+.icon-custom input[type="color"] { width: 2.75rem; height: 2.75rem; padding: 0.15rem; }
+.icon-custom input[type="text"] { width: 7.5rem; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+
+.icon-actions { display: flex; flex-wrap: wrap; gap: 0.6rem; }
+#icon-status:empty, #icon-error:empty { display: none; }
+.icon-ring-toggle { max-width: none; }

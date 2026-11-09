@@ -21,6 +21,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <link rel="stylesheet" href="/assets/css/components.css">
   <link rel="stylesheet" href="/assets/css/admin.css">
   <link rel="stylesheet" href="/assets/css/rules.css">
+  <link rel="stylesheet" href="/assets/css/admin-icon.css">
 </head>
 <body>
   <div id="settings-loading" class="app-loading" role="status">Loading operational settings…</div>
@@ -158,6 +159,84 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
       </section>
     </form>
 
+    <!-- #211: the installation's own icon. Previews come from the server; nothing is saved until "Use this icon". -->
+    <section id="icon-settings" class="admin-card icon-settings" aria-labelledby="icon-heading">
+      <h2 id="icon-heading">Installation icon</h2>
+      <p class="admin-muted">
+        Shown in browser tabs, on home screens and when people install this as an app. Use the ChitChat icon, or upload
+        your own.
+      </p>
+      <p id="icon-unavailable" class="admin-muted hidden">Installation icon settings aren’t available on this server yet.</p>
+
+      <div id="icon-body" class="icon-body hidden">
+        <div class="icon-previews" id="icon-previews" data-mode="current">
+          <p id="icon-preview-label" class="icon-preview-label">Current icon</p>
+          <figure class="icon-figure">
+            <div class="icon-mask icon-mask-circle" data-icon-mask>
+              <img data-icon-variant="maskable" alt="" width="512" height="512">
+              <span class="icon-safe-ring" aria-hidden="true"></span>
+            </div>
+            <figcaption>Circle</figcaption>
+          </figure>
+          <figure class="icon-figure">
+            <div class="icon-mask icon-mask-rounded" data-icon-mask>
+              <img data-icon-variant="maskable" alt="" width="512" height="512">
+              <span class="icon-safe-ring" aria-hidden="true"></span>
+            </div>
+            <figcaption>Rounded square</figcaption>
+          </figure>
+          <figure class="icon-figure">
+            <div class="icon-home">
+              <img data-icon-variant="apple_touch" alt="" width="180" height="180">
+              <span class="icon-home-name" data-icon-name></span>
+            </div>
+            <figcaption>Home screen</figcaption>
+          </figure>
+          <figure class="icon-figure icon-figure-tabs">
+            <div class="icon-tab icon-tab-light"><img data-icon-variant="favicon" alt="" width="16" height="16"><span data-icon-name></span></div>
+            <div class="icon-tab icon-tab-dark"><img data-icon-variant="favicon" alt="" width="16" height="16"><span data-icon-name></span></div>
+            <figcaption>Browser tabs, actual size</figcaption>
+          </figure>
+        </div>
+        <label class="check-row icon-ring-toggle">
+          <input id="icon-safe-ring" type="checkbox">
+          <span>Show the safe zone (the part every device keeps)</span>
+        </label>
+        <p id="icon-meta" class="admin-muted"></p>
+
+        <form id="icon-form" class="icon-form">
+          <label id="icon-file-label" for="icon-file">
+            <span>Upload an image</span>
+            <input id="icon-file" type="file" accept="image/png,image/webp" aria-describedby="icon-file-help">
+          </label>
+          <p id="icon-file-help" class="admin-muted"></p>
+
+          <fieldset class="icon-background" aria-describedby="icon-background-help">
+            <legend>Background</legend>
+            <p id="icon-background-help" class="admin-muted">Fills the space around your icon on home screens and in round app icons.</p>
+            <div class="icon-swatches">
+              <label class="icon-swatch"><input type="radio" name="icon-background" value="#14111C"><span class="icon-swatch-chip" data-swatch="night" aria-hidden="true"></span>Night</label>
+              <label class="icon-swatch"><input type="radio" name="icon-background" value="#FBF7F1"><span class="icon-swatch-chip" data-swatch="paper" aria-hidden="true"></span>Paper</label>
+              <label class="icon-swatch"><input type="radio" name="icon-background" value="custom">Custom</label>
+              <span class="icon-custom">
+                <input id="icon-color" type="color" aria-label="Custom background colour" value="#14111C">
+                <input id="icon-hex" type="text" inputmode="text" maxlength="7" spellcheck="false" autocomplete="off" aria-label="Custom background colour, as #RRGGBB" placeholder="#RRGGBB">
+              </span>
+            </div>
+          </fieldset>
+
+          <div class="icon-actions">
+            <button id="icon-use" class="primary-button hidden" type="submit">Use this icon</button>
+            <button id="icon-discard" class="secondary-button hidden" type="button">Choose another</button>
+            <button id="icon-save-background" class="secondary-button hidden" type="button">Save background</button>
+            <button id="icon-reset" class="secondary-button hidden" type="button">Use the ChitChat icon</button>
+          </div>
+          <p id="icon-status" class="admin-muted" role="status" aria-live="polite"></p>
+          <p id="icon-error" class="error-text" role="alert"></p>
+        </form>
+      </div>
+    </section>
+
     <section class="admin-card settings-wide policies-card" aria-labelledby="policies-heading">
       <h2 id="policies-heading">Rules and privacy</h2>
       <p class="admin-muted">
@@ -268,5 +347,6 @@ foreach ($policyForms as $kind => $form):
   <div id="toast-region" class="toast-region" aria-live="assertive"></div>
   <script type="module" src="/assets/js/admin-settings.js"></script>
   <script type="module" src="/assets/js/admin-policies.js"></script>
+  <script type="module" src="/assets/js/admin-icon.js"></script>
 </body>
 </html>
