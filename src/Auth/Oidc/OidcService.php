@@ -88,7 +88,7 @@ final class OidcService
         if ($nativeTransaction === null && in_array($purpose, ['login', 'restore'], true)) {
             \ChitChat\Auth\NativeAuth\NativeAuthSession::invalidate();
         }
-        $state = $this->randomToken();
+        $state = ($nativeTransaction === null ? '' : 'native.') . $this->randomToken();
         $nonce = $this->randomToken();
         $verifier = $this->randomToken();
         $flows = $this->pendingFlows();
