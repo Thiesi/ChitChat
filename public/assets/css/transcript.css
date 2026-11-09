@@ -209,6 +209,10 @@
 }
 .message.mine .message-bubble,
 .dm-message.outgoing .message-bubble { background: var(--outgoing); color: var(--on-outgoing); }
+/* The link accent doesn't reach 4.5:1 on every scheme's outgoing colour, so
+   links in your own bubbles take the bubble's text colour, underlined. */
+.message.mine .message-bubble a,
+.dm-message.outgoing .message-bubble a { color: var(--on-outgoing); text-decoration: underline; text-underline-offset: 0.15em; }
 .message-bubble .message-body,
 .message-bubble .dm-message-body { line-height: 1.45; }
 .message-bubble > .message-time,

@@ -29,7 +29,8 @@ const history = [
   roomMessage(2, rowan, 'Same time, back room as usual.'),
   roomMessage(3, priya, 'Saturday works.'),
   roomMessage(4, viewer, 'I can bring Catan.'),
-  roomMessage(5, viewer, 'And the Seafarers expansion.'),
+  // A link and a file in your own (outgoing) bubble: the axe checks below cover their contrast.
+  roomMessage(5, viewer, 'And the Seafarers expansion: https://example.com/seafarers'),
   roomMessage(7, priya, ''),
   roomMessage(8, rowan, ''),
   roomMessage(9, priya, ''),
@@ -41,6 +42,7 @@ const attachments = [
   { message_id: 8, id: 80, name: 'dice.gif', mime_type: 'image/gif', size_bytes: 90000, sha256: 'c', previewable: true, width: 400, height: 400,
     preview: { url: '/api/v1/attachments/download.php?id=80&variant=preview', width: 400, height: 400, mime_type: 'image/webp', size_bytes: 9000, sha256: 'd' } },
   { message_id: 9, id: 90, name: 'old-scan.png', mime_type: 'image/png', size_bytes: 120000, sha256: 'e', previewable: true, width: null, height: null, preview: null },
+  { message_id: 5, id: 50, name: 'seafarers-rules.pdf', mime_type: 'application/pdf', size_bytes: 300000, sha256: 'f', previewable: false },
 ];
 
 async function fixture(page) {

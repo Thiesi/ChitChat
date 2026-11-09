@@ -36,7 +36,12 @@ test('colour schemes apply on every page, and dates follow the account format', 
 
     await page.goto('/');
     await page.locator('.room-button', { hasText: '# General E2E' }).click();
-    await expect(page.locator('.message-time').first()).toHaveText(/^\d{2}\.\d{2}\.\d{2}, \d{2}:\d{2}$/);
+    // Since S1c (#166) the day heading above a day's messages carries the
+    // date, so a message shows only its time, on the account's clock; the
+    // full stamp in the account format is its title.
+    const time = page.locator('.message-time').first();
+    await expect(time).toHaveText(/^\d{2}:\d{2}$/);
+    await expect(time).toHaveAttribute('title', /^\d{2}\.\d{2}\.\d{2}, \d{2}:\d{2}$/);
   } finally {
     // Other specs share this account and expect the defaults.
     await page.goto('/account.php');
