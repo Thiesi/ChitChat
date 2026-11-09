@@ -80,12 +80,17 @@ test('a saved opt-in loads as on; devices replace the no-device note', async ({ 
   await expect(page.locator('#push-device-list li').nth(0)).toContainText('since');
 });
 
-test('a browser that can show alerts offers to turn them on here', async ({ page }) => {
+test('a browser that can show alerts offers to turn them on here', async ({ page, browserName }) => {
   await fixture(page);
   await page.goto('/notifications.php');
+  // Whatever the browser can do, the account-wide choices and "This browser" are shown.
+  await expect(page.locator('#push-settings')).toBeVisible();
+  await expect(page.locator('#push-browser')).toBeVisible();
+  // Only Chromium gives Playwright a working service worker and push manager;
+  // Firefox's never becomes ready here and WebKit has no PushManager.
+  test.skip(browserName !== 'chromium', 'Push subscription needs Chromium in the test harness.');
   await expect(page.locator('#push-browser-status')).toHaveText('Alerts are off in this browser.');
   await expect(page.getByRole('button', { name: 'Turn on alerts here' })).toBeEnabled();
-  await expect(page.locator('#push-settings')).toBeVisible();
 });
 
 test('a server without alerts says so and shows no choices', async ({ page }) => {
