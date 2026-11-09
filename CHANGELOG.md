@@ -6,7 +6,7 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ## [Unreleased]
 
-No changes since `v3.5.0`.
+- Add opt-in Android passkey certificate origins through NATIVE_ANDROID_APPS, preserving existing password-first MFA and the web origin. Publish grouped credential-only Digital Asset Links through a documented exact Nginx mapping (existing static files win); no deployment is performed. Native capability discovery requires configured WebAuthn and nonempty trust. Signed-device acceptance remains separate from fixture/CI proof; native OIDC handoff remains disabled.
 
 ## [3.5.0] - 2026-11-09
 

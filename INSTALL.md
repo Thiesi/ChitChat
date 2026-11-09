@@ -139,6 +139,18 @@ A correct password for an MFA-enabled account does not create an authenticated s
 
 Account restoration follows the same rule: username and password validate eligibility, but the account remains closure-pending until the second factor succeeds. A cancelled or expired MFA attempt does not cancel closure.
 
+### Native Android passkeys
+
+Set **NATIVE_ANDROID_APPS** to verified package/SHA-256 app-signing certificate
+pairs (default **[]**) alongside the existing WebAuthn RP and web origin.
+Deploy the exact **/.well-known/assetlinks.json** mapping from the
+[Nginx example](docs/operations/nginx-php-fpm.md), including the RP domain if it
+differs from the web host. Existing static declarations take precedence.
+See [Android trust](docs/operations/passkeys.md#android-credential-manager-trust)
+for certificate rotation, Play signing, debug trust and native acceptance.
+This keeps password-first MFA and the existing endpoints. No host configuration
+is installed by updating the application; the operator deploys and verifies it.
+
 ### Privileged step-up
 
 Sensitive actions require recent privileged authentication in addition to session authentication, CSRF, role authorization, and action-specific audits.
