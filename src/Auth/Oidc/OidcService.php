@@ -77,7 +77,7 @@ final class OidcService
      * ('link'), confirming a sensitive action ('step_up') or fetching its
      * profile picture there ('picture', the one round trip that asks for it).
      */
-    public function begin(string $providerName, string $purpose, ?AuthenticatedUser $user): string
+    public function begin(string $providerName, string $purpose, ?AuthenticatedUser $user, ?string $nativeTransaction = null): string
     {
         $provider = OidcProvider::require($this->config, $providerName);
         $needsUser = in_array($purpose, ['link', 'step_up', 'picture'], true);
@@ -85,6 +85,9 @@ final class OidcService
             throw new ApiException(400, 'validation_error', 'Unsupported sign-in purpose.');
         }
 
+        if ($nativeTransaction === null && in_array($purpose, ['login', 'restore'], true)) {
+            \ChitChat\Auth\NativeAuth\NativeAuthSession::invalidate();
+        }
         $state = $this->randomToken();
         $nonce = $this->randomToken();
         $verifier = $this->randomToken();
@@ -96,7 +99,14 @@ final class OidcService
             'nonce' => $nonce,
             'verifier' => $verifier,
             'created_at' => time(),
+            ...($nativeTransaction === null ? [] : ['native_transaction' => $nativeTransaction]),
         ];
+        if ($nativeTransaction !== null) {
+            $callbacks = $_SESSION['native_oidc_callbacks'] ?? [];
+            $callbacks = is_array($callbacks) ? $callbacks : [];
+            $callbacks[$state] = ['id' => $nativeTransaction, 'created_at' => time()];
+            $_SESSION['native_oidc_callbacks'] = array_slice($callbacks, -self::MAX_PENDING_FLOWS, null, true);
+        }
         // Keep only the newest few, so abandoned attempts cannot pile up.
         uasort($flows, static fn (array $left, array $right): int => $right['created_at'] <=> $left['created_at']);
         $_SESSION['oidc_flows'] = array_slice($flows, 0, self::MAX_PENDING_FLOWS, true);
@@ -135,12 +145,11 @@ final class OidcService
     }
 
     /**
-     * Finishes a sign-in attempt from the provider's redirect and returns the
-     * page to send the browser to next.
+     * Verifies and consumes only the provider round trip, without account or session-authentication effects.
      *
      * @param array<string, mixed> $query
      */
-    public function complete(array $query, string $ipAddress): string
+    public function verifyCallback(array $query): OidcVerification
     {
         $state = is_string($query['state'] ?? null) ? $query['state'] : '';
         $flows = $this->pendingFlows();
@@ -151,7 +160,7 @@ final class OidcService
             throw new ApiException(400, 'oidc_flow_expired', 'This sign-in attempt has expired or was already used. Please start again.');
         }
         $provider = OidcProvider::require($this->config, $flow['provider']);
-        $returnTo = self::RETURN_TO[$flow['purpose']] ?? '/';
+        $returnTo = $flow['native_transaction'] === null ? (self::RETURN_TO[$flow['purpose']] ?? '/') : '/native-auth.php';
         if (isset($query['error'])) {
             throw new OidcRedirectException($returnTo, sprintf('Signing in with %s was cancelled.', $provider->label));
         }
@@ -165,15 +174,43 @@ final class OidcService
         } catch (ApiException $exception) {
             throw new OidcRedirectException($returnTo, $exception->getMessage());
         }
-        $subject = (string) $claims['sub'];
+        return new OidcVerification($provider, $flow['purpose'], $flow['user_id'],
+            $flow['created_at'], $flow['native_transaction'], $claims);
+    }
 
-        return match ($flow['purpose']) {
-            'link' => $this->link((int) $flow['user_id'], $provider, $subject, $ipAddress),
-            'step_up' => $this->stepUp((int) $flow['user_id'], $provider, $claims, $flow['created_at'], $ipAddress),
+    /**
+     * Ordinary web completion retains its existing effects. Native proof can never fall through here.
+     * @param array<string,mixed> $query
+     */
+    public function complete(array $query, string $ipAddress): string
+    {
+        $verified = $this->verifyCallback($query);
+        if ($verified->nativeTransaction !== null) {
+            throw new ApiException(403, 'native_flow_required', 'Finish this request through the native handoff.');
+        }
+        $provider = $verified->provider;
+        $claims = $verified->claims;
+        $subject = (string) $claims['sub'];
+        return match ($verified->purpose) {
+            'link' => $this->link((int) $verified->userId, $provider, $subject, $ipAddress),
+            'step_up' => $this->stepUp((int) $verified->userId, $provider, $claims, $verified->startedAt, $ipAddress),
             'restore' => $this->restore($provider, $subject, $ipAddress),
-            'picture' => $this->importPicture((int) $flow['user_id'], $provider, $claims, $ipAddress),
+            'picture' => $this->importPicture((int) $verified->userId, $provider, $claims, $ipAddress),
             default => $this->signIn($provider, $subject, $ipAddress),
         };
+    }
+
+    /** @param array<string,mixed> $query */
+    public function nativeTransactionForCallback(array $query): ?string
+    {
+        $state = is_string($query['state'] ?? null) ? $query['state'] : '';
+        $flow = $this->pendingFlows()[$state] ?? null;
+        if ($flow !== null && $flow['native_transaction'] !== null) return $flow['native_transaction'];
+        $callbacks = $_SESSION['native_oidc_callbacks'] ?? [];
+        $remembered = is_array($callbacks) ? ($callbacks[$state] ?? null) : null;
+        return is_array($remembered) && is_string($remembered['id'] ?? null)
+            && is_int($remembered['created_at'] ?? null) && $remembered['created_at'] > time() - 3600
+            ? $remembered['id'] : null;
     }
 
     /**
@@ -564,7 +601,7 @@ SQL);
         $statement->execute(['provider' => $provider, 'subject' => $subject]);
     }
 
-    /** @return array<string, array{provider:string, purpose:string, user_id:?int, nonce:string, verifier:string, created_at:int}> */
+    /** @return array<string, array{provider:string, purpose:string, user_id:?int, nonce:string, verifier:string, created_at:int, native_transaction:?string}> */
     private function pendingFlows(): array
     {
         $stored = $_SESSION['oidc_flows'] ?? [];
@@ -589,6 +626,7 @@ SQL);
                 'nonce' => $flow['nonce'],
                 'verifier' => $flow['verifier'],
                 'created_at' => $flow['created_at'],
+                'native_transaction' => is_string($flow['native_transaction'] ?? null) ? $flow['native_transaction'] : null,
             ];
         }
 
