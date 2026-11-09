@@ -36,7 +36,7 @@ final class IconHttpTest extends DatabaseTestCase
         self::assertIsArray($environment);
         $environment['RATE_LIMIT_APPLICATION_ICON_PREVIEW_MAX_ATTEMPTS'] = '1';
         $process = proc_open([PHP_BINARY,'-d','session.save_path='.$sessions,'-d','post_max_size=128K','-d','display_errors=0',
-            '-S',$address,'-t',dirname(__DIR__,2).'/public'],
+            '-S',$address,'-t',dirname(__DIR__,2).'/public',dirname(__DIR__).'/Support/icon-http-router.php'],
             [0=>['pipe','r'],1=>['file',$log,'a'],2=>['file',$log,'a']],$pipes,null,$environment);
         self::assertIsResource($process);
         fclose($pipes[0]);
