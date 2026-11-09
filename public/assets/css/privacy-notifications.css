@@ -160,3 +160,15 @@
   background: var(--presence-wash);
 }
 #push-status:empty { display: none; }
+
+/* How long alerts stay on screen (#212): a closed disclosure under "This browser". */
+.push-help { margin-top: 0.5rem; }
+.push-help ul {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0.6rem 0 0;
+  padding-inline-start: 1.1rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+.push-help strong { color: var(--text); }
