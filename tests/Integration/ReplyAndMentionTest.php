@@ -311,7 +311,7 @@ final class ReplyAndMentionTest extends DatabaseTestCase
         $directNotification = $updatedTimeline['notifications'][0];
         self::assertSame('Admin mentioned you in a direct message.', $directNotification['message']);
         self::assertSame(
-            sprintf('/messages.php?user_id=%d&peer_name=Admin&message_id=%d', $admin->id, $directMessage['id']),
+            sprintf('/messages.php?user_id=%d&peer_name=Admin&message_id=%d&with=%d', $admin->id, $directMessage['id'], $admin->id),
             $directNotification['link'],
         );
     }

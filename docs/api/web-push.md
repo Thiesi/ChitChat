@@ -82,6 +82,7 @@ Example response:
   "preferences": {
     "mentioned_push_enabled": true,
     "pinged_push_enabled": true,
+    "direct_message_push_enabled": false,
     "quiet_hours": {"start": 22, "end": 7, "timezone": "Europe/Berlin"}
   },
   "devices": [
@@ -101,7 +102,7 @@ Example response:
 
 ## `POST /api/v1/push/update-preferences.php`
 
-Updates the mute preferences for `mentioned` and `pinged` and the account's quiet-hours window in one call. These are the only mutable preferences: `revision_review`, `moderator_message_deleted`, `admin_password_reset`, and `system_policy_changed` remain non-optional short of removing every subscription, matching how those four kinds are already non-optional in the in-app timeline.
+Updates the push choices for `mentioned`, `pinged` and opt-in `direct_message_received` and the account's quiet-hours window in one call. These are the only mutable preferences: `revision_review`, `moderator_message_deleted`, `admin_password_reset`, and `system_policy_changed` remain non-optional short of removing every subscription, matching how those four kinds are already non-optional in the in-app timeline.
 
 Request body:
 
@@ -119,6 +120,7 @@ Fields:
 
 - `mentioned_push_enabled`: required boolean;
 - `pinged_push_enabled`: optional boolean; when omitted, the ping preference is left unchanged;
+- `direct_message_push_enabled`: optional boolean, default false; omitted values preserve the existing DM choice;
 - `quiet_hours_start`, `quiet_hours_end`: optional integers, 0-23, an hour of the day in the account's configured time zone;
 - `quiet_hours_timezone`: optional, a valid IANA time zone identifier.
 
@@ -131,6 +133,7 @@ Response is the updated preferences object, in the same shape as the `preference
   "preferences": {
     "mentioned_push_enabled": false,
     "pinged_push_enabled": true,
+    "direct_message_push_enabled": false,
     "quiet_hours": {"start": 22, "end": 7, "timezone": "Europe/Berlin"}
   }
 }
@@ -235,3 +238,45 @@ Late sign-in or bootstrap responses cannot resurrect a later logout. Identity
 requests invalidate older bootstrap side effects, and durable epochs fence
 registration responses. Initial in-flight session reads share the existing
 promise; additional page caching and tab-reuse navigation are separate work.
+## Opt-in incoming direct-message alerts
+
+`direct_message_push_enabled` is an additive boolean in preference responses.
+It defaults to **false** when no row exists; mention and ping defaults stay true.
+The update field is optional: old requests preserve its value. A present field
+must be a boolean, and all preference/quiet-hours changes commit atomically.
+Malformed input never partially changes another choice. Existing omitted
+quiet-hours fields still clear the quiet-hours window, as before.
+
+Opt-in creates a `direct_message_received` timeline row only for the eligible
+recipient of each new text or attachment DM, in the insertion transaction. It
+never creates sender, edit, reaction, or historical/backfill alerts. Enabling
+later does not cover earlier messages. Context contains only the message kind,
+message ID and sender ID, never a body, caption, filename or saved sender name.
+The text names the current sender; an unavailable/closed/deleted sender becomes
+"Someone sent you a direct message." with the safe `/messages.php` link.
+
+A DM that mentions its recipient keeps both semantic timeline records when DM
+alerts were opted in at creation. They share one recipient/message push event:
+prefer an unread eligible `mentioned` source only while mention push is enabled;
+otherwise use an eligible `direct_message_received` source if enabled. A DM
+fallback needs the record created at opt-in time; enabling later does not
+backfill a previously opted-out message. Quiet hours suppress both permanently,
+with no morning replay.
+
+Before any provider acceptance, selection may change on retry while `event_id`
+stays stable. The first accepted device freezes selection for the remaining
+devices: no alternate-kind fallback afterward and no resend to a successful
+device. Reading, blocking, deletion, bans, sender posting restrictions, revoked
+registrations and obsolete bindings suppress pending delivery. A recipient's
+own posting mute does not stop receiving. Best-effort/ambiguous-retry limits
+remain as documented above.
+
+Conversation read acknowledgement marks only the covered DM notification IDs
+read in the same statement snapshot as the underlying messages. Concurrent new
+messages remain unread. Mention timeline read state is unchanged, but a read DM
+cannot later generate a push through an unread mention row.
+
+Client check: presence of the boolean `direct_message_push_enabled` in the
+authenticated preference response identifies this addition, even when false.
+A missing field means an older/unknown contract; do not assume opt-in.
+Clients must tolerate the additive `direct_message_received` kind.

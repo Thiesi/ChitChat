@@ -6,6 +6,8 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ## [Unreleased]
 
+- Opt-in incoming DM alerts (default off) create content-free timeline notices for new text/files, share one delivery event with overlapping mentions, and follow exact conversation read acknowledgments. Apply migration 0048. Existing preference requests preserve the new choice; clients can detect its boolean field.
+
 - Web Push registrations gain validated P-256/auth keys, public-destination DNS checks and pinned HTTPS delivery, exact private-provider exceptions, atomic device limits/rotation, session-bound logout cleanup, additive event IDs/kinds/bindings, and browser stale-push/offline-logout protection. Apply migration 0047. Existing clients may ignore additive response/payload fields; explicit resolver-file overrides are available for Windows hosts.
 
 - Push dispatch records per-device outcomes with atomic leased claims, bounded retry/backoff, read and permission rechecks, explicit 30-minute attention / six-hour other lifetimes, and corrected non-default-port VAPID authentication. Apply migrations 0045–0046 and keep the dispatcher scheduled; existing push payloads stay compatible. Provider acceptance is best effort and can duplicate after a worker crash.

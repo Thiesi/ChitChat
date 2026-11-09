@@ -152,6 +152,8 @@ SQL);
             $attachmentId = (int) $attachmentIdValue;
             AttachmentImageMetadata::save($this->pdo, 'direct_message_attachments', $attachmentId, $stored['image']);
 
+            (new DirectMessageNotifier($this->pdo))->record($messageId);
+
             $senderMessage = $this->messageById($messageId, $actor->id);
             $recipientMessage = $this->messageById($messageId, $recipientUserId);
             $this->audit->log(
