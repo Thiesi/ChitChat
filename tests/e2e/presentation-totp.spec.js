@@ -233,10 +233,18 @@ test('a wrong sign-in code says to wait for a new one', async ({ page }) => {
   await axe(page, '#mfa-login-panel', 'sign-in error');
 });
 
-test('a Google or Twitch sign-in that continues here offers the app when the server supports it', async ({ page }) => {
-  await fixture(page, { user: null });
+test('a Google or Twitch sign-in that continues here uses the session’s pending methods', async ({ page }) => {
+  let pending = { methods: ['passkey', 'recovery_code', 'totp'] };
+  await fixture(page, { user: null, overrides: {
+    'session.php': () => ({ user: null, csrf_token: 'fixture', registration_enabled: true, sign_in_providers: [], capabilities: { totp: true }, mfa_pending: pending }),
+  } });
   await page.goto('/?mfa=continue');
   await expect(page.locator('#mfa-login-panel').getByLabel('Code from your authenticator app')).toBeVisible();
+  // No valid pending step (null): passkey and recovery code only, even though the server supports apps.
+  pending = null;
+  await page.goto('/?mfa=continue');
+  await expect(page.locator('#mfa-login-panel')).toBeVisible();
+  await expect(page.locator('#mfa-login-panel').getByLabel('Code from your authenticator app')).toBeHidden();
 });
 
 test('restoring an account accepts a code from the app', async ({ page }) => {

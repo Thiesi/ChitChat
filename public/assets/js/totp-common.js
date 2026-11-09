@@ -41,14 +41,17 @@ export function buildTotpForm(id, onSubmit) {
 }
 
 /**
- * The second-step methods for a pending sign-in. The server lists them as
- * passkey, recovery_code and totp; where no list came with the page (a
- * Google or Twitch sign-in returning here), the authenticator option is
- * offered when the server supports it, and a wrong guess just fails.
+ * The second-step methods for a pending sign-in (passkey, recovery_code,
+ * totp). Responses that start one carry the list; a Google or Twitch
+ * sign-in returning to a page reads it from the session's mfa_pending,
+ * which is null when no valid pending step exists. Only a server too old
+ * to send mfa_pending at all leaves a guess from its capabilities.
  */
 export function pendingMethods(methods, session) {
   if (Array.isArray(methods)) return methods;
-  if (Array.isArray(session?.mfa_pending?.methods)) return session.mfa_pending.methods;
+  if (session && 'mfa_pending' in session) {
+    return Array.isArray(session.mfa_pending?.methods) ? session.mfa_pending.methods : ['passkey', 'recovery_code'];
+  }
   return session?.capabilities?.totp === true ? ['passkey', 'recovery_code', 'totp'] : ['passkey', 'recovery_code'];
 }
 
