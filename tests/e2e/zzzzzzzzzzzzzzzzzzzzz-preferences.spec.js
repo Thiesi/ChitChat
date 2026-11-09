@@ -44,7 +44,8 @@ test('colour schemes apply on every page, and dates follow the account format', 
     await page.getByLabel('Clock').selectOption('');
     await page.getByRole('button', { name: 'Save date and time format' }).click();
     await expect(page.locator('#date-time-status')).toContainText('Saved');
-    await page.locator('#account-shell').getByRole('radiogroup', { name: 'Colour scheme' }).getByRole('radio', { name: 'Lounge' }).check();
+    await page.locator('#account-shell').getByRole('radiogroup', { name: 'Colour scheme' }).getByRole('radio', { name: 'Lantern' }).check();
+    // Lantern is the default (S0, #167), so it sets no data-scheme.
     await expect(page.locator('html')).not.toHaveAttribute('data-scheme', /.+/);
   }
 });
