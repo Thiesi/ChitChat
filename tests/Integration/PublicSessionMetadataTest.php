@@ -17,12 +17,13 @@ final class PublicSessionMetadataTest extends DatabaseTestCase
         self::assertSame([
             'name' => $config->applicationName,
             'version' => '3.3.0-rc.1+fixture',
+            'icon' => null,
         ], $metadata->application());
         $root = (new AuthService($this->pdo, $config))->register('Root', 'a very secure password', '127.0.0.1');
         $names = new ApplicationNameService($this->pdo, $config);
         $names->update($root, '  Harbor Chat  ', '127.0.0.1');
         // Reading the same metadata needs no account or administrative role.
-        self::assertSame(['name' => 'Harbor Chat', 'version' => $config->applicationVersion], $metadata->application());
+        self::assertSame(['name' => 'Harbor Chat', 'version' => $config->applicationVersion, 'icon' => null], $metadata->application());
         $names->update($root, null, '127.0.0.1');
         self::assertSame($config->applicationName, $metadata->application()['name']);
     }

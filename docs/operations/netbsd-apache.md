@@ -56,7 +56,9 @@ Because the master is shared with other sites, "stopping ChitChat" means taking 
 
 ### Installation icons
 
-Since `v3.5.0`, ChitChat's pages and web app manifest use the Lantern icons at these fixed URLs: `/favicon.svg`, and `/assets/app-icons/favicon-32.png`, `apple-touch-icon.png`, `icon-192.png`, `icon-512.png` and `icon-maskable-512.png`. To show your installation's own icons, map **all six URLs** to your files with `Alias` (same file names and sizes; `icon-maskable-512.png` needs its artwork inside the central safe zone), kept outside the checkout so upgrades don't overwrite them. `/favicon.ico` isn't linked by ChitChat; add an `Alias` for it too if you want old clients to get your icon rather than the chat page. Browsers and installed apps cache icons, so changes can take a while to appear.
+Use the **Installation icon** setting beside the installation name. ChitChat stores normalized renditions in the database; ordinary backups include them. GD with PNG/WebP is needed for uploads, and memory_limit >= 256M is recommended for large inputs. No Alias, writable docroot or new host rule is needed. /favicon.ico uses the existing FallbackResource dispatch before any session starts. See [the API and operations contract](../api/installation-icon.md).
+
+Legacy note: older releases required per-URL Alias overrides for Lantern assets. Remove those mappings when adopting this setting, including any /favicon.ico Alias, or the web server will continue serving the legacy files. Browsers and installed apps can retain previously cached icons.
 
 ## Scheduled jobs (cron)
 
