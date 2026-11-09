@@ -6,7 +6,7 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ## [Unreleased]
 
-No changes since `v3.6.0`.
+- Recognize mentions followed by sentence punctuation using the longest mentionable username, shared by room/DM notification resolution and browser rendering. Preserve real trailing-punctuation names, room broadcasts, literal message bodies and email boundaries.
 
 ## [3.6.0] - 2026-11-09
 

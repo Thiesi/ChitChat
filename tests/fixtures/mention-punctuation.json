@@ -1,0 +1,306 @@
+[
+  {
+    "body": "They're right, @ada. Weekends…",
+    "known": [
+      "ada"
+    ],
+    "broadcast": false,
+    "expected": [
+      "ada"
+    ],
+    "spans": [
+      "@ada"
+    ]
+  },
+  {
+    "body": "@ada,",
+    "known": [
+      "ada"
+    ],
+    "broadcast": false,
+    "expected": [
+      "ada"
+    ],
+    "spans": [
+      "@ada"
+    ]
+  },
+  {
+    "body": "@ada!",
+    "known": [
+      "ada"
+    ],
+    "broadcast": false,
+    "expected": [
+      "ada"
+    ],
+    "spans": [
+      "@ada"
+    ]
+  },
+  {
+    "body": "@ADA...",
+    "known": [
+      "ada"
+    ],
+    "broadcast": false,
+    "expected": [
+      "ada"
+    ],
+    "spans": [
+      "@ADA"
+    ]
+  },
+  {
+    "body": "(@ada)",
+    "known": [
+      "ada"
+    ],
+    "broadcast": false,
+    "expected": [
+      "ada"
+    ],
+    "spans": [
+      "@ada"
+    ]
+  },
+  {
+    "body": "@ada.-",
+    "known": [
+      "ada"
+    ],
+    "broadcast": false,
+    "expected": [
+      "ada"
+    ],
+    "spans": [
+      "@ada"
+    ]
+  },
+  {
+    "body": "@ada.-",
+    "known": [
+      "ada",
+      "ada."
+    ],
+    "broadcast": false,
+    "expected": [
+      "ada."
+    ],
+    "spans": [
+      "@ada."
+    ]
+  },
+  {
+    "body": "@ada...",
+    "known": [
+      "ada",
+      "ada.",
+      "ada.."
+    ],
+    "broadcast": false,
+    "expected": [
+      "ada.."
+    ],
+    "spans": [
+      "@ada.."
+    ]
+  },
+  {
+    "body": "@ada.",
+    "known": [
+      "ada",
+      "ada."
+    ],
+    "broadcast": false,
+    "expected": [
+      "ada."
+    ],
+    "spans": [
+      "@ada."
+    ]
+  },
+  {
+    "body": "@ada. @ada",
+    "known": [
+      "ada"
+    ],
+    "broadcast": false,
+    "expected": [
+      "ada"
+    ],
+    "spans": [
+      "@ada",
+      "@ada"
+    ]
+  },
+  {
+    "body": "@room.",
+    "known": [
+      "ada"
+    ],
+    "broadcast": true,
+    "expected": [
+      "room"
+    ],
+    "spans": [
+      "@room"
+    ]
+  },
+  {
+    "body": "@HERE...",
+    "known": [
+      "ada"
+    ],
+    "broadcast": true,
+    "expected": [
+      "here"
+    ],
+    "spans": [
+      "@HERE"
+    ]
+  },
+  {
+    "body": "@room.",
+    "known": [
+      "ada",
+      "room."
+    ],
+    "broadcast": true,
+    "expected": [
+      "room."
+    ],
+    "spans": [
+      "@room."
+    ]
+  },
+  {
+    "body": "@room. @here.",
+    "known": [
+      "ada"
+    ],
+    "broadcast": false,
+    "expected": [],
+    "spans": []
+  },
+  {
+    "body": "@roommate.",
+    "known": [
+      "ada"
+    ],
+    "broadcast": true,
+    "expected": [],
+    "spans": []
+  },
+  {
+    "body": "@ada and x@ada.de",
+    "known": [
+      "ada",
+      "ada.de"
+    ],
+    "broadcast": false,
+    "expected": [
+      "ada"
+    ],
+    "spans": [
+      "@ada"
+    ]
+  },
+  {
+    "body": "_@ada -@ada .@ada x@ada",
+    "known": [
+      "ada"
+    ],
+    "broadcast": false,
+    "expected": [],
+    "spans": []
+  },
+  {
+    "body": "@ab.",
+    "known": [
+      "ab."
+    ],
+    "broadcast": false,
+    "expected": [
+      "ab."
+    ],
+    "spans": [
+      "@ab."
+    ]
+  },
+  {
+    "body": "@ab.",
+    "known": [
+      "ada"
+    ],
+    "broadcast": false,
+    "expected": [],
+    "spans": []
+  },
+  {
+    "body": "@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.",
+    "known": [
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    ],
+    "broadcast": false,
+    "expected": [
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    ],
+    "spans": [
+      "@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    ]
+  },
+  {
+    "body": "@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "known": [
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    ],
+    "broadcast": false,
+    "expected": [],
+    "spans": []
+  },
+  {
+    "body": "@a.b-c_9.-",
+    "known": [
+      "a.b-c_9"
+    ],
+    "broadcast": false,
+    "expected": [
+      "a.b-c_9"
+    ],
+    "spans": [
+      "@a.b-c_9"
+    ]
+  },
+  {
+    "body": "@ada9",
+    "known": [
+      "ada"
+    ],
+    "broadcast": false,
+    "expected": [],
+    "spans": []
+  },
+  {
+    "body": "@ada_1",
+    "known": [
+      "ada_"
+    ],
+    "broadcast": false,
+    "expected": [],
+    "spans": []
+  },
+  {
+    "body": "@123.",
+    "known": [
+      "123"
+    ],
+    "broadcast": false,
+    "expected": [
+      "123"
+    ],
+    "spans": [
+      "@123"
+    ]
+  }
+]

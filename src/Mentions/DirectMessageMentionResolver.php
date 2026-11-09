@@ -19,7 +19,7 @@ final class DirectMessageMentionResolver
     {
         $recipientCanonical = Username::canonical($recipientUsername);
         foreach (MentionParser::tokens($body) as $token) {
-            if ($token === $recipientCanonical) {
+            if (MentionParser::resolveToken($token, static fn (string $candidate): bool => $candidate === $recipientCanonical) !== null) {
                 return [['user_id' => $recipientUserId, 'broadcast' => false]];
             }
         }
