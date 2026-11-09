@@ -252,3 +252,5 @@ acknowledged, using their read timestamps. A concurrent message inserted after
 that snapshot and its notice remain unread. This adds no client-supplied read
 cutoff and makes no claim that every acknowledged message was displayed.
 Mention timeline rows retain their existing independent read state.
+
+Sentence-ending punctuation uses [the shared mention fallback](rooms.md#sentence-punctuation-after-a-mention): the complete name, then one trailing dot, hyphen or underscore at a time, resolving only the other participant. Unrelated accounts never shadow that recipient. The original body and existing mentions[] shape are preserved.

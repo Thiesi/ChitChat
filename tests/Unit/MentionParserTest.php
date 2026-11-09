@@ -33,4 +33,19 @@ final class MentionParserTest extends TestCase
         self::assertFalse(MentionParser::containsBroadcastToken('@roommate is not a broadcast'));
         self::assertFalse(MentionParser::containsBroadcastToken('@alice only'));
     }
+    public function testSharedPunctuationCasesAgreeWithTheClientMatcher(): void
+    {
+        $cases = json_decode((string)file_get_contents(dirname(__DIR__).'/fixtures/mention-punctuation.json'),true,32,JSON_THROW_ON_ERROR);
+        foreach ($cases as $case) {
+            $resolved = [];
+            foreach (MentionParser::tokens($case['body']) as $raw) {
+                $token = MentionParser::resolveToken($raw, static fn(string $name): bool => in_array($name,$case['known'],true),$case['broadcast']);
+                if ($token !== null && !in_array($token,$resolved,true)) $resolved[] = $token;
+            }
+            self::assertSame($case['expected'],$resolved,$case['body']);
+        }
+        self::assertSame(['ada.-_', 'ada.-', 'ada.', 'ada'],MentionParser::candidates('ADA.-_'));
+        self::assertSame(['ab.'],MentionParser::candidates('ab.'));
+        self::assertTrue(MentionParser::containsBroadcastToken('@room. @here...'));
+    }
 }

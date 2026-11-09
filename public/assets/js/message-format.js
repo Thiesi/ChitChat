@@ -1,3 +1,5 @@
+import { mentionAt } from './mention-matching.js';
+
 /*
  * The small formatting language of chat messages, parsed into plain data
  * that message-content.js turns into DOM nodes. Nothing here produces HTML,
@@ -11,7 +13,6 @@
  */
 
 const URL_PATTERN = /https?:\/\/[^\s<>"'`]+/iuy;
-const MENTION_PATTERN = /@[A-Za-z0-9][A-Za-z0-9_.-]{2,31}/uy;
 const TRAILING_PUNCTUATION = /[.,;:!?'"]+$/u;
 const WORD_CHARACTER = /[\p{L}\p{N}]/u;
 
@@ -146,9 +147,7 @@ function readLink(text, index) {
 }
 
 function readMention(text, index) {
-  MENTION_PATTERN.lastIndex = index;
-  const match = MENTION_PATTERN.exec(text);
-  return match ? { text: match[0], end: index + match[0].length } : null;
+  return mentionAt(text, index);
 }
 
 function readEmphasis(text, index, marker, type) {

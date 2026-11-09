@@ -269,3 +269,23 @@ Requires a room owner, room moderator, or global room moderation role, and a hig
 ```
 
 `reason` is optional (at most 500 characters) and is kept in the audit log only. Deletion is soft and is recorded in the audit log; the author gets a `moderator_message_deleted` notification. The `rooms/message-mutations.php` metadata reports `can_moderate` for each message the viewer may delete this way.
+
+
+### Sentence punctuation after a mention
+
+Mention resolution tries the complete username first, then removes one trailing
+`.`, `-` or `_` at a time while a 3–32 character username remains. The longest
+**mentionable name in the current context** wins. For example, `@ada.` mentions
+`ada` when that is the eligible name, but mentions the eligible `ada.` account
+when both exist. An unreadable account cannot shadow a readable recipient.
+A DM considers only its other participant. Registration rules are unchanged.
+
+`@room.` and `@here...` retain room broadcast behavior. Email-like text such as
+`x@ada.de` is not a mention. Overlong names are not truncated into another
+person's valid name; a 32-character name may still be followed by punctuation.
+
+The server's existing `mentions[]` metadata remains authoritative for rendering.
+The browser applies the same longest-match rule against those resolved names,
+and keeps any discarded sentence punctuation outside the highlighted name.
+This applies when a new message is sent; existing stored metadata is preserved.
+There are no new request or response fields.

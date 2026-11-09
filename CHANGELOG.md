@@ -6,6 +6,8 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ## [Unreleased]
 
+- Recognize mentions followed by sentence punctuation using the longest mentionable username, shared by room/DM notification resolution and browser rendering. Preserve real trailing-punctuation names, room broadcasts, literal message bodies and email boundaries.
+
 - Add a Super-Administrator installation icon setting with bounded PNG/WebP normalization, server-rendered previews, maskable-safe artwork, native bootstrap metadata and cookie-free favicon fallback. Apply migration 0050; icon bytes travel in database backups. Uploads require GD with PNG/WebP support.
 
 - Serialize web account restoration with closure finalization by locking the pending closure before the account. Recheck the deadline after any lock wait; expired or finalized completions preserve the account state and role snapshot.
