@@ -36,7 +36,7 @@ async function fixture(page, { user = member, mfa = mfaOff, capability = true, o
     if (path === 'events/stream.php') return route.fulfill({ contentType: 'text/event-stream', body: 'retry: 600000\n\n' });
     if (path === 'avatars/show.php') return route.fulfill({ status: 404, body: '' });
     if (path in overrides) {
-      const value = typeof overrides[path] === 'function' ? overrides[path](request, state) : overrides[path];
+      const value = await (typeof overrides[path] === 'function' ? overrides[path](request, state) : overrides[path]);
       if (Number.isInteger(value?.status)) return route.fulfill({ status: value.status, json: value.json });
       return route.fulfill({ json: value });
     }
@@ -150,6 +150,41 @@ test('cancelling clears the setup from the page; an expired setup says to start 
   await expect(block(page).locator('.totp-key-value')).toHaveCount(0);
 });
 
+// The local five-minute timer must never swallow a confirm the server accepted.
+test('a confirm answered after the local expiry still shows success and the first recovery codes', async ({ page }) => {
+  await fixture(page, { overrides: {
+    'account/mfa/totp/begin.php': () => ({ enrollment_id: 'enr-9', secret: SECRET, otpauth_uri: URI, expires_at: new Date(Date.now() + 800).toISOString() }),
+    'account/mfa/totp/confirm.php': () => new Promise((resolve) => setTimeout(() => resolve({ mfa: mfaApp, recovery_codes: ['AAAA-BBBB'] }), 2000)),
+  } });
+  await page.goto('/account.php');
+  await block(page).getByRole('button', { name: 'Set up an authenticator app' }).click();
+  await block(page).getByLabel('Code from the app').fill('246802');
+  await block(page).getByRole('button', { name: 'Confirm' }).click();
+  await expect(page.getByRole('heading', { name: 'Save your recovery codes now' })).toBeVisible();
+  await page.getByRole('button', { name: 'I saved them' }).click();
+  await expect(block(page).getByRole('button', { name: 'Remove authenticator app' })).toBeVisible();
+  await expect(block(page).locator('.error-text')).toHaveText('');
+});
+
+test('a step-up finished after the local expiry still confirms the setup it started', async ({ page }) => {
+  let confirms = 0;
+  const state = await fixture(page, { mfa: mfaApp, overrides: {
+    'account/mfa/totp/begin.php': () => ({ enrollment_id: 'enr-7', secret: SECRET, otpauth_uri: URI, expires_at: new Date(Date.now() + 800).toISOString() }),
+    'account/mfa/totp/confirm.php': () => (++confirms === 1 ? error(403, 'step_up_required', 'Confirm it’s you.') : { mfa: mfaApp, recovery_codes: [] }),
+  } });
+  await page.goto('/account.php');
+  await block(page).getByRole('button', { name: 'Replace with a new app' }).click();
+  await block(page).getByLabel('Code from the app').fill('112233');
+  await block(page).getByRole('button', { name: 'Confirm' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Confirm with multi-factor authentication' });
+  await expect(dialog).toBeVisible();
+  await page.waitForTimeout(1200);
+  await dialog.getByLabel('Code from your authenticator app').fill('445566');
+  await dialog.getByRole('button', { name: 'Use code' }).click();
+  await expect(block(page)).toContainText('Your new authenticator app is set up.');
+  expect(state.calls.filter((call) => call.path === 'account/mfa/totp/confirm.php').at(-1).body).toEqual({ enrollment_id: 'enr-7', code: '112233' });
+});
+
 test('set up: replace confirms with the app in the step-up dialog first; remove explains the last second step', async ({ page }) => {
   let begins = 0;
   const state = await fixture(page, { mfa: mfaApp, overrides: {
@@ -202,7 +237,7 @@ test('sign-in offers the app first when the account has one, and finishes with a
   await axe(page, '#mfa-login-panel', 'sign-in with the app');
   await panel.getByLabel('Code from your authenticator app').fill('123-456');
   await panel.getByRole('button', { name: 'Use code' }).click();
-  expect(state.calls.find((call) => call.path === 'mfa/login-totp.php')?.body).toEqual({ code: '123-456' });
+  await expect.poll(() => state.calls.find((call) => call.path === 'mfa/login-totp.php')?.body).toEqual({ code: '123-456' });
 });
 
 test('sign-in without an app on the account shows no code field; a wrong code waits for a new one', async ({ page }) => {
@@ -261,7 +296,7 @@ test('restoring an account accepts a code from the app', async ({ page }) => {
   await axe(page, '#restore-mfa-panel', 'restoration with the app');
   await panel.getByLabel('Code from your authenticator app').fill('987654');
   await panel.getByRole('button', { name: 'Use code' }).click();
-  expect(state.calls.find((call) => call.path === 'mfa/login-totp.php')?.body).toEqual({ code: '987654' });
+  await expect.poll(() => state.calls.find((call) => call.path === 'mfa/login-totp.php')?.body).toEqual({ code: '987654' });
 });
 
 test('a password reset confirms with a code from the app before the password changes', async ({ page }) => {
@@ -278,7 +313,7 @@ test('a password reset confirms with a code from the app before the password cha
   await expect(panel).toContainText('a code from your authenticator app');
   await panel.getByLabel('Code from your authenticator app').fill('135 790');
   await panel.getByRole('button', { name: 'Use code' }).click();
-  expect(state.calls.find((call) => call.path === 'password-reset/mfa-totp.php')?.body).toEqual({ code: '135 790' });
+  await expect.poll(() => state.calls.find((call) => call.path === 'password-reset/mfa-totp.php')?.body).toEqual({ code: '135 790' });
   await expect(page.getByRole('region', { name: 'Save your new recovery key' })).toBeVisible();
 });
 
@@ -330,7 +365,10 @@ test('the key card: a refused turn-off is explained', async ({ page }) => {
   } });
   await page.goto('/admin-settings.php');
   const card = page.locator('#totp-settings');
-  await card.getByRole('checkbox', { name: 'Store the authenticator key inside ChitChat' }).uncheck();
+  // A refused change puts the switch back, so click rather than uncheck (which insists on the new state).
+  const toggle = card.getByRole('checkbox', { name: 'Store the authenticator key inside ChitChat' });
+  await toggle.click();
+  await expect(toggle).toBeChecked();
   await expect(card.locator('#totp-error')).toHaveText('Authenticator secrets still use this key, so it can’t be turned off yet. Move them to a server key first.');
 });
 

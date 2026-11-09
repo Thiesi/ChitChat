@@ -43,6 +43,9 @@ export function createTotpBlock(hooks) {
   let current = null;
   let enrollment = null;
   let expiryTimer = null;
+  // A confirm in flight: the local five-minute timer then waits for the server's answer.
+  let confirming = false;
+  let expiredMeanwhile = false;
 
   function render(mfa, capability) {
     current = mfa;
@@ -155,6 +158,11 @@ export function createTotpBlock(hooks) {
     window.clearTimeout(expiryTimer);
     expiryTimer = window.setTimeout(() => {
       if (!enrollment) return;
+      // Never cut off a confirm the server may already have accepted.
+      if (confirming) {
+        expiredMeanwhile = true;
+        return;
+      }
       closeSetup();
       error.textContent = 'The setup ended before it was confirmed. Start again to get a new key.';
     }, Math.max(0, enrollment.expiresAt - Date.now()));
@@ -163,10 +171,17 @@ export function createTotpBlock(hooks) {
 
   async function confirmSetup(input) {
     clear();
+    // Captured before anything is awaited: step-up or a slow answer may outlast the local timer.
+    const attempt = enrollment;
+    if (!attempt) return;
+    const code = input.value;
+    confirming = true;
     setBusy(true);
     try {
-      const response = await withPrivilegedStepUp(() => apiPost(`${BASE}/confirm.php`, { enrollment_id: enrollment.id, code: input.value }));
-      const replacing = enrollment.replacing;
+      const response = await withPrivilegedStepUp(() => apiPost(`${BASE}/confirm.php`, { enrollment_id: attempt.id, code }));
+      const replacing = attempt.replacing;
+      // An acknowledged success is always shown, with its once-only recovery codes.
+      expiredMeanwhile = false;
       closeSetup();
       hooks.onStatus(response.mfa);
       feedback.textContent = replacing ? 'Your new authenticator app is set up. The old one no longer works.' : 'Your authenticator app is set up.';
@@ -178,9 +193,16 @@ export function createTotpBlock(hooks) {
         error.textContent = 'The setup ended before it was confirmed. Start again to get a new key.';
         return;
       }
+      if (expiredMeanwhile) {
+        closeSetup();
+        error.textContent = 'The setup ended before it was confirmed. Start again to get a new key.';
+        return;
+      }
       error.textContent = describe(failure);
       input.select();
     } finally {
+      confirming = false;
+      expiredMeanwhile = false;
       setBusy(false);
     }
   }
