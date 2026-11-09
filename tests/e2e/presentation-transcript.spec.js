@@ -224,3 +224,22 @@ for (const theme of ['light', 'dark']) {
     expect(result.violations).toEqual([]);
   });
 }
+
+test('the profile card stays on screen when its content grows after opening', async ({ page }) => {
+  await fixture(page);
+  await page.setViewportSize({ width: 1280, height: 600 });
+  await openRoom(page);
+  await page.locator('#message-list article[data-message-id="4"] .message-author').click();
+  const card = page.locator('#name-menu');
+  await expect(card).toBeVisible();
+  // The moderation part arrives later and makes the card taller; it must move to stay in view.
+  await card.evaluate((node) => {
+    const filler = document.createElement('div');
+    filler.style.height = '420px';
+    node.append(filler);
+  });
+  await expect.poll(async () => {
+    const box = await card.boundingBox();
+    return box !== null && box.y >= 0 && box.y + box.height <= 600;
+  }).toBe(true);
+});
