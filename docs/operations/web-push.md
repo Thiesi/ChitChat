@@ -247,3 +247,41 @@ observes an anonymous bootstrap and clears its binding. Until the client
 observes expiry, the old binding may still match. This is not a passive-expiry
 delivery cutoff. See the API contract for reauthentication and delayed-response
 fences.
+## Opt-in DM events and overlap (#150)
+
+Apply migration 0048. The per-account `direct_message_push_enabled` preference
+defaults off; missing mention/ping choices retain their previous on defaults.
+Older update requests preserve the DM preference. New DM notices are inserted
+only for opted-in eligible recipients in the original text/file transaction,
+with IDs only. Sender names are read live for rendering, not copied into context.
+
+DM and mention sources for the same recipient/message share one durable job,
+opaque event ID and per-device delivery ledger. A nonblocking transaction-level
+event lock plus the unique recipient/event key prevents concurrent sibling
+materialization. Both semantic records remain in the timeline. The worker
+selects an eligible mention first, otherwise the eligible DM record, then freezes
+selection after the first provider acceptance. It never gives a fallback to a
+successful device. Pending work still obeys current read/permission/preference/
+quiet-hours checks; quiet suppression is terminal, never a morning replay.
+
+Selection stores an ID snapshot. Before each attempt it must still belong to
+the job's FK-constrained source mappings; a purged frozen source suppresses
+remaining deliveries instead of silently switching kinds. This deliberately
+avoids a reverse cascading job-to-notification lock dependency during retention.
+Jobs and their ID-only history retain the existing seven-day cleanup policy.
+
+`processed` counts semantic source rows; one grouped event can process two.
+The source terminal markers denote completion of that event, not two sends.
+The event ID stays stable across retries and pre-acceptance fallback; provider
+acceptance ambiguity remains best effort, not exactly once.
+
+Conversation read uses a data-modifying CTE to pass the exact changed message
+IDs into the notification update in one statement snapshot. Later concurrent
+inserts are not swept by a second broad update. See PostgreSQL 16's
+[data-modifying WITH](https://www.postgresql.org/docs/16/queries-with.html#QUERIES-WITH-MODIFYING)
+and [Read Committed rules](https://www.postgresql.org/docs/16/transaction-iso.html#XACT-READ-COMMITTED).
+The existing read API count still counts messages, not notices.
+
+The shared 30-minute attention lifetime/high urgency applies to DM events.
+No new sender, relay or service is installed. Native/browser device acceptance
+remains the separately coordinated lead/CCM gate.

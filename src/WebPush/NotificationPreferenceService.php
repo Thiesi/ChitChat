@@ -8,6 +8,7 @@ use ChitChat\Http\ApiException;
 use DateTimeZone;
 use PDO;
 use RuntimeException;
+use Throwable;
 
 final class NotificationPreferenceService
 {
@@ -19,6 +20,7 @@ final class NotificationPreferenceService
      * @return array{
      *   mentioned_push_enabled:bool,
      *   pinged_push_enabled:bool,
+     *   direct_message_push_enabled:bool,
      *   quiet_hours:?array{start:int, end:int, timezone:string}
      * }
      */
@@ -31,8 +33,8 @@ final class NotificationPreferenceService
             throw new RuntimeException('Unable to prepare notification preference lookup.');
         }
         $preferenceStatement->execute(['user_id' => $userId]);
-        // An absent row means the category is enabled; only an explicit mute row suppresses it.
-        $enabled = ['mentioned' => true, 'pinged' => true];
+        // Legacy social categories default on; ordinary DM alerts require explicit opt-in.
+        $enabled = ['mentioned' => true, 'pinged' => true, 'direct_message_received' => false];
         foreach ($preferenceStatement->fetchAll() as $preferenceRow) {
             if (is_array($preferenceRow) && array_key_exists((string) $preferenceRow['category'], $enabled)) {
                 $enabled[(string) $preferenceRow['category']] = $this->databaseBoolean($preferenceRow['push_enabled']);
@@ -66,6 +68,7 @@ SQL);
         return [
             'mentioned_push_enabled' => $enabled['mentioned'],
             'pinged_push_enabled' => $enabled['pinged'],
+            'direct_message_push_enabled' => $enabled['direct_message_received'],
             'quiet_hours' => $quietHours,
         ];
     }
@@ -80,6 +83,31 @@ SQL);
         $this->setPushEnabled($userId, 'pinged', $enabled);
     }
 
+    public function setDirectMessagePushEnabled(int $userId, bool $enabled): void
+    {
+        $this->setPushEnabled($userId, 'direct_message_received', $enabled);
+    }
+
+    /** Optional category fields preserve old clients; all writes commit together. */
+    public function update(int $userId, bool $mentioned, ?bool $pinged, ?bool $direct,
+        ?int $quietStart, ?int $quietEnd, ?string $quietTimezone): void
+    {
+        $this->pdo->beginTransaction();
+        try {
+            $this->setQuietHours($userId, $quietStart, $quietEnd, $quietTimezone);
+            $this->setMentionedPushEnabled($userId, $mentioned);
+            if ($pinged !== null) {
+                $this->setPingedPushEnabled($userId, $pinged);
+            }
+            if ($direct !== null) {
+                $this->setDirectMessagePushEnabled($userId, $direct);
+            }
+            $this->pdo->commit();
+        } catch (Throwable $exception) {
+            $this->pdo->rollBack();
+            throw $exception;
+        }
+    }
     private function setPushEnabled(int $userId, string $category, bool $enabled): void
     {
         $statement = $this->pdo->prepare(<<<'SQL'

@@ -292,3 +292,34 @@ Client check: presence of `profile.can_report` advertises person reporting;
 case items advertise their shape with `subject_kind`. Missing fields on an
 older server mean unknown. Deploy the paired person-report web UI before
 relying on its browser entry points and evidence presentation.
+
+## Subject history filter
+
+`GET /api/v1/moderation/cases.php?subject_user_id=N` selects both message and
+person cases whose stored subject is N. Existing `status` (including `all`),
+`subject_kind`, `before_id`, `limit`, list items and pagination fields keep
+their meanings. An absent subject parameter preserves the previous response.
+Nonpositive IDs return 400 `validation_error`; no matching subject returns an
+empty list and zero counts.
+
+When `subject_user_id` is supplied, the response adds:
+
+```json
+{"counts":{"open":1,"in_review":0,"resolved":0,"dismissed":1}}
+```
+
+Counts cover that subject and the optional `subject_kind`, across statuses and
+pages: they ignore `status`, `before_id` and `limit`. Both rows and counts use
+the same existing review-scope predicate. Room moderators see only cases in
+rooms they currently own or moderate, never direct-message or global person
+cases; global review access is unchanged. Counts do not reveal cases outside
+the caller's scope. Queue access is still required even for an empty result.
+
+This is a filtered queue summary, not a case-detail endpoint. It does not add
+message bodies, report explanations, reporter identities, snapshot bytes or
+other evidence to the list. Case details and snapshot-avatar access retain
+their own authorization.
+
+Client check: `counts` in a successful subject-filtered response identifies
+subject-history support; missing counts mean unknown/older support. Do not
+treat older unfiltered results as an account's history.

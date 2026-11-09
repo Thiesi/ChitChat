@@ -72,7 +72,14 @@ final class WebPushDispatcher
     {
         $now = ($this->clock)();
         $ttl = PushDeliveryPolicy::remainingSeconds($claim->expiresAt, $now);
-        $reason = $ttl <= 0 ? 'expired' : $this->eligibility->suppression($claim->notification, $now);
+        $prepared = $this->queue->prepare($claim, $now,
+            fn (PushNotification $source): ?string => $this->eligibility->suppression($source, $now));
+        if ($prepared === null) {
+            $summary['stale_results']++;
+            return;
+        }
+        $claim = $prepared['claim'];
+        $reason = $ttl <= 0 ? 'expired' : $prepared['reason'];
         if ($reason === null && ($claim->subscription === null
             || $claim->subscription['user_id'] !== $claim->notification->userId
             || !$this->queue->registrationIsCurrent($claim))) {
