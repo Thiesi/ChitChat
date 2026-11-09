@@ -296,6 +296,8 @@ test('administrators publish rules and choose whether members agree again', asyn
       'admin/settings/application-name/get.php': { application_name: { default: 'ChitChat', override: null } },
       // #211's card loads beside the policies; this test doesn't look at it.
       'admin/settings/application-icon/get.php': { application_icon: null },
+      // The authenticator key card (#204); a server without a key yet.
+      'admin/settings/totp/get.php': { totp: { mode: 'unavailable', available: false, database_key_enabled: false, database_key_switch_available: true, database_key_references: 0, warning: '' } },
       'admin/settings/registration-protection/get.php': { registration_protection: { overrides: { rate_limit_max_attempts: null, rate_limit_window_seconds: null, min_fill_seconds: null, proof_of_work_bits: null }, defaults: { rate_limit_max_attempts: 5, rate_limit_window_seconds: 3600, min_fill_seconds: 3, proof_of_work_bits: 16 }, effective: { rate_limit_max_attempts: 5, rate_limit_window_seconds: 3600, min_fill_seconds: 3, proof_of_work_bits: 16 } } },
       'admin/policies.php': { policies: {
         rules: { source: 'hosted', markdown: '## Be kind\n\nTreat people well.', url: null, version: 3, updated_at: '2026-11-08T09:00:00Z' },
