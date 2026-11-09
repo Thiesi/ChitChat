@@ -112,9 +112,13 @@ test('You: picture and name, alerts with Sounds, appearance, and Sign out last',
 test('signing out from You ends the session and says so on the sign-in screen', async ({ page }) => {
   const calls = await fixture(page);
   await page.goto('/account.php');
+  // The session has ended: the Rooms page now opens signed out.
+  await page.route('**/api/v1/session.php', (route) => route.fulfill({ json: { user: null, csrf_token: 'fixture', registration_enabled: true, sign_in_providers: [] } }));
   await page.getByRole('button', { name: 'Sign out' }).click();
   await expect(page).toHaveURL(/\/$/);
   expect(calls.some((call) => call.path === 'logout.php')).toBe(true);
+  await expect(page.locator('#auth-shell')).toBeVisible();
+  await expect(page.locator('.toast').filter({ hasText: 'You have been signed out.' })).toBeVisible();
 });
 
 for (const width of [1280, 360]) {

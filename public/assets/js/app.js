@@ -234,6 +234,8 @@ async function bootstrap() {
     setProviderSignUp(session.pending_sign_up ?? null);
     showSignInErrorFromRedirect();
     elements['auth-shell'].classList.remove('hidden');
+    // Signed out on You (or from another device): one line saying so.
+    showSignedOutMessage();
     openResetIfRequested();
     if (session.pending_sign_up) elements['register-username'].focus();
   }
