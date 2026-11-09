@@ -1,6 +1,7 @@
 # API documentation
 
 - [Authentication and sessions](authentication.md)
+- [Password recovery keys and reset](password-recovery.md)
 - [Session bootstrap and public installation metadata](session.md)
 - [Guest access](guest-access.md)
 - [Multi-factor authentication (passkeys and recovery codes)](mfa.md)
@@ -9,6 +10,7 @@
 - [Realtime events](realtime.md)
 - [Presence](presence.md)
 - [Attachments](attachments.md)
+- [Image dimensions and preview renditions](image-previews.md)
 - [Direct messages](direct-messages.md)
 - [Direct-message attachments](direct-message-attachments.md)
 - [Message editing and author deletion](message-mutations.md)

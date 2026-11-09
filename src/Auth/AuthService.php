@@ -31,12 +31,28 @@ final class AuthService
 
     public function register(
         string $usernameInput,
-        string $password,
+        #[\SensitiveParameter] string $password,
         string $ipAddress,
         ?string $birthDate = null,
         mixed $acceptedRulesVersion = null,
     ): AuthenticatedUser {
         return $this->createAccount($usernameInput, $password, $ipAddress, $birthDate, null, $acceptedRulesVersion);
+    }
+
+    /** @return array{user:AuthenticatedUser,recovery_key:string} */
+    public function registerWithRecoveryKey(
+        string $usernameInput,
+        #[\SensitiveParameter] string $password,
+        string $ipAddress,
+        ?string $birthDate = null,
+        mixed $acceptedRulesVersion = null,
+    ): array {
+        $key = null;
+        $user = $this->createAccount($usernameInput, $password, $ipAddress, $birthDate, null, $acceptedRulesVersion, $key);
+        if ($key === null) {
+            throw new RuntimeException('Registration returned no recovery key.');
+        }
+        return ['user' => $user, 'recovery_key' => $key];
     }
 
     /**
@@ -60,11 +76,12 @@ final class AuthService
     /** @param ?array{provider:string, subject:string} $identity */
     private function createAccount(
         string $usernameInput,
-        ?string $password,
+        #[\SensitiveParameter] ?string $password,
         string $ipAddress,
         ?string $birthDate,
         ?array $identity,
         mixed $acceptedRulesVersion,
+        #[\SensitiveParameter] ?string &$issuedRecoveryKey = null,
     ): AuthenticatedUser {
         (new LockdownService($this->pdo))->assertOpen();
         $username = Username::display($usernameInput);
@@ -147,6 +164,10 @@ SQL);
                 $identityStatement->execute(['user_id' => $userId] + $identity);
             }
 
+            if ($password !== null) {
+                $issuedRecoveryKey = (new RecoveryKeyService($this->pdo, $this->config))->issueInTransaction($userId)['recovery_key'];
+            }
+
             $this->audit->log(
                 actorUserId: $userId,
                 action: $isFirstUser ? 'auth.register_first_super_admin' : 'auth.register',
@@ -187,7 +208,7 @@ SQL);
         return $user;
     }
 
-    public function login(string $usernameInput, string $password, string $ipAddress): AuthenticatedUser
+    public function login(string $usernameInput, #[\SensitiveParameter] string $password, string $ipAddress): AuthenticatedUser
     {
         $user = $this->authenticatePassword($usernameInput, $password, $ipAddress);
         $this->completeLogin($user, $ipAddress);
@@ -196,7 +217,7 @@ SQL);
 
     public function authenticatePassword(
         string $usernameInput,
-        string $password,
+        #[\SensitiveParameter] string $password,
         string $ipAddress,
     ): AuthenticatedUser {
         $canonical = Username::canonical($usernameInput);
@@ -300,26 +321,37 @@ SQL);
 
     public function changePassword(
         AuthenticatedUser $actor,
-        string $currentPassword,
-        string $newPassword,
+        #[\SensitiveParameter] string $currentPassword,
+        #[\SensitiveParameter] string $newPassword,
         string $ipAddress,
     ): AuthenticatedUser {
-        $credentials = $this->users->findCredentialsById($actor->id);
-        if ($credentials === null) {
-            throw new ApiException(404, 'user_not_found', 'User not found.');
-        }
-
-        // An account created through Google or Twitch sets its first password
-        // here; the endpoint requires privileged step-up for that instead.
-        $hadPassword = $this->users->hasPassword($actor->id);
-        if ($hadPassword && !password_verify($currentPassword, $credentials['password_hash'])) {
-            throw new ApiException(403, 'invalid_current_password', 'The current password is incorrect.');
-        }
-
-        PasswordPolicy::validate($newPassword, $credentials['username']);
-
         $this->pdo->beginTransaction();
         try {
+            // Recheck both proofs under the same lock as recovery/admin reset.
+            // A request authenticated before a reset cannot overwrite it afterwards.
+            $statement = $this->pdo->prepare(<<<'SQL'
+SELECT username, password_hash, has_password::int AS has_password, session_version
+FROM users
+WHERE id = :id AND account_state = 'active' AND account_kind = 'member'
+FOR NO KEY UPDATE
+SQL);
+            if ($statement === false) {
+                throw new RuntimeException('Unable to lock password account.');
+            }
+            $statement->execute(['id' => $actor->id]);
+            $credentials = $statement->fetch();
+            if (!is_array($credentials)) {
+                throw new ApiException(404, 'user_not_found', 'User not found.');
+            }
+            if ((int) $credentials['session_version'] !== $actor->sessionVersion) {
+                throw new ApiException(401, 'authentication_required', 'Authentication is required.');
+            }
+            // Setting a provider-only account's first password keeps the endpoint's step-up requirement.
+            $hadPassword = (int) $credentials['has_password'] === 1;
+            if ($hadPassword && !password_verify($currentPassword, (string) $credentials['password_hash'])) {
+                throw new ApiException(403, 'invalid_current_password', 'The current password is incorrect.');
+            }
+            PasswordPolicy::validate($newPassword, (string) $credentials['username']);
             $this->users->updatePassword($actor->id, password_hash($newPassword, PASSWORD_DEFAULT));
             $this->audit->log(
                 actorUserId: $actor->id,
@@ -329,20 +361,19 @@ SQL);
                 metadata: [],
                 ipAddress: $ipAddress,
             );
+            // Freeze the version whose credential proof was checked, before releasing the lock.
+            $user = $this->users->findAuthenticatedById($actor->id);
+            if ($user === null) {
+                throw new RuntimeException('User could not be reloaded after password change.');
+            }
             $this->pdo->commit();
+            return $user;
         } catch (Throwable $exception) {
             if ($this->pdo->inTransaction()) {
                 $this->pdo->rollBack();
             }
             throw $exception;
         }
-
-        $user = $this->users->findAuthenticatedById($actor->id);
-        if ($user === null) {
-            throw new RuntimeException('User could not be reloaded after password change.');
-        }
-
-        return $user;
     }
 
     /** Remaining delay until both rolling login limits allow another attempt. */

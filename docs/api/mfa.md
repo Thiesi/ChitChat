@@ -104,3 +104,5 @@ For an MFA-enabled account it returns HTTP 202 without changing the account stat
 ```
 
 The client then uses the ordinary pending-MFA passkey or recovery-code endpoints. Successful completion performs the restoration transaction, rechecks the deadline and current administrative-MFA policy, records the completed login, and returns `restored: true`. A failed, cancelled or expired second-factor attempt leaves the account closure-pending.
+
+See [password recovery](password-recovery.md) for the private `user.recovery_key` status, once-only key disclosure, dedicated reset MFA flow, and password-change/admin-reset rotation policy.

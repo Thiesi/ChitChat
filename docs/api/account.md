@@ -205,3 +205,5 @@ Ordinary maintenance finalizes pending closures whose deadline has passed. Final
 - releases the original username for reuse.
 
 Shared room and direct-message history, message revisions, attachment evidence, open moderation evidence, room membership and ownership attribution, bans, and audit records remain subject to their existing retention policies. Reporter and subject references resolve to the tombstoned `Closed account #<id>` label after finalization rather than preserving the original username in moderation-specific storage. This preserves conversation integrity and pending security evidence rather than rewriting other participants' retained history. Once the deadline has passed, restoration is refused even if maintenance has not yet run.
+
+See [password recovery](password-recovery.md) for the private `user.recovery_key` status, once-only key disclosure, dedicated reset MFA flow, and password-change/admin-reset rotation policy.

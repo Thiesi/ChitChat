@@ -91,3 +91,19 @@ test('guests and people with a stored scheme never see it', async ({ page }) => 
   await expect(page.locator('#chat-shell')).toBeVisible();
   await expect(page.locator('#new-look-note')).toBeHidden();
 });
+
+test('the note and the recovery-key nudge share the chat without breaking its layout', async ({ page }) => {
+  await fixture(page, { ...member, recovery_key: { exists: false, created_at: null } });
+  for (const size of [{ width: 1280, height: 800 }, { width: 320, height: 640 }]) {
+    await page.setViewportSize(size);
+    await page.goto('/');
+    await expect(page.locator('#new-look-note')).toBeVisible();
+    await expect(page.locator('#recovery-nudge')).toBeVisible();
+    // Each strip gets its own row, so the composer stays whole and on screen.
+    const composer = await page.locator('#composer-input').boundingBox();
+    expect(composer).not.toBeNull();
+    expect(composer.height).toBeGreaterThan(20);
+    expect(composer.y + composer.height).toBeLessThanOrEqual(size.height);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(size.width);
+  }
+});

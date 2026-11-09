@@ -1,6 +1,50 @@
 import { apiPost } from './api.js';
 import { getPasskey, webAuthnSupported } from './webauthn.js';
 
+const SIGN_IN_TITLE = 'Complete sign-in';
+const SIGN_IN_TEXT = 'Use a registered passkey. A one-time recovery code is available when your authenticator is unavailable.';
+const SIGN_IN_ENDPOINTS = {
+  options: '/api/v1/mfa/login-options.php',
+  finish: '/api/v1/mfa/login-finish.php',
+  recovery: '/api/v1/mfa/login-recovery.php',
+  recoveryField: 'recovery_code',
+};
+let sharedPanel = null;
+// A password reset (#155) finishes through this same panel, but keeps the
+// completion response (it carries the new recovery key) and handles cancel.
+let continuation = null;
+
+/**
+ * Shows the second-factor step for a password reset. `onComplete` receives
+ * the completing response; `onCancel` runs instead of signing out.
+ */
+export function continueResetWithMfa({ title, text, endpoints, onComplete, onCancel, onUncertain }) {
+  if (!sharedPanel) return false;
+  continuation = { onComplete, onCancel, onUncertain, endpoints };
+  sharedPanel.title.textContent = title;
+  sharedPanel.explanation.textContent = text;
+  showMfaPanel(sharedPanel);
+  return true;
+}
+
+export function hideMfaPanel() {
+  continuation = null;
+  if (!sharedPanel) return;
+  sharedPanel.root.classList.add('hidden');
+  sharedPanel.title.textContent = SIGN_IN_TITLE;
+  sharedPanel.explanation.textContent = SIGN_IN_TEXT;
+}
+
+async function finish(response) {
+  if (continuation) {
+    const { onComplete } = continuation;
+    continuation = null;
+    await onComplete(response ?? {});
+    return;
+  }
+  window.location.reload();
+}
+
 window.addEventListener('DOMContentLoaded', () => {
   const loginForm = document.getElementById('login-form');
   const authCard = loginForm?.closest('.auth-card');
@@ -8,6 +52,7 @@ window.addEventListener('DOMContentLoaded', () => {
   if (!loginForm || !authCard || !error) return;
 
   const panel = buildPanel();
+  sharedPanel = panel;
   authCard.insertBefore(panel.root, error);
   loginForm.addEventListener('submit', (event) => submitPassword(event, panel, error), true);
 
@@ -53,9 +98,10 @@ function buildPanel() {
 
   const title = document.createElement('h2');
   title.id = 'mfa-login-title';
-  title.textContent = 'Complete sign-in';
+  title.textContent = SIGN_IN_TITLE;
+  title.tabIndex = -1;
   const explanation = document.createElement('p');
-  explanation.textContent = 'Use a registered passkey. A one-time recovery code is available when your authenticator is unavailable.';
+  explanation.textContent = SIGN_IN_TEXT;
   const passkey = document.createElement('button');
   passkey.id = 'mfa-login-passkey';
   passkey.type = 'button';
@@ -97,7 +143,7 @@ function buildPanel() {
   status.setAttribute('role', 'alert');
   root.append(title, explanation, passkey, unsupported, recovery, cancel, status);
 
-  const panel = { root, passkey, recovery, input, cancel, status };
+  const panel = { root, title, explanation, passkey, recovery, input, cancel, status };
   passkey.addEventListener('click', () => completeWithPasskey(panel));
   recovery.addEventListener('submit', (event) => completeWithRecovery(event, panel));
   cancel.addEventListener('click', () => cancelPendingLogin(panel));
@@ -108,6 +154,7 @@ function showMfaPanel(panel) {
   document.querySelector('.auth-tabs')?.classList.add('hidden');
   document.getElementById('login-form')?.classList.add('hidden');
   document.getElementById('register-form')?.classList.add('hidden');
+  document.getElementById('password-reset')?.classList.add('hidden');
   panel.root.classList.remove('hidden');
   panel.status.textContent = '';
   (panel.passkey.disabled ? panel.input : panel.passkey).focus();
@@ -117,11 +164,12 @@ async function completeWithPasskey(panel) {
   panel.status.textContent = '';
   setPanelBusy(panel, true);
   try {
-    const options = await apiPost('/api/v1/mfa/login-options.php');
+    const endpoints = continuation?.endpoints ?? SIGN_IN_ENDPOINTS;
+    const options = await apiPost(endpoints.options);
     const credential = await getPasskey(options.public_key);
-    await apiPost('/api/v1/mfa/login-finish.php', { credential });
-    window.location.reload();
+    await finish(await apiPost(endpoints.finish, { credential }));
   } catch (error) {
+    if (uncertain(error)) return;
     panel.status.textContent = message(error);
   } finally {
     setPanelBusy(panel, false);
@@ -133,12 +181,14 @@ async function completeWithRecovery(event, panel) {
   panel.status.textContent = '';
   setPanelBusy(panel, true);
   try {
-    await apiPost('/api/v1/mfa/login-recovery.php', {
-      recovery_code: panel.input.value,
+    const endpoints = continuation?.endpoints ?? SIGN_IN_ENDPOINTS;
+    const response = await apiPost(endpoints.recovery, {
+      [endpoints.recoveryField ?? 'recovery_code']: panel.input.value,
     });
     panel.recovery.reset();
-    window.location.reload();
+    await finish(response);
   } catch (error) {
+    if (uncertain(error)) return;
     panel.status.textContent = message(error);
     panel.input.select();
   } finally {
@@ -146,7 +196,26 @@ async function completeWithRecovery(event, panel) {
   }
 }
 
+// The request never answered: it may or may not have completed a reset.
+function uncertain(error) {
+  if (!continuation?.onUncertain || !(error instanceof TypeError)) return false;
+  const { onUncertain } = continuation;
+  continuation = null;
+  onUncertain();
+  return true;
+}
+
 async function cancelPendingLogin(panel) {
+  if (continuation) {
+    const { onCancel } = continuation;
+    setPanelBusy(panel, true);
+    try {
+      await onCancel();
+    } finally {
+      setPanelBusy(panel, false);
+    }
+    return;
+  }
   setPanelBusy(panel, true);
   try {
     await apiPost('/api/v1/logout.php');

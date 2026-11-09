@@ -21,6 +21,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <link rel="stylesheet" href="/assets/css/components.css">
   <link rel="stylesheet" href="/assets/css/accessibility.css">
   <link rel="stylesheet" href="/assets/css/person-reports.css">
+  <link rel="stylesheet" href="/assets/css/recovery.css">
   <link rel="stylesheet" href="/assets/css/message-mutations.css">
   <link rel="stylesheet" href="/assets/css/privacy-notifications.css">
   <link rel="stylesheet" href="/assets/css/guest.css">
@@ -69,6 +70,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
             Password
             <input id="login-password" name="password" type="password" autocomplete="current-password" minlength="12" maxlength="4096" required>
           </label>
+          <p class="forgot-password"><a id="forgot-password-link" href="/?reset=1">Forgot password?</a></p>
           <button class="primary-button" type="submit">Sign in</button>
           <div id="sign-in-providers" class="sign-in-providers hidden">
             <p class="sign-in-divider"><span>or</span></p>
@@ -121,6 +123,35 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
           <p class="guest-rules-note hidden" data-guest-rules>By looking around, you agree to the <a href="#" target="_blank" rel="noopener">community rules<span class="visually-hidden"> (opens in a new tab)</span></a>.</p>
         </div>
 
+        <section id="password-reset" class="password-reset form-stack hidden" aria-labelledby="password-reset-title">
+          <button id="password-reset-back" class="link-button password-reset-back" type="button">← Back to sign in</button>
+          <h2 id="password-reset-title">Set a new password</h2>
+          <p>Use the recovery key you saved when you created your account.</p>
+          <form id="password-reset-form" class="form-stack" autocomplete="on" novalidate>
+            <label>
+              Username
+              <input id="reset-username" name="username" type="text" autocomplete="username" minlength="3" maxlength="32" required>
+            </label>
+            <label>
+              Recovery key
+              <input id="reset-key" name="recovery_key" type="text" class="recovery-key-input" autocomplete="off" spellcheck="false" autocapitalize="characters" inputmode="text" maxlength="64" placeholder="XXXX-XXXX-XXXX-XXXX-XXXX-XXXX" required>
+            </label>
+            <div class="password-field">
+              <label for="reset-password">New password <span class="optional-label">at least 12 characters</span></label>
+              <div class="password-field-row">
+                <input id="reset-password" name="new_password" type="password" autocomplete="new-password" minlength="12" maxlength="4096" required>
+                <button id="reset-password-toggle" class="password-toggle" type="button" aria-pressed="false" aria-label="Show password">
+                  <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+              </div>
+            </div>
+            <button id="reset-submit" class="primary-button" type="submit">Set new password</button>
+          </form>
+          <p id="password-reset-status" class="error-text" role="alert"></p>
+          <p class="password-reset-help">No recovery key? Ask an administrator of <?= $appName ?> to reset it for you.</p>
+        </section>
+        <div id="recovery-key-slot" class="hidden"></div>
+
         <p id="auth-error" class="error-text" role="alert"></p>
       </section>
     </div>
@@ -130,6 +161,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <main id="chat-shell" class="chat-shell hidden">
     <p id="chat-lockdown" class="lockdown-notice lockdown-banner hidden" role="status"><strong>Maintenance lockdown.</strong> <span data-lockdown-text></span> New sign-ins are paused; you can keep chatting.</p>
     <p class="rules-banner hidden" data-rules-gate role="status"><span><strong>The community rules have changed.</strong> Agree to keep writing.</span> <button class="secondary-button" type="button" data-rules-review>Review</button></p>
+    <p id="recovery-nudge" class="recovery-nudge hidden" role="status"><span><strong>Forgot your password one day?</strong> Create a recovery key so you can reset it yourself.</span> <a class="secondary-button" href="/account.php?recovery=create">Create key</a> <button id="recovery-nudge-dismiss" class="icon-button close-button" type="button" aria-label="Dismiss">×</button></p>
     <p id="new-look-note" class="new-look-note hidden" role="status"><span><strong><?= $appName ?> has a new look.</strong> Prefer the previous one? Choose Lounge in <a href="/account.php#appearance-heading">Appearance</a>.</span> <button id="new-look-dismiss" class="icon-button close-button" type="button" aria-label="Dismiss">×</button></p>
     <div id="guest-banner" class="guest-banner hidden" role="status">
       <span><strong>You are visiting as <span data-guest-name></span>.</strong><span class="guest-banner-more"> Look around and join in where guests can write. Nothing is kept after you leave.</span></span>
@@ -370,6 +402,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <div id="toast-region" class="toast-region" aria-live="assertive"></div>
 
   <script type="module" src="/assets/js/mfa-login.js"></script>
+  <script type="module" src="/assets/js/password-reset.js"></script>
   <script type="module" src="/assets/js/app.js"></script>
   <script type="module" src="/assets/js/search-result-navigation.js"></script>
   <script type="module" src="/assets/js/auth-tabs.js"></script>

@@ -23,6 +23,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <link rel="stylesheet" href="/assets/css/accessibility.css">
   <link rel="stylesheet" href="/assets/css/account.css">
   <link rel="stylesheet" href="/assets/css/rules.css">
+  <link rel="stylesheet" href="/assets/css/recovery.css">
   <link rel="stylesheet" href="/assets/css/step-up.css" data-step-up-styles="true">
 </head>
 <body>
@@ -142,7 +143,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
     <section id="password-card" class="account-card" aria-labelledby="password-heading">
       <div>
         <p class="account-eyebrow">Sign-in</p>
-        <h2 id="password-heading">Password</h2>
+        <h2 id="password-heading">Password and recovery</h2>
       </div>
       <p id="password-intro">Changing your password signs you out everywhere else.</p>
       <form id="password-form" class="form-stack" autocomplete="on">
@@ -159,6 +160,13 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
         </div>
       </form>
       <p id="password-status" class="account-muted" role="status" aria-live="polite"></p>
+      <div id="recovery-row" class="recovery-row hidden">
+        <h3 id="recovery-row-title">Recovery key</h3>
+        <p id="recovery-row-status"></p>
+        <div class="account-action-row">
+          <button id="recovery-create" class="secondary-button hidden" type="button">Create recovery key</button>
+        </div>
+      </div>
     </section>
 
     <section id="sign-in-methods" class="account-card hidden" aria-labelledby="sign-in-methods-heading">
@@ -263,6 +271,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <script type="module" src="/assets/js/avatar-settings.js"></script>
   <script type="module" src="/assets/js/sign-in-methods.js"></script>
   <script type="module" src="/assets/js/password-settings.js"></script>
+  <script type="module" src="/assets/js/account-recovery.js"></script>
   <script type="module" src="/assets/js/typing-settings.js"></script>
   <script type="module" src="/assets/js/account-rules.js"></script>
 </body>

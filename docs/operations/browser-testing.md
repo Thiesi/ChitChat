@@ -58,11 +58,21 @@ Emulation cannot prove behavior with real browser zoom, Windows contrast themes,
 
 `presentation-report-person.spec.js` covers reporting a person: the profile card and direct-message header entries, room versus global context, the success step with ignore and block, already-reported and refused reports, message reports keeping their own wording, the phone bottom sheet, and person cases in the moderation queue with the blurred picture and person actions.
 
+`presentation-recovery.spec.js` covers recovery keys and the self-service password reset: the key shown once after registration (copy, download, the required tick), the reset form with its generic failure and rate-limit copy, the second-factor continuation and its cancel, honest wording when a cancel or the final step gets no answer, creating and replacing a key in Account, and the nudge for accounts without one.
+
 With the application server running, use:
 
 ```sh
 npm run test:e2e -- tests/e2e/presentation.spec.js --project=chromium
 ```
+
+The presentation specs mock every API call, so they need only PHP's built-in server, not PostgreSQL. Set `CHITCHAT_PHP_SERVER_PORT` and Playwright starts `php -S 127.0.0.1:<port> -t public` from the checkout for you, reuses a server already answering on that port, and stops the one it started when the run ends, even after failures:
+
+```sh
+CHITCHAT_PHP_SERVER_PORT=8091 npm run test:e2e -- tests/e2e/presentation.spec.js --project=chromium
+```
+
+Use one fixed port per checkout or worktree. Don't start `php -S` in the background by hand for these runs. On Windows several processes can bind the same port without an error, so hand-started servers pile up unnoticed. The variable is opt-in: unset, nothing changes, and CI and the real-server journeys keep using their own server at `CHITCHAT_BASE_URL`. If both are set, `CHITCHAT_BASE_URL` wins for page loads.
 
 The lounge visual refresh includes reviewed authentication and Account baselines captured by the pinned Linux Chromium CI job. Windows presentation screenshots are not replacements for these Linux baselines.
 

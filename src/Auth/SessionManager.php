@@ -60,7 +60,59 @@ final class SessionManager
             'session_version' => $user->sessionVersion,
             'authenticated_at' => time(),
         ];
-        unset($_SESSION['pending_mfa'], $_SESSION['privileged_step_up'], $_SESSION['webauthn_ceremony']);
+        unset($_SESSION['pending_mfa'], $_SESSION['privileged_step_up'], $_SESSION['webauthn_ceremony'],
+            $_SESSION['pending_password_reset'], $_SESSION['password_reset_challenge']);
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+    }
+
+    public static function beginPasswordReset(
+        AuthenticatedUser $user,
+        #[\SensitiveParameter] string $passwordHash,
+        string $keyGeneration,
+        string $ipAddress,
+        int $ttlSeconds,
+    ): void {
+        self::rotateSessionIdentifier();
+        unset($_SESSION['auth'], $_SESSION['pending_mfa'], $_SESSION['privileged_step_up'],
+            $_SESSION['webauthn_ceremony'], $_SESSION['password_reset_challenge']);
+        $_SESSION['pending_password_reset'] = [
+            'user_id' => $user->id, 'session_version' => $user->sessionVersion,
+            'password_hash' => $passwordHash, 'key_generation' => $keyGeneration,
+            'ip_address' => $ipAddress, 'expires_at' => time() + $ttlSeconds,
+        ];
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+    }
+
+    /** @return array{user_id:int,session_version:int,password_hash:string,key_generation:string,ip_address:string,expires_at:int} */
+    public static function pendingPasswordReset(): array
+    {
+        $state = $_SESSION['pending_password_reset'] ?? null;
+        if (!is_array($state)
+            || !is_int($state['user_id'] ?? null) || $state['user_id'] < 1
+            || !is_int($state['session_version'] ?? null)
+            || !is_string($state['password_hash'] ?? null)
+            || password_get_info($state['password_hash'])['algo'] === null
+            || !is_string($state['key_generation'] ?? null)
+            || preg_match('/\A[0-9a-f]{32}\z/D', $state['key_generation']) !== 1
+            || !is_string($state['ip_address'] ?? null)
+            || !is_int($state['expires_at'] ?? null) || $state['expires_at'] <= time()) {
+            self::clearPendingPasswordReset();
+            throw PasswordResetService::failed();
+        }
+        return [
+            'user_id' => $state['user_id'], 'session_version' => $state['session_version'],
+            'password_hash' => $state['password_hash'], 'key_generation' => $state['key_generation'],
+            'ip_address' => $state['ip_address'], 'expires_at' => $state['expires_at'],
+        ];
+    }
+
+    public static function clearPendingPasswordReset(): void
+    {
+        unset($_SESSION['pending_password_reset'], $_SESSION['password_reset_challenge']);
+        $ceremony = $_SESSION['webauthn_ceremony'] ?? null;
+        if (is_array($ceremony) && ($ceremony['purpose'] ?? null) === 'mfa_password_reset') {
+            unset($_SESSION['webauthn_ceremony']);
+        }
         $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
     }
 
@@ -74,7 +126,8 @@ final class SessionManager
             throw new ApiException(500, 'invalid_mfa_flow', 'Unsupported multi-factor sign-in flow.');
         }
         self::rotateSessionIdentifier();
-        unset($_SESSION['auth'], $_SESSION['privileged_step_up'], $_SESSION['webauthn_ceremony']);
+        unset($_SESSION['auth'], $_SESSION['privileged_step_up'], $_SESSION['webauthn_ceremony'],
+            $_SESSION['pending_password_reset'], $_SESSION['password_reset_challenge']);
         $_SESSION['pending_mfa'] = [
             'user_id' => $user->id,
             'session_version' => $user->sessionVersion,
@@ -301,6 +354,8 @@ final class SessionManager
         unset(
             $_SESSION['auth'],
             $_SESSION['pending_mfa'],
+            $_SESSION['pending_password_reset'],
+            $_SESSION['password_reset_challenge'],
             $_SESSION['privileged_step_up'],
             $_SESSION['webauthn_ceremony'],
         );
