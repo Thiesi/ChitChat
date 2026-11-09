@@ -1,0 +1,149 @@
+/* The signed-in shell (S2, #168; markup in src/View/AppShell.php, behaviour
+   in shell.js). One navigation landmark: a rail beside the page on wide
+   screens, CCM's bottom bar on phones (navigation-shell.md). Active item:
+   bold label and a persimmon-tint pill behind the icon. Stewarding is in
+   Dusk. Uses only existing tokens. */
+
+.app-frame {
+  --rail-width: 5.25rem;
+  --bar-height: 4rem;
+  --bar-space: 0px;
+}
+
+/* Until the session is known (and on the sign-in screen) there is no shell. */
+.skip-link {
+  position: fixed;
+  z-index: 60;
+  top: 0.5rem;
+  left: 0.5rem;
+  padding: 0.6rem 1rem;
+  border-radius: 0.75rem;
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 700;
+  box-shadow: 0 6px 20px var(--shadow-soft);
+  transform: translateY(-200%);
+}
+.skip-link:focus { transform: none; outline: 2px solid var(--signature-text); outline-offset: 2px; }
+body:not(:has(.app-frame.has-nav)) .skip-link { display: none; }
+
+.app-nav[hidden], .app-nav [hidden] { display: none !important; }
+
+.app-nav {
+  display: flex;
+  z-index: 20;
+  background: var(--surface);
+  color: var(--text-muted);
+}
+.app-nav-list { display: flex; margin: 0; padding: 0; list-style: none; }
+.app-nav-entry { display: flex; }
+
+.app-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  border-radius: 0.9rem;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.1;
+  text-align: center;
+  text-decoration: none;
+}
+.app-nav-item:hover { color: var(--text); }
+.app-nav-item:focus-visible { outline: 2px solid var(--signature-text); outline-offset: 2px; }
+
+.app-nav-icon {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 3.5rem;
+  height: 2rem;
+  border-radius: 1rem;
+}
+.app-nav-icon svg { width: 1.4rem; height: 1.4rem; }
+
+.app-nav-item[aria-current] { color: var(--text); font-weight: 700; }
+.app-nav-item[aria-current] .app-nav-icon { background: color-mix(in srgb, var(--signature) 18%, var(--surface)); }
+
+.app-nav-badge {
+  position: absolute;
+  top: -0.2rem;
+  right: 0.3rem;
+  min-width: 1.15rem;
+  height: 1.15rem;
+  padding: 0 0.3rem;
+  border-radius: 0.6rem;
+  background: var(--signature);
+  color: var(--on-signature);
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1.15rem;
+  text-align: center;
+}
+
+/* Stewarding, for staff, in Dusk. */
+.app-nav-steward .app-nav-item { color: var(--steward); }
+.app-nav-steward .app-nav-item[aria-current] .app-nav-icon { background: color-mix(in srgb, var(--steward) 18%, var(--surface)); }
+
+/* Wide screens: a rail beside the page. Extra width goes to the page. */
+@media (min-width: 48rem) {
+  .app-frame.has-nav {
+    display: grid;
+    grid-template-columns: var(--rail-width) minmax(0, 1fr);
+    align-items: start;
+  }
+  .app-frame.has-nav > main { grid-column: 2; min-width: 0; }
+  .app-nav {
+    position: sticky;
+    top: 0;
+    flex-direction: column;
+    align-items: center;
+    height: 100vh;
+    height: 100dvh;
+    padding: 1rem 0;
+    border-right: 1px solid var(--line);
+  }
+  .app-nav-list { flex-direction: column; gap: 0.75rem; }
+  .app-nav-item { width: 4.5rem; min-height: 3.5rem; }
+  .app-nav-steward { margin-top: auto; }
+}
+
+/* Phones: CCM's bottom bar, gone while typing so the composer keeps its room. */
+@media (max-width: 47.99rem) {
+  .app-frame.has-nav { --bar-space: calc(var(--bar-height) + env(safe-area-inset-bottom, 0px)); padding-bottom: var(--bar-space); }
+  .app-nav {
+    position: fixed;
+    inset: auto 0 0 0;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    border-top: 1px solid var(--line);
+  }
+  .app-nav-list { flex: 1; }
+  .app-nav-entry { flex: 1; justify-content: center; }
+  .app-nav-item { flex: 1; min-height: var(--bar-height); }
+  /* On phones Stewarding lives inside You (S2b); until then the account menu has it. */
+  .app-nav-steward { display: none; }
+
+  .app-frame.has-nav:is([data-keyboard], :has(:is(textarea, input:not([type]), input[type="text"], input[type="search"], input[type="email"], input[type="password"]):focus)) {
+    --bar-space: 0px;
+  }
+  .app-frame.has-nav:is([data-keyboard], :has(:is(textarea, input:not([type]), input[type="text"], input[type="search"], input[type="email"], input[type="password"]):focus)) > .app-nav {
+    display: none;
+  }
+
+  /* The chat page is exactly one viewport tall; the bar takes its share. */
+  .app-frame.has-nav .chat-shell { height: calc(100vh - var(--bar-space)); height: calc(100dvh - var(--bar-space)); }
+}
+
+@media (any-pointer: coarse) {
+  .app-nav-item { min-width: 3rem; min-height: 3rem; }
+}
+
+@media (forced-colors: active) {
+  .app-nav-item[aria-current] .app-nav-icon { outline: 2px solid CanvasText; }
+  .app-nav-badge { border: 1px solid CanvasText; }
+}

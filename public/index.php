@@ -30,6 +30,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <link rel="stylesheet" href="/assets/css/privacy-notifications.css">
   <link rel="stylesheet" href="/assets/css/guest.css">
   <link rel="stylesheet" href="/assets/css/rules.css">
+  <link rel="stylesheet" href="/assets/css/shell.css">
 </head>
 <body>
   <!-- One polite announcer per page, fed by events (announcer.js); the transcript itself never speaks. -->
@@ -164,6 +165,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
     <?= \ChitChat\View\PoweredBy::html($config) ?>
   </main>
 
+  <?= \ChitChat\View\AppShell::open('rooms', 'conversation', 'Skip to conversation', true) ?>
   <main id="chat-shell" class="chat-shell hidden">
     <p id="chat-lockdown" class="lockdown-notice lockdown-banner hidden" role="status"><strong>Maintenance lockdown.</strong> <span data-lockdown-text></span> New sign-ins are paused; you can keep chatting.</p>
     <p class="rules-banner hidden" data-rules-gate role="status"><span><strong>The community rules have changed.</strong> Agree to keep writing.</span> <button class="secondary-button" type="button" data-rules-review>Review</button></p>
@@ -208,7 +210,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
     </aside>
     <div id="drawer-backdrop" class="drawer-backdrop" aria-hidden="true"></div>
 
-    <section class="chat-main" aria-labelledby="room-title">
+    <section id="conversation" class="chat-main" aria-labelledby="room-title" tabindex="-1">
       <header class="room-header">
         <button id="drawer-toggle" class="header-button drawer-toggle" type="button" aria-label="Rooms and conversations" aria-expanded="false" aria-controls="sidebar">
           <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
@@ -355,6 +357,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
       <ul id="guest-presence-list" class="member-list hidden" aria-labelledby="guest-presence-heading"></ul>
     </aside>
   </main>
+  <?= \ChitChat\View\AppShell::close() ?>
 
   <dialog id="room-dialog" class="room-dialog" aria-labelledby="room-dialog-title">
     <form id="room-create-form" class="form-stack" method="dialog">
@@ -415,5 +418,6 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <script type="module" src="/assets/js/admin-link.js"></script>
   <script type="module" src="/assets/js/navigation.js"></script>
   <script type="module" src="/assets/js/room-message-mutations.js"></script>
+  <script type="module" src="/assets/js/shell.js"></script>
 </body>
 </html>

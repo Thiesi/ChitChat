@@ -27,13 +27,15 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <link rel="stylesheet" href="/assets/css/messages-attachments.css">
   <link rel="stylesheet" href="/assets/css/message-mutations.css">
   <link rel="stylesheet" href="/assets/css/rules.css">
+  <link rel="stylesheet" href="/assets/css/shell.css">
 </head>
 <body>
   <!-- One polite announcer per page, fed by events (announcer.js); the transcript itself never speaks. -->
   <div id="announcer" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></div>
   <div id="messages-loading" class="app-loading" role="status">Loading messages…</div>
 
-  <main id="messages-shell" class="messages-shell hidden">
+  <?= \ChitChat\View\AppShell::open('direct', 'messages-shell') ?>
+  <main id="messages-shell" tabindex="-1" class="messages-shell hidden">
     <header class="messages-header">
       <div>
         <p class="messages-eyebrow"><?= $appName ?></p>
@@ -42,7 +44,6 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
       </div>
       <nav class="messages-header-actions" aria-label="Message navigation">
         <a class="secondary-button" href="/search.php?scope=direct">Search messages</a>
-        <a class="secondary-button" href="/">Back to chat</a>
       </nav>
     </header>
 
@@ -126,6 +127,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
     </section>
     <?= \ChitChat\View\PoweredBy::html($config) ?>
   </main>
+  <?= \ChitChat\View\AppShell::close() ?>
 
   <?= \ChitChat\View\ReportDialog::html() ?>
 
@@ -134,5 +136,6 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <script type="module" src="/assets/js/search-result-navigation.js"></script>
   <script type="module" src="/assets/js/dm-attachments.js"></script>
   <script type="module" src="/assets/js/dm-message-mutations.js"></script>
+  <script type="module" src="/assets/js/shell.js"></script>
 </body>
 </html>
