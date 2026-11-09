@@ -160,3 +160,10 @@ duplicate alert. Reading or revoking after acceptance cannot recall an already
 queued provider message. Push remains best effort; the timeline is the source of
 truth. See [operations](../operations/web-push.md) for scheduling, retry policy,
 redacted counters and queue retention.
+
+The optional `bin/dispatch-web-push --listen` mode starts dispatch on committed
+notification inserts, with a 15-second safety sweep; ordinary timer sweeps remain
+supported. An idle listener normally reacts within a few hundred milliseconds,
+while timer mode adds up to its cadence before provider delivery. Wakes contain
+no notification data, and no push HTTP runs inside the producing request.
+Enabling the listener is an explicit operator decision, not an API side effect.

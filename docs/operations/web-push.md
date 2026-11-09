@@ -74,3 +74,56 @@ Provider acceptance followed by worker death is ambiguous. Reclaimed attempts ca
 The worker uses the locked `minishlink/web-push` encryption and VAPID signer with an explicit `php-http/curl-client` PSR-18 transport (`ext-curl` required). A project-owned request adapter corrects v11's VAPID audience for HTTPS services on non-default ports while preserving the encrypted request. No vendor files, FCM server sender or relay are added. TLS validation stays enabled; environment proxies and redirects are disabled.
 
 Automated request/signature and queue tests do not prove native background delivery. Real browser delivery plus two compatible distributor/device deliveries are a separate acceptance gate coordinated with CCM. See [the API contract](../api/web-push.md) and [ADR 0006](../architecture/0006-web-push.md).
+
+## Optional immediate listener
+
+The default remains a one-shot sweep driven by the timer. For a low-latency
+installation, an operator may instead run:
+
+```sh
+php bin/dispatch-web-push --listen
+```
+
+Migration `0046_push_dispatch_wakeup.sql` adds an INSERT trigger on the durable
+notification table. It sends only an empty `chitchat_push` wake, delivered by
+PostgreSQL **after commit**; rollback sends nothing. Privacy-policy notices do
+not wake it. Notification contents and routing secrets never enter the channel.
+No push HTTP runs inside a participant request.
+
+The worker LISTENs before its initial sweep, processes wakes immediately,
+drains due backlog in one-device iterations and still sweeps at least every
+15 seconds when idle. Normally an idle listener starts dispatch within a few
+hundred milliseconds of commit; timer-only mode adds up to its 15-second
+cadence (or up to one minute with cron). Provider/network delay, load and
+offline devices are additional; these are expectations, not delivery guarantees.
+
+Each listener iteration handles at most one new source and one device attempt.
+Connection establishment is bounded to five seconds, SQL statements to five
+seconds and lock waits to one second; the existing 3/10-second HTTP limits
+remain. Idle waits check stop requests every 500 ms. Notification draining is
+bounded, and the loop retains no history or payload arrays. Full queue-health
+scans are omitted per device (the compact summary uses `has_due_work`); cleanup
+is throttled to once a minute per persistent worker. Run a one-shot sweep for
+the full aggregate health counters.
+
+Restart the listener after changing installation/VAPID configuration; account preferences are re-read for every attempt.
+
+On transient database loss the connection is released and LISTEN is restored
+after exponential 1–30 second backoff; the startup sweep catches any missed
+wakes. Invalid credentials/schema fail for an operator to fix. Reconnection
+logs contain only a delay, never exception/provider text.
+
+Unix listener mode requires PHP's optional `pcntl` extension for graceful
+SIGTERM/SIGINT. It finishes the bounded in-flight attempt, then exits; an idle
+listener notices stop within its polling interval. Windows CLI uses console
+Ctrl+C/Ctrl+Break events. Timer mode does not require signal extensions.
+`--help` documents the modes; unknown arguments exit 2.
+
+`deploy/systemd/chitchat-web-push-listener.service` is an **optional example**,
+not an installed service. It includes restart-on-failure, SIGTERM grace and a
+memory cap. Review its user, paths, PHP extensions, stop timeout and resource
+limits before use. Installing/enabling or replacing the timer with this
+listener is a deployment host change that the maintainer decides. No migration,
+application request or Composer command installs or starts it automatically.
+Concurrent timer/listener instances share the same claims safely; the timer
+is a supported fallback.

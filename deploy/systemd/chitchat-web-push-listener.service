@@ -1,0 +1,29 @@
+[Unit]
+Description=ChitChat immediate Web Push listener
+Documentation=file:/srv/chitchat/docs/operations/web-push.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/srv/chitchat
+ExecStart=/usr/bin/php /srv/chitchat/bin/dispatch-web-push --listen
+Restart=on-failure
+RestartSec=5s
+KillSignal=SIGTERM
+TimeoutStopSec=20s
+MemoryMax=256M
+Nice=10
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target
+
+# Optional example only. The maintainer decides whether to install/start it.
+# Unix --listen requires PHP pcntl; the ordinary timer does not.

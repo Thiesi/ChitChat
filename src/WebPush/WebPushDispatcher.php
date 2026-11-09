@@ -18,6 +18,7 @@ use Throwable;
 final class WebPushDispatcher
 {
     private readonly Closure $clock;
+    private ?DateTimeImmutable $lastPruneAt = null;
     private readonly PushDeliveryQueue $queue;
     private readonly PushEligibility $eligibility;
 
@@ -26,12 +27,13 @@ final class WebPushDispatcher
         private ?PushTransport $transport = null, ?Closure $clock = null)
     {
         $this->queue = new PushDeliveryQueue($pdo);
-        $this->clock = $clock ?? fn (): DateTimeImmutable => $this->queue->now();
+        $queue = $this->queue;
+        $this->clock = $clock ?? static fn (): DateTimeImmutable => $queue->now();
         $this->eligibility = new PushEligibility($pdo);
     }
 
     /** @return array<string,int> */
-    public function dispatch(int $limit = 500): array
+    public function dispatch(int $limit = 500, bool $includeHealth = true): array
     {
         if ($limit < 1 || $limit > 5000) {
             throw new InvalidArgumentException('limit must be between 1 and 5000.');
@@ -44,7 +46,11 @@ final class WebPushDispatcher
         // Validate installation keys/transport before mutating queue state.
         $this->transport ??= new LibraryPushTransport($this->config);
         $now = ($this->clock)();
-        $summary['pruned_jobs'] = $this->queue->prune($now);
+        $summary['pruned_jobs'] = 0;
+        if ($this->lastPruneAt === null || $now->getTimestamp() - $this->lastPruneAt->getTimestamp() >= 60) {
+            $summary['pruned_jobs'] = $this->queue->prune($now);
+            $this->lastPruneAt = $now;
+        }
         $materialized = $this->queue->materialize($limit, $now,
             fn (PushNotification $notification): ?string => $this->eligibility->suppression($notification, $now));
         foreach ($materialized as $name => $count) {
@@ -57,7 +63,8 @@ final class WebPushDispatcher
             }
             $this->deliver($claim, $summary);
         }
-        return $summary + $this->queue->health(($this->clock)());
+        return $summary + ($includeHealth ? $this->queue->health(($this->clock)())
+            : ['has_due_work' => (int) $this->queue->hasDueWork(($this->clock)())]);
     }
 
     /** @param array<string,int> $summary */

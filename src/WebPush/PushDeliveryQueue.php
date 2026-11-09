@@ -229,6 +229,16 @@ DELETE FROM push_dispatch_jobs j WHERE finished_at < :cutoff
 SQL, ['cutoff' => self::time($now->modify('-' . PushDeliveryPolicy::HISTORY_DAYS . ' days'))])->rowCount();
     }
 
+    public function hasDueWork(DateTimeImmutable $now): bool
+    {
+        return $this->query(<<<'SQL'
+SELECT 1 FROM push_deliveries d JOIN push_dispatch_jobs j ON j.id = d.job_id
+WHERE d.state = 'pending' AND j.finished_at IS NULL
+ AND (j.lease_until IS NULL OR j.lease_until <= :lease_now)
+ AND (d.next_attempt_at <= :due_now OR j.expires_at <= :expiry_now)
+LIMIT 1
+SQL, ['lease_now' => self::time($now), 'due_now' => self::time($now), 'expiry_now' => self::time($now)])->fetchColumn() !== false;
+    }
     /** @return array<string,int> */
     public function health(DateTimeImmutable $now): array
     {

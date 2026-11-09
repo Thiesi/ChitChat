@@ -5,16 +5,56 @@ declare(strict_types=1);
 
 use ChitChat\Database;
 use ChitChat\WebPush\WebPushDispatcher;
+use ChitChat\WebPush\WebPushListener;
 
 if (PHP_SAPI !== 'cli') {
     fwrite(STDERR, "This command may only run from the CLI.\n");
     exit(1);
 }
 
+$arguments = array_slice($argv, 1);
+if ($arguments === ['--help']) {
+    fwrite(STDOUT, "Usage: php bin/dispatch-web-push [--listen]\n"
+        . "Default: one bounded sweep. --listen: commit-time wakes plus a 15-second safety sweep.\n"
+        . "Unix listener mode requires pcntl for graceful SIGTERM/SIGINT handling.\n");
+    exit(0);
+}
+if ($arguments !== [] && $arguments !== ['--listen']) {
+    fwrite(STDERR, "Usage: php bin/dispatch-web-push [--listen]\n");
+    exit(2);
+}
+
 /** @var ChitChat\Config $config */
 $config = require dirname(__DIR__) . '/bootstrap/app.php';
 
 try {
+    if ($arguments === ['--listen'] && $config->webPushEnabled()) {
+        $stopping = false;
+        if (function_exists('pcntl_signal') && function_exists('pcntl_async_signals')) {
+            pcntl_async_signals(true);
+            $stop = static function () use (&$stopping): void { $stopping = true; };
+            pcntl_signal(SIGTERM, $stop);
+            pcntl_signal(SIGINT, $stop);
+        } elseif (PHP_OS_FAMILY === 'Windows' && function_exists('sapi_windows_set_ctrl_handler')) {
+            $installed = sapi_windows_set_ctrl_handler(static function (int $event) use (&$stopping): void {
+                if (in_array($event, [PHP_WINDOWS_EVENT_CTRL_C, PHP_WINDOWS_EVENT_CTRL_BREAK], true)) {
+                    $stopping = true;
+                }
+            });
+            if (!$installed) {
+                throw new RuntimeException('Unable to install the listener console handler.');
+            }
+        } else {
+            throw new RuntimeException('Listener mode needs process signal support; timer mode remains available.');
+        }
+        (new WebPushListener($config))->run(
+            static function () use (&$stopping): bool { return $stopping; },
+            static function (string $reason, array $summary): void {
+                fwrite(STDOUT, json_encode(['wake' => $reason, 'summary' => $summary], JSON_THROW_ON_ERROR) . "\n");
+            },
+        );
+        exit(0);
+    }
     $result = (new WebPushDispatcher(Database::connect($config), $config))->dispatch();
     fwrite(STDOUT, json_encode($result, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT) . "\n");
     exit(0);
