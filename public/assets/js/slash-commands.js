@@ -96,6 +96,12 @@ export function attachCommandSuggestions(textarea, available) {
         event.preventDefault();
         select(index);
       });
+      // Hovering makes an option the active one, so there's only ever one highlight.
+      option.addEventListener('pointermove', () => {
+        if (activeIndex === index) return;
+        activeIndex = index;
+        markActive();
+      });
       return option;
     }));
     const rect = textarea.getBoundingClientRect();
@@ -113,6 +119,7 @@ export function attachCommandSuggestions(textarea, available) {
       child.classList.toggle('active', index === activeIndex);
     });
     textarea.setAttribute('aria-activedescendant', `${listboxId}-${activeIndex}`);
+    list.children[activeIndex]?.scrollIntoView({ block: 'nearest' });
   }
 
   function close() {
