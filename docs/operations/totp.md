@@ -90,3 +90,4 @@ dry-run command provides resumable verification of the remaining rows.
 Keep server clocks synchronized. Accepted codes are one-use across purposes,
 and accepting the next time step early may require waiting for another code.
 Factor changes invalidate cached step-up across sessions without signing out.
+Expired pending enrollment is unusable immediately. The existing maintenance command also removes up to 100 expired pending rows per invocation (dry-run supported), with account-before-factor locks and no policy-generation change. Repeat maintenance when clearing a larger backlog. This releases stale pending key references without touching active authenticators.

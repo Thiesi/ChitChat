@@ -141,6 +141,52 @@ final class TotpCeremonyTest extends DatabaseTestCase
         self::assertGreaterThan(-1, $this->lastStep());
     }
 
+    public function testPasswordWriteFailureRollsBackTheTotpFenceAndRecoveryKeySoTheSameProofCanRetry(): void
+    {
+        SessionManager::login($this->member, (new LoginSessionRepository($this->pdo))->issue($this->member));
+        SessionManager::establishPrivilegedStepUp($this->member, 'totp');
+        $recovery = (new RecoveryKeyService($this->pdo, $this->config))->generate($this->member, '127.0.0.2')['recovery_key'];
+        $_SESSION = [];
+        $this->pdo->exec('UPDATE system_settings SET registration_proof_of_work_bits = 0 WHERE id = 1');
+        $reset = new PasswordResetService($this->pdo, $this->config);
+        $nonce = $reset->challenge('127.0.0.2')['challenge']['nonce'];
+        $reset->begin('Member', $recovery, 'replacement strong secret', $nonce, '0', '127.0.0.2');
+        $before = $this->pdo->query("SELECT u.password_hash,u.session_version,recovery.generation,recovery.key_hash FROM users u
+            JOIN password_recovery_keys recovery ON recovery.user_id=u.id WHERE u.id=" . $this->member->id)->fetch();
+        $proof = $this->code();
+        $this->pdo->exec(<<<'SQL'
+CREATE FUNCTION test_totp_password_write_failure() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+    IF NEW.password_hash IS DISTINCT FROM OLD.password_hash THEN
+        RAISE EXCEPTION 'simulated_password_write_failure';
+    END IF;
+    RETURN NEW;
+END;
+$$;
+CREATE TRIGGER test_totp_password_write_failure BEFORE UPDATE OF password_hash ON users
+FOR EACH ROW EXECUTE FUNCTION test_totp_password_write_failure();
+SQL);
+        try {
+            try {
+                $reset->finishTotp($proof, '127.0.0.2');
+                self::fail('Expected password-write failure.');
+            } catch (\PDOException $error) {
+                self::assertSame('P0001', $error->getCode());
+            }
+            self::assertSame(-1, $this->lastStep());
+            self::assertSame($before, $this->pdo->query("SELECT u.password_hash,u.session_version,recovery.generation,recovery.key_hash FROM users u
+                JOIN password_recovery_keys recovery ON recovery.user_id=u.id WHERE u.id=" . $this->member->id)->fetch());
+            self::assertArrayHasKey('pending_password_reset', $_SESSION);
+            self::assertArrayNotHasKey('auth', $_SESSION);
+        } finally {
+            $this->pdo->exec('DROP TRIGGER test_totp_password_write_failure ON users');
+            $this->pdo->exec('DROP FUNCTION test_totp_password_write_failure()');
+        }
+        self::assertSame('complete', $reset->finishTotp($proof, '127.0.0.2')['status']);
+        self::assertGreaterThan(-1, $this->lastStep());
+        self::assertArrayNotHasKey('privileged_step_up', $_SESSION);
+    }
+
     private function lastStep(): int
     {
         return (int) $this->pdo->query('SELECT last_accepted_step FROM totp_credentials WHERE user_id = ' . $this->member->id)->fetchColumn();

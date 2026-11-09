@@ -8,6 +8,7 @@ use ChitChat\Account\AccountClosureService;
 use ChitChat\Auth\AuthenticatedUser;
 use ChitChat\Auth\AuthService;
 use ChitChat\Auth\MfaRepository;
+use ChitChat\Auth\MfaService;
 use ChitChat\Auth\NativeAuth\NativeAuthConfiguration as NativeConfig;
 use ChitChat\Auth\NativeAuth\NativeAuthContinuation;
 use ChitChat\Auth\NativeAuth\NativeAuthExchange;
@@ -187,6 +188,9 @@ final class NativeAuthContinuationTest extends DatabaseTestCase
         }
         $pending = $this->pending($purpose);
         self::assertSame('pending_mfa', $pending['result']['outcome']);
+        $discovery = (new MfaService($this->pdo, $this->nativeConfig))->pendingSession('198.51.100.8');
+        self::assertNotNull($discovery);
+        self::assertSame(['methods'], array_keys($discovery));
         $code = \ChitChat\Auth\Totp\TotpProtocol::codeAtStep($seed, intdiv(time(), 30));
         $result = $this->continuation->finishMfa($code, 'totp', '203.0.113.9');
         self::assertSame('completed', $result['outcome']);

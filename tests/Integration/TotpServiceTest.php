@@ -255,13 +255,95 @@ final class TotpServiceTest extends DatabaseTestCase
         $statement->execute(['user' => $this->actor->id]);
         $passkey = (int) $statement->fetchColumn();
         $codes = $this->pdo->query("SELECT encode(code_hash, 'hex') FROM mfa_recovery_codes ORDER BY id")->fetchAll();
+        SessionManager::establishPrivilegedStepUp($this->fresh(), 'totp');
         (new MfaService($this->pdo, $this->config))->removeCredential($this->fresh(), $passkey, '127.0.0.1');
+        self::assertArrayNotHasKey('privileged_step_up', $_SESSION);
         self::assertTrue((new MfaRepository($this->pdo))->hasCompleteMfa($this->actor->id));
         self::assertSame($codes, $this->pdo->query("SELECT encode(code_hash, 'hex') FROM mfa_recovery_codes ORDER BY id")->fetchAll());
         $this->pdo->exec("UPDATE users SET account_state = 'closed', closure_requested_at = NOW() - INTERVAL '2 days',
             closure_finalizes_at = NOW() - INTERVAL '1 day', closed_at = NOW() WHERE id = " . $this->actor->id);
         self::assertSame(0, (int) $this->pdo->query('SELECT COUNT(*) FROM totp_credentials')->fetchColumn());
         self::assertSame(0, (int) $this->pdo->query('SELECT COUNT(*) FROM mfa_recovery_codes')->fetchColumn());
+    }
+
+    public function testAddingTheFirstPasskeyToTotpPreservesRecoveryCodes(): void
+    {
+        $this->enroll();
+        $config = $this->configWith(['webauthnRpId' => 'chat.test', 'webauthnOrigin' => 'https://chat.test']);
+        $mfa = new MfaService($this->pdo, $config);
+        SessionManager::establishPrivilegedStepUp($this->fresh(), 'totp');
+        $codes = $this->pdo->query("SELECT encode(code_hash, 'hex') FROM mfa_recovery_codes ORDER BY id")->fetchAll();
+        $key = \ChitChat\Tests\Support\TestPasskey::create();
+        $options = $mfa->beginRegistration($this->fresh(), '127.0.0.1');
+        $result = $mfa->finishRegistration($this->fresh(), $key->registration($options), 'A passkey', '127.0.0.1');
+        self::assertSame([], $result['recovery_codes']);
+        self::assertTrue($result['mfa']['totp']['enabled']);
+        self::assertCount(1, $result['mfa']['credentials']);
+        self::assertSame($codes, $this->pdo->query("SELECT encode(code_hash, 'hex') FROM mfa_recovery_codes ORDER BY id")->fetchAll());
+    }
+
+    public function testAdminPolicyAcceptsConfirmedTotpButRejectsPendingAndRecoveryOnlyAccounts(): void
+    {
+        $begin = $this->totp->begin($this->fresh(), '127.0.0.1');
+        $update = fn () => (new \ChitChat\Admin\SystemSettingsService($this->pdo))->update(
+            $this->fresh(), true, true, 0, 0, 0, 30, 24, 168, 30, '127.0.0.1');
+        $this->assertApi('administrators_missing_mfa', $update);
+        $this->totp->confirm($this->fresh(), $begin['enrollment_id'], $this->code('pending'), '127.0.0.1');
+        self::assertTrue($update()['mfa_required_for_admin_roles']);
+        $member = (new AuthService($this->pdo, $this->config))->register('Member', 'another strong secret', '127.0.0.2');
+        (new MfaRepository($this->pdo))->replaceRecoveryCodeHashes($member->id, [hash('sha256', 'ABCDEF0123456789ABCDEF01')]);
+        (new MfaRepository($this->pdo))->markEnabled($member->id);
+        $grant = $this->pdo->prepare("INSERT INTO user_roles(user_id, role) VALUES (:id, 'admin')");
+        try {
+            $grant->execute(['id' => $member->id]);
+            self::fail('Recovery codes alone cannot satisfy primary-factor policy.');
+        } catch (\PDOException $error) {
+            self::assertSame('23514', $error->getCode());
+        }
+        \ChitChat\Tests\Support\TestTotp::seed($this->pdo, $this->config, $member->id);
+        $grant->execute(['id' => $member->id]);
+        self::assertTrue((new MfaRepository($this->pdo))->hasCompleteMfa($member->id));
+    }
+
+    public function testDatabaseToServerMigrationAndExplicitRetirementRequireZeroReferences(): void
+    {
+        $database = $this->configWith(['totpKeyRing' => TotpKeyRing::fromJson('{}', '')]);
+        (new TotpKeySettings($this->pdo, $database))->update($this->actor, true, '127.0.0.1');
+        (new TotpService($this->pdo, $database))->begin($this->actor, '127.0.0.1');
+        $rotation = new \ChitChat\Auth\Totp\TotpKeyRotation($this->pdo, $this->config);
+        try {
+            $rotation->retireDatabaseKey(true);
+            self::fail('Referenced DB key was retired.');
+        } catch (\RuntimeException $error) {
+            self::assertStringContainsString('still protects', $error->getMessage());
+        }
+        self::assertSame(1, $rotation->batch(1)['credentials']);
+        self::assertSame(1, $rotation->batch(1, 0, true)['rewrapped']);
+        self::assertTrue($rotation->retireDatabaseKey());
+        self::assertSame(1, (int) $this->pdo->query('SELECT COUNT(*) FROM totp_database_key')->fetchColumn());
+        self::assertTrue($rotation->retireDatabaseKey(true));
+        self::assertSame(0, (int) $this->pdo->query('SELECT COUNT(*) FROM totp_database_key')->fetchColumn());
+        self::assertSame('fixture', (new TotpRepository($this->pdo))->credential($this->actor->id, 'pending')->keyId);
+    }
+
+    public function testExpiryAndBoundedMaintenanceRemoveOnlyPendingMaterialWithoutChangingPolicy(): void
+    {
+        $this->enroll();
+        SessionManager::establishPrivilegedStepUp($this->fresh(), 'totp');
+        $begin = $this->totp->begin($this->fresh(), '127.0.0.1');
+        $this->pdo->exec("UPDATE totp_credentials SET created_at = clock_timestamp() - INTERVAL '10 minutes',
+            expires_at = clock_timestamp() - INTERVAL '1 minute' WHERE phase = 'pending'");
+        $generation = $this->fresh()->mfaPolicyGeneration;
+        $active = $this->seed('active');
+        $this->assertApi('totp_enrollment_expired', fn () => $this->totp->confirm($this->fresh(), $begin['enrollment_id'], $this->code('pending'), '127.0.0.1'));
+        $repository = new TotpRepository($this->pdo);
+        self::assertSame(1, $repository->cleanupExpired(true));
+        self::assertNotNull($repository->credential($this->actor->id, 'pending'));
+        self::assertSame(1, $repository->cleanupExpired(false));
+        self::assertNull($repository->credential($this->actor->id, 'pending'));
+        self::assertSame(0, $repository->cleanupExpired(false));
+        self::assertSame($active, $this->seed('active'));
+        self::assertSame($generation, $this->fresh()->mfaPolicyGeneration);
     }
 
     private function lockAccount(): void
