@@ -17,6 +17,22 @@ use Throwable;
 
 final class ReportService
 {
+    private const REVIEW_SCOPE_SQL = <<<'SQL'
+(
+    CAST(:review_all AS integer) = 1
+    OR (
+        (c.message_kind = 'room' OR c.subject_kind = 'user')
+        AND EXISTS (
+            SELECT 1
+            FROM room_members membership
+            WHERE membership.room_id = c.room_id
+              AND membership.user_id = :actor_id
+              AND membership.role IN ('owner', 'moderator')
+        )
+    )
+)
+SQL;
+
     private const CATEGORIES = [
         'spam',
         'harassment',
@@ -120,6 +136,7 @@ final class ReportService
      * @return array{
      *   cases:list<array<string, mixed>>,
      *   has_more:bool,
+     *   counts?:array<string,int>,
      *   next_before_id:?int
      * }
      */
@@ -129,8 +146,12 @@ final class ReportService
         ?int $beforeId = null,
         int $limit = 50,
         ?string $subjectKind = null,
+        ?int $subjectUserId = null,
     ): array {
         $this->requireQueueAccess($actor);
+        if ($subjectUserId !== null && $subjectUserId < 1) {
+            throw new ApiException(400, 'validation_error', 'subject_user_id must be positive.');
+        }
         if (!in_array($status, ['open', 'in_review', 'resolved', 'dismissed', 'all'], true)) {
             throw new ApiException(400, 'validation_error', 'status is invalid.');
         }
@@ -172,26 +193,14 @@ JOIN users subject ON subject.id = c.subject_user_id
 LEFT JOIN moderation_user_snapshots person ON person.case_id = c.id
 LEFT JOIN users assigned ON assigned.id = c.assigned_user_id
 LEFT JOIN rooms room ON room.id = c.room_id
-WHERE (
-    CAST(:review_all AS integer) = 1
-    OR (
-        (c.message_kind = 'room' OR c.subject_kind = 'user')
-        AND EXISTS (
-            SELECT 1
-            FROM room_members membership
-            WHERE membership.room_id = c.room_id
-              AND membership.user_id = :actor_id
-              AND membership.role IN ('owner', 'moderator')
-        )
-    )
-)
+WHERE %SCOPE%
 SQL;
+        $scope = $this->caseScope($actor, $subjectKind, $subjectUserId);
+        $sql = str_replace('%SCOPE%', $scope['sql'], $sql);
         if ($status !== 'all') {
             $sql .= "\n  AND c.status = :status";
         }
-        if ($subjectKind !== null) {
-            $sql .= "\n  AND c.subject_kind = :subject_kind";
-        }
+
         if ($beforeId !== null) {
             $sql .= "\n  AND c.id < :before_id";
         }
@@ -205,6 +214,9 @@ SQL;
         }
         if ($subjectKind !== null) {
             $statement->bindValue(':subject_kind', $subjectKind);
+        }
+        if ($subjectUserId !== null) {
+            $statement->bindValue(':subject_user_id', $subjectUserId, PDO::PARAM_INT);
         }
         if ($beforeId !== null) {
             $statement->bindValue(':before_id', $beforeId, PDO::PARAM_INT);
@@ -224,13 +236,44 @@ SQL;
             }
         }
 
-        return [
+        $result = [
             'cases' => $cases,
             'has_more' => $hasMore,
             'next_before_id' => $hasMore && $cases !== []
                 ? (int) $cases[array_key_last($cases)]['id']
                 : null,
         ];
+        if ($subjectUserId !== null) {
+            $counts = ['open' => 0, 'in_review' => 0, 'resolved' => 0, 'dismissed' => 0];
+            $counter = $this->prepare('SELECT c.status, COUNT(*) AS total FROM moderation_cases c '
+                . 'JOIN users subject ON subject.id = c.subject_user_id WHERE ' . $scope['sql'] . ' GROUP BY c.status',
+                'subject case counts');
+            $counter->execute($scope['parameters']);
+            foreach ($counter->fetchAll() as $row) {
+                $counts[(string) $row['status']] = (int) $row['total'];
+            }
+            $result['counts'] = $counts;
+        }
+        return $result;
+    }
+
+    /**
+     * One predicate is shared by case rows and subject counts.
+     * @return array{sql:string,parameters:array<string,int|string>}
+     */
+    private function caseScope(AuthenticatedUser $actor, ?string $subjectKind, ?int $subjectUserId): array
+    {
+        $sql = self::REVIEW_SCOPE_SQL;
+        $parameters = ['review_all' => $this->canReviewAll($actor) ? 1 : 0, 'actor_id' => $actor->id];
+        if ($subjectKind !== null) {
+            $sql .= ' AND c.subject_kind = :subject_kind';
+            $parameters['subject_kind'] = $subjectKind;
+        }
+        if ($subjectUserId !== null) {
+            $sql .= ' AND c.subject_user_id = :subject_user_id';
+            $parameters['subject_user_id'] = $subjectUserId;
+        }
+        return ['sql' => $sql, 'parameters' => $parameters];
     }
 
     /** @return array<string, mixed> */

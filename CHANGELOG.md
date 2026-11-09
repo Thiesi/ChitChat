@@ -6,6 +6,8 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ## [Unreleased]
 
+- Add staff user filters/counts and sign-in cursors, account-filtered audit entries, and scoped subject-case history for Stewarding.
+
 - Opt-in incoming DM alerts (default off) create content-free timeline notices for new text/files, share one delivery event with overlapping mentions, and follow exact conversation read acknowledgments. Apply migration 0048. Existing preference requests preserve the new choice; clients can detect its boolean field.
 
 - Web Push registrations gain validated P-256/auth keys, public-destination DNS checks and pinned HTTPS delivery, exact private-provider exceptions, atomic device limits/rotation, session-bound logout cleanup, additive event IDs/kinds/bindings, and browser stale-push/offline-logout protection. Apply migration 0047. Existing clients may ignore additive response/payload fields; explicit resolver-file overrides are available for Windows hosts.
