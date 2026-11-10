@@ -39,7 +39,7 @@ Endpoint::run($config, static function () use ($config): ApiResult {
             'restored' => false,
             'restoration_pending' => true,
             'mfa_required' => true,
-            'methods' => ['passkey', 'recovery_code'],
+            'methods' => (new MfaService($pdo, $config))->pendingMethods($pending),
         ], 202);
     }
 

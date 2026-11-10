@@ -95,6 +95,9 @@ final readonly class NativeAuthContinuation
             $outcome = $mfa->completeNativeWithAssertion($pendingUser, $proof, $ip, $complete);
         } elseif ($method === 'recovery_code' && is_string($proof)) {
             $outcome = $mfa->completeNativeWithRecoveryCode($pendingUser, $proof, $ip, $complete);
+        } elseif ($method === 'totp' && is_string($proof)) {
+            $outcome = (new \ChitChat\Auth\Totp\TotpService($this->pdo, $this->config))
+                ->complete($pendingUser, $proof, 'mfa_login', $ip, $complete);
         } else throw new ApiException(400, 'validation_error', 'Invalid native second-factor proof.');
         $result = $outcome->install($this->config, $ip, new OidcService($this->pdo, $this->config));
         if ($method === 'recovery_code') $result['recovery_codes_remaining'] = (new MfaRepository($this->pdo))->recoveryCodesRemaining($pendingUser->id);

@@ -3,9 +3,12 @@ import { applicationName } from './application-name.js';
 import { withPrivilegedStepUp } from './step-up.js';
 import { createPasskey, webAuthnSupported } from './webauthn.js';
 import { formatDateTime } from './datetime.js';
+import { createTotpBlock } from './totp-account.js';
 
 let card = null;
 let status = null;
+// Whether the server offers authenticator apps (capabilities.totp, #204).
+let totpOffered = false;
 
 void initialize();
 
@@ -19,6 +22,7 @@ async function initialize() {
     const session = await apiGet('/api/v1/session.php');
     setCsrfToken(session.csrf_token ?? '');
     if (!session.user) return;
+    totpOffered = session.capabilities?.totp === true;
     const response = await apiGet('/api/v1/account/mfa/status.php');
     render(response.mfa);
   } catch (error) {
@@ -45,6 +49,7 @@ function buildCard() {
     </form>
     <p id="mfa-browser" class="account-muted"></p>
     <div id="mfa-credentials" class="account-credential-list"></div>
+    <div id="mfa-totp-slot"></div>
     <div class="account-action-row">
       <button id="mfa-recovery-regenerate" class="secondary-button" type="button">Generate new recovery codes</button>
       <span id="mfa-recovery-status" class="account-muted"></span>
@@ -70,6 +75,15 @@ function buildCard() {
     disable: root.querySelector('#mfa-disable'),
     error: root.querySelector('#mfa-error'),
   };
+  // The authenticator app (#204) is its own block; it reports back new status and first recovery codes.
+  result.totp = createTotpBlock({
+    onStatus: (mfa) => {
+      if (mfa) render(mfa);
+      else void apiGet('/api/v1/account/mfa/status.php').then((response) => render(response.mfa)).catch(() => {});
+    },
+    onRecoveryCodes: (codes) => showRecoveryCodes(codes),
+  });
+  root.querySelector('#mfa-totp-slot').replaceWith(result.totp.root);
   result.addForm.addEventListener('submit', addPasskey);
   result.regenerate.addEventListener('click', regenerateRecoveryCodes);
   result.disable.addEventListener('click', disableMfa);
@@ -80,9 +94,12 @@ function render(nextStatus) {
   status = nextStatus;
   const enabled = Boolean(status?.enabled);
   const available = Boolean(status?.available);
+  const totpEnabled = Boolean(status?.totp?.enabled);
   card.summary.textContent = enabled
-    ? 'Multi-factor authentication is enabled. Your password is followed by a registered passkey or one-time recovery code.'
-    : 'Add a passkey to require a second factor after your password.';
+    ? `Multi-factor authentication is enabled. Your password is followed by ${totpEnabled ? 'a passkey, a code from your authenticator app' : 'a registered passkey'} or a one-time recovery code.`
+    : totpOffered
+      ? 'Add a passkey or an authenticator app to require a second step after your password.'
+      : 'Add a passkey to require a second factor after your password.';
   card.policy.textContent = status?.required_by_admin_policy
     ? 'This account has an administrative role and installation policy requires MFA.'
     : '';
@@ -99,6 +116,7 @@ function render(nextStatus) {
     ? `${status.recovery_codes_remaining} unused recovery codes remain.`
     : '';
   renderCredentials(Array.isArray(status?.credentials) ? status.credentials : []);
+  card.totp.render(status, totpOffered);
 }
 
 function renderCredentials(credentials) {
@@ -133,7 +151,8 @@ function renderCredentials(credentials) {
     remove.type = 'button';
     remove.className = 'danger-button';
     remove.textContent = 'Remove';
-    remove.disabled = credentials.length <= 1;
+    // With an authenticator app as well, the last passkey can go (#204).
+    remove.disabled = credentials.length <= 1 && !status?.totp?.enabled;
     remove.title = remove.disabled ? 'Disable MFA to remove the final passkey.' : '';
     remove.addEventListener('click', () => removePasskey(credential));
     actions.append(rename, remove);

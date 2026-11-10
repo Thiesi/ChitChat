@@ -1,0 +1,56 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+require dirname(__DIR__) . '/vendor/autoload.php';
+
+try {
+    $command = $argv[1] ?? '';
+    $options = array_slice($argv, 2);
+    if ($command === 'generate') {
+        $id = 'totp_' . gmdate('Ymd_His');
+        if (count($options) > 1 || ($options !== [] && !str_starts_with($options[0], '--key-id='))) {
+            throw new InvalidArgumentException('Usage: php bin/totp-key generate [--key-id=NAME]');
+        }
+        if ($options !== []) $id = substr($options[0], 9);
+        if (preg_match('/\A[A-Za-z0-9_-]{1,32}\z/D', $id) !== 1) throw new InvalidArgumentException('Use an ASCII key ID of 1-32 letters, digits, underscores or hyphens.');
+        // Print only: no bootstrap, environment load, database connection or file write.
+        $json = json_encode((object) [$id => base64_encode(random_bytes(32))], JSON_THROW_ON_ERROR);
+        fwrite(STDOUT, "TOTP_ENCRYPTION_KEYS='" . $json . "'\nTOTP_ACTIVE_KEY_ID=" . $id . "\n");
+        exit(0);
+    }
+    if (!in_array($command, ['references', 'rotate', 'retire-database-key'], true)) {
+        throw new InvalidArgumentException('Usage: php bin/totp-key generate|references|rotate|retire-database-key [--apply] [--limit=1..100] [--after-user=ID]');
+    }
+    $apply = false;
+    $limit = 100;
+    $after = 0;
+    $seen = [];
+    foreach ($options as $option) {
+        $name = explode('=', $option, 2)[0];
+        if (isset($seen[$name])) throw new InvalidArgumentException('Duplicate option.');
+        $seen[$name] = true;
+        if ($option === '--apply' && $command !== 'references') $apply = true;
+        elseif ($command === 'rotate' && preg_match('/\A--limit=([1-9][0-9]{0,2})\z/D', $option, $match) === 1) $limit = (int) $match[1];
+        elseif ($command === 'rotate' && preg_match('/\A--after-user=([0-9]{1,15})\z/D', $option, $match) === 1) $after = (int) $match[1];
+        else throw new InvalidArgumentException('Unsupported option.');
+    }
+    if ($limit > 100) throw new InvalidArgumentException('Use a limit of 1-100 accounts.');
+    /** @var ChitChat\Config $config */
+    $config = require dirname(__DIR__) . '/bootstrap/app.php';
+    $rotation = new ChitChat\Auth\Totp\TotpKeyRotation(ChitChat\Database::connect($config), $config);
+    $result = match ($command) {
+        'references' => ['references' => $rotation->references()],
+        'rotate' => $rotation->batch($limit, $after, $apply),
+        'retire-database-key' => ['dry_run' => !$apply, 'eligible' => $rotation->retireDatabaseKey($apply)],
+    };
+    fwrite(STDOUT, json_encode($result, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT) . "\n");
+    exit(0);
+} catch (Throwable $error) {
+    // Never dump a trace or an encrypted-row/SQL detail into operator logs.
+    $message = $error instanceof InvalidArgumentException ? $error->getMessage()
+        : 'Authenticator key operation failed. Check key configuration and remaining references; no secrets are displayed.';
+    fwrite(STDERR, $message . "\n");
+    exit(1);
+}

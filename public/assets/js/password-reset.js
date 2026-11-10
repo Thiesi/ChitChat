@@ -124,8 +124,11 @@ async function submit(event) {
       setMode('mfa');
       continueResetWithMfa({
         title: 'One more step',
-        text: 'Confirm it’s you with your passkey or a recovery code. Your password changes after this.',
+        text: result.methods.includes('totp')
+          ? 'Confirm it’s you with a code from your authenticator app, your passkey or a recovery code. Your password changes after this.'
+          : 'Confirm it’s you with your passkey or a recovery code. Your password changes after this.',
         endpoints: RESET_MFA_ENDPOINTS,
+        methods: result.methods,
         onComplete: (response) => finished(issuedKey(response)),
         onCancel: async () => {
           let acknowledged = true;

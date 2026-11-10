@@ -22,6 +22,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <link rel="stylesheet" href="/assets/css/admin.css">
   <link rel="stylesheet" href="/assets/css/rules.css">
   <link rel="stylesheet" href="/assets/css/admin-icon.css">
+  <link rel="stylesheet" href="/assets/css/totp.css">
   <link rel="stylesheet" href="/assets/css/shell.css">
 </head>
 <body>
@@ -242,6 +243,23 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
       </div>
     </section>
 
+    <!-- Super-Administrators only (#204): admin-totp.js shows this when the server answers. -->
+    <section id="totp-settings" class="admin-card settings-wide totp-settings" aria-labelledby="totp-heading" hidden>
+      <h2 id="totp-heading">Authenticator apps</h2>
+      <p>Members can use a six-digit code from an authenticator app as a second step when they sign in. Their app secrets are stored encrypted; this setting is about where the key that unlocks them is kept.</p>
+      <p id="totp-mode" class="totp-mode"></p>
+      <div id="totp-database" class="totp-database">
+        <div class="totp-warning">
+          <p><strong>Before you store the key inside ChitChat</strong></p>
+          <p id="totp-warning"></p>
+        </div>
+        <label class="totp-switch"><input id="totp-database-key" type="checkbox"> Store the authenticator key inside ChitChat</label>
+        <p id="totp-switch-note" class="admin-muted"></p>
+      </div>
+      <p id="totp-status" class="admin-muted" role="status" aria-live="polite"></p>
+      <p id="totp-error" class="error-text" role="alert"></p>
+    </section>
+
     <section class="admin-card settings-wide policies-card" aria-labelledby="policies-heading">
       <h2 id="policies-heading">Rules and privacy</h2>
       <p class="admin-muted">
@@ -354,6 +372,7 @@ foreach ($policyForms as $kind => $form):
   <script type="module" src="/assets/js/admin-settings.js"></script>
   <script type="module" src="/assets/js/admin-policies.js"></script>
   <script type="module" src="/assets/js/admin-icon.js"></script>
+  <script type="module" src="/assets/js/admin-totp.js"></script>
   <script type="module" src="/assets/js/shell.js"></script>
 </body>
 </html>

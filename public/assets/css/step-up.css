@@ -48,3 +48,13 @@
 .step-up-providers:empty {
   display: none;
 }
+
+/* Authenticator codes in the confirmation dialog (#204); this sheet loads on
+   every page that can show the dialog, so the form's rules live here too. */
+.step-up-dialog .totp-entry[hidden] { display: none; }
+.step-up-dialog .totp-code-input {
+  max-width: 12rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 1.2rem;
+  letter-spacing: 0.18em;
+}

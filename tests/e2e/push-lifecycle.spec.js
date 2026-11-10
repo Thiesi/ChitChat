@@ -58,7 +58,8 @@ async function fixture(page, { pending = false, initialUser = user, allowIdentit
     }
     if (url.pathname === '/api/v1/logout.php') return route.abort('internetdisconnected');
     if (['/api/v1/login.php', '/api/v1/password-reset.php', '/api/v1/oidc/register.php',
-      '/api/v1/mfa/login-recovery.php', '/api/v1/password-reset/mfa-finish.php'].includes(url.pathname)) {
+      '/api/v1/mfa/login-recovery.php', '/api/v1/password-reset/mfa-finish.php',
+      '/api/v1/mfa/login-totp.php', '/api/v1/password-reset/mfa-totp.php'].includes(url.pathname)) {
       identityRequests.push(url.pathname);
       if (!allowIdentity) return route.abort('internetdisconnected');
       if (pendingIdentity) await blockedIdentity;
@@ -176,7 +177,8 @@ for (const path of ['/rules.php', '/privacy.php']) test('passive expiry preserve
   expect(f.requests).toHaveLength(1);
 });
 
-for (const path of ['/api/v1/login.php', '/api/v1/mfa/login-recovery.php', '/api/v1/password-reset/mfa-finish.php']) test('same owner reauthenticates across a new session version via ' + path, async ({ page }) => {
+for (const path of ['/api/v1/login.php', '/api/v1/mfa/login-recovery.php', '/api/v1/password-reset/mfa-finish.php',
+  '/api/v1/mfa/login-totp.php', '/api/v1/password-reset/mfa-totp.php']) test('same owner reauthenticates across a new session version via ' + path, async ({ page }) => {
   const f = await fixture(page, { allowIdentity: true });
   await expect.poll(() => page.evaluate(async () => (await ChitChatPushState.read())?.binding)).toBe('binding-for-seven');
   f.setUser(null);

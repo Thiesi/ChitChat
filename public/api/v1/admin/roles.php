@@ -44,12 +44,12 @@ Endpoint::run($config, static function () use ($config): ApiResult {
     if (
         $protectedRole
         && $mfa->policyRequiresMfaForAdminRoles()
-        && (!$mfa->isEnabled($targetUserId) || $mfa->credentialCount($targetUserId) < 1)
+        && !$mfa->hasCompleteMfa($targetUserId)
     ) {
         throw new ApiException(
             409,
             'mfa_required_for_role',
-            'The target account must enable MFA with at least one passkey before receiving an administrative role.',
+            'The target account must enable MFA with a passkey or an authenticator app before receiving an administrative role.',
         );
     }
 
@@ -65,7 +65,7 @@ Endpoint::run($config, static function () use ($config): ApiResult {
             throw new ApiException(
                 409,
                 'mfa_required_for_role',
-                'The target account must enable MFA with at least one passkey before receiving an administrative role.',
+                'The target account must enable MFA with a passkey or an authenticator app before receiving an administrative role.',
             );
         }
         throw $exception;

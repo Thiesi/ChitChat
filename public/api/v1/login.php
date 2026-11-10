@@ -31,7 +31,7 @@ Endpoint::run($config, static function () use ($config): ApiResult {
         return new ApiResult([
             'csrf_token' => SessionManager::csrfToken(),
             'mfa_required' => true,
-            'methods' => ['passkey', 'recovery_code'],
+            'methods' => (new MfaService($pdo, $config))->pendingMethods($user),
         ], 202);
     }
 

@@ -178,8 +178,7 @@ JOIN user_roles ur ON ur.user_id = u.id
 WHERE u.account_state = 'active'
   AND ur.role IN ('super_admin', 'admin', 'chat_admin', 'global_moderator')
   AND NOT (
-      u.mfa_enabled_at IS NOT NULL
-      AND EXISTS (SELECT 1 FROM webauthn_credentials wc WHERE wc.user_id = u.id)
+      has_complete_mfa(u.id)
       AND EXISTS (SELECT 1 FROM mfa_recovery_codes rc WHERE rc.user_id = u.id AND rc.used_at IS NULL)
   )
 SQL);
@@ -191,7 +190,7 @@ SQL);
             throw new ApiException(
                 409,
                 'administrators_missing_mfa',
-                sprintf('%d active administrative account(s) must enroll a passkey and retain a recovery code before this policy can be enabled.', $missing),
+                sprintf('%d active administrative account(s) must enroll a passkey or authenticator and retain a recovery code before this policy can be enabled.', $missing),
             );
         }
     }

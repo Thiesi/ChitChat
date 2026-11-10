@@ -6,6 +6,14 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ## [Unreleased]
 
+No changes since `v3.7.0`.
+
+## [3.7.0] - 2026-11-10
+
+Signed-in sessions with remote sign-out, optional authenticator-app MFA, and the first major part of the Lantern redesign (conversation view, navigation frame, Activity and You), additive to API v1, with two forward-only database migrations (`0051` and `0052`). **Everyone must sign in again once after upgrading**; announce it first. See the [`v3.7.0` release notes](docs/releases/v3.7.0.md).
+
+- Add optional authenticator (TOTP) MFA for enrollment, login, restoration, privileged confirmation and password reset. Apply migration 0052. Keys can come from a recommended server ring or an explicitly warned Super-Administrator DB-key setting; server keys win. The print-only generator, bounded dry-run rotation and key escrow/restore instructions are in docs/operations/totp.md. Factor changes invalidate cached privileged confirmations across sessions without signing those sessions out.
+
 - Re-check an SSE login after fetching its event batch; discard the batch and send the connection's existing session_revoked reason when revocation committed during the fetch/check gap. Other signed-in devices keep their streams (#233).
 
 **Upgrade action: everyone will need to sign in again once after this update.**
@@ -16,6 +24,14 @@ the [ready-to-post announcement and upgrade notes](docs/operations/session-regis
 - Add an enforced registry of server-issued logins with private list/revocation, atomic push cleanup, and per-connection SSE revocation. A revoked holder receives HTTP 401 session_revoked; password/version invalidation retains its existing behavior. Add capability signed_in_sessions, safe client hints, 50-login cap and seven-day retired-record cleanup.
 
 - Recognize mentions followed by sentence punctuation using the longest mentionable username, shared by room/DM notification resolution and browser rendering. Preserve real trailing-punctuation names, room broadcasts, literal message bodies and email boundaries.
+
+- Redesign the conversation view (S1): Lantern bubbles with day headings and one image box; the transcript is a single Tab stop with arrow/Home/End navigation and an actions menu; quiet live announcements (bursts summarized, edits and reactions silent) and the full date in each message's accessible label.
+
+- Give every signed-in page one navigation frame (S2a/S2b): a rail on tablets and desktops and a bottom bar on phones, Stewarding for staff; the notification bell becomes Activity and the account menu becomes You, with Sign out at most two steps away.
+
+- Add the shared Lantern interface icons and a `--warning` amber token; warnings use a triangle and errors an octagon.
+
+- Keep primary and danger button labels readable on hover and press in every scheme and theme, with a dedicated `--signature-hover` token.
 
 ## [3.6.0] - 2026-11-09
 

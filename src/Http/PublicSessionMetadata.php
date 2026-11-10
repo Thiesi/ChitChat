@@ -25,12 +25,14 @@ final readonly class PublicSessionMetadata
         ];
     }
 
-    /** @return array{schema_version:int, native_passkey_origins:bool, native_auth_handoff:bool,signed_in_sessions:bool} */
+    /** @return array{schema_version:int, native_passkey_origins:bool, native_auth_handoff:bool,signed_in_sessions:bool,totp:bool} */
     public function capabilities(): array
     {
         return [
             'schema_version' => 1,
             'signed_in_sessions' => true,
+            'totp' => \ChitChat\View\TotpPresentation::integrated()
+                && (new \ChitChat\Auth\Totp\TotpKeyStore($this->pdo, $this->config))->available(),
             // Native passkeys require explicit installation trust; handoff is separate.
             'native_passkey_origins' => $this->config->webauthnEnabled() && $this->config->nativeAndroidApps !== [],
             'native_auth_handoff' => \ChitChat\Auth\NativeAuth\NativeAuthConfiguration::available($this->config),

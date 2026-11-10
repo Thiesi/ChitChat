@@ -1,5 +1,7 @@
 # Multi-factor authentication API
 
+Authenticator codes are an additional MFA method. See [TOTP](totp.md) for enrollment, proof routes, normalization, replay limits, key modes and policy-generation invalidation. Existing mfa.available retains its WebAuthn meaning; private status also exposes usable_methods and totp metadata.
+
 All endpoints return the standard ChitChat JSON success or error envelope and require the session CSRF header on `POST` requests.
 
 WebAuthn binary values are encoded as unpadded base64url strings. The browser must pass the option objects to the WebAuthn API after converting challenge, user ID, and credential IDs to byte arrays, then serialize response buffers back to base64url.

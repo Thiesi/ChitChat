@@ -132,6 +132,7 @@ SQL),
                 'retained_events' => (int) $realtime['retained_events'],
             ],
             'security' => [
+                'totp' => (new \ChitChat\Auth\Totp\TotpKeyHealth($this->pdo, $this->config))->status(),
                 'failed_logins_24h' => (int) $security['failed_logins_24h'],
                 'rate_limit_rows' => (int) $security['rate_limit_rows'],
                 'rate_limit_policies' => (new RegistrationProtectionService($this->pdo, $this->config))->rateLimits()->toArray(),

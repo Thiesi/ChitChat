@@ -1,0 +1,65 @@
+/* Authenticator apps (#204): the setup panel on You, code entry on the
+   sign-in pages and the step-up dialog, and the Super-Administrator key card.
+   Colours come from tokens; the QR code's fixed black on white is in
+   tokens.css because it must scan in every scheme. */
+
+.mfa-totp[hidden] { display: none; }
+.mfa-totp { display: grid; gap: 0.6rem; margin-top: 0.5rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+.mfa-totp h3 { margin: 0; font-size: 1rem; }
+.mfa-totp h3:focus { outline: none; }
+.mfa-totp h3:focus-visible { outline: 2px solid var(--signature-text); outline-offset: 3px; }
+.mfa-totp p { margin: 0; }
+
+.totp-setup { display: grid; gap: 1rem; }
+.totp-setup[hidden] { display: none; }
+.totp-qr-figure { display: grid; justify-items: start; gap: 0.4rem; margin: 0; }
+/* Large enough for phone cameras; the SVG carries its own quiet zone. */
+.totp-qr { display: block; width: 13rem; max-width: 100%; height: auto; border-radius: 0.6rem; }
+.totp-key { display: grid; justify-items: start; gap: 0.45rem; }
+.totp-key-label { margin: 0; }
+.totp-key-value {
+  max-width: 100%;
+  padding: 0.45rem 0.7rem;
+  border-radius: 0.55rem;
+  background: var(--raised);
+  color: var(--text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 1.05rem;
+  letter-spacing: 0.04em;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+.totp-confirm { display: grid; gap: 0.5rem; max-width: 22rem; }
+.totp-confirm label { font-weight: 600; }
+
+.totp-entry[hidden] { display: none; }
+.totp-code-input {
+  max-width: 12rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 1.2rem;
+  letter-spacing: 0.18em;
+}
+
+/* Super-Administrator key card. */
+.totp-settings[hidden] { display: none; }
+.totp-settings { grid-column: 1 / -1; display: grid; align-content: start; gap: 0.75rem; }
+.totp-settings > * { max-width: 46rem; }
+.totp-settings p { margin: 0; }
+.totp-mode { font-weight: 600; }
+.totp-database { display: grid; gap: 0.6rem; }
+.totp-warning {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--warning);
+  border-radius: 0.8rem;
+  background: color-mix(in srgb, var(--warning) 9%, var(--surface));
+  color: var(--text);
+}
+.totp-switch { display: flex; align-items: center; gap: 0.55rem; min-height: 2.75rem; font-weight: 600; }
+.totp-switch input { width: 1.15rem; height: 1.15rem; margin: 0; }
+
+@media (forced-colors: active) {
+  .totp-warning { border-color: CanvasText; }
+  .totp-qr { forced-color-adjust: none; }
+}
