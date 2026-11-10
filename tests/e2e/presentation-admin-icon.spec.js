@@ -354,6 +354,39 @@ test('a failed load says so and can be retried', async ({ page }) => {
 const presets = (page) => card(page).getByRole('group', { name: 'Choose a ready-made icon' });
 const backgroundGroup = (page) => card(page).getByRole('group', { name: 'Background' });
 
+test('presets: a rename during a slow save still ends with the current letter and notice', async ({ page }) => {
+  let icon = defaultWithCatalog;
+  let release;
+  const held = new Promise((resolve) => { release = resolve; });
+  await fixture(page, {
+    icon,
+    getReply: () => ({ json: { application_icon: icon } }),
+    onUpdate: async (route, entry) => {
+      if (entry.dryRun) return route.fulfill({ json: { preview: { favicon: DATA_PNG, apple_touch: DATA_PNG, maskable: DATA_PNG }, maskable_scale: 1, background: '#F06A3B' } });
+      // The save answers late, describing the icon as it was before the rename.
+      await held;
+      return route.fulfill({ json: { application_icon: presetIcon('initial') } });
+    },
+  });
+  await open(page);
+  await presets(page).getByRole('radio', { name: 'Your initial' }).check();
+  await expect(card(page).locator('#icon-preview-label')).toHaveText('Preview: Your initial, not saved yet');
+  await card(page).getByRole('button', { name: 'Use this icon' }).click();
+  await expect(card(page).locator('#icon-status')).toHaveText('Saving…');
+
+  // Meanwhile the installation is renamed to a name the initial can't draw.
+  nameNotice = NOTICE;
+  icon = presetIcon('initial', { notice: NOTICE });
+  await page.locator('#app-name').fill('Ωmega');
+  await page.locator('#application-name-form').getByRole('button', { name: /Save/ }).click();
+  await expect(page.locator('#toast-region')).toContainText('Application name saved');
+  release();
+  // The late save paints the older state; the queued refresh then brings the notice.
+  await expect(card(page).locator('#icon-notice')).toHaveText(NOTICE);
+  await expect(card(page).locator('#icon-meta')).toContainText('Your initial (“C”)');
+  nameNotice = null;
+});
+
 test('presets: the catalog is offered in order, the saved one chosen, with the upload as the alternative', async ({ page }) => {
   const unavailable = defaultWithCatalog.presets.map((item) => (item.id === 'initial' ? { ...item, available: false, thumbnail_url: null } : item));
   await fixture(page, { icon: { ...defaultWithCatalog, presets: unavailable } });

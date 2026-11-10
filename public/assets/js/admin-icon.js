@@ -26,6 +26,9 @@ let chosenPreset = null; // a ready-made icon picked but not saved yet
 let previewSequence = 0;
 let previewTimer = 0;
 let busy = false;
+// A rename arrived while a save was in flight; refresh once it settles, so the
+// older save response can't leave a stale letter, catalog or notice on screen.
+let refreshAfterSave = false;
 
 window.addEventListener('DOMContentLoaded', () => {
   const card = $('icon-settings');
@@ -63,7 +66,8 @@ window.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('chitchat:application-name-saved', (event) => {
     const name = event.detail?.override || event.detail?.default;
     if (typeof name === 'string' && name) for (const node of card.querySelectorAll('[data-icon-name]')) node.textContent = name;
-    if (!busy) void load();
+    if (busy) refreshAfterSave = true;
+    else void load();
   });
   load();
 });
@@ -489,6 +493,10 @@ async function mutate(operation, success) {
   } finally {
     busy = false;
     syncControls();
+    if (refreshAfterSave) {
+      refreshAfterSave = false;
+      void load();
+    }
   }
 }
 
