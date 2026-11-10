@@ -32,11 +32,38 @@ const customIcon = {
   renditions: Object.fromEntries(Object.keys(defaultIcon.renditions).map((name) => [name, rendition(variant(name), 32)])),
 };
 
+// Ready-made icons (#226): the server's catalog in its order; unavailable entries are never offered.
+const PRESET_IDS = [['lantern', 'ChitChat icon'], ['lantern-paper', 'Lantern paper'], ['lounge', 'Lounge'], ['dusk', 'Dusk'],
+  ['ember', 'Ember'], ['rose', 'Rosé'], ['voices', 'Two voices'], ['spark', 'Spark'], ['initial', 'Your initial']];
+const catalog = PRESET_IDS.map(([id, label]) => ({
+  id, label, suggested_background: '#111E22', available: true, thumbnail_url: id === 'lantern' ? '/assets/app-icons/icon-192.png' : DATA_PNG,
+  ...(id === 'initial' ? { initial: 'C' } : {}),
+}));
+const NOTICE = 'The new name\'s first letter can\'t be drawn in the icon; choose another icon.';
+let nameNotice = null;
+function presetIcon(id, extra = {}) {
+  return { ...customIcon, source: 'preset', preset_id: id, initial: id === 'initial' ? 'C' : null, notice: null,
+    source_width: null, source_height: null, maskable_scale: 1, background: '#111E22', presets: catalog, ...extra };
+}
+const defaultWithCatalog = { ...defaultIcon, source: 'default', preset_id: null, initial: null, notice: null, presets: catalog };
+
 async function fixture(page, { icon = defaultIcon, updates = [], onUpdate = null, getReply = null } = {}) {
   await page.route('**/installation-icon.php*', (route) => route.fulfill({ contentType: 'image/png', body: PNG }));
   await page.route('**/api/v1/**', async (route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname.replace('/api/v1/', '');
+    if (path === 'admin/settings/application-icon/update.php' && (request.headers()['content-type'] ?? '').includes('application/json')) {
+      const json = request.postDataJSON() ?? {};
+      const entry = { preset: json.preset, dryRun: json.dry_run === true, hasBackground: 'background' in json };
+      updates.push(entry);
+      if (onUpdate) return onUpdate(route, entry);
+      if (entry.dryRun) return route.fulfill({ json: { preview: { favicon: DATA_PNG, apple_touch: DATA_PNG, maskable: DATA_PNG }, maskable_scale: 1, background: '#111E22' } });
+      return route.fulfill({ json: { application_icon: entry.preset === 'lantern' ? { ...defaultIcon, presets: catalog } : presetIcon(entry.preset) } });
+    }
+    if (path === 'admin/settings/application-name/update.php') {
+      const name = request.postDataJSON()?.application_name ?? null;
+      return route.fulfill({ json: { application_name: { default: 'ChitChat', override: name, icon_notice: nameNotice } } });
+    }
     if (path === 'admin/settings/application-icon/update.php') {
       const body = request.postDataBuffer()?.toString('latin1') ?? '';
       const field = (name) => new RegExp(`name="${name}"\\r\\n\\r\\n([^\\r]*)`).exec(body)?.[1] ?? null;
@@ -321,3 +348,119 @@ test('a failed load says so and can be retried', async ({ page }) => {
   await expect(card(page).locator('#icon-body')).toBeVisible();
   await expect(failed).toBeHidden();
 });
+
+// ---- Ready-made icons (#226) ----
+
+const presets = (page) => card(page).getByRole('group', { name: 'Choose a ready-made icon' });
+const backgroundGroup = (page) => card(page).getByRole('group', { name: 'Background' });
+
+test('presets: the catalog is offered in order, the saved one chosen, with the upload as the alternative', async ({ page }) => {
+  const unavailable = defaultWithCatalog.presets.map((item) => (item.id === 'initial' ? { ...item, available: false, thumbnail_url: null } : item));
+  await fixture(page, { icon: { ...defaultWithCatalog, presets: unavailable } });
+  await open(page);
+  const names = await presets(page).getByRole('radio').evaluateAll((radios) => radios.map((radio) => radio.closest('label').textContent.trim()));
+  expect(names).toEqual(['ChitChat icon', 'Lantern paper', 'Lounge', 'Dusk', 'Ember', 'Rosé', 'Two voices', 'Spark']);
+  await expect(presets(page).getByRole('radio', { name: 'ChitChat icon' })).toBeChecked();
+  await expect(presets(page).getByRole('radio', { name: 'Your initial' })).toHaveCount(0);
+  await expect(card(page).getByLabel('Or upload your own image')).toBeAttached();
+  // "ChitChat icon" is a choice here, so the separate reset isn't needed.
+  await expect(card(page).getByRole('button', { name: 'Use the ChitChat icon' })).toBeHidden();
+});
+
+test('presets: choosing one previews it without saving and hides the background; "Use this icon" saves exactly that one', async ({ page }) => {
+  const updates = await fixture(page, { icon: defaultWithCatalog });
+  await open(page);
+  await expect(backgroundGroup(page)).toBeVisible();
+  await presets(page).getByRole('radio', { name: 'Lounge' }).check();
+  await expect(card(page).locator('#icon-preview-label')).toHaveText('Preview: Lounge, not saved yet');
+  await expect(previewImages(page, 'maskable').first()).toHaveAttribute('src', /^data:image\/png/);
+  await expect(backgroundGroup(page)).toBeHidden();
+  await expect(card(page).locator('#icon-status')).toContainText('Nothing is saved until you choose “Use this icon”.');
+  expect(updates).toEqual([{ preset: 'lounge', dryRun: true, hasBackground: false }]);
+
+  await card(page).getByRole('button', { name: 'Use this icon' }).click();
+  await expect(card(page).locator('#icon-status')).toHaveText('Icon saved. Pages and new installs use it the next time they load.');
+  expect(updates[1]).toEqual({ preset: 'lounge', dryRun: false, hasBackground: false });
+  await expect(presets(page).getByRole('radio', { name: 'Lounge' })).toBeChecked();
+  await expect(card(page).locator('#icon-meta')).toContainText('Lounge, chosen');
+  // A saved preset keeps its own background.
+  await expect(backgroundGroup(page)).toBeHidden();
+  await expect(card(page).getByRole('button', { name: 'Use this icon' })).toBeHidden();
+});
+
+test('presets: "Keep the current one" returns to the saved choice; a file instead clears the preset', async ({ page }) => {
+  await fixture(page, { icon: defaultWithCatalog });
+  await open(page);
+  await presets(page).getByRole('radio', { name: 'Spark' }).check();
+  await expect(card(page).locator('#icon-preview-label')).toHaveText('Preview: Spark, not saved yet');
+  await card(page).getByRole('button', { name: 'Keep the current one' }).click();
+  await expect(presets(page).getByRole('radio', { name: 'ChitChat icon' })).toBeChecked();
+  await expect(presets(page).getByRole('radio', { name: 'ChitChat icon' })).toBeFocused();
+  await expect(card(page).locator('#icon-preview-label')).toHaveText('Current icon: the ChitChat icon');
+
+  await presets(page).getByRole('radio', { name: 'Dusk' }).check();
+  await card(page).getByLabel('Or upload your own image').setInputFiles({ name: 'logo.png', mimeType: 'image/png', buffer: PNG });
+  await expect(presets(page).getByRole('radio', { checked: true })).toHaveCount(0);
+  await expect(backgroundGroup(page)).toBeVisible();
+  await expect(card(page).locator('#icon-preview-label')).toHaveText('Preview: not saved yet');
+});
+
+test('presets: choosing the ChitChat icon from a saved preset goes back to the default', async ({ page }) => {
+  const updates = await fixture(page, { icon: presetIcon('ember') });
+  await open(page);
+  await expect(presets(page).getByRole('radio', { name: 'Ember' })).toBeChecked();
+  await presets(page).getByRole('radio', { name: 'ChitChat icon' }).check();
+  await expect(card(page).locator('#icon-preview-label')).toHaveText('Preview: ChitChat icon, not saved yet');
+  await card(page).getByRole('button', { name: 'Use this icon' }).click();
+  await expect(card(page).locator('#icon-status')).toHaveText('Back to the ChitChat icon.');
+  expect(updates.at(-1)).toEqual({ preset: 'lantern', dryRun: false, hasBackground: false });
+  await expect(backgroundGroup(page)).toBeVisible();
+});
+
+test('presets: Your initial shows its letter; a rename it can\'t follow says so, and the card refreshes', async ({ page }) => {
+  let icon = presetIcon('initial');
+  await fixture(page, { icon, getReply: () => ({ json: { application_icon: icon } }) });
+  await open(page);
+  await expect(card(page).locator('#icon-meta')).toContainText('Your initial (“C”)');
+  await expect(card(page).locator('#icon-notice')).toBeHidden();
+
+  // The rename succeeds; the icon keeps its letter and the card says why.
+  nameNotice = NOTICE;
+  icon = presetIcon('initial', { notice: NOTICE });
+  await page.locator('#app-name').fill('Ωmega');
+  await page.locator('#application-name-form').getByRole('button', { name: /Save/ }).click();
+  await expect(card(page).locator('#icon-notice')).toHaveText(NOTICE);
+  await expect(card(page).locator('[data-icon-name]').first()).toHaveText('Ωmega');
+  nameNotice = null;
+});
+
+test('presets: an icon that can\'t be used right now is explained', async ({ page }) => {
+  await fixture(page, {
+    icon: defaultWithCatalog,
+    onUpdate: (route) => route.fulfill({ status: 409, json: { error: { code: 'preset_unavailable', message: 'Unavailable.' } } }),
+  });
+  await open(page);
+  await presets(page).getByRole('radio', { name: 'Two voices' }).check();
+  await expect(card(page).locator('#icon-error')).toHaveText('That icon can’t be used right now. Choose another one.');
+});
+
+for (const theme of ['light', 'dark']) {
+  test(`${theme}: the preset picker passes axe at 1280 and 360px, saved, previewing and with a notice`, async ({ page }) => {
+    await page.addInitScript((choice) => localStorage.setItem('chitchat-theme', choice), theme);
+    await fixture(page, { icon: presetIcon('initial', { notice: NOTICE }) });
+    for (const width of [1280, 360]) {
+      await page.setViewportSize({ width, height: 900 });
+      await open(page);
+      await page.mouse.move(0, 0);
+      const saved = await new AxeBuilder({ page }).include('#icon-settings').withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
+      expect(saved.violations, `${width} saved`).toEqual([]);
+      await presets(page).getByRole('radio', { name: 'Lantern paper' }).focus();
+      await page.keyboard.press('ArrowRight');
+      await expect(card(page).locator('#icon-preview-label')).toHaveText(/^Preview: /);
+      await page.mouse.move(0, 0);
+      const previewing = await new AxeBuilder({ page }).include('#icon-settings').withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
+      expect(previewing.violations, `${width} previewing`).toEqual([]);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    }
+  });
+}

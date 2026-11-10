@@ -4,6 +4,9 @@
 // again for real, and only while the preview on screen matches the current
 // file and background. A background change on an existing icon previews live
 // from the transparent 512 at the server's maskable_scale, then saves on request.
+// Ready-made icons (#226) come from the server's catalog: choosing one previews
+// it the same way (a JSON dry run), and "Use this icon" saves exactly that one.
+// They keep their own background, so the background choice steps aside.
 import { ApiError, apiGet, apiUpload, apiPost } from './api.js';
 import { formatDateTime } from './datetime.js';
 import { withPrivilegedStepUp } from './step-up.js';
@@ -16,7 +19,8 @@ const INVALID_COLOUR = 'Enter a colour as #RRGGBB, for example #14111C.';
 
 const $ = (id) => document.getElementById(id);
 let icon = null; // the saved description
-let preview = null; // {sequence, background}: the dry run on screen, if it's current
+let preview = null; // {sequence, background} or {sequence, preset}: the dry run on screen, if it's current
+let chosenPreset = null; // a ready-made icon picked but not saved yet
 // Bumped by anything that makes a pending or shown preview stale: a new file, a
 // new background, Choose another, or any save or reset. Late answers are ignored.
 let previewSequence = 0;
@@ -32,7 +36,12 @@ window.addEventListener('DOMContentLoaded', () => {
   $('icon-safe-ring').addEventListener('change', (event) => {
     $('icon-previews').classList.toggle('show-ring', event.target.checked);
   });
-  $('icon-file').addEventListener('change', () => requestPreview(0));
+  $('icon-file').addEventListener('change', () => {
+    // An upload replaces any ready-made choice on screen.
+    chosenPreset = null;
+    for (const radio of card.querySelectorAll('input[name="icon-preset"]')) radio.checked = false;
+    requestPreview(0);
+  });
   for (const radio of card.querySelectorAll('input[name="icon-background"]')) radio.addEventListener('change', backgroundChanged);
   $('icon-color').addEventListener('input', () => {
     $('icon-hex').value = $('icon-color').value.toUpperCase();
@@ -50,6 +59,12 @@ window.addEventListener('DOMContentLoaded', () => {
   $('icon-save-background').addEventListener('click', saveBackground);
   $('icon-reset').addEventListener('click', reset);
   $('icon-retry').addEventListener('click', () => load());
+  // A renamed installation may change Your initial, or say why it couldn't.
+  window.addEventListener('chitchat:application-name-saved', (event) => {
+    const name = event.detail?.override || event.detail?.default;
+    if (typeof name === 'string' && name) for (const node of card.querySelectorAll('[data-icon-name]')) node.textContent = name;
+    if (!busy) void load();
+  });
   load();
 });
 
@@ -120,8 +135,13 @@ function uploadsAllowed() {
 /** Shows the saved icon, as every device gets it now, and forgets any preview. */
 function showSaved() {
   invalidatePreview();
+  chosenPreset = null;
   $('icon-file').value = '';
   const custom = icon.state === 'custom';
+  const presets = catalog();
+  renderPresets(presets);
+  $('icon-notice').textContent = icon.notice ?? '';
+  $('icon-notice').classList.toggle('hidden', !icon.notice);
   const renditions = icon.renditions ?? {};
   clearLive();
   setImages({
@@ -132,11 +152,14 @@ function showSaved() {
   setBackgroundControls(icon.background);
 
   const meta = [];
-  if (custom) {
+  const by = icon.updated_by?.username ? ` by ${icon.updated_by.username}` : '';
+  if (icon.source === 'preset') {
+    const label = presets.find((item) => item.id === icon.preset_id)?.label ?? 'A ready-made icon';
+    meta.push(icon.preset_id === 'initial' && icon.initial ? `${label} (“${icon.initial}”)` : label);
+    if (icon.updated_at) meta.push(`chosen ${formatDateTime(icon.updated_at)}${by}`);
+  } else if (custom) {
     if (icon.source_width && icon.source_height) meta.push(`From a ${icon.source_width} × ${icon.source_height} image`);
-    if (icon.updated_at) {
-      meta.push(`uploaded ${formatDateTime(icon.updated_at)}${icon.updated_by?.username ? ` by ${icon.updated_by.username}` : ''}`);
-    }
+    if (icon.updated_at) meta.push(`uploaded ${formatDateTime(icon.updated_at)}${by}`);
   }
   $('icon-meta').textContent = meta.length ? `${meta.join(', ')}.` : '';
 
@@ -151,10 +174,96 @@ function showSaved() {
       ? 'Uploads aren’t available on this server: its PHP upload limits don’t allow them.'
       : 'Uploads aren’t available on this server right now. Ask the server operator.';
 
+  $('icon-file-title').textContent = presets.length ? 'Or upload your own image' : 'Upload an image';
   $('icon-discard').classList.add('hidden');
   $('icon-save-background').classList.add('hidden');
-  $('icon-reset').classList.toggle('hidden', !custom);
+  // With a catalog, "ChitChat icon" is one of the choices; the separate reset is for older servers.
+  $('icon-reset').classList.toggle('hidden', !custom || presets.length > 0);
   syncControls();
+}
+
+/** The server's ready-made icons that can be offered (unavailable ones never are). */
+function catalog() {
+  return Array.isArray(icon?.presets) ? icon.presets.filter((item) => item && item.available && typeof item.id === 'string') : [];
+}
+
+/** The saved choice, as a catalog id: the ChitChat icon, a preset, or none for an upload. */
+function savedPresetId() {
+  if (icon?.source === 'preset') return icon.preset_id;
+  return icon?.state === 'custom' ? null : 'lantern';
+}
+
+function renderPresets(presets) {
+  const grid = $('icon-preset-grid');
+  grid.replaceChildren();
+  $('icon-presets').classList.toggle('hidden', presets.length === 0);
+  const saved = savedPresetId();
+  for (const item of presets) {
+    const label = document.createElement('label');
+    label.className = 'icon-preset';
+    const input = document.createElement('input');
+    input.type = 'radio';
+    input.name = 'icon-preset';
+    input.value = item.id;
+    input.checked = item.id === saved;
+    input.addEventListener('change', () => choosePreset(item));
+    const tile = document.createElement('span');
+    tile.className = 'icon-preset-tile';
+    tile.setAttribute('aria-hidden', 'true');
+    if (typeof item.thumbnail_url === 'string' && item.thumbnail_url) {
+      const image = document.createElement('img');
+      image.src = item.thumbnail_url;
+      image.alt = '';
+      image.width = 48;
+      image.height = 48;
+      tile.append(image);
+    }
+    const name = document.createElement('span');
+    name.className = 'icon-preset-name';
+    name.textContent = item.label;
+    label.append(input, tile, name);
+    grid.append(label);
+  }
+}
+
+function choosePreset(item) {
+  $('icon-error').textContent = '';
+  $('icon-file').value = '';
+  if (item.id === savedPresetId()) {
+    showSaved();
+    $('icon-status').textContent = '';
+    return;
+  }
+  invalidatePreview();
+  chosenPreset = item;
+  clearLive();
+  $('icon-reset').classList.add('hidden');
+  $('icon-save-background').classList.add('hidden');
+  $('icon-discard').classList.remove('hidden');
+  $('icon-discard').textContent = 'Keep the current one';
+  const sequence = previewSequence;
+  $('icon-status').textContent = 'Preparing a preview…';
+  syncControls();
+  void runPresetPreview(sequence, item);
+}
+
+async function runPresetPreview(sequence, item) {
+  try {
+    const response = await withPrivilegedStepUp(() => apiPost(`${BASE}update.php`, { preset: item.id, dry_run: true }));
+    if (sequence !== previewSequence) return;
+    preview = { sequence, preset: item.id };
+    setImages(response.preview ?? {});
+    $('icon-previews').dataset.mode = 'preview';
+    $('icon-preview-label').textContent = `Preview: ${item.label}, not saved yet`;
+    $('icon-meta').textContent = '';
+    $('icon-status').textContent = 'Here’s how it will look. Nothing is saved until you choose “Use this icon”.';
+  } catch (error) {
+    if (sequence !== previewSequence) return;
+    $('icon-status').textContent = '';
+    showError(error);
+  } finally {
+    if (sequence === previewSequence) syncControls();
+  }
 }
 
 function megabytes(bytes) {
@@ -174,11 +283,15 @@ function invalidatePreview() {
 function syncControls() {
   const file = $('icon-file').files?.length > 0;
   const current = preview !== null && preview.sequence === previewSequence;
-  $('icon-use').classList.toggle('hidden', !file);
+  $('icon-use').classList.toggle('hidden', !file && chosenPreset === null);
   $('icon-use').disabled = busy || !current;
   $('icon-save-background').disabled = busy || chosenBackground() === null;
-  document.querySelector('.icon-background').disabled = busy || (icon?.state !== 'custom' && !uploadsAllowed());
+  // A ready-made icon keeps its own background: no choice while one is picked or saved (unless a new file is).
+  const fixed = chosenPreset !== null || (icon?.source === 'preset' && !file);
+  $('icon-background-fieldset').classList.toggle('hidden', fixed);
+  $('icon-background-fieldset').disabled = busy || (icon?.state !== 'custom' && !uploadsAllowed());
   for (const id of ['icon-file', 'icon-discard', 'icon-reset']) $(id).disabled = busy;
+  for (const radio of document.querySelectorAll('input[name="icon-preset"]')) radio.disabled = busy;
 }
 
 function backgroundChanged() {
@@ -300,6 +413,16 @@ async function runPreview(sequence, background) {
 
 async function useIcon(event) {
   event.preventDefault();
+  if (chosenPreset !== null) {
+    // Only the ready-made icon previewed on screen can be saved.
+    if (preview === null || preview.sequence !== previewSequence || preview.preset !== chosenPreset.id) return;
+    const id = chosenPreset.id;
+    await mutate(
+      () => withPrivilegedStepUp(() => apiPost(`${BASE}update.php`, { preset: id })),
+      id === 'lantern' ? 'Back to the ChitChat icon.' : 'Icon saved. Pages and new installs use it the next time they load.',
+    );
+    return;
+  }
   const file = $('icon-file').files?.[0];
   // Only the preview on screen, for exactly this file and background, can be saved.
   if (!file || preview === null || preview.sequence !== previewSequence || preview.background !== chosenBackground()) return;
@@ -325,10 +448,12 @@ async function reset() {
 }
 
 function discard() {
+  const wasPreset = chosenPreset !== null;
   $('icon-status').textContent = '';
   $('icon-error').textContent = '';
   showSaved();
-  $('icon-file').focus();
+  const checked = document.querySelector('input[name="icon-preset"]:checked');
+  (wasPreset && checked ? checked : $('icon-file')).focus();
 }
 
 async function mutate(operation, success) {
@@ -358,6 +483,8 @@ async function mutate(operation, success) {
       // Nothing changed on screen, so the same preview can be saved again.
       preview = { ...kept, sequence: previewSequence };
     }
+    // The catalog changed under us (a font or renderer went away): show what can be chosen now.
+    if (error instanceof ApiError && error.code === 'preset_unavailable') void load();
     showError(error);
   } finally {
     busy = false;
@@ -384,6 +511,12 @@ export function errorText(error) {
       return 'Someone else changed the icon just now. This is the current one; try again if you still want yours.';
     case 'application_icon_unavailable':
       return 'This server can’t process images right now. Try again later, or ask the server operator.';
+    case 'preset_unavailable':
+      return 'That icon can’t be used right now. Choose another one.';
+    case 'preset_unknown':
+      return 'That icon isn’t available any more. Choose another one.';
+    case 'preset_background_fixed':
+      return 'Ready-made icons keep their own background.';
     default:
       if (error.status === 429) return tooMany();
       return error.message || 'That didn’t work.';

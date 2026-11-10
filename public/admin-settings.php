@@ -165,8 +165,8 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
     <section id="icon-settings" class="admin-card icon-settings" aria-labelledby="icon-heading">
       <h2 id="icon-heading">Installation icon</h2>
       <p class="admin-muted">
-        Shown in browser tabs, on home screens and when people install this as an app. Use the ChitChat icon, or upload
-        your own.
+        Shown in browser tabs, on home screens and when people install this as an app. Use the ChitChat icon, pick a
+        ready-made one, or upload your own.
       </p>
       <p id="icon-unavailable" class="admin-muted hidden">Installation icon settings aren’t available on this server yet.</p>
       <div id="icon-load-error" class="icon-load-error hidden" role="alert">
@@ -175,6 +175,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
       </div>
 
       <div id="icon-body" class="icon-body hidden">
+        <p id="icon-notice" class="icon-notice hidden" role="status"></p>
         <div class="icon-previews" id="icon-previews" data-mode="current">
           <p id="icon-preview-label" class="icon-preview-label">Current icon</p>
           <figure class="icon-figure">
@@ -211,13 +212,18 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
         <p id="icon-meta" class="admin-muted"></p>
 
         <form id="icon-form" class="icon-form">
+          <!-- Ready-made icons (#226): the server's catalog, in its order; each keeps its own background. -->
+          <fieldset id="icon-presets" class="icon-presets hidden">
+            <legend>Choose a ready-made icon</legend>
+            <div id="icon-preset-grid" class="icon-preset-grid"></div>
+          </fieldset>
           <label id="icon-file-label" for="icon-file">
-            <span>Upload an image</span>
+            <span id="icon-file-title">Upload an image</span>
             <input id="icon-file" type="file" accept="image/png,image/webp" aria-describedby="icon-file-help">
           </label>
           <p id="icon-file-help" class="admin-muted"></p>
 
-          <fieldset class="icon-background" aria-describedby="icon-background-help">
+          <fieldset id="icon-background-fieldset" class="icon-background" aria-describedby="icon-background-help">
             <legend>Background</legend>
             <p id="icon-background-help" class="admin-muted">Fills the space around your icon on home screens and in round app icons.</p>
             <div class="icon-swatches">

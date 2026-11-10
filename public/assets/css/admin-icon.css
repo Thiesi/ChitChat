@@ -111,3 +111,46 @@
 .icon-load-error.hidden { display: none; }
 .icon-load-error p { margin: 0; }
 #icon-hex[aria-invalid] { border-color: var(--error); }
+
+/* Ready-made icons (#226): a grid of tiles, each a radio with its name. */
+.icon-presets { display: grid; gap: 0.6rem; min-width: 0; margin: 0; padding: 0; border: 0; }
+.icon-presets legend { padding: 0; margin-bottom: 0.6rem; font-weight: 700; }
+.icon-preset-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(5.75rem, 1fr)); gap: 0.5rem; }
+.icon-preset {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 0.35rem;
+  min-height: 2.75rem;
+  padding: 0.6rem 0.3rem;
+  border: 1px solid var(--line);
+  border-radius: 0.9rem;
+  background: var(--surface);
+  cursor: pointer;
+  text-align: center;
+}
+.icon-preset:hover { border-color: var(--field-line); }
+.icon-preset input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
+.icon-preset:has(input:checked) {
+  border-color: var(--signature-text);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--signature) 35%, transparent);
+}
+.icon-preset:has(input:focus-visible) { outline: 2px solid var(--signature-text); outline-offset: 2px; }
+.icon-preset:has(input:disabled) { cursor: wait; opacity: 0.65; }
+.icon-preset-tile { display: grid; width: 3rem; height: 3rem; place-items: center; }
+.icon-preset-tile img { display: block; width: 3rem; height: 3rem; border-radius: 22%; }
+.icon-preset-name { font-size: 0.8rem; line-height: 1.2; overflow-wrap: anywhere; }
+
+/* The name changed but Your initial couldn't follow it. */
+.icon-notice {
+  margin: 0;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid var(--warning);
+  border-radius: 0.8rem;
+  background: color-mix(in srgb, var(--warning) 10%, var(--surface));
+  color: var(--text);
+}
+
+@media (forced-colors: active) {
+  .icon-preset:has(input:checked) { outline: 3px solid Highlight; }
+}
