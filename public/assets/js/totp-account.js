@@ -7,7 +7,7 @@ import { ApiError, apiPost } from './api.js';
 import { codeInput, describeTotpError as describe } from './totp-common.js';
 import { formatDateTime } from './datetime.js';
 import { withPrivilegedStepUp } from './step-up.js';
-import qrcode from '/assets/vendor/qrcode-generator/qrcode.mjs';
+import qrcode from '/assets/vendor/qrcode-generator/qrcode.js';
 
 const BASE = '/api/v1/account/mfa/totp';
 
