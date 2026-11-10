@@ -9,7 +9,7 @@ import { attachMentionAutocomplete } from './mention-autocomplete.js';
 import { attachEmojiPicker } from './emoji-picker.js';
 import { createRegistrationChallenge } from './registration-challenge.js';
 import { attachPhoto, avatarTone, initials } from './avatar.js';
-import { takeSignedOutMessage } from './sign-out.js';
+import { REVOKED_NOTICE, takeSignedOutNotice } from './signed-out-notice.js';
 import { nameButton, setModerationRoom } from './name-menu.js';
 import { attachNameCompletion } from './name-completion.js';
 import { createTypingIndicator, createTypingSignal } from './typing.js';
@@ -420,7 +420,7 @@ function showSignedOutPage(mode) {
 
 /** Signing out on You (sign-out.js) leaves one line for the sign-in screen. */
 function showSignedOutMessage() {
-  const message = takeSignedOutMessage();
+  const message = takeSignedOutNotice();
   if (message) toast(message);
 }
 
@@ -1638,7 +1638,10 @@ function startEventStream() {
   source.addEventListener('forced_logout', (event) => {
     let reason = state.user?.guest ? sessionEndedMessage() : 'Your session was invalidated.';
     const envelope = parseEvent(event);
-    if (typeof envelope?.payload?.reason === 'string' && envelope.payload.reason) {
+    if (envelope?.reason === 'session_revoked') {
+      // This login was signed out from another device (#205); the reason is a code at the top level.
+      reason = REVOKED_NOTICE;
+    } else if (typeof envelope?.payload?.reason === 'string' && envelope.payload.reason) {
       reason = envelope.payload.reason;
     }
     forceSignedOut(reason);
@@ -1847,7 +1850,9 @@ function handleApiFailure(error) {
 }
 
 function sessionEndedMessage() {
-  return state.user?.guest ? 'Your guest visit has ended.' : 'Your session has ended. Please sign in again.';
+  // A revoked login (#205) has its own line, left by api.js.
+  return takeSignedOutNotice()
+    ?? (state.user?.guest ? 'Your guest visit has ended.' : 'Your session has ended. Please sign in again.');
 }
 
 function forceSignedOut(message) {

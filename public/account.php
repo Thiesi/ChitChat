@@ -304,6 +304,19 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
       <p id="sign-in-methods-status" class="account-muted" role="status" aria-live="polite"></p>
     </section>
 
+    <!-- Members only (#205), shown when the server lists sign-ins (capabilities.signed_in_sessions). -->
+    <section id="sessions-card" class="account-card hidden" aria-labelledby="sessions-heading">
+      <div>
+        <p class="account-eyebrow">Sign-in</p>
+        <h2 id="sessions-heading" tabindex="-1">Where you’re signed in</h2>
+      </div>
+      <p>Browsers and apps where your account is signed in. A sign-in stays listed until it’s signed out, even while that device is off. Up to 50 sign-ins are kept; when there are more, the one used least recently ends.</p>
+      <ul id="sessions-list" class="sessions-list"></ul>
+      <p id="sessions-status" class="account-muted" role="status" aria-live="polite"></p>
+      <div class="account-action-row"><button id="sessions-revoke-others" class="secondary-button" type="button" hidden>Sign out everywhere else</button></div>
+      <p id="sessions-error" class="error-text" role="alert"></p>
+    </section>
+
     <section class="account-card" aria-labelledby="personal-data-heading">
       <div>
         <p class="account-eyebrow">Privacy and portability</p>
@@ -407,6 +420,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <script type="module" src="/assets/js/account-rules.js"></script>
   <script type="module" src="/assets/js/push-notifications.js"></script>
   <script type="module" src="/assets/js/you.js"></script>
+  <script type="module" src="/assets/js/sessions.js"></script>
   <script type="module" src="/assets/js/shell.js"></script>
 </body>
 </html>

@@ -194,3 +194,17 @@ body[data-audience="guest"] .account-card:not([data-guest-visible]) { display: n
 .push-sounds legend h3 { margin: 0; font-size: 1rem; }
 .push-sounds p { margin: 0; }
 .push-sounds label { display: flex; align-items: center; gap: 0.5rem; }
+
+/* Where you're signed in (#205): one row per server-issued sign-in. */
+.sessions-list { display: grid; gap: 0.5rem; margin: 0; padding: 0; list-style: none; }
+.session-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.6rem 1rem; padding: 0.75rem 0.9rem; border: 1px solid var(--line); border-radius: 0.9rem; }
+.session-main { display: grid; gap: 0.2rem; min-width: 0; }
+.session-name { font-weight: 700; overflow-wrap: anywhere; }
+.session-current { justify-self: start; padding: 0.05rem 0.55rem; border-radius: 999px; background: color-mix(in srgb, var(--signature) 16%, var(--surface)); color: var(--text); font-size: 0.75rem; font-weight: 700; }
+.session-meta { color: var(--text-muted); font-size: 0.85rem; overflow-wrap: anywhere; }
+#sessions-heading:focus { outline: none; }
+#sessions-heading:focus-visible { outline: 2px solid var(--signature-text); outline-offset: 3px; }
+/* No empty bands: the status and error lines take room only when they say
+   something, and the actions row only when there is another sign-in. */
+#sessions-status:empty, #sessions-error:empty { display: none; }
+.account-action-row:has(> #sessions-revoke-others[hidden]) { display: none; }

@@ -56,6 +56,15 @@ test('critical authentication and account layouts remain visually stable', async
     if (body?.user?.recovery_key?.created_at) body.user.recovery_key.created_at = '2026-10-04T12:00:00Z';
     await route.fulfill({ response, json: body });
   });
+  // "Where you're signed in" (#205) lists real sign-in times, and a retry signs
+  // in again (another row): show only this browser, at the pinned time.
+  await page.route('**/api/v1/account/sessions/list.php', async (route) => {
+    const response = await route.fetch();
+    const body = await response.json();
+    const current = (body.sessions ?? []).filter((entry) => entry.current)
+      .map((entry) => ({ ...entry, created_at: '2026-10-04T11:58:00Z', last_active_at: '2026-10-04T12:00:00Z' }));
+    await route.fulfill({ response, json: { ...body, sessions: current } });
+  });
   await page.goto('/account.php');
   await expect(page.locator('#account-shell')).toBeVisible();
   await expect(page.locator('#account-loading')).toBeHidden();
