@@ -36,4 +36,6 @@ Rendered by the server with `resources/fonts/BricolageGrotesque-ExtraBold.ttf` o
 | full | renditions above 32 px, maskable included | 1024 px | 493 px (52 of 108 units, as on the sheet) | 0 | 0 |
 | compact | 32 px and below (favicon, ICO) | 256 px | 166 px (65% of the side, for legibility at 16 and 32 px) | 0 | 0 |
 
+Sizes are **pixels** on the canvas (the em size, as CSS and SVG measure it). GD's `imagettftext` and `imagettfbbox` take points at 96 dpi, so the renderer draws and measures at `font_size × 0.75` pt.
+
 Centring on the ink box (not the baseline) keeps letters with descenders or accents optically centred, matching the sheet's `T`. If a later drawing review asks for an optical lift, change `offset_y` here and in the server's encoded metrics together.
