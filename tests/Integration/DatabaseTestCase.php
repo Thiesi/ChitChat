@@ -50,6 +50,7 @@ SET registration_enabled = TRUE,
 WHERE id = 1
 SQL);
         $this->pdo->exec('DELETE FROM installation_icons');
+        $this->pdo->exec('DELETE FROM totp_database_key');
     }
 
     /**

@@ -31,7 +31,7 @@ final class PrivilegedStepUpService
             throw new ApiException(
                 403,
                 'passkey_step_up_required',
-                'This account requires a passkey or recovery code for sensitive actions.',
+                'This account requires a passkey, authenticator or recovery code for sensitive actions.',
             );
         }
         $this->rateLimiter->consume('privileged_step_up', $actor->id . '|' . $ipAddress);

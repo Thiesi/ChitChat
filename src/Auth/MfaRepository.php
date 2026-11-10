@@ -31,7 +31,7 @@ SQL);
 SELECT CASE WHEN webauthn_user_handle IS NULL THEN NULL ELSE encode(webauthn_user_handle, 'base64') END
 FROM users
 WHERE id = :id AND account_state = 'active'
-FOR UPDATE
+FOR NO KEY UPDATE
 SQL);
         $statement->execute(['id' => $userId]);
         $encoded = $statement->fetchColumn();
@@ -135,7 +135,7 @@ SELECT id,
 FROM webauthn_credentials
 WHERE user_id = :user_id
   AND credential_id = decode(:credential_id, 'base64')
-FOR UPDATE
+FOR NO KEY UPDATE
 SQL);
         $statement->execute(['user_id' => $userId, 'credential_id' => base64_encode($credentialId)]);
         $row = $statement->fetch();
@@ -276,6 +276,7 @@ SQL);
 
     public function clearForUser(int $userId): int
     {
+        $this->prepare('DELETE FROM totp_credentials WHERE user_id = :id')->execute(['id' => $userId]);
         $this->prepare('DELETE FROM webauthn_credentials WHERE user_id = :id')->execute(['id' => $userId]);
         $this->prepare('DELETE FROM mfa_recovery_codes WHERE user_id = :id')->execute(['id' => $userId]);
         $statement = $this->prepare(<<<'SQL'
@@ -320,8 +321,7 @@ SQL);
     public function hasCompleteMfa(int $userId): bool
     {
         $statement = $this->prepare(<<<'SQL'
-SELECT (u.mfa_enabled_at IS NOT NULL
-   AND EXISTS (SELECT 1 FROM webauthn_credentials wc WHERE wc.user_id = u.id))::int
+SELECT has_complete_mfa(u.id)::int
 FROM users u
 WHERE u.id = :user_id AND u.account_state = 'active'
 SQL);

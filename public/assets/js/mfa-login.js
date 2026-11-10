@@ -1,13 +1,17 @@
 import { apiPost } from './api.js';
+import { apiGet } from './api.js';
 import { getPasskey, webAuthnSupported } from './webauthn.js';
+import { buildTotpForm, describeTotpError, pendingMethods } from './totp-common.js';
 
 const SIGN_IN_TITLE = 'Complete sign-in';
 const SIGN_IN_TEXT = 'Use a registered passkey. A one-time recovery code is available when your authenticator is unavailable.';
+const SIGN_IN_TEXT_WITH_APP = 'Enter the code from your authenticator app, or use a passkey. A one-time recovery code works when neither is at hand.';
 const SIGN_IN_ENDPOINTS = {
   options: '/api/v1/mfa/login-options.php',
   finish: '/api/v1/mfa/login-finish.php',
   recovery: '/api/v1/mfa/login-recovery.php',
   recoveryField: 'recovery_code',
+  totp: '/api/v1/mfa/login-totp.php',
 };
 let sharedPanel = null;
 // A password reset (#155) finishes through this same panel, but keeps the
@@ -18,12 +22,12 @@ let continuation = null;
  * Shows the second-factor step for a password reset. `onComplete` receives
  * the completing response; `onCancel` runs instead of signing out.
  */
-export function continueResetWithMfa({ title, text, endpoints, onComplete, onCancel, onUncertain }) {
+export function continueResetWithMfa({ title, text, endpoints, methods, onComplete, onCancel, onUncertain }) {
   if (!sharedPanel) return false;
   continuation = { onComplete, onCancel, onUncertain, endpoints };
   sharedPanel.title.textContent = title;
+  showMfaPanel(sharedPanel, methods);
   sharedPanel.explanation.textContent = text;
-  showMfaPanel(sharedPanel);
   return true;
 }
 
@@ -62,7 +66,10 @@ window.addEventListener('DOMContentLoaded', () => {
     parameters.delete('mfa');
     const query = parameters.toString();
     window.history.replaceState(null, '', `${window.location.pathname}${query ? `?${query}` : ''}`);
-    showMfaPanel(panel);
+    // A provider sign-in brings no methods list; the session may say which apply.
+    apiGet('/api/v1/session.php')
+      .then((session) => showMfaPanel(panel, pendingMethods(null, session)))
+      .catch(() => showMfaPanel(panel, null));
   }
 });
 
@@ -79,7 +86,7 @@ async function submitPassword(event, panel, error) {
     });
     form.reset();
     if (response.mfa_required) {
-      showMfaPanel(panel);
+      showMfaPanel(panel, response.methods);
       return;
     }
     window.location.reload();
@@ -141,23 +148,45 @@ function buildPanel() {
   const status = document.createElement('p');
   status.className = 'error-text';
   status.setAttribute('role', 'alert');
-  root.append(title, explanation, passkey, unsupported, recovery, cancel, status);
+  // An authenticator code (#204), offered first when the account has one: passkey and app are equal choices.
+  const totp = buildTotpForm('mfa-login-totp-code', () => completeWithTotp(panel));
+  root.append(title, explanation, totp.form, passkey, unsupported, recovery, cancel, status);
 
-  const panel = { root, title, explanation, passkey, recovery, input, cancel, status };
+  const panel = { root, title, explanation, passkey, recovery, input, cancel, status, totp };
   passkey.addEventListener('click', () => completeWithPasskey(panel));
   recovery.addEventListener('submit', (event) => completeWithRecovery(event, panel));
   cancel.addEventListener('click', () => cancelPendingLogin(panel));
   return panel;
 }
 
-function showMfaPanel(panel) {
+function showMfaPanel(panel, methods = null) {
+  const withApp = Array.isArray(methods) && methods.includes('totp');
+  panel.totp.form.hidden = !withApp;
+  panel.explanation.textContent = withApp ? SIGN_IN_TEXT_WITH_APP : SIGN_IN_TEXT;
   document.querySelector('.auth-tabs')?.classList.add('hidden');
   document.getElementById('login-form')?.classList.add('hidden');
   document.getElementById('register-form')?.classList.add('hidden');
   document.getElementById('password-reset')?.classList.add('hidden');
   panel.root.classList.remove('hidden');
   panel.status.textContent = '';
-  (panel.passkey.disabled ? panel.input : panel.passkey).focus();
+  (withApp ? panel.totp.input : (panel.passkey.disabled ? panel.input : panel.passkey)).focus();
+}
+
+async function completeWithTotp(panel) {
+  panel.status.textContent = '';
+  setPanelBusy(panel, true);
+  try {
+    const endpoints = continuation?.endpoints ?? SIGN_IN_ENDPOINTS;
+    const response = await apiPost(endpoints.totp, { code: panel.totp.input.value });
+    panel.totp.form.reset();
+    await finish(response);
+  } catch (error) {
+    if (uncertain(error)) return;
+    panel.status.textContent = describeTotpError(error);
+    panel.totp.input.select();
+  } finally {
+    setPanelBusy(panel, false);
+  }
 }
 
 async function completeWithPasskey(panel) {
@@ -232,6 +261,7 @@ function setBusy(form, busy) {
 function setPanelBusy(panel, busy) {
   panel.passkey.disabled = busy || !webAuthnSupported();
   for (const control of panel.recovery.querySelectorAll('button, input')) control.disabled = busy;
+  for (const control of panel.totp.form.querySelectorAll('button, input')) control.disabled = busy;
   panel.cancel.disabled = busy;
 }
 

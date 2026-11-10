@@ -24,6 +24,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <link rel="stylesheet" href="/assets/css/components.css">
   <link rel="stylesheet" href="/assets/css/transcript.css">
   <link rel="stylesheet" href="/assets/css/accessibility.css">
+  <link rel="stylesheet" href="/assets/css/totp.css">
   <link rel="stylesheet" href="/assets/css/person-reports.css">
   <link rel="stylesheet" href="/assets/css/recovery.css">
   <link rel="stylesheet" href="/assets/css/message-mutations.css">

@@ -6,6 +6,8 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ## [Unreleased]
 
+- Add optional authenticator (TOTP) MFA for enrollment, login, restoration, privileged confirmation and password reset. Apply migration 0052. Keys can come from a recommended server ring or an explicitly warned Super-Administrator DB-key setting; server keys win. The print-only generator, bounded dry-run rotation and key escrow/restore instructions are in docs/operations/totp.md. Factor changes invalidate cached privileged confirmations across sessions without signing those sessions out.
+
 - Re-check an SSE login after fetching its event batch; discard the batch and send the connection's existing session_revoked reason when revocation committed during the fetch/check gap. Other signed-in devices keep their streams (#233).
 
 **Upgrade action: everyone will need to sign in again once after this update.**

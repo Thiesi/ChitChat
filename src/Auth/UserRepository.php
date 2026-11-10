@@ -94,7 +94,8 @@ SQL);
     {
         $statement = $this->pdo->prepare(<<<'SQL'
 SELECT u.id, u.username, u.session_version, u.account_kind, u.guest_expires_at,
-       u.has_password::int AS has_password, recovery.created_at AS recovery_created_at
+       u.has_password::int AS has_password, recovery.created_at AS recovery_created_at,
+       u.mfa_policy_generation, (u.mfa_enabled_at IS NOT NULL)::int AS mfa_enabled
 FROM users u
 LEFT JOIN password_recovery_keys recovery ON recovery.user_id = u.id
 WHERE u.id = :id
@@ -117,6 +118,8 @@ SQL);
             // A guest never holds a role, whatever the table says.
             roles: $guest ? [] : $this->rolesForUser((int) $row['id']),
             sessionVersion: (int) $row['session_version'],
+            mfaPolicyGeneration: (int) $row['mfa_policy_generation'],
+            mfaEnabled: (int) $row['mfa_enabled'] === 1,
             guest: $guest,
             guestExpiresAt: $guest && $row['guest_expires_at'] !== null ? (string) $row['guest_expires_at'] : null,
             rules: (new PolicyService($this->pdo))->rulesStatus((int) $row['id']),
@@ -131,7 +134,7 @@ SQL);
     public function findClosurePendingById(int $userId): ?AuthenticatedUser
     {
         $statement = $this->pdo->prepare(<<<'SQL'
-SELECT id, username, session_version
+SELECT id, username, session_version, mfa_policy_generation, (mfa_enabled_at IS NOT NULL)::int AS mfa_enabled
 FROM users
 WHERE id = :id
   AND account_state = 'closure_pending'
@@ -152,6 +155,8 @@ SQL);
             username: (string) $row['username'],
             roles: [],
             sessionVersion: (int) $row['session_version'],
+            mfaPolicyGeneration: (int) $row['mfa_policy_generation'],
+            mfaEnabled: (int) $row['mfa_enabled'] === 1,
         );
     }
 

@@ -14,6 +14,7 @@ export const RESET_MFA_ENDPOINTS = {
   recovery: '/api/v1/password-reset/mfa-recovery.php',
   // The reset's recovery request names its field "code" (#155 decision).
   recoveryField: 'code',
+  totp: '/api/v1/password-reset/mfa-totp.php',
 };
 const CREATE_KEY_ENDPOINT = '/api/v1/account/recovery-key.php';
 

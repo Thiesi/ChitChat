@@ -21,6 +21,8 @@ final readonly class AuthenticatedUser
         public ?string $guestExpiresAt = null,
         public array $rules = ['accepted_version' => 0, 'accepted_at' => null, 'acceptance_required' => false],
         public ?array $recoveryKey = null,
+        public int $mfaPolicyGeneration = 1,
+        public bool $mfaEnabled = false,
     ) {
     }
 

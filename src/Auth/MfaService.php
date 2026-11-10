@@ -46,7 +46,15 @@ final class MfaService
     public function status(AuthenticatedUser $actor): array
     {
         $credentials = $this->mfa->credentialsForUser($actor->id);
+        $totp = (new \ChitChat\Auth\Totp\TotpService($this->pdo, $this->config))->status($actor->id);
+        $totp['available'] = $totp['available'] && \ChitChat\View\TotpPresentation::integrated();
+        $usable = [];
+        if ($this->config->webauthnEnabled() && $credentials !== []) $usable[] = 'passkey';
+        if ($totp['enabled'] && $totp['available']) $usable[] = 'totp';
+        if ($this->mfa->recoveryCodesRemaining($actor->id) > 0) $usable[] = 'recovery_code';
         return [
+            'usable_methods' => $usable,
+            'totp' => $totp,
             'available' => $this->config->webauthnEnabled(),
             'enabled' => $this->mfa->isEnabled($actor->id),
             'required_by_admin_policy' => $this->mfa->policyRequiresMfaForAdminRoles()
@@ -54,6 +62,40 @@ final class MfaService
             'recovery_codes_remaining' => $this->mfa->recoveryCodesRemaining($actor->id),
             'credentials' => array_map(fn (array $credential): array => $this->publicCredential($credential), $credentials),
         ];
+    }
+
+    /** Preserve legacy pending methods and add the confirmed, usable authenticator.
+     * @return list<string>
+     */
+    public function pendingMethods(AuthenticatedUser $user): array
+    {
+        $methods = ['passkey', 'recovery_code'];
+        $totp = (new \ChitChat\Auth\Totp\TotpService($this->pdo, $this->config))->status($user->id);
+        if (\ChitChat\View\TotpPresentation::integrated() && $totp['enabled'] && $totp['available']) $methods[] = 'totp';
+        return $methods;
+    }
+
+    /** Browser bootstrap discovery, including a provider redirect to /?mfa=continue.
+     * @return array{methods:list<string>}|null
+     */
+    public function pendingSession(string $ipAddress): ?array
+    {
+        $state = $_SESSION['pending_mfa'] ?? null;
+        if ($state === null) return null;
+        if (!is_array($state)) {
+            SessionManager::clearPendingMfa();
+            return null;
+        }
+        try {
+            SessionManager::assertPendingMfaTransport($ipAddress);
+            $user = SessionManager::pendingMfaUser($this->users);
+            return ['methods' => $this->pendingMethods($user)];
+        } catch (ApiException $error) {
+            if (in_array($error->errorCode, ['mfa_login_required', 'mfa_login_expired', 'authentication_required'], true)) {
+                return null;
+            }
+            throw $error;
+        }
     }
 
     public function requiresMfaForLogin(AuthenticatedUser $user): bool
@@ -118,6 +160,8 @@ final class MfaService
         try {
             $this->mfa->userHandleForUpdate($actor->id);
             $firstCredential = $this->mfa->credentialCount($actor->id) === 0;
+            $firstPrimaryFactor = $firstCredential
+                && (new \ChitChat\Auth\Totp\TotpRepository($this->pdo))->credential($actor->id, 'active') === null;
             $credentialId = $this->mfa->insertCredential(
                 $actor->id,
                 $verified['credential_id'],
@@ -129,7 +173,7 @@ final class MfaService
                 $verified['backup_state'],
                 $label,
             );
-            if ($firstCredential) {
+            if ($firstPrimaryFactor) {
                 $recoveryCodes = $this->replaceRecoveryCodes($actor->id);
                 $this->mfa->markEnabled($actor->id);
             }
@@ -142,6 +186,7 @@ final class MfaService
                     'algorithm' => $verified['algorithm'],
                     'backup_eligible' => $verified['backup_eligible'],
                     'first_credential' => $firstCredential,
+                    'first_primary_factor' => $firstPrimaryFactor,
                 ],
                 $ipAddress,
             );
@@ -157,6 +202,7 @@ final class MfaService
             throw $exception;
         }
 
+        unset($_SESSION['privileged_step_up']);
         return ['mfa' => $this->status($actor), 'recovery_codes' => $recoveryCodes];
     }
 
@@ -476,8 +522,15 @@ final class MfaService
         }
         $this->pdo->beginTransaction();
         try {
+            $this->mfa->userHandleForUpdate($actor->id);
             if ($this->mfa->credentialCount($actor->id) <= 1) {
-                throw new ApiException(409, 'last_passkey', 'The final passkey cannot be removed. Disable MFA instead when policy permits.');
+                $totp = (new \ChitChat\Auth\Totp\TotpService($this->pdo, $this->config))->status($actor->id);
+                if (!$totp['enabled']) {
+                    throw new ApiException(409, 'last_passkey', 'The final passkey cannot be removed. Disable MFA instead when policy permits.');
+                }
+                if (!$totp['available'] || !\ChitChat\View\TotpPresentation::integrated()) {
+                    throw new ApiException(409, 'last_mfa_method', 'Your authenticator app is currently unavailable. Keep this passkey until your app works again, or turn off two-step sign-in if your account allows it.');
+                }
             }
             if (!$this->mfa->deleteCredential($actor->id, $credentialId)) {
                 throw new ApiException(404, 'passkey_not_found', 'Passkey not found.');
@@ -491,6 +544,7 @@ final class MfaService
                 $ipAddress,
             );
             $this->pdo->commit();
+            unset($_SESSION['privileged_step_up']);
         } catch (Throwable $exception) {
             $this->rollBack();
             throw $exception;
@@ -509,6 +563,7 @@ final class MfaService
             if ($this->mfa->policyRequiresMfaForAdminRoles() && $this->mfa->userHasAdministrativeRole($actor->id)) {
                 throw new ApiException(409, 'mfa_required_by_policy', 'MFA is required for this account by administrative policy.');
             }
+            $this->mfa->userHandleForUpdate($actor->id);
             $newVersion = $this->mfa->clearForUser($actor->id);
             $this->audit->log($actor->id, 'auth.mfa_disabled', 'user', (string) $actor->id, [], $ipAddress);
             $this->events->publish(

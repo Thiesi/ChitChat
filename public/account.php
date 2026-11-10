@@ -26,6 +26,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <link rel="stylesheet" href="/assets/css/recovery.css">
   <link rel="stylesheet" href="/assets/css/step-up.css" data-step-up-styles="true">
   <link rel="stylesheet" href="/assets/css/privacy-notifications.css">
+  <link rel="stylesheet" href="/assets/css/totp.css">
   <link rel="stylesheet" href="/assets/css/shell.css">
 </head>
 <body>

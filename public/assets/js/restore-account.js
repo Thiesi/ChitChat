@@ -1,6 +1,7 @@
 import { apiGet, apiPost, setCsrfToken } from './api.js';
 import { getPasskey, webAuthnSupported } from './webauthn.js';
 import { withProviderIcon } from './provider-icons.js';
+import { buildTotpForm, describeTotpError, pendingMethods } from './totp-common.js';
 
 const form = document.querySelector('#restore-account-form');
 const username = document.querySelector('#restore-username');
@@ -8,6 +9,7 @@ const password = document.querySelector('#restore-password');
 const status = document.querySelector('#restore-account-status');
 const error = document.querySelector('#restore-account-error');
 const panel = buildMfaPanel();
+let sessionInfo = null;
 form.after(panel.root);
 
 void initialize();
@@ -15,6 +17,7 @@ void initialize();
 async function initialize() {
   try {
     const session = await apiGet('/api/v1/session.php');
+    sessionInfo = session;
     setCsrfToken(session.csrf_token ?? '');
     if (session.user) {
       window.location.assign('/');
@@ -43,8 +46,7 @@ async function restoreAccount(event) {
     if (response.mfa_required) {
       status.textContent = 'Password accepted. Complete multi-factor authentication before the account is restored.';
       form.classList.add('hidden');
-      panel.root.classList.remove('hidden');
-      (panel.passkey.disabled ? panel.code : panel.passkey).focus();
+      showRestorePanel(response.methods);
       return;
     }
     finish();
@@ -96,8 +98,17 @@ function continueFromProvider() {
   status.textContent = 'Account confirmed. Complete multi-factor authentication before the account is restored.';
   form.classList.add('hidden');
   document.querySelector('#restore-providers')?.classList.add('hidden');
+  showRestorePanel(pendingMethods(null, sessionInfo));
+}
+
+function showRestorePanel(methods) {
+  const withApp = Array.isArray(methods) && methods.includes('totp');
+  panel.totp.form.hidden = !withApp;
+  panel.explanation.textContent = withApp
+    ? 'Enter the code from your authenticator app, or use a passkey or one of the account’s one-time recovery codes. The closure remains pending until this succeeds.'
+    : 'Use a registered passkey or one of the account’s one-time recovery codes. The closure remains pending until this succeeds.';
   panel.root.classList.remove('hidden');
-  (panel.passkey.disabled ? panel.code : panel.passkey).focus();
+  (withApp ? panel.totp.input : (panel.passkey.disabled ? panel.code : panel.passkey)).focus();
 }
 
 function buildMfaPanel() {
@@ -139,9 +150,10 @@ function buildMfaPanel() {
   const panelError = document.createElement('p');
   panelError.className = 'error-text';
   panelError.setAttribute('role', 'alert');
-  root.append(title, explanation, passkey, unsupported, recoveryForm, panelError);
+  const totp = buildTotpForm('restore-totp-code', () => completeWithTotp(result));
+  root.append(title, explanation, totp.form, passkey, unsupported, recoveryForm, panelError);
 
-  const result = { root, passkey, recoveryForm, recoverySubmit, code, error: panelError };
+  const result = { root, explanation, passkey, recoveryForm, recoverySubmit, code, error: panelError, totp };
   passkey.addEventListener('click', () => completeWithPasskey(result));
   recoveryForm.addEventListener('submit', (event) => completeWithRecovery(event, result));
   return result;
@@ -180,6 +192,22 @@ async function completeWithRecovery(event, mfaPanel) {
   }
 }
 
+async function completeWithTotp(mfaPanel) {
+  mfaPanel.error.textContent = '';
+  setMfaBusy(mfaPanel, true);
+  try {
+    // The same route as sign-in: the server knows this pending step restores the account.
+    await apiPost('/api/v1/mfa/login-totp.php', { code: mfaPanel.totp.input.value });
+    mfaPanel.totp.form.reset();
+    finish();
+  } catch (cause) {
+    mfaPanel.error.textContent = describeTotpError(cause);
+    mfaPanel.totp.input.select();
+  } finally {
+    setMfaBusy(mfaPanel, false);
+  }
+}
+
 function finish() {
   status.textContent = 'Your account has been restored. Redirecting…';
   window.location.assign('/');
@@ -193,6 +221,8 @@ function setMfaBusy(mfaPanel, busy) {
   mfaPanel.passkey.disabled = busy || !webAuthnSupported();
   mfaPanel.code.disabled = busy;
   mfaPanel.recoverySubmit.disabled = busy;
+  mfaPanel.totp.input.disabled = busy;
+  mfaPanel.totp.submit.disabled = busy;
 }
 
 function message(cause, fallback) {
