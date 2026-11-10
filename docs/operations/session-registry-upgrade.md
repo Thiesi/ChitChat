@@ -1,7 +1,7 @@
 # Signed-in session registry: one-time upgrade
 
 **Everyone will need to sign in again once after this update.** This includes
-ChitChat Mobile sessions. Guest visitors must restart guest access.
+ChitChat app sessions. Guest visitors must restart guest access.
 
 Announce this before upgrading. Back up as usual, then apply
 0051_login_sessions.sql using php bin/migrate in the normal maintenance procedure.
@@ -24,7 +24,7 @@ We're updating ChitChat's sign-in security so you can see your signed-in session
 and sign out other sessions from your account.
 
 Everyone will need to sign in again once after this update, including in
-ChitChat Mobile. If you're visiting as a guest, start guest access again.
+the ChitChat app. If you're visiting as a guest, start guest access again.
 Your account and conversations will still be here. After signing in,
 your device can reconnect notifications as usual.
 
