@@ -26,6 +26,7 @@ const PAIRS = [
   ['presence-text', 'ground', TEXT, 'honey used as text (ping labels)'],
   ['presence-text', 'surface', TEXT, 'honey used as text on cards'],
   ['on-signature', 'signature', TEXT, 'labels on persimmon (never white)'],
+  ['on-signature', 'signature-hover', TEXT, 'labels on hovered and pressed primary buttons (#235)'],
   ['signature-text', 'ground', TEXT, 'persimmon as text'],
   ['signature-text', 'surface', TEXT, 'persimmon as text on cards'],
   ['on-outgoing', 'outgoing', TEXT, 'your bubbles'],

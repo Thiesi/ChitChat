@@ -291,7 +291,10 @@ button:focus-visible {
   box-shadow: 0 3px 0 color-mix(in srgb, var(--signature-text) 60%, var(--ground));
 }
 
-.primary-button:hover:not(:disabled) { background: var(--signature-text); }
+/* Hover and press move the fill away from the label colour (lighter under a
+   dark label, darker under a light one), so the label never loses contrast. */
+.primary-button:hover:not(:disabled),
+.primary-button:active:not(:disabled) { background: var(--signature-hover); }
 
 .secondary-button:hover:not(:disabled), .join-button:hover:not(:disabled) {
   border-color: var(--signature-text);

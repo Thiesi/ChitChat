@@ -56,6 +56,7 @@
   --signature: #F06A3B;
   --on-signature: #14111C;
   --signature-text: #F06A3B;
+  --signature-hover: #F5916D;
   --outgoing: #8A3A1E;
   --on-outgoing: #F2EDF7;
   --presence: #FFB547;
@@ -86,6 +87,7 @@
   --signature: #F06A3B;
   --on-signature: #14111C;
   --signature-text: #B5401A;
+  --signature-hover: #F5916D;
   --outgoing: #FFD9C4;
   --on-outgoing: #14111C;
   --presence: #FFB547;
@@ -113,6 +115,7 @@
   --signature: #A8DBC5;
   --on-signature: #142F28;
   --signature-text: #C5EFDC;
+  --signature-hover: #C5EFDC;
   --outgoing: #2E5047;
   --on-outgoing: #F2F3E9;
   --presence: #FFB547;
@@ -135,6 +138,7 @@
   --signature: #286454;
   --on-signature: #FFFFFF;
   --signature-text: #1B5344;
+  --signature-hover: #1B5344;
   --outgoing: #DBEADE;
   --on-outgoing: #213D38;
   --presence: #FFB547;
@@ -157,6 +161,7 @@
   --signature: #A9B4FF;
   --on-signature: #161A3A;
   --signature-text: #C9D0FF;
+  --signature-hover: #C9D0FF;
   --outgoing: #333B6E;
   --on-outgoing: #EEF0FB;
   --presence: #FFB547;
@@ -179,6 +184,7 @@
   --signature: #3D4AA8;
   --on-signature: #FFFFFF;
   --signature-text: #2F3A8F;
+  --signature-hover: #2F3A8F;
   --outgoing: #E1E5FB;
   --on-outgoing: #22274A;
   --presence: #FFB547;
@@ -201,6 +207,7 @@
   --signature: #F0A868;
   --on-signature: #2B1608;
   --signature-text: #FFC896;
+  --signature-hover: #FFC896;
   --outgoing: #4A3322;
   --on-outgoing: #F6EDE4;
   --presence: #FFB547;
@@ -224,6 +231,7 @@
   --signature: #A8521C;
   --on-signature: #FFFFFF;
   --signature-text: #8A4214;
+  --signature-hover: #8A4214;
   --outgoing: #F6DFC8;
   --on-outgoing: #3A2618;
   --presence: #FFB547;
@@ -247,6 +255,7 @@
   --signature: #F0A6C4;
   --on-signature: #3A1226;
   --signature-text: #FFC9DE;
+  --signature-hover: #FFC9DE;
   --outgoing: #4D2C3C;
   --on-outgoing: #F8EEF2;
   --presence: #FFB547;
@@ -269,6 +278,7 @@
   --signature: #A23B6A;
   --on-signature: #FFFFFF;
   --signature-text: #852D56;
+  --signature-hover: #852D56;
   --outgoing: #F7DBE7;
   --on-outgoing: #3B1F2C;
   --presence: #FFB547;
@@ -291,6 +301,7 @@
   --signature: #FFD60A;
   --on-signature: #000000;
   --signature-text: #FFE45C;
+  --signature-hover: #FFE45C;
   --outgoing: #1C1C1C;
   --on-outgoing: #FFFFFF;
   --presence: #FFD60A;
@@ -315,6 +326,7 @@
   --signature: #0033CC;
   --on-signature: #FFFFFF;
   --signature-text: #002299;
+  --signature-hover: #002299;
   --outgoing: #DFE6FF;
   --on-outgoing: #000000;
   --presence: #6B4E00;
