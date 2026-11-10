@@ -32,7 +32,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
 <body>
   <div id="account-loading" class="app-loading" role="status">Loading account…</div>
 
-  <?= \ChitChat\View\AppShell::open('you', 'account-shell') ?>
+  <?= \ChitChat\View\AppShell::open('you', 'account-shell', config: $config) ?>
   <main id="account-shell" tabindex="-1" class="account-shell hidden">
     <header class="account-header">
       <div>

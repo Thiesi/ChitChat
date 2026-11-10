@@ -26,7 +26,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
 <body>
   <div id="message-search-loading" class="app-loading" role="status">Loading message search…</div>
 
-  <?= \ChitChat\View\AppShell::open('rooms', 'message-search-shell') ?>
+  <?= \ChitChat\View\AppShell::open('rooms', 'message-search-shell', config: $config) ?>
   <main id="message-search-shell" tabindex="-1" class="message-search-shell hidden">
     <header class="message-search-header">
       <div>

@@ -3,6 +3,9 @@
 declare(strict_types=1);
 namespace ChitChat\View;
 
+use ChitChat\Admin\ApplicationNameService;
+use ChitChat\Config;
+use ChitChat\InstallationIcon\IconService;
 use InvalidArgumentException;
 
 /**
@@ -39,6 +42,7 @@ final class AppShell
         string $skipTarget,
         string $skipLabel = 'Skip to content',
         bool $pageCountsActivity = false,
+        ?Config $config = null,
     ): string {
         if (!in_array($tab, self::TABS, true)) {
             throw new InvalidArgumentException('Unknown shell tab.');
@@ -50,7 +54,10 @@ final class AppShell
         $html = '<a class="skip-link" href="#' . $skipTarget . '">' . self::escape($skipLabel) . '</a>'
             . '<div class="app-frame" data-tab="' . $tab . '"'
             . ($pageCountsActivity ? ' data-activity-source="page"' : '') . '>'
-            . '<nav id="app-nav" class="app-nav" aria-label="Main" hidden><ul class="app-nav-list">';
+            . '<nav id="app-nav" class="app-nav" aria-label="Main" hidden>'
+            // The installation's own icon and name head the rail (the operator's branding, #211).
+            . ($config !== null ? self::brand($config, 'app-nav-brand') : '')
+            . '<ul class="app-nav-list">';
         foreach (self::ITEMS as $key => $item) {
             // Guests have Rooms and a short You (S2b); Direct and Activity are for members.
             $html .= '<li class="app-nav-entry" data-entry="' . $key . '"' . (in_array($key, ['direct', 'activity'], true) ? ' data-members-only' : '') . '>'
@@ -64,6 +71,24 @@ final class AppShell
             . '</div></nav>';
 
         return $html;
+    }
+
+    /**
+     * The installation's icon and name, as plain text (not a link): at the top
+     * of the rail, and at the top of the list panes on phones, where there is
+     * no rail. The icon is decorative; the name is the text.
+     */
+    public static function brand(Config $config, string $class): string
+    {
+        if (preg_match('/^[a-z][a-z0-9 -]*$/', $class) !== 1) {
+            throw new InvalidArgumentException('Invalid brand class.');
+        }
+        $icon = IconService::resolve($config);
+        $src = $icon['mark_url'] ?? '/assets/app-icons/icon-192.png';
+        return '<p class="' . $class . '">'
+            . '<img src="' . self::escape($src) . '" alt="" width="40" height="40" decoding="async">'
+            . '<span>' . self::escape(ApplicationNameService::resolve($config)) . '</span>'
+            . '</p>';
     }
 
     public static function close(): string

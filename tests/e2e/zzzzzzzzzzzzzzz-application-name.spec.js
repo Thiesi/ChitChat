@@ -35,7 +35,8 @@ test('Super-Administrator renames the installation and every page presents the n
 
     await page.goto('/');
     await expect(page).toHaveTitle(name);
-    await expect(page.locator('.sidebar-header h1')).toHaveText(name);
+    // The installation's name heads the rail (S2c; the list pane's title is the tab).
+    await expect(page.locator('#app-nav .app-nav-brand')).toHaveText(name);
     await expect(page.locator('meta[name="application-name"]')).toHaveAttribute('content', name);
 
     const publicSession = await (await anonymousContext.request.get('/api/v1/session.php')).json();

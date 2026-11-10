@@ -167,7 +167,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
     <?= \ChitChat\View\PoweredBy::html($config) ?>
   </main>
 
-  <?= \ChitChat\View\AppShell::open('rooms', 'conversation', 'Skip to conversation', true) ?>
+  <?= \ChitChat\View\AppShell::open('rooms', 'conversation', 'Skip to conversation', true, config: $config) ?>
   <div id="chat-shell" class="chat-shell hidden" data-panes data-list="sidebar" data-toggle="drawer-toggle" data-close="drawer-close" data-backdrop="drawer-backdrop" data-title="room-title" data-list-name="Rooms" data-deep-link="room_id">
     <p id="chat-lockdown" class="lockdown-notice lockdown-banner hidden" role="status"><strong>Maintenance lockdown.</strong> <span data-lockdown-text></span> New sign-ins are paused; you can keep chatting.</p>
     <p class="rules-banner hidden" data-rules-gate role="status"><span><strong>The community rules have changed.</strong> Agree to keep writing.</span> <button class="secondary-button" type="button" data-rules-review>Review</button></p>
@@ -184,6 +184,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
     <section id="sidebar" class="sidebar list-pane" aria-labelledby="rooms-heading">
       <header class="list-pane-header">
         <div class="list-pane-title">
+          <?= \ChitChat\View\AppShell::brand($config, 'list-pane-brand') ?>
           <h1 id="rooms-heading" class="list-title">Rooms</h1>
           <span id="connection-status" class="connection-status" data-state="disconnected" role="status" aria-live="polite" aria-atomic="true">Offline</span>
         </div>

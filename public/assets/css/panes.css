@@ -40,6 +40,9 @@
   overflow-wrap: anywhere;
 }
 
+/* Phones have no rail, so the installation's icon and name head the list. */
+.list-pane-brand { display: none; }
+
 .list-pane-actions { display: flex; flex: none; align-items: center; gap: 0.15rem; }
 .list-pane-actions .header-button { color: var(--text-muted); }
 .list-pane-actions .header-button:hover { color: var(--text); }
@@ -293,6 +296,19 @@
   :is(.chat-shell, .dm-shell) .drawer-toggle { display: inline-flex; }
   .drawer-toggle .toggle-list { display: none; }
   .drawer-toggle .toggle-back { display: block; }
+
+  .list-pane-brand {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin: 0 0 0.35rem;
+    min-width: 0;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    font-weight: 700;
+  }
+  .list-pane-brand img { width: 1.5rem; height: 1.5rem; flex: none; border-radius: 22%; object-fit: cover; }
+  .list-pane-brand span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
   .list-pane .room-button { min-height: 3.25rem; font-size: 1rem; }
   .list-pane .lantern { width: 2.5rem; height: 2.5rem; }

@@ -26,7 +26,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
 <body>
   <div id="status-loading" class="app-loading" role="status">Loading system status…</div>
 
-  <?= \ChitChat\View\AppShell::open('stewarding', 'status-shell') ?>
+  <?= \ChitChat\View\AppShell::open('stewarding', 'status-shell', config: $config) ?>
   <main id="status-shell" tabindex="-1" class="admin-shell hidden">
     <header class="admin-header">
       <div>

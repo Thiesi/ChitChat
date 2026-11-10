@@ -86,6 +86,30 @@ body:not(:has(.app-frame.has-nav)) .skip-link { display: none; }
   text-align: center;
 }
 
+/* The installation's own icon and name, at the top of the rail (phones show
+   it at the top of the list panes instead, panes.css). */
+.app-nav-brand {
+  display: grid;
+  justify-items: center;
+  gap: 0.3rem;
+  width: 4.5rem;
+  margin: 0 0 1rem;
+  color: var(--text);
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 1.15;
+  text-align: center;
+}
+.app-nav-brand img { width: 2.5rem; height: 2.5rem; border-radius: 22%; object-fit: cover; }
+.app-nav-brand span {
+  display: -webkit-box;
+  max-width: 100%;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
 /* Stewarding, for staff, in Dusk. */
 .app-nav-steward .app-nav-item { color: var(--steward); }
 .app-nav-steward .app-nav-item[aria-current] .app-nav-icon { background: color-mix(in srgb, var(--steward) 18%, var(--surface)); }
@@ -127,6 +151,7 @@ body:not(:has(.app-frame.has-nav)) .skip-link { display: none; }
   .app-nav-list { flex: 1; }
   .app-nav-entry { flex: 1; justify-content: center; }
   .app-nav-item { flex: 1; min-height: var(--bar-height); }
+  .app-nav-brand { display: none; }
   /* On phones Stewarding lives inside You (S2b); until then the account menu has it. */
   .app-nav-steward { display: none; }
 

@@ -214,6 +214,30 @@ test('phone: a deep link to a room starts on its conversation', async ({ page })
   await expect(page.getByRole('button', { name: 'Back to rooms' })).toBeVisible();
 });
 
+test('the installation’s icon and name stay in view: the rail on wide screens, the list on phones', async ({ page }) => {
+  await fixture(page);
+  await openRooms(page, 1280);
+  const railBrand = bar(page).locator('.app-nav-brand');
+  await expect(railBrand).toBeVisible();
+  await expect(railBrand).toHaveText('ChitChat');
+  await expect(railBrand.locator('img')).toHaveAttribute('alt', '');
+  await expect(page).toHaveTitle(/ChitChat/);
+  // Plain text, not a link: the navigation's destinations are unchanged.
+  await expect(railBrand.locator('a')).toHaveCount(0);
+  await expect(list(page).locator('.list-pane-brand')).toBeHidden();
+
+  await openRooms(page, 900);
+  await expect(bar(page).locator('.app-nav-brand')).toBeVisible();
+
+  await openRooms(page, 360);
+  await expect(bar(page).locator('.app-nav-brand')).toBeHidden();
+  await expect(list(page).locator('.list-pane-brand')).toBeVisible();
+  await expect(list(page).locator('.list-pane-brand')).toHaveText('ChitChat');
+  await openDirect(page, 360);
+  await expect(page.locator('#dm-list-pane .list-pane-brand')).toHaveText('ChitChat');
+  await expect(page).toHaveTitle(/ChitChat/);
+});
+
 test('guests see the members-only card in the Rooms list and no search', async ({ page }) => {
   await fixture(page, { user: guest });
   await openRooms(page);

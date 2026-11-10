@@ -25,7 +25,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
 <body>
   <div id="inspection-loading" class="app-loading" role="status">Loading inspection controls…</div>
 
-  <?= \ChitChat\View\AppShell::open('stewarding', 'inspection-shell') ?>
+  <?= \ChitChat\View\AppShell::open('stewarding', 'inspection-shell', config: $config) ?>
   <main id="inspection-shell" tabindex="-1" class="inspection-shell hidden">
     <header class="inspection-header">
       <div>

@@ -35,7 +35,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <div id="announcer" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></div>
   <div id="messages-loading" class="app-loading" role="status">Loading messages…</div>
 
-  <?= \ChitChat\View\AppShell::open('direct', 'dm-conversation', 'Skip to conversation') ?>
+  <?= \ChitChat\View\AppShell::open('direct', 'dm-conversation', 'Skip to conversation', config: $config) ?>
   <!-- The Direct list pane and the conversation (S2c): side by side on
        desktop, the list over the conversation on tablets, a stack on phones
        (panes.js). -->
@@ -44,6 +44,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
     <section id="dm-list-pane" class="list-pane dm-list-pane" aria-labelledby="dm-list-title">
       <header class="list-pane-header">
         <div class="list-pane-title">
+          <?= \ChitChat\View\AppShell::brand($config, 'list-pane-brand') ?>
           <h1 id="dm-list-title" class="list-title">Direct</h1>
           <p id="messages-identity" class="list-pane-status"></p>
         </div>
