@@ -164,6 +164,16 @@ final class IconHttpTest extends DatabaseTestCase
             $unknown = $this->request('root', $base . 'update.php', ['preset' => '../private']);
             self::assertSame(400, $unknown['status']);
             self::assertSame('preset_unknown', $this->json($unknown)['error']['code']);
+            // Exercise the integrated production page and its served module alongside the real JSON routes.
+            $page = $this->request('root', '/admin-settings.php');
+            self::assertSame(200, $page['status'], $page['body']);
+            self::assertStringContainsString('id="icon-presets"', $page['body']);
+            self::assertStringContainsString('id="icon-notice"', $page['body']);
+            self::assertStringContainsString('src="/assets/js/admin-icon.js"', $page['body']);
+            $module = $this->request('root', '/assets/js/admin-icon.js');
+            self::assertSame(200, $module['status']);
+            self::assertMatchesRegularExpression('~(?:application|text)/javascript~', $module['headers']['content-type']);
+            self::assertArrayNotHasKey('set-cookie', $module['headers']);
             $catalog = $this->json($this->request('root', $base . 'get.php'))['application_icon'];
             self::assertSame('default', $catalog['source']);
             $presets = array_column($catalog['presets'], null, 'id');
