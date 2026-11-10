@@ -1,4 +1,5 @@
 import { setDateFormatPreference } from './datetime.js';
+import { REVOKED_NOTICE, rememberSignedOutNotice } from './signed-out-notice.js';
 
 let csrfToken = '';
 let sessionRequest = null;
@@ -119,6 +120,11 @@ async function request(path, options) {
 
   if (!response.ok) {
     const error = payload?.error ?? {};
+    // Signed out from another device (#205): the sign-in screen says so,
+    // whichever page then handles the 401.
+    if (response.status === 401 && error.code === 'session_revoked') {
+      rememberSignedOutNotice(typeof error.message === 'string' && error.message ? error.message : REVOKED_NOTICE);
+    }
     // A guest who reaches a members-only page goes back to the chat. Rooms and
     // the short guest You (S2b) are theirs; on You the member cards stay hidden.
     if (error.code === 'guest_not_allowed' && !GUEST_PAGES.has(window.location.pathname)) {

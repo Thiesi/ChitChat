@@ -12,6 +12,7 @@ import { createTypingIndicator, createTypingSignal } from './typing.js';
 import { openPersonReportDialog } from './message-report-dialog.js';
 import { canReport } from './person-reports.js';
 import { startRulesGate } from './rules.js';
+import { REVOKED_NOTICE, rememberSignedOutNotice } from './signed-out-notice.js';
 
 let transcriptKeys = null;
 const state = {
@@ -705,7 +706,11 @@ function startEventStream() {
     // Direct conversations only; room typing belongs to the chat page.
     if (payload?.room_id === null && payload.user?.id === state.selectedUser?.id) peerTyping?.add(payload.user);
   });
-  source.addEventListener('forced_logout', () => window.location.assign('/'));
+  source.addEventListener('forced_logout', (event) => {
+    // Signed out from another device (#205): the sign-in screen says so.
+    if (parseEvent(event)?.reason === 'session_revoked') rememberSignedOutNotice(REVOKED_NOTICE);
+    window.location.assign('/');
+  });
 }
 
 function parseEvent(event) {
