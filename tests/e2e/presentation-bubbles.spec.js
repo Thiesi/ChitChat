@@ -184,6 +184,10 @@ for (const theme of ['light', 'dark']) {
     await expect(message(page, 3).locator('.message-edited-indicator')).toBeVisible();
     // The header with "edited" shows on hover or focus; focus your own edited message so axe sees it.
     await message(page, 4).focus();
+    // The actions fade in over 120 ms (transcript.css); axe run mid-fade blends their
+    // half-transparent labels into the bubble and reports contrast people never get
+    // to read (seen on the slower WebKit runner). They fade together; measure once shown.
+    await expect(message(page, 4).locator('.message-reply-button')).toHaveCSS('opacity', '1');
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
     const result = await new AxeBuilder({ page }).include('#message-list').withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
     expect(result.violations).toEqual([]);
