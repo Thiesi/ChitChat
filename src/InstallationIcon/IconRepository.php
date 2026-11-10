@@ -24,6 +24,21 @@ final readonly class IconRepository
         return is_string($value) ? $value : null;
     }
 
+    /** One snapshot for optimistic updates and name-dependent initial rendering.
+     * @return array{revision:?string,preset_id:?string,initial:?string,application_name:?string}
+     */
+    public function selection(bool $lock = false): array
+    {
+        $statement = $this->pdo->query('SELECT application_icon_revision, application_icon_preset, application_icon_initial, application_name FROM system_settings WHERE id = 1'
+            . ($lock ? ' FOR UPDATE' : ''));
+        $row = $statement === false ? false : $statement->fetch();
+        if (!is_array($row)) throw new RuntimeException('Installation icon settings are missing.');
+        return ['revision' => $row['application_icon_revision'] === null ? null : (string) $row['application_icon_revision'],
+            'preset_id' => $row['application_icon_preset'] === null ? null : (string) $row['application_icon_preset'],
+            'initial' => $row['application_icon_initial'] === null ? null : (string) $row['application_icon_initial'],
+            'application_name' => $row['application_name'] === null ? null : (string) $row['application_name']];
+    }
+
     /** @return array{generation:IconGeneration,updated_at:string,updated_by:array{id:int,username:string}|null}|null */
     public function find(string $revision): ?array
     {
@@ -88,11 +103,13 @@ SQL);
             'updated_by' => $row['application_icon_updated_by'] === null ? null
                 : ['id'=>(int)$row['application_icon_updated_by'], 'username'=>(string)($row['username'] ?? 'Deleted account')]];
     }
-    public function publish(?string $revision, ?string $previous, ?int $actorId = null): void
+    public function publish(?string $revision, ?string $previous, ?int $actorId = null, ?string $presetId = null, ?string $initial = null): void
     {
-        $statement = $this->pdo->prepare('UPDATE system_settings SET application_icon_revision = :revision, application_icon_updated_at = clock_timestamp(), application_icon_updated_by = :actor WHERE id = 1');
+        $statement = $this->pdo->prepare('UPDATE system_settings SET application_icon_revision = :revision, application_icon_updated_at = clock_timestamp(), application_icon_updated_by = :actor, application_icon_preset = :preset, application_icon_initial = :initial WHERE id = 1');
         $statement->bindValue(':revision', $revision, $revision === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
         $statement->bindValue(':actor', $actorId, $actorId === null ? PDO::PARAM_NULL : PDO::PARAM_INT);
+        $statement->bindValue(':preset', $presetId, $presetId === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
+        $statement->bindValue(':initial', $initial, $initial === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
         $statement->execute();
         // The locked singleton serializes all publishers, including reset. Retain at most current + previous.
         $delete = $this->pdo->prepare(<<<'SQL'

@@ -6,6 +6,8 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ## [Unreleased]
 
+- Add approved installation icon presets with compact favicon artwork and a bundled-font initial that follows administrative name changes. Unsupported initials preserve the existing icon while the rename succeeds with a notice and audit. Apply migration 0053; uploads retain their existing background controls.
+
 No changes since `v3.7.0`.
 
 ## [3.7.0] - 2026-11-10

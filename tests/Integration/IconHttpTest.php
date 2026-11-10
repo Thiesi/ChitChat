@@ -122,6 +122,108 @@ final class IconHttpTest extends DatabaseTestCase
             $this->removeTemporaryPaths();
         }
     }
+    public function testPresetJsonContractKeepsStepUpFixedBackgroundsAndRenameNotices(): void
+    {
+        if (!\ChitChat\InstallationIcon\IconRenderer::available()) self::markTestSkipped('GD with PNG and WebP is unavailable.');
+        $auth = new AuthService($this->pdo, $this->config);
+        $auth->register('Root', 'a very secure password', '127.0.0.1');
+        $auth->register('Member', 'another secure password', '127.0.0.2');
+        $socket = stream_socket_server('tcp://127.0.0.1:0', $errorCode, $errorMessage);
+        self::assertIsResource($socket, $errorMessage);
+        $address = stream_socket_get_name($socket, false);
+        self::assertIsString($address);
+        fclose($socket);
+        $this->baseUrl = 'http://' . $address;
+        $log = $this->temporaryFile();
+        $sessions = $this->temporaryDirectory(true);
+        $environment = getenv();
+        self::assertIsArray($environment);
+        $environment['RATE_LIMIT_APPLICATION_ICON_PREVIEW_MAX_ATTEMPTS'] = '1';
+        $process = proc_open([PHP_BINARY, '-d', 'session.save_path=' . $sessions,
+            '-S', $address, '-t', dirname(__DIR__, 2) . '/public', dirname(__DIR__) . '/Support/icon-http-router.php'],
+            [0 => ['pipe', 'r'], 1 => ['file', $log, 'a'], 2 => ['file', $log, 'a']], $pipes, null, $environment);
+        self::assertIsResource($process);
+        fclose($pipes[0]);
+        $base = '/api/v1/admin/settings/application-icon/';
+        try {
+            PhpHttpFixture::waitUntilReady($process, $address, $log);
+            $this->login('root', 'Root', 'a very secure password');
+            $this->login('member', 'Member', 'another secure password');
+            self::assertSame(403, $this->request('member', $base . 'update.php', ['preset' => 'lounge'])['status']);
+            $needProof = $this->request('root', $base . 'update.php', ['preset' => 'lounge']);
+            self::assertSame('step_up_required', $this->json($needProof)['error']['code']);
+            self::assertSame(403, $this->request('root', $base . 'update.php', ['preset' => 'lounge'], ['X-CSRF-Token' => 'invalid'])['status']);
+            self::assertSame(200, $this->request('root', '/api/v1/step-up.php', ['password' => 'a very secure password'])['status']);
+            foreach (['#FFFFFF', null] as $background) {
+                $fixed = $this->request('root', $base . 'update.php', ['preset' => 'lounge', 'background' => $background]);
+                self::assertSame(422, $fixed['status']);
+                self::assertSame('preset_background_fixed', $this->json($fixed)['error']['code']);
+            }
+            self::assertSame(400, $this->request('root', $base . 'update.php', ['preset' => 'lounge', 'icon' => null])['status']);
+            self::assertSame(400, $this->request('root', $base . 'update.php', ['preset' => 'lounge', 'dry_run' => '1'])['status']);
+            $unknown = $this->request('root', $base . 'update.php', ['preset' => '../private']);
+            self::assertSame(400, $unknown['status']);
+            self::assertSame('preset_unknown', $this->json($unknown)['error']['code']);
+            $catalog = $this->json($this->request('root', $base . 'get.php'))['application_icon'];
+            self::assertSame('default', $catalog['source']);
+            $presets = array_column($catalog['presets'], null, 'id');
+            self::assertTrue($presets['lounge']['available']);
+            self::assertStringStartsWith('data:image/png;base64,', $presets['lounge']['thumbnail_url']);
+            $audits = (int) $this->pdo->query('SELECT COUNT(*) FROM audit_log')->fetchColumn();
+            $preview = $this->request('root', $base . 'update.php', ['preset' => 'lounge', 'dry_run' => true]);
+            self::assertSame(200, $preview['status'], $preview['body']);
+            self::assertStringContainsString('no-store', $preview['headers']['cache-control']);
+            self::assertSame('#111E22', $this->json($preview)['background']);
+            self::assertStringStartsWith('data:image/png;base64,', $this->json($preview)['preview']['favicon']);
+            self::assertSame($audits, (int) $this->pdo->query('SELECT COUNT(*) FROM audit_log')->fetchColumn());
+            self::assertSame(0, (int) $this->pdo->query('SELECT COUNT(*) FROM installation_icons')->fetchColumn());
+            $saved = $this->request('root', $base . 'update.php', ['preset' => 'lounge']);
+            self::assertSame(200, $saved['status'], $saved['body']);
+            $description = $this->json($saved)['application_icon'];
+            self::assertSame('preset', $description['source']);
+            self::assertSame('lounge', $description['preset_id']);
+            $image = $this->request('public', $description['renditions']['favicon']['url']);
+            self::assertSame(200, $image['status']);
+            self::assertArrayNotHasKey('set-cookie', $image['headers']);
+            self::assertSame($description['renditions']['favicon']['sha256'], hash('sha256', $image['body']));
+            $fixed = $this->request('root', $base . 'update.php', ['background' => '#FFFFFF'], [], true);
+            self::assertSame(422, $fixed['status']);
+            self::assertSame('preset_background_fixed', $this->json($fixed)['error']['code']);
+            $initial = $this->request('root', $base . 'update.php', ['preset' => 'initial']);
+            self::assertSame(200, $initial['status'], $initial['body']);
+            self::assertSame('C', $this->json($initial)['application_icon']['initial']);
+            $nameRoute = '/api/v1/admin/settings/application-name/update.php';
+            $renamed = $this->request('root', $nameRoute, ['application_name' => 'Juniper']);
+            self::assertSame(200, $renamed['status'], $renamed['body']);
+            self::assertNull($this->json($renamed)['application_name']['icon_notice']);
+            $before = $this->json($this->request('root', $base . 'get.php'))['application_icon'];
+            self::assertSame('J', $before['initial']);
+            $unsupported = $this->request('root', $nameRoute, ['application_name' => "\u{4E2D} Chat"]);
+            self::assertSame(200, $unsupported['status'], $unsupported['body']);
+            self::assertSame(\ChitChat\InstallationIcon\IconPresets::INITIAL_NOTICE,
+                $this->json($unsupported)['application_name']['icon_notice']);
+            $kept = $this->json($this->request('root', $base . 'get.php'))['application_icon'];
+            self::assertSame($before['revision'], $kept['revision']);
+            self::assertSame('J', $kept['initial']);
+            self::assertSame(\ChitChat\InstallationIcon\IconPresets::INITIAL_NOTICE, $kept['notice']);
+            $unavailable = $this->request('root', $base . 'update.php', ['preset' => 'initial']);
+            self::assertSame(409, $unavailable['status']);
+            self::assertSame('preset_unavailable', $this->json($unavailable)['error']['code']);
+            $reset = $this->request('root', $base . 'update.php', ['preset' => 'lantern']);
+            self::assertSame(200, $reset['status']);
+            self::assertSame('default', $this->json($reset)['application_icon']['source']);
+            self::assertNull($this->json($reset)['application_icon']['revision']);
+            self::assertNull($this->json($reset)['application_icon']['notice']);
+            $limited = $this->request('root', $base . 'update.php', ['preset' => 'lantern', 'dry_run' => true]);
+            self::assertSame(429, $limited['status']);
+            self::assertSame((int) $limited['headers']['retry-after'], $this->json($limited)['error']['retry_after_seconds']);
+        } finally {
+            if (proc_get_status($process)['running']) proc_terminate($process);
+            proc_close($process);
+            $this->removeTemporaryPaths();
+        }
+    }
+
     private function login(string $client, string $username, string $password): void
     {
         $this->request($client, '/api/v1/session.php');

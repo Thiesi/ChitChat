@@ -8,3 +8,7 @@
 It is the same font the web client self-hosts as `public/assets/fonts/bricolage-grotesque-800.woff2`, kept as TrueType because GD's FreeType text rendering needs a TTF. CCM's build record (in its OFL file): Google Fonts commit `6ce172f74aa355ea43eb964fa4a91570a4d3064d`, `ofl/bricolagegrotesque`, version 1.001; instantiated with fontTools at opsz 96, wght 800, wdth 100; subset to Latin and Latin Extended (U+0000–024F, U+0300–036F, U+1E00–1EFF, U+2000–206F, U+20AC, U+2122). The SHA-256 above matches the "Bundled extra-bold" value CCM records. Shared brand rule: this file changes only through a paired PR with ChitChat Mobile.
 
 Licensed under the SIL Open Font License 1.1 (`OFL.txt`); no Reserved Font Name is declared.
+
+## Derived coverage
+
+`BricolageGrotesque-ExtraBold.coverage.json` was generated from the unchanged TTF above with fontTools 4.68.0 (`TTFont.getBestCmap()`, excluding glyph ID zero). It contains 452 Unicode codepoints and the exact font SHA-256. Runtime checks verify that hash before offering an initial; fontTools is not a runtime dependency. The approved canvas/size/offset values are encoded separately in `../installation-icon-presets/initial-metrics.json`. The OFL checksum above refers to the repository LF blob; Windows checkout CRLF conversion does not change its contents.

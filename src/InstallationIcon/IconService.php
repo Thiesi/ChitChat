@@ -20,10 +20,12 @@ use Throwable;
 final readonly class IconService
 {
     private IconRepository $repository;
+    private IconPresets $presets;
 
     public function __construct(private PDO $pdo, private Config $config)
     {
         $this->repository = new IconRepository($pdo);
+        $this->presets = new IconPresets();
     }
 
     public static function limits(): AttachmentUploadLimits
@@ -56,7 +58,11 @@ final readonly class IconService
         $limits = self::limits();
         $limits->requireBodyFits($_SERVER['CONTENT_LENGTH'] ?? null);
         if ($file instanceof Closure) $file = $file();
-        $sourceRevision = $this->repository->currentRevision();
+        $selection = $this->repository->selection();
+        $sourceRevision = $selection['revision'];
+        if ($file === null && $selection['preset_id'] !== null) {
+            throw new ApiException(422, 'preset_background_fixed', 'This preset has its own background. Choose an upload to change the background.');
+        }
         $previous = $file === null && $sourceRevision !== null
             ? $this->repository->find($sourceRevision)['generation'] ?? null : null;
         if ($file === null) {
@@ -78,19 +84,8 @@ final readonly class IconService
             }
         }
         $generation = (new IconRenderer())->create($bytes, $background, $previous);
-        if ($dryRun) {
-            $images = [];
-            foreach (['favicon', 'apple_touch', 'maskable'] as $variant) {
-                $images[$variant] = 'data:image/png;base64,' . base64_encode($generation->bytes[$variant]);
-            }
-            // Three PNGs, at most 32² + 180² + 512² pixels. Hard bound the JSON payload as well.
-            if (array_sum(array_map(strlen(...), $images)) > 2_097_152) {
-                throw new ApiException(400, 'validation_error', 'The icon preview exceeds the response limit.');
-            }
-            return ['preview' => $images, 'maskable_scale' => $generation->maskableScale,
-                'background' => $generation->background];
-        }
-        $this->mutate($actor, $generation, $ip, $file === null, $sourceRevision);
+        if ($dryRun) return $this->preview($generation);
+        $this->mutate($actor, $generation, $ip, $file === null, $sourceRevision, expectedPreset: $selection['preset_id']);
         return $this->describe();
     }
 
@@ -103,37 +98,110 @@ final readonly class IconService
         return $this->describe();
     }
 
-    private function mutate(AuthenticatedUser $actor, ?IconGeneration $generation, string $ip, bool $checkSource = false, ?string $source = null): void
+    /** JSON preset selection uses the same preview/publication pipeline and budgets as uploads.
+     * @return array<string,mixed>
+     */
+    public function choosePreset(AuthenticatedUser $actor, string $id, string $ip, bool $dryRun = false): array
+    {
+        self::requireAdministrator($actor);
+        (new RateLimiter($this->pdo, $this->config->rateLimits))->consume(
+            $dryRun ? 'application_icon_preview' : 'application_icon_update', 'user:' . $actor->id);
+        $definition = $this->presets->definition($id);
+        if ($id === 'lantern') {
+            if ($dryRun) {
+                $preview = [];
+                foreach (['favicon', 'apple_touch', 'maskable'] as $variant) {
+                    $path = dirname(__DIR__, 2) . '/public' . IconGeneration::VARIANTS[$variant]['path'];
+                    $png = file_get_contents($path);
+                    if (!is_string($png)) throw new RuntimeException('A packaged default icon is missing.');
+                    $preview[$variant] = 'data:image/png;base64,' . base64_encode($png);
+                }
+                return ['preview' => $preview, 'background' => '#14111C', 'maskable_scale' => 1.0];
+            }
+            $this->mutate($actor, null, $ip);
+            return $this->describe();
+        }
+        $selection = $this->repository->selection();
+        $name = $selection['application_name'] ?? $this->config->applicationName;
+        $sources = $this->presets->sources($id, $name);
+        $generation = (new IconRenderer())->preset($sources['full'], $definition['background'], $sources['compact']);
+        if ($dryRun) return $this->preview($generation);
+        $this->mutate($actor, $generation, $ip, presetId: $id, initial: $sources['initial'],
+            expectedName: $id === 'initial' ? $name : null);
+        return $this->describe();
+    }
+
+    /** Called only by the rename transaction, which already owns the settings row.
+     * An undrawable initial never prevents the installation rename.
+     */
+    public function renameInitial(AuthenticatedUser $actor, string $name, string $ip): ?string
+    {
+        if (!$this->pdo->inTransaction()) throw new RuntimeException('Initial refresh belongs to the rename transaction.');
+        $old = $this->repository->selection(true);
+        if ($old['preset_id'] !== 'initial') return null;
+        if ((new InitialIcon())->character($name) === null) {
+            (new AuditLogger($this->pdo))->log($actor->id, 'system.application_icon_initial_rerender_skipped',
+                'system_settings', '1', ['revision' => $old['revision'], 'reason' => 'unsupported_initial'], $ip);
+            return IconPresets::INITIAL_NOTICE;
+        }
+        $sources = $this->presets->sources('initial', $name);
+        $generation = (new IconRenderer())->preset($sources['full'], '#F06A3B', $sources['compact']);
+        $this->publishLocked($actor, $generation, $ip, $old, 'initial', $sources['initial']);
+        return null;
+    }
+
+    /** @return array{preview:array<string,string>,maskable_scale:float,background:string} */
+    private function preview(IconGeneration $generation): array
+    {
+        $images = [];
+        foreach (['favicon', 'apple_touch', 'maskable'] as $variant) {
+            $images[$variant] = 'data:image/png;base64,' . base64_encode($generation->bytes[$variant]);
+        }
+        if (array_sum(array_map(strlen(...), $images)) > 2_097_152) {
+            throw new ApiException(400, 'validation_error', 'The icon preview exceeds the response limit.');
+        }
+        return ['preview' => $images, 'maskable_scale' => $generation->maskableScale, 'background' => $generation->background];
+    }
+
+    private function mutate(AuthenticatedUser $actor, ?IconGeneration $generation, string $ip, bool $checkSource = false,
+        ?string $source = null, ?string $presetId = null, ?string $initial = null, ?string $expectedPreset = null,
+        ?string $expectedName = null): void
     {
         $this->pdo->beginTransaction();
         try {
-            $old = $this->repository->currentRevision(true);
-            if ($checkSource && $old !== $source) {
-                throw new ApiException(409, 'application_icon_changed', 'The installation icon changed. Refresh and try again.');
+            $old = $this->repository->selection(true);
+            if (($checkSource && ($old['revision'] !== $source || $old['preset_id'] !== $expectedPreset))
+                || ($expectedName !== null && ($old['application_name'] ?? $this->config->applicationName) !== $expectedName)) {
+                throw new ApiException(409, 'application_icon_changed', 'The installation icon or name changed. Refresh and try again.');
             }
-            if ($old !== $generation?->revision) {
-                if ($generation !== null) {
-                    $this->repository->insert($generation, $actor->id);
-                }
-                $this->repository->publish($generation?->revision, $old, $actor->id);
-                (new AuditLogger($this->pdo))->log(actorUserId: $actor->id,
-                    action: $generation === null ? 'system.application_icon_reset' : 'system.application_icon_updated',
-                    subjectType: 'system_settings', subjectId: '1',
-                    metadata: ['old_revision' => $old, 'new_revision' => $generation?->revision], ipAddress: $ip);
-            }
+            $this->publishLocked($actor, $generation, $ip, $old, $presetId, $initial);
             $this->pdo->commit();
         } catch (Throwable $exception) {
-            if ($this->pdo->inTransaction()) {
-                $this->pdo->rollBack();
-            }
+            if ($this->pdo->inTransaction()) $this->pdo->rollBack();
             throw $exception;
         }
+    }
+
+    /** @param array{revision:?string,preset_id:?string,initial:?string,application_name:?string} $old */
+    private function publishLocked(AuthenticatedUser $actor, ?IconGeneration $generation, string $ip,
+        array $old, ?string $presetId = null, ?string $initial = null): void
+    {
+        if ($old['revision'] === $generation?->revision && $old['preset_id'] === $presetId && $old['initial'] === $initial) return;
+        if ($generation !== null) $this->repository->insert($generation, $actor->id);
+        $this->repository->publish($generation?->revision, $old['revision'], $actor->id, $presetId, $initial);
+        (new AuditLogger($this->pdo))->log(actorUserId: $actor->id,
+            action: $generation === null ? 'system.application_icon_reset' : 'system.application_icon_updated',
+            subjectType: 'system_settings', subjectId: '1',
+            metadata: ['old_revision' => $old['revision'], 'new_revision' => $generation?->revision,
+                'old_preset' => $old['preset_id'], 'new_preset' => $presetId], ipAddress: $ip);
     }
 
     /** @return array<string,mixed> */
     private function describe(): array
     {
-        $revision = $this->repository->currentRevision();
+        $selection = $this->repository->selection();
+        $revision = $selection['revision'];
+        $name = $selection['application_name'] ?? $this->config->applicationName;
         $row = $revision === null ? null : $this->repository->find($revision);
         if ($revision !== null && $row === null) {
             throw new RuntimeException('The current installation icon is missing.');
@@ -154,6 +222,11 @@ final readonly class IconService
         $limits = self::limits();
         $attribution = $generation === null ? null : $this->repository->attribution();
         return ['state' => $generation === null ? 'default' : 'custom', 'revision' => $revision,
+            'source' => $generation === null ? 'default' : ($selection['preset_id'] === null ? 'upload' : 'preset'),
+            'preset_id' => $selection['preset_id'], 'initial' => $selection['initial'],
+            'presets' => $this->presets->catalog($name),
+            'notice' => $selection['preset_id'] === 'initial' && (new InitialIcon())->character($name) === null
+                ? IconPresets::INITIAL_NOTICE : null,
             'background' => $generation === null ? '#14111C' : $generation->background,
             'source_width' => $generation?->sourceWidth, 'source_height' => $generation?->sourceHeight,
             'maskable_scale' => $generation === null ? null : $generation->maskableScale,
