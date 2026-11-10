@@ -14,7 +14,7 @@ final readonly class TotpKeyHealth
 {
     public function __construct(private PDO $pdo, private Config $config) {}
 
-    /** @return array{mode:string,available:bool,checked_credentials:int,unavailable_credentials:int,scan_complete:bool} */
+    /** @return array{mode:string,available:bool,checked_credentials:int,unavailable_credentials:int,scan_complete:bool,error_code:?string} */
     public function status(): array
     {
         $keys = new TotpKeyStore($this->pdo, $this->config);
@@ -35,6 +35,7 @@ final readonly class TotpKeyHealth
             }
         }
         return ['mode' => $keys->mode(), 'available' => $keys->available(), 'checked_credentials' => $checked,
-            'unavailable_credentials' => $unavailable, 'scan_complete' => $complete];
+            'unavailable_credentials' => $unavailable, 'scan_complete' => $complete,
+            'error_code' => $this->config->totpKeyRing->valid() ? null : 'invalid_server_key_ring'];
     }
 }

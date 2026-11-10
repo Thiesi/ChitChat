@@ -26,6 +26,8 @@ final class TotpHttpTest extends DatabaseTestCase
     {
         yield 'server ring' => ['server'];
         yield 'database key' => ['database'];
+        yield 'malformed ring' => ['invalid_json'];
+        yield 'unknown active key' => ['invalid_active'];
     }
 
     #[\PHPUnit\Framework\Attributes\DataProvider('keySources')]
@@ -35,6 +37,7 @@ final class TotpHttpTest extends DatabaseTestCase
         $keys = json_encode(['fixture' => base64_encode($key)], JSON_THROW_ON_ERROR);
         $configuredKeys = $source === 'server' ? $keys : '{}';
         $activeKey = $source === 'server' ? 'fixture' : '';
+        $invalidRing = str_starts_with($source, 'invalid_');
         $this->config = $this->configWith(['totpKeyRing' => TotpKeyRing::fromJson($configuredKeys, $activeKey)]);
         $auth = new AuthService($this->pdo, $this->config);
         $root = $auth->register('Root', 'initial strong secret', '127.0.0.1');
@@ -49,8 +52,8 @@ final class TotpHttpTest extends DatabaseTestCase
         $log = TestScratch::file('totp-http-log');
         $sessions = TestScratch::directory('totp-http-sessions');
         $environment = getenv();
-        $environment['TOTP_ENCRYPTION_KEYS'] = $configuredKeys;
-        $environment['TOTP_ACTIVE_KEY_ID'] = $activeKey;
+        $environment['TOTP_ENCRYPTION_KEYS'] = $source === 'invalid_json' ? '{' : ($source === 'invalid_active' ? $keys : $configuredKeys);
+        $environment['TOTP_ACTIVE_KEY_ID'] = $source === 'invalid_active' ? 'missing' : $activeKey;
         $process = proc_open([PHP_BINARY, '-d', 'session.save_path=' . $sessions, '-S', $address,
             '-t', dirname(__DIR__, 2) . '/public'], [0 => ['pipe', 'r'], 1 => ['file', $log, 'a'], 2 => ['file', $log, 'a']],
             $pipes, dirname(__DIR__, 2), $environment);
@@ -71,6 +74,16 @@ final class TotpHttpTest extends DatabaseTestCase
             self::assertSame('step_up_required', $this->request('one', $beginRoute, [])[1]['error']['code']);
             foreach (['one', 'two'] as $jar) {
                 self::assertSame(200, $this->request($jar, '/api/v1/step-up.php', ['password' => 'initial strong secret'])[0]);
+            }
+            if ($invalidRing) {
+                self::assertSame(503, $this->request('one', $beginRoute, [])[0]);
+                self::assertSame('totp_unavailable', $this->request('one', $beginRoute, [])[1]['error']['code']);
+                [$status, $health] = $this->request('one', '/api/v1/admin/system-status.php');
+                self::assertSame(200, $status);
+                self::assertSame('invalid_server_key_ring', $health['status']['security']['totp']['error_code']);
+                self::assertFalse($health['status']['security']['totp']['available']);
+                self::assertSame($root->id, $this->request('one', '/api/v1/session.php')[1]['user']['id']);
+                return;
             }
             if ($source === 'database') {
                 self::assertSame('unavailable', $this->request('one', '/api/v1/admin/settings/totp/get.php')[1]['totp']['mode']);
@@ -125,6 +138,12 @@ final class TotpHttpTest extends DatabaseTestCase
                 $databaseKeyBase64 = (string) $this->pdo->query("SELECT encode(key_bytes, 'base64') FROM totp_database_key")->fetchColumn();
                 self::assertStringNotContainsString($databaseKeyBase64, json_encode($setting, JSON_THROW_ON_ERROR));
             }
+            $this->pdo->exec('UPDATE system_settings SET mfa_required_for_admin_roles = TRUE WHERE id = 1');
+            self::assertSame(200, $this->request('one', '/api/v1/admin/roles.php',
+                ['target_user_id' => $member->id, 'roles' => ['admin']])[0], 'TOTP-only accounts satisfy administrative MFA.');
+            self::assertSame(1, (int) $this->pdo->query("SELECT COUNT(*) FROM user_roles WHERE role = 'admin' AND user_id = " . $member->id)->fetchColumn());
+            self::assertSame(200, $this->request('one', '/api/v1/admin/roles.php',
+                ['target_user_id' => $member->id, 'roles' => []])[0]);
             [$status, $replacement] = $this->request('one', $beginRoute, []);
             self::assertSame(200, $status);
             self::assertSame(['cancelled' => true], $this->request('one', '/api/v1/account/mfa/totp/cancel.php',

@@ -191,7 +191,7 @@ test('set up: replace confirms with the app in the step-up dialog first; remove 
     'account/mfa/totp/begin.php': () => (++begins === 1
       ? error(403, 'step_up_required', 'Confirm it’s you.')
       : { enrollment_id: 'enr-2', secret: SECRET, otpauth_uri: URI, expires_at: new Date(Date.now() + 300_000).toISOString() }),
-    'account/mfa/totp/remove.php': error(409, 'last_mfa_method', 'Last method.'),
+    'account/mfa/totp/remove.php': error(409, 'last_mfa_method', ''),
   } });
   await page.goto('/account.php');
   await expect(block(page)).toContainText('last used');
@@ -208,6 +208,18 @@ test('set up: replace confirms with the app in the step-up dialog first; remove 
   page.once('dialog', (confirm) => confirm.accept());
   await block(page).getByRole('button', { name: 'Remove authenticator app' }).click();
   await expect(block(page).locator('.error-text')).toHaveText('This is your only second step. Add a passkey first, or turn off two-step sign-in below.');
+});
+
+test('removing the app shows why a remaining passkey cannot currently be used', async ({ page }) => {
+  const reason = 'Add a working passkey before removing your authenticator app, or turn off two-step sign-in if your account allows it.';
+  await fixture(page, { mfa: mfaApp, overrides: {
+    'account/mfa/totp/remove.php': error(409, 'last_mfa_method', reason),
+  } });
+  await page.goto('/account.php');
+  page.once('dialog', (confirm) => confirm.accept());
+  await block(page).getByRole('button', { name: 'Remove authenticator app' }).click();
+  await expect(block(page).locator('.error-text')).toHaveText(reason);
+  await expect(block(page).getByRole('button', { name: 'Remove authenticator app' })).toBeVisible();
 });
 
 test('set up but unavailable on the server: You says so and offers the other ways', async ({ page }) => {

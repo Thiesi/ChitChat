@@ -46,4 +46,24 @@ final class TotpKeyRingTest extends TestCase
             }
         }
     }
+    public function testInvalidEnvironmentRingDoesNotStopTheApplicationOrExposeItsInput(): void
+    {
+        $beforeJson = getenv('TOTP_ENCRYPTION_KEYS');
+        $beforeActive = getenv('TOTP_ACTIVE_KEY_ID');
+        try {
+            foreach (['{', '{"fixture":"' . base64_encode(random_bytes(32)) . '"}'] as $json) {
+                putenv('TOTP_ENCRYPTION_KEYS=' . $json);
+                putenv('TOTP_ACTIVE_KEY_ID=missing');
+                $config = \ChitChat\Config::fromEnvironment();
+                self::assertFalse($config->totpKeyRing->valid());
+                self::assertTrue($config->totpKeyRing->configured(), 'Invalid server intent must block database fallback.');
+                self::assertNull($config->totpKeyRing->key('fixture'));
+                self::assertSame(['configured' => true, 'valid' => false, 'active_key_id' => ''], $config->totpKeyRing->__debugInfo());
+            }
+        } finally {
+            putenv($beforeJson === false ? 'TOTP_ENCRYPTION_KEYS' : 'TOTP_ENCRYPTION_KEYS=' . $beforeJson);
+            putenv($beforeActive === false ? 'TOTP_ACTIVE_KEY_ID' : 'TOTP_ACTIVE_KEY_ID=' . $beforeActive);
+        }
+    }
+
 }

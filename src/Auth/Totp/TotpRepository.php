@@ -12,7 +12,7 @@ final readonly class TotpRepository
 {
     public function __construct(private PDO $pdo) {}
 
-    public function credential(int $userId, string $phase, bool $lock = false): ?TotpCredential
+    public function credential(int $userId, string $phase, bool $lock = false, bool $unexpired = false): ?TotpCredential
     {
         if ($lock && !$this->pdo->inTransaction()) throw new RuntimeException('Authenticator verification requires a transaction.');
         $row = $this->query(<<<'SQL'
@@ -20,7 +20,7 @@ SELECT id, user_id, phase, key_id, encode(ciphertext, 'hex') AS ciphertext,
        encode(iv, 'hex') AS iv, encode(tag, 'hex') AS tag, last_accepted_step,
        pending_session_version, pending_login_id, expires_at, created_at, activated_at, last_used_at
 FROM totp_credentials WHERE user_id = :user AND phase = :phase
-SQL . ($lock ? ' FOR UPDATE' : ''), ['user' => $userId, 'phase' => $phase])->fetch();
+SQL . ($unexpired ? ' AND expires_at > clock_timestamp()' : '') . ($lock ? ' FOR UPDATE' : ''), ['user' => $userId, 'phase' => $phase])->fetch();
         if (!is_array($row)) return null;
         return new TotpCredential(
             (string) $row['id'], (int) $row['user_id'], (string) $row['phase'], (string) $row['key_id'],

@@ -59,7 +59,7 @@ export function pendingMethods(methods, session) {
 export function describeTotpError(failure) {
   if (failure instanceof ApiError) {
     if (failure.code === 'invalid_totp') return 'That code didn’t work. Wait for a new code in your app, then enter it.';
-    if (failure.code === 'last_mfa_method') return 'This is your only second step. Add a passkey first, or turn off two-step sign-in below.';
+    if (failure.code === 'last_mfa_method') return failure.message.trim() || 'This is your only second step. Add a passkey first, or turn off two-step sign-in below.';
     if (failure.code === 'totp_not_found') return 'There’s no authenticator app to remove.';
     if (failure.code === 'totp_unavailable') return 'Authenticator codes can’t be checked on this server right now. Use a passkey or a recovery code.';
     if (failure.code === 'rate_limited') {

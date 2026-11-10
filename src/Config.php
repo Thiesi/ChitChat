@@ -206,7 +206,7 @@ final readonly class Config
             webPushPrivateProviders: \ChitChat\WebPush\PushAddressPolicy::fromJson(self::env('WEB_PUSH_PRIVATE_PROVIDERS', '[]')),
             webPushDnsResolvConf: self::pushDnsResolvConf(),
             nativeAndroidApps: \ChitChat\Auth\NativeAndroidApps::fromJson(self::env('NATIVE_ANDROID_APPS', '[]')),
-            totpKeyRing: \ChitChat\Auth\Totp\TotpKeyRing::fromJson(
+            totpKeyRing: \ChitChat\Auth\Totp\TotpKeyRing::fromConfiguration(
                 self::env('TOTP_ENCRYPTION_KEYS', '{}'), self::env('TOTP_ACTIVE_KEY_ID', ''),
             ),
         );

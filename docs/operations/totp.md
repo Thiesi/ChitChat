@@ -82,12 +82,21 @@ existing explicit policy-permitted MFA recovery/disable process. A lost server
 key cannot be reconstructed from ciphertext.
 
 Protected system status exposes security.totp with mode, available,
-checked_credentials, unavailable_credentials and scan_complete, never key IDs
-or values. Its scan is bounded to the first 100 accounts (up to 200 credentials);
+checked_credentials, unavailable_credentials, scan_complete and error_code,
+never key IDs or values. Malformed server-ring JSON or an unknown active key
+reports error_code=invalid_server_key_ring, mode=unavailable and available=false.
+It disables TOTP without stopping password/passkey access or falling back to the
+DB key; fix the configured server ring to restore TOTP. Valid configuration has
+error_code=null. Its scan is bounded to the first 100 accounts (up to 200 credentials);
 scan_complete=false means it is not a complete integrity proof. The rotation
 dry-run command provides resumable verification of the remaining rows.
 
 Keep server clocks synchronized. Accepted codes are one-use across purposes,
 and accepting the next time step early may require waiting for another code.
 Factor changes invalidate cached step-up across sessions without signing out.
-Expired pending enrollment is unusable immediately. The existing maintenance command also removes up to 100 expired pending rows per invocation (dry-run supported), with account-before-factor locks and no policy-generation change. Repeat maintenance when clearing a larger backlog. This releases stale pending key references without touching active authenticators.
+Expired pending enrollment is unusable immediately, using the database clock in
+the locked selection. The existing maintenance command also removes up to 100
+expired pending rows per invocation (dry-run supported), with account-before-factor
+locks and no policy-generation change. Repeat maintenance when clearing a larger
+backlog. This releases stale pending key references without touching active
+authenticators.

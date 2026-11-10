@@ -346,6 +346,69 @@ final class TotpServiceTest extends DatabaseTestCase
         self::assertSame($generation, $this->fresh()->mfaPolicyGeneration);
     }
 
+    public function testRemovalRequiresACurrentlyUsableRemainingPrimaryFactor(): void
+    {
+        $this->enroll();
+        $key = \ChitChat\Tests\Support\TestPasskey::create();
+        $key->seed($this->pdo, $this->actor->id);
+        SessionManager::establishPrivilegedStepUp($this->fresh(), 'totp');
+        $this->assertApi('last_mfa_method', fn () => $this->totp->remove($this->fresh(), '127.0.0.1'));
+        self::assertNotNull((new TotpRepository($this->pdo))->credential($this->actor->id, 'active'));
+        $passkey = (int) $this->pdo->query('SELECT id FROM webauthn_credentials')->fetchColumn();
+        foreach ([TotpKeyRing::fromJson('{}', ''), TotpKeyRing::fromJson(
+            json_encode(['fixture' => base64_encode(random_bytes(32))], JSON_THROW_ON_ERROR), 'fixture')] as $ring) {
+            $config = $this->configWith(['totpKeyRing' => $ring]);
+            $this->assertApi('last_mfa_method', fn () => (new MfaService($this->pdo, $config))
+                ->removeCredential($this->fresh(), $passkey, '127.0.0.1'));
+            self::assertSame(1, (new MfaRepository($this->pdo))->credentialCount($this->actor->id));
+        }
+        $usable = $this->configWith(['webauthnRpId' => 'chat.test', 'webauthnOrigin' => 'https://chat.test']);
+        (new TotpService($this->pdo, $usable))->remove($this->fresh(), '127.0.0.1');
+        self::assertNull((new TotpRepository($this->pdo))->credential($this->actor->id, 'active'));
+    }
+
+    public function testInvalidServerRingNeverFallsBackToDatabaseKeysButPasskeysStillWork(): void
+    {
+        $database = $this->configWith(['totpKeyRing' => TotpKeyRing::fromJson('{}', '')]);
+        (new TotpKeySettings($this->pdo, $database))->update($this->actor, true, '127.0.0.1');
+        \ChitChat\Tests\Support\TestTotp::seed($this->pdo, $database, $this->actor->id);
+        $key = \ChitChat\Tests\Support\TestPasskey::create();
+        $key->seed($this->pdo, $this->actor->id);
+        $config = $this->configWith(['webauthnRpId' => 'chat.test', 'webauthnOrigin' => 'https://chat.test',
+            'totpKeyRing' => TotpKeyRing::fromConfiguration('{', '')]);
+        $store = new TotpKeyStore($this->pdo, $config);
+        self::assertFalse($store->available());
+        self::assertSame('unavailable', $store->mode());
+        $credential = (new TotpRepository($this->pdo))->credential($this->actor->id, 'active');
+        $this->assertApi('totp_unavailable', fn () => $credential->decrypt($store));
+        $this->pdo->beginTransaction();
+        try { $this->assertApi('totp_unavailable', fn () => $store->writeKey()); }
+        finally { $this->pdo->rollBack(); }
+        $health = (new \ChitChat\Auth\Totp\TotpKeyHealth($this->pdo, $config))->status();
+        self::assertSame('invalid_server_key_ring', $health['error_code']);
+        self::assertSame(1, $health['unavailable_credentials']);
+        self::assertFalse((new TotpKeySettings($this->pdo, $config))->status($this->fresh())['database_key_switch_available']);
+        $mfa = new MfaService($this->pdo, $config);
+        $options = $mfa->beginAssertion($this->fresh(), 'mfa_step_up', '127.0.0.1');
+        $result = $mfa->finishAssertion($this->fresh(), 'mfa_step_up', $key->assertion($options), '127.0.0.1');
+        self::assertGreaterThan(0, $result['credential_record_id']);
+        self::assertNotContains('totp', $mfa->status($this->fresh())['usable_methods']);
+    }
+
+    public function testLockedPendingSelectionUsesTheDatabaseExpiryClock(): void
+    {
+        $this->totp->begin($this->fresh(), '127.0.0.1');
+        $repository = new TotpRepository($this->pdo);
+        $this->pdo->beginTransaction();
+        try {
+            self::assertNotNull($repository->credential($this->actor->id, 'pending', true, unexpired: true));
+            $this->pdo->exec("UPDATE totp_credentials SET created_at = clock_timestamp() - INTERVAL '10 minutes',
+                expires_at = clock_timestamp() - INTERVAL '1 second' WHERE phase = 'pending'");
+            self::assertNotNull($repository->credential($this->actor->id, 'pending', true));
+            self::assertNull($repository->credential($this->actor->id, 'pending', true, unexpired: true));
+        } finally { $this->pdo->rollBack(); }
+    }
+
     private function lockAccount(): void
     {
         $statement = $this->pdo->prepare('SELECT id FROM users WHERE id = :id FOR NO KEY UPDATE');

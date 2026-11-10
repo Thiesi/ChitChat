@@ -15,6 +15,7 @@ final readonly class TotpKeyRing
     private function __construct(
         #[SensitiveParameter] private array $keys,
         public string $activeKeyId,
+        private bool $configurationValid = true,
     ) {
     }
 
@@ -51,9 +52,23 @@ final readonly class TotpKeyRing
         return new self($keys, $activeKeyId);
     }
 
+    /** Configuration loading must not make password or passkey sign-in unavailable.
+     * Invalid server intent is retained so it can never select the DB fallback.
+     */
+    public static function fromConfiguration(#[SensitiveParameter] string $json, string $activeKeyId): self
+    {
+        try { return self::fromJson($json, $activeKeyId); }
+        catch (InvalidArgumentException) { return new self([], '', false); }
+    }
+
+    public function valid(): bool
+    {
+        return $this->configurationValid;
+    }
+
     public function configured(): bool
     {
-        return $this->keys !== [];
+        return !$this->configurationValid || $this->keys !== [];
     }
 
     public function key(string $keyId): ?string
@@ -61,9 +76,9 @@ final readonly class TotpKeyRing
         return $this->keys[$keyId] ?? null;
     }
 
-    /** @return array{configured:bool,active_key_id:string} */
+    /** @return array{configured:bool,valid:bool,active_key_id:string} */
     public function __debugInfo(): array
     {
-        return ['configured' => $this->configured(), 'active_key_id' => $this->activeKeyId];
+        return ['configured' => $this->configured(), 'valid' => $this->valid(), 'active_key_id' => $this->activeKeyId];
     }
 }

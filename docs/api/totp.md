@@ -49,9 +49,11 @@ Only the account's first primary MFA enrollment returns the existing ten recover
 codes. Adding TOTP to a passkey account, replacing it, or adding a first passkey
 to a TOTP account preserves recovery codes. Display newly returned codes once.
 
-Removing the final primary method returns 409 last_mfa_method. Use the existing
-explicit disable-MFA operation when policy permits. With TOTP enabled the final
-passkey can be removed; without it, existing 409 last_passkey is unchanged.
+Removing a primary method requires another currently usable primary method.
+TOTP removal needs a configured passkey; final-passkey removal needs a decryptable,
+available TOTP factor. An unavailable remaining factor returns 409 last_mfa_method
+with an explanation. Use the existing explicit disable-MFA operation when policy
+permits. Without any TOTP factor, existing 409 last_passkey is unchanged.
 
 ## Proof routes and replay
 
@@ -114,7 +116,11 @@ Retry-After and error.retry_after_seconds. Wait before retrying.
 
 Other primary-context, CSRF, ban, lockdown, authentication and step-up errors
 retain their existing codes. A missing key blocks only the affected TOTP method;
-other usable passkeys/recovery codes remain usable.
+other usable passkeys/recovery codes remain usable. Malformed server-ring
+configuration likewise disables only TOTP, returns 503 totp_unavailable for its
+operations, and never selects the database-key fallback. Protected system status
+reports security.totp.error_code="invalid_server_key_ring" (null otherwise),
+without key material.
 
 ## Super-Administrator key setting
 

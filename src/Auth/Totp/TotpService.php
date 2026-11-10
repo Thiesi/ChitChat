@@ -145,8 +145,9 @@ final readonly class TotpService
             if ($this->credentials->credential($fresh->id, 'active', true) === null) {
                 throw new ApiException(404, 'totp_not_found', 'No authenticator is enabled for this account.');
             }
-            if ((new MfaRepository($this->pdo))->credentialCount($fresh->id) === 0) {
-                throw new ApiException(409, 'last_mfa_method', 'Keep another MFA method, or disable MFA when policy permits.');
+            if (!$this->config->webauthnEnabled() || !extension_loaded('openssl')
+                || (new MfaRepository($this->pdo))->credentialCount($fresh->id) === 0) {
+                throw new ApiException(409, 'last_mfa_method', 'Add a working passkey before removing your authenticator app, or turn off two-step sign-in if your account allows it.');
             }
             $this->credentials->delete($fresh->id, 'active');
             (new AuditLogger($this->pdo))->log($fresh->id, 'auth.totp_removed', 'user', (string) $fresh->id, [], $ip);
@@ -221,12 +222,11 @@ final readonly class TotpService
 
     private function pending(AuthenticatedUser $user, string $id): TotpCredential
     {
-        $pending = $this->credentials->credential($user->id, 'pending', true);
+        $pending = $this->credentials->credential($user->id, 'pending', true, unexpired: true);
         $binding = SessionManager::loginBinding();
         if ($pending === null || !hash_equals($pending->id, $id)
             || $pending->pendingSessionVersion !== $user->sessionVersion
-            || $binding === null || $pending->pendingLoginId !== $binding['id']
-            || $pending->expiresAt === null || new DateTimeImmutable($pending->expiresAt) <= new DateTimeImmutable()) {
+            || $binding === null || $pending->pendingLoginId !== $binding['id']) {
             throw new ApiException(409, 'totp_enrollment_expired', 'Start authenticator setup again.');
         }
         return $pending;

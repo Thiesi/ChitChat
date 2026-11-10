@@ -19,6 +19,7 @@ final readonly class TotpKeyStore
     public function writeKey(): array
     {
         $this->requireTransaction();
+        if (!$this->config->totpKeyRing->valid()) throw TotpCipher::unavailable();
         if ($this->config->totpKeyRing->configured()) {
             $id = $this->config->totpKeyRing->activeKeyId;
             $key = $this->config->totpKeyRing->key($id);
@@ -33,6 +34,7 @@ final readonly class TotpKeyStore
 
     public function readKey(string $id): string
     {
+        if (!$this->config->totpKeyRing->valid()) throw TotpCipher::unavailable();
         $key = $this->config->totpKeyRing->key($id);
         if ($key !== null) return $key;
         $database = $this->databaseKey(false);
@@ -42,7 +44,7 @@ final readonly class TotpKeyStore
 
     public function available(): bool
     {
-        return extension_loaded('openssl')
+        return $this->config->totpKeyRing->valid() && extension_loaded('openssl')
             && in_array('aes-256-gcm', openssl_get_cipher_methods(), true)
             && ($this->config->totpKeyRing->configured() || $this->databaseKey(false) !== null);
     }
@@ -50,6 +52,7 @@ final readonly class TotpKeyStore
     /** @return 'server'|'database'|'unavailable' */
     public function mode(): string
     {
+        if (!$this->config->totpKeyRing->valid()) return 'unavailable';
         return $this->config->totpKeyRing->configured() ? 'server'
             : ($this->databaseKey(false) !== null ? 'database' : 'unavailable');
     }

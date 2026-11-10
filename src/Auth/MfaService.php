@@ -523,9 +523,14 @@ final class MfaService
         $this->pdo->beginTransaction();
         try {
             $this->mfa->userHandleForUpdate($actor->id);
-            if ($this->mfa->credentialCount($actor->id) <= 1
-                && (new \ChitChat\Auth\Totp\TotpRepository($this->pdo))->credential($actor->id, 'active') === null) {
-                throw new ApiException(409, 'last_passkey', 'The final passkey cannot be removed. Disable MFA instead when policy permits.');
+            if ($this->mfa->credentialCount($actor->id) <= 1) {
+                $totp = (new \ChitChat\Auth\Totp\TotpService($this->pdo, $this->config))->status($actor->id);
+                if (!$totp['enabled']) {
+                    throw new ApiException(409, 'last_passkey', 'The final passkey cannot be removed. Disable MFA instead when policy permits.');
+                }
+                if (!$totp['available'] || !\ChitChat\View\TotpPresentation::integrated()) {
+                    throw new ApiException(409, 'last_mfa_method', 'Your authenticator app is currently unavailable. Keep this passkey until your app works again, or turn off two-step sign-in if your account allows it.');
+                }
             }
             if (!$this->mfa->deleteCredential($actor->id, $credentialId)) {
                 throw new ApiException(404, 'passkey_not_found', 'Passkey not found.');
