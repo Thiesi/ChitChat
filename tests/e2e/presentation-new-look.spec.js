@@ -120,6 +120,9 @@ test('the note and the recovery-key nudge share the chat without breaking its la
     await page.goto('/');
     await expect(page.locator('#new-look-note')).toBeVisible();
     await expect(page.locator('#recovery-nudge')).toBeVisible();
+    await expect(page.locator('#room-list .room-button').first()).toBeAttached();
+    // Phones open on the Rooms list (S2c): open the room as a person would.
+    if ((page.viewportSize()?.width ?? 1280) < 768) await page.locator('#room-list .room-button').first().click();
     // Each strip gets its own row: neither stretches into the chat's row,
     // and the composer stays whole and on screen.
     for (const strip of ['#new-look-note', '#recovery-nudge']) {

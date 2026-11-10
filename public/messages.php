@@ -39,7 +39,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <!-- The Direct list pane and the conversation (S2c): side by side on
        desktop, the list over the conversation on tablets, a stack on phones
        (panes.js). -->
-  <div id="messages-shell" class="messages-shell dm-shell hidden" data-panes data-list="dm-list-pane" data-toggle="dm-list-toggle" data-close="dm-list-close" data-backdrop="dm-backdrop" data-title="dm-peer-name" data-list-name="Conversations" data-deep-link="with">
+  <div id="messages-shell" class="messages-shell dm-shell hidden" data-panes data-list="dm-list-pane" data-toggle="dm-list-toggle" data-close="dm-list-close" data-backdrop="dm-backdrop" data-title="dm-peer-name" data-list-name="Conversations" data-deep-link="with,user_id">
     <p class="rules-banner hidden" data-rules-gate role="status"><span><strong>The community rules have changed.</strong> Agree to keep writing.</span> <button class="secondary-button" type="button" data-rules-review>Review</button></p>
     <section id="dm-list-pane" class="list-pane dm-list-pane" aria-labelledby="dm-list-title">
       <header class="list-pane-header">
@@ -73,7 +73,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
           <svg class="toggle-back" aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
         </button>
         <span id="dm-peer-pebble" class="pebble" aria-hidden="true" hidden></span>
-        <div class="conversation-heading">
+        <div class="dm-heading">
           <h2 id="dm-peer-name" class="conversation-title" tabindex="-1">Choose a conversation</h2>
           <p id="dm-peer-status" class="messages-muted">Search for a user or choose an existing conversation.</p>
         </div>

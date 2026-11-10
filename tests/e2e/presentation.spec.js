@@ -167,7 +167,8 @@ test('empty conversations, long names, and user accessibility preferences', asyn
   await expect(page.locator('#empty-state')).toHaveText('No messages yet.');
   for (const width of [1440, 640, 320]) {
     await page.setViewportSize({ width, height: 844 });
-    await page.locator('.sidebar-header h1').evaluate((heading) => { heading.textContent = 'A'.repeat(64); });
+    // A long list title (a translation, say) must not push the page sideways.
+    await page.locator('#rooms-heading').evaluate((heading) => { heading.textContent = 'A'.repeat(64); });
     await page.locator('#room-title').evaluate((heading) => { heading.textContent = 'A very long room name for a lovely group of people'; });
     await noOverflow(page);
     await expect(page.locator('#send-button')).toBeInViewport();
@@ -176,6 +177,8 @@ test('empty conversations, long names, and user accessibility preferences', asyn
   }
   await page.goto('/messages.php');
   await expect(page.locator('#dm-empty-state')).toHaveText('No messages yet.');
+  // Phones open on the conversation list (S2c).
+  if ((page.viewportSize()?.width ?? 1280) < 768) await page.locator('#dm-conversation-list .conversation-button').first().click();
   await expect(page.locator('#dm-composer')).toBeVisible();
   await noOverflow(page);
   const [empty, composer] = await Promise.all([page.locator('#dm-empty-state').boundingBox(), page.locator('#dm-composer').boundingBox()]);

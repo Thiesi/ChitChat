@@ -96,6 +96,8 @@ const message = (page, id) => page.locator(`#message-list article[data-message-i
 async function openRoom(page) {
   await page.goto('/');
   await expect(page.locator('#message-list article.message')).toHaveCount(8);
+  // Phones open on the Rooms list (S2c): open the room as a person would.
+  if ((page.viewportSize()?.width ?? 1280) < 768) await page.locator('#room-list .room-button').first().click();
   await expect(message(page, 9).locator('.attachment-card')).toHaveCount(1);
 }
 
@@ -194,6 +196,9 @@ for (const theme of ['light', 'dark']) {
 
     // Direct messages: an edited outgoing message ("· edited" in its meta).
     await page.goto('/messages.php?user=2');
+    // Phones open on the conversation list (S2c).
+    await expect(page.locator('#dm-conversation-list .conversation-button').first()).toBeAttached();
+    if ((page.viewportSize()?.width ?? 1280) < 768) await page.locator('#dm-conversation-list .conversation-button').first().click();
     await expect(page.locator('#dm-message-list article[data-message-id="4"] .message-edited-indicator')).toBeVisible();
     const dms = await new AxeBuilder({ page }).include('#dm-message-list').withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
     expect(dms.violations).toEqual([]);

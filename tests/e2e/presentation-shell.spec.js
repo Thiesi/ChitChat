@@ -242,14 +242,19 @@ test.describe('phones: the bottom bar', () => {
     });
   }
 
-  test('the bar leaves while typing and comes back after', async ({ page }) => {
+  // S2c: an open conversation is a pushed screen, so the bar steps aside
+  // for it (and its message box keeps the full height); Back brings it back.
+  test('the bar leaves for the pushed conversation and comes back on Back', async ({ page }) => {
     await fixture(page);
     await openRooms(page);
-    await page.locator('#composer-input').focus();
+    await expect(nav(page)).toBeVisible();
+    await page.locator('#room-list .room-button').first().click();
     await expect(nav(page)).toBeHidden();
     const shell = await page.locator('#chat-shell').boundingBox();
     expect(shell.y + shell.height).toBeCloseTo(760, 0);
-    await page.locator('#composer-input').blur();
+    await page.locator('#composer-input').focus();
+    await expect(nav(page)).toBeHidden();
+    await page.getByRole('button', { name: 'Back to rooms' }).click();
     await expect(nav(page)).toBeVisible();
   });
 });

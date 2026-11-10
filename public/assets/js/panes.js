@@ -6,6 +6,9 @@
 //        data-close="drawer-close" data-backdrop="drawer-backdrop"
 //        data-title="room-title" data-list-name="Rooms" data-deep-link="room_id">
 //
+// data-deep-link lists the query keys (comma-separated) that point at one
+// conversation.
+//
 // Desktop (64rem and wider): the list sits beside the conversation; nothing
 // to manage. Tablet (48rem to 64rem): the list opens over the conversation
 // from the toggle in the conversation header, like a dialog: Escape, its
@@ -94,8 +97,9 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // A deep link (a search result, an activity item, a profile's "Message")
   // starts on the conversation it points at.
-  const deepLink = frame.dataset.deepLink;
-  frame.dataset.stack = deepLink && new URLSearchParams(window.location.search).has(deepLink) ? 'conversation' : 'list';
+  const query = new URLSearchParams(window.location.search);
+  const deepLinked = (frame.dataset.deepLink ?? '').split(',').some((key) => key && query.has(key));
+  frame.dataset.stack = deepLinked ? 'conversation' : 'list';
   applyMode();
   tablet.addEventListener('change', applyMode);
   phone.addEventListener('change', () => {

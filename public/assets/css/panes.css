@@ -184,7 +184,7 @@
   padding: 0.9rem 1rem 0.9rem 1.5rem;
   background: var(--surface);
 }
-.dm-shell .conversation-heading { display: grid; flex: 1; gap: 0.2rem; min-width: 0; }
+.dm-shell .dm-heading { display: grid; flex: 1; gap: 0.2rem; min-width: 0; }
 .dm-shell .conversation-header h2 {
   font-family: var(--display-font);
   font-size: 1.65rem;
@@ -300,6 +300,8 @@
   /* Room details give way on narrow headers; "N here now" stays. */
   .room-heading p.room-meta-line { display: flex; margin-top: 0.1rem; font-size: 0.82rem; }
   .room-meta-line #room-info { display: none; }
+  /* The title clips for its ellipsis; room inside the clip keeps the glow whole. */
+  .room-heading h2 { margin: -0.5rem; padding: 0.5rem; }
 }
 
 @media (any-pointer: coarse) {

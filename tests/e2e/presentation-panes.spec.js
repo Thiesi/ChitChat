@@ -80,7 +80,8 @@ async function openRooms(page, width = 1280) {
   await page.setViewportSize({ width, height: 860 });
   await page.goto('/');
   await expect(page.locator('#chat-shell')).toBeVisible();
-  await expect(roomButton(page, 'The living room')).toBeAttached();
+  // Attached, not visible: on tablets the list starts closed.
+  await expect(page.locator('#room-list .room-button', { hasText: 'The living room' })).toBeAttached();
 }
 
 async function openDirect(page, width = 1280) {
