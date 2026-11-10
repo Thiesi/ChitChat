@@ -78,7 +78,9 @@ final class TotpHttpTest extends DatabaseTestCase
             if ($invalidRing) {
                 self::assertSame(503, $this->request('one', $beginRoute, [])[0]);
                 self::assertSame('totp_unavailable', $this->request('one', $beginRoute, [])[1]['error']['code']);
-                [$status, $health] = $this->request('one', '/api/v1/admin/system-status.php');
+                // The complete status report includes a database-size filesystem scan.
+                // Give that operator report its own bounded budget; auth routes retain 10 seconds.
+                [$status, $health] = $this->request('one', '/api/v1/admin/system-status.php', timeout: 30);
                 self::assertSame(200, $status);
                 self::assertSame('invalid_server_key_ring', $health['status']['security']['totp']['error_code']);
                 self::assertFalse($health['status']['security']['totp']['available']);
@@ -186,14 +188,14 @@ final class TotpHttpTest extends DatabaseTestCase
         }
     }
 
-    private function request(string $jar, string $path, ?array $payload = null, bool $csrf = true): array
+    private function request(string $jar, string $path, ?array $payload = null, bool $csrf = true, int $timeout = 10): array
     {
         $cookie = $this->cookies[$jar] ??= TestScratch::file('totp-cookie-' . $jar);
         $curl = curl_init($this->base . $path);
         self::assertNotFalse($curl);
         $this->headers = [];
         curl_setopt_array($curl, [CURLOPT_RETURNTRANSFER => true, CURLOPT_COOKIEFILE => $cookie,
-            CURLOPT_COOKIEJAR => $cookie, CURLOPT_TIMEOUT => 10,
+            CURLOPT_COOKIEJAR => $cookie, CURLOPT_TIMEOUT => $timeout,
             CURLOPT_HEADERFUNCTION => function ($handle, string $line): int {
                 if (str_contains($line, ':')) {
                     [$key, $value] = explode(':', $line, 2);
