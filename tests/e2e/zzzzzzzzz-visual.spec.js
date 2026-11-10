@@ -32,7 +32,7 @@ const screenshotOptions = {
   animations: 'disabled',
   caret: 'hide',
   fullPage: true,
-  maxDiffPixelRatio: 0.003,
+  maxDiffPixelRatio: 0, // TEMPORARY: force CI to upload the actual images for a baseline refresh; reverted next commit
   threshold: 0.2,
 };
 
