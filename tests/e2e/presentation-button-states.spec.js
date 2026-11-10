@@ -27,7 +27,7 @@ const VARIANTS = [
   ['conversation-button'], ['conversation-button active'], ['inspection-user-button'], ['dm-user-button'],
   ['moderation-case-button'], ['moderation-case-button active'],
   ['header-button'], ['header-button', '', 'aria-pressed="true"'], ['user-button'],
-  ['close-button', 'chat-shell'], ['emoji-button'], ['attachment-button', '', '', 'label'], ['file-button'],
+  ['close-button', 'chat-shell'], ['emoji-button'], ['attachment-button', '', '', 'label'], ['secondary-button file-button', '', '', 'label'],
   ['reaction-button'], ['reaction-button reaction-button-active'], ['reaction-add-button'],
   ['message-reply-button'], ['message-react-button'], ['message-more-button'], ['message-mutation-button'],
 ];
