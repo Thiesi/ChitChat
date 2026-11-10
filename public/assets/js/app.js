@@ -552,10 +552,8 @@ function renderRoomList() {
 
     const name = document.createElement('span');
     name.className = 'room-name';
-    const hash = document.createElement('span');
-    hash.className = 'room-hash';
-    hash.textContent = '#';
-    name.append(hash, ` ${room.name}`);
+    // The room's lantern (S2c): its "#" on a squircle in the room's identity hue.
+    name.append(lantern(room), ` ${room.name}`);
     button.append(name);
 
     const unread = state.currentRoom?.id === room.id ? 0 : (room.unread_count ?? 0);
@@ -585,8 +583,10 @@ function renderRoomList() {
       button.append(roomFlag('read only'));
     }
 
-    button.addEventListener('click', () => {
-      window.dispatchEvent(new CustomEvent('chitchat:room-chosen'));
+    button.addEventListener('click', (event) => {
+      // panes.js: close the tablet overlay, or push the conversation on phones.
+      // A scripted click (a deep link) opens it without moving focus.
+      window.dispatchEvent(new CustomEvent('chitchat:room-chosen', { detail: { opener: button, user: event.isTrusted } }));
       selectRoom(room);
     });
     elements['room-list'].append(button);
@@ -759,7 +759,10 @@ function renderRoomHeader() {
     return;
   }
 
-  elements['room-title'].textContent = `# ${room.name}`;
+  const roomLantern = lantern(room);
+  // Presence may already be known (presence.js); keep its glow on the new lantern.
+  roomLantern.classList.toggle('glow', document.getElementById('room-here')?.hidden === false);
+  elements['room-title'].replaceChildren(roomLantern, ` ${room.name}`);
   const details = [];
   if (room.info_line) {
     details.push(room.info_line);
@@ -814,9 +817,19 @@ function renderMuteNotice(room, mute) {
   }
 }
 
+/** A room's "#" drawn as its lantern; the text stays "# name" for every reader. */
+function lantern(room) {
+  const hash = document.createElement('span');
+  hash.className = 'room-hash lantern';
+  const hue = identityHueIndex(room.id);
+  if (hue !== null) hash.dataset.hue = String(hue);
+  hash.textContent = '#';
+  return hash;
+}
+
 function renderNoRoom() {
   elements['room-title'].textContent = 'Choose a room';
-  elements['room-info'].textContent = 'Select a room from the sidebar.';
+  elements['room-info'].textContent = 'Select a room from the list.';
   elements['join-button'].classList.add('hidden');
   elements['composer-wrap'].classList.add('hidden');
   state.messages = [];

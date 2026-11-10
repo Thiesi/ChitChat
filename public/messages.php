@@ -28,62 +28,67 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <link rel="stylesheet" href="/assets/css/message-mutations.css">
   <link rel="stylesheet" href="/assets/css/rules.css">
   <link rel="stylesheet" href="/assets/css/shell.css">
+  <link rel="stylesheet" href="/assets/css/panes.css">
 </head>
 <body>
   <!-- One polite announcer per page, fed by events (announcer.js); the transcript itself never speaks. -->
   <div id="announcer" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></div>
   <div id="messages-loading" class="app-loading" role="status">Loading messages…</div>
 
-  <?= \ChitChat\View\AppShell::open('direct', 'messages-shell') ?>
-  <main id="messages-shell" tabindex="-1" class="messages-shell hidden">
-    <header class="messages-header">
-      <div>
-        <p class="messages-eyebrow"><?= $appName ?></p>
-        <h1>Direct messages</h1>
-        <p id="messages-identity" class="messages-muted"></p>
-      </div>
-      <nav class="messages-header-actions" aria-label="Message navigation">
-        <a class="secondary-button" href="/search.php?scope=direct">Search messages</a>
-      </nav>
-    </header>
-
+  <?= \ChitChat\View\AppShell::open('direct', 'dm-conversation', 'Skip to conversation') ?>
+  <!-- The Direct list pane and the conversation (S2c): side by side on
+       desktop, the list over the conversation on tablets, a stack on phones
+       (panes.js). -->
+  <div id="messages-shell" class="messages-shell dm-shell hidden" data-panes data-list="dm-list-pane" data-toggle="dm-list-toggle" data-close="dm-list-close" data-backdrop="dm-backdrop" data-title="dm-peer-name" data-list-name="Conversations" data-deep-link="with">
     <p class="rules-banner hidden" data-rules-gate role="status"><span><strong>The community rules have changed.</strong> Agree to keep writing.</span> <button class="secondary-button" type="button" data-rules-review>Review</button></p>
-
-    <section id="dm-privacy-notice" class="privacy-notice" aria-labelledby="dm-privacy-heading">
-      <h2 id="dm-privacy-heading">Privacy notice</h2>
-      <p id="dm-privacy-text"></p>
-      <p>Edits and deletions preserve historical bodies until direct-message retention removes the message. Administrative revision review is separately configurable, requires a stated reason, and is audited when enabled.</p>
-    </section>
-
-    <p id="messages-error" class="error-text" role="alert"></p>
-
-    <section class="messages-layout">
-      <aside class="conversation-sidebar">
-        <form id="dm-user-search-form" class="form-stack compact-search">
-          <label>
-            Start a conversation
-            <input id="dm-user-search" type="search" minlength="2" maxlength="32" placeholder="Username prefix" required>
-          </label>
+    <section id="dm-list-pane" class="list-pane dm-list-pane" aria-labelledby="dm-list-title">
+      <header class="list-pane-header">
+        <div class="list-pane-title">
+          <h1 id="dm-list-title" class="list-title">Direct</h1>
+          <p id="messages-identity" class="list-pane-status"></p>
+        </div>
+        <div class="list-pane-actions">
+          <a class="header-button list-search" href="/search.php?scope=direct" aria-label="Search messages" title="Search messages"><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></a>
+          <button id="dm-list-close" class="header-button close-button drawer-close" type="button" aria-label="Close conversations">×</button>
+        </div>
+      </header>
+      <form id="dm-user-search-form" class="form-stack compact-search dm-start">
+        <label for="dm-user-search">Start a conversation</label>
+        <div class="dm-start-row">
+          <input id="dm-user-search" type="search" minlength="2" maxlength="32" placeholder="Username prefix" required>
           <button class="secondary-button" type="submit">Search</button>
-        </form>
-        <div id="dm-user-results" class="dm-user-results"></div>
-
-        <h2>Conversations</h2>
-        <nav id="dm-conversation-list" class="conversation-list" aria-label="Direct-message conversations"></nav>
-      </aside>
-
-      <section class="conversation-main" aria-labelledby="dm-peer-name">
-        <header class="conversation-header">
-          <div>
-            <h2 id="dm-peer-name">Choose a conversation</h2>
-            <p id="dm-peer-status" class="messages-muted">Search for a user or choose an existing conversation.</p>
-          </div>
-          <div class="conversation-actions">
-            <button id="dm-report-person" class="secondary-button hidden" type="button">Report</button>
-            <button id="dm-block-toggle" class="secondary-button dm-block-toggle hidden" type="button">Block user</button>
-          </div>
-        </header>
-
+        </div>
+      </form>
+      <div id="dm-user-results" class="dm-user-results"></div>
+      <h2 id="dm-conversations-heading" class="list-section-heading">Conversations</h2>
+      <nav id="dm-conversation-list" class="conversation-list" aria-labelledby="dm-conversations-heading"></nav>
+      <?= \ChitChat\View\PoweredBy::html($config) ?>
+    </section>
+    <div id="dm-backdrop" class="drawer-backdrop" aria-hidden="true"></div>
+    <main id="dm-conversation" class="conversation-main" aria-labelledby="dm-peer-name" tabindex="-1">
+      <header class="conversation-header">
+        <!-- Tablets: opens the conversations over this one. Phones: back to the list. -->
+        <button id="dm-list-toggle" class="header-button drawer-toggle" type="button" aria-label="Conversations" aria-expanded="false" aria-controls="dm-list-pane">
+          <svg class="toggle-list" aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+          <svg class="toggle-back" aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+        </button>
+        <span id="dm-peer-pebble" class="pebble" aria-hidden="true" hidden></span>
+        <div class="conversation-heading">
+          <h2 id="dm-peer-name" class="conversation-title" tabindex="-1">Choose a conversation</h2>
+          <p id="dm-peer-status" class="messages-muted">Search for a user or choose an existing conversation.</p>
+        </div>
+        <div class="conversation-actions">
+          <button id="dm-report-person" class="secondary-button hidden" type="button">Report</button>
+          <button id="dm-block-toggle" class="secondary-button dm-block-toggle hidden" type="button">Block user</button>
+        </div>
+      </header>
+      <!-- One line, with the detail a click away (#163 voice). -->
+      <details id="dm-privacy-notice" class="privacy-line">
+        <summary><span id="dm-privacy-heading">Direct messages aren’t end-to-end encrypted.</span> <span class="privacy-more">Learn more</span></summary>
+        <p id="dm-privacy-text"></p>
+        <p>Edits and deletions preserve historical bodies until direct-message retention removes the message. Administrative revision review is separately configurable, requires a stated reason, and is audited when enabled.</p>
+      </details>
+      <p id="messages-error" class="error-text" role="alert"></p>
         <div id="dm-empty-state" class="dm-empty-state">No conversation selected.</div>
         <button id="dm-load-older" class="secondary-button hidden" type="button">Load older messages</button>
         <ol id="dm-message-list" class="dm-message-list" aria-label="Direct messages">
@@ -123,10 +128,8 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
             <button id="dm-attachment-clear" class="secondary-button hidden" type="button">Remove</button>
           </div>
         </form>
-      </section>
-    </section>
-    <?= \ChitChat\View\PoweredBy::html($config) ?>
-  </main>
+    </main>
+  </div>
   <?= \ChitChat\View\AppShell::close() ?>
 
   <?= \ChitChat\View\ReportDialog::html() ?>
@@ -136,6 +139,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <script type="module" src="/assets/js/search-result-navigation.js"></script>
   <script type="module" src="/assets/js/dm-attachments.js"></script>
   <script type="module" src="/assets/js/dm-message-mutations.js"></script>
+  <script type="module" src="/assets/js/panes.js"></script>
   <script type="module" src="/assets/js/shell.js"></script>
 </body>
 </html>

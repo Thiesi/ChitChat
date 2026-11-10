@@ -13,6 +13,8 @@ import { openPersonReportDialog } from './message-report-dialog.js';
 import { canReport } from './person-reports.js';
 import { startRulesGate } from './rules.js';
 import { REVOKED_NOTICE, rememberSignedOutNotice } from './signed-out-notice.js';
+import { initials } from './avatar.js';
+import { identityHueIndex } from './identity-hue.js';
 
 let transcriptKeys = null;
 const state = {
@@ -173,6 +175,8 @@ function renderConversations() {
     button.type = 'button';
     button.className = 'conversation-button';
     button.classList.toggle('active', state.selectedUser?.id === conversation.user.id);
+    if (state.selectedUser?.id === conversation.user.id) button.setAttribute('aria-current', 'true');
+    button.append(pebble(conversation.user));
 
     const heading = document.createElement('span');
     heading.className = 'conversation-heading';
@@ -190,10 +194,28 @@ function renderConversations() {
     const preview = document.createElement('span');
     preview.className = 'conversation-preview';
     preview.textContent = `${conversation.last_message.outgoing ? 'You: ' : ''}${conversation.last_message.body}`;
-    button.append(heading, preview);
-    button.addEventListener('click', () => selectUser(conversation.user));
+    const text = document.createElement('span');
+    text.className = 'conversation-text';
+    text.append(heading, preview);
+    button.append(text);
+    button.addEventListener('click', (event) => {
+      // panes.js: close the tablet overlay, or push the conversation on phones.
+      window.dispatchEvent(new CustomEvent('chitchat:conversation-chosen', { detail: { opener: button, user: event.isTrusted } }));
+      selectUser(conversation.user);
+    });
     list.append(button);
   }
+}
+
+/** A person's pebble: initials on a circle in their identity hue (CCM visual vocabulary). */
+function pebble(user) {
+  const element = document.createElement('span');
+  element.className = 'pebble';
+  element.setAttribute('aria-hidden', 'true');
+  const hue = identityHueIndex(user.id);
+  if (hue !== null) element.dataset.hue = String(hue);
+  element.textContent = initials(user.username);
+  return element;
 }
 
 async function searchUsers(event) {
@@ -218,9 +240,10 @@ function renderUserResults(users) {
     button.type = 'button';
     button.className = 'dm-user-button';
     button.textContent = user.username;
-    button.addEventListener('click', async () => {
+    button.addEventListener('click', async (event) => {
       container.replaceChildren();
       elements['dm-user-search'].value = '';
+      window.dispatchEvent(new CustomEvent('chitchat:conversation-chosen', { detail: { opener: elements['dm-user-search'], user: event.isTrusted } }));
       await selectUser(user);
     });
     container.append(button);
@@ -246,6 +269,10 @@ async function selectUser(user) {
   state.oldestMessageId = null;
   clearReplyTo();
   elements['dm-peer-name'].textContent = user.username;
+  const peerPebble = document.getElementById('dm-peer-pebble');
+  if (peerPebble) {
+    peerPebble.replaceWith(Object.assign(pebble(user), { id: 'dm-peer-pebble' }));
+  }
   elements['dm-peer-status'].textContent = 'Loading conversation…';
   elements['dm-composer'].classList.add('hidden');
   elements['dm-block-toggle'].classList.add('hidden');

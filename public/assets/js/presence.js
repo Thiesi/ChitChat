@@ -166,6 +166,19 @@ export function createPresenceClient({
     guestList.classList.toggle('hidden', guests === 0);
     count.textContent = total > 0 ? String(total) : '';
     toggle.setAttribute('aria-label', total === 1 ? 'Members, 1 online' : `Members, ${total > 0 ? total : 'none'} online`);
+    renderHereNow(total);
+  }
+
+  // The conversation header (S2c): "N here now" and the lantern's honey glow,
+  // only once presence for this room is known, and never the glow alone.
+  function renderHereNow(total) {
+    const here = document.getElementById('room-here');
+    const lantern = document.querySelector('#room-title .lantern');
+    if (here) {
+      here.textContent = total > 0 ? `${total} here now` : '';
+      here.hidden = total === 0;
+    }
+    lantern?.classList.toggle('glow', total > 0);
   }
 
   function clear() {

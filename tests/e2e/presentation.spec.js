@@ -113,12 +113,14 @@ for (const theme of ['dark', 'light']) {
       await expect(page.locator('#composer-input')).toBeInViewport();
     }
     await accessible(page);
-    await page.locator('#drawer-toggle').click();
+    // Phones stack the list and the conversation (S2c): Back shows the Rooms
+    // list and the bottom bar (with You, S2b); a room returns to the conversation.
+    await page.getByRole('button', { name: 'Back to rooms' }).click();
     await expect(page.getByRole('navigation', { name: 'Rooms' })).toBeVisible();
-    await page.keyboard.press('Escape');
-    // The account menu is gone (S2b): You is in the bottom bar.
     await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'You', exact: true })).toBeVisible();
     await noOverflow(page);
+    await page.getByRole('navigation', { name: 'Rooms' }).locator('.room-button').first().click();
+    await expect(page.locator('#composer-input')).toBeInViewport();
     await page.locator('#composer-input').fill('A little hello.');
     await page.locator('#emoji-button').click();
     await expect(page.locator('.emoji-picker')).toBeVisible();

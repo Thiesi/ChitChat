@@ -97,7 +97,7 @@ body:not(:has(.app-frame.has-nav)) .skip-link { display: none; }
     grid-template-columns: var(--rail-width) minmax(0, 1fr);
     align-items: start;
   }
-  .app-frame.has-nav > main { grid-column: 2; min-width: 0; }
+  .app-frame.has-nav > :is(main, .chat-shell, .messages-shell) { grid-column: 2; min-width: 0; }
   .app-nav {
     position: sticky;
     top: 0;

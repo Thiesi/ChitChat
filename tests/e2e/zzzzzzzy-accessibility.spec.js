@@ -158,31 +158,35 @@ test.describe.serial('ChitChat accessibility checks', () => {
   });
 
   // The account menu is gone (#168, S2b): You is a destination in the shell's navigation.
-  test('You is in the navigation, and the phone drawer opens, traps nothing, and returns focus', async ({ page }) => {
+  // Phones stack the Rooms list and the conversation (S2c): Back returns to the
+  // list with focus on the room that opened it, and the bottom bar comes back.
+  test('You is in the navigation, and the phone stack moves focus to the title and back', async ({ page }) => {
     const you = page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'You', exact: true });
-    const drawer = page.getByRole('button', { name: 'Rooms and conversations', exact: true });
+    const back = page.getByRole('button', { name: 'Back to rooms', exact: true });
     const rooms = page.getByRole('navigation', { name: 'Rooms' });
 
     await loginOrRegister(page);
-    await expect(drawer).toBeHidden();
+    await expect(back).toBeHidden();
     await expect(rooms).toBeVisible();
     await expect(you).toBeVisible();
 
+    // Narrowing the window keeps the conversation; Back shows the list.
     await page.setViewportSize({ width: 390, height: 844 });
-    await expect(drawer).toBeVisible();
-    await expect(drawer).toHaveAttribute('aria-expanded', 'false');
-    await expect(drawer).toHaveAttribute('aria-controls', 'sidebar');
+    await expect(back).toBeVisible();
     await expect(rooms).toBeHidden();
-
-    await drawer.click();
-    await expect(drawer).toHaveAttribute('aria-expanded', 'true');
+    await expect(you).toBeHidden();
+    await back.click();
     await expect(rooms).toBeVisible();
+    await expect(you).toBeVisible();
     await expect(page.getByRole('link', { name: 'Search messages' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Close rooms and conversations' })).toBeFocused();
-    await page.keyboard.press('Escape');
-    await expect(drawer).toHaveAttribute('aria-expanded', 'false');
+
+    const room = rooms.locator('.room-button').first();
+    await room.click();
+    await expect(page.locator('#room-title')).toBeFocused();
     await expect(rooms).toBeHidden();
-    await expect(drawer).toBeFocused();
+    await back.click();
+    await expect(rooms).toBeVisible();
+    await expect(room).toBeFocused();
 
     await you.click();
     await expect(page).toHaveURL(/\/account\.php$/);

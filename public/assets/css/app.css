@@ -360,23 +360,6 @@ a.secondary-button { display: inline-block; text-decoration: none; text-align: c
   flex-shrink: 0;
 }
 
-.sidebar-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0.65rem 0.65rem 1rem 1rem;
-}
-
-.brand-row { display: grid; gap: 0.1rem; min-width: 0; }
-
-.sidebar-header h1 {
-  margin: 0;
-  font-size: 1.35rem;
-  letter-spacing: -0.045em;
-  overflow-wrap: anywhere;
-}
-
 .connection-status {
   display: inline-flex;
   align-items: center;
@@ -402,15 +385,6 @@ a.secondary-button { display: inline-block; text-decoration: none; text-align: c
   background: var(--error);
 }
 
-.nav-section { display: grid; gap: 0.15rem; }
-
-.rooms-heading-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin: 0.75rem 0.65rem 0.25rem 1rem;
-}
-
 .rooms-heading {
   margin: 0;
   color: var(--text-muted);
@@ -418,18 +392,6 @@ a.secondary-button { display: inline-block; text-decoration: none; text-align: c
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
-
-.rooms-heading-row .section-add {
-  width: 1.75rem;
-  height: 1.75rem;
-  border-color: transparent;
-  background: transparent;
-  color: var(--text-muted);
-  font-size: 1.15rem;
-  text-decoration: none;
-}
-
-.rooms-heading-row .section-add:hover { background: var(--surface); color: var(--text); }
 
 .room-list {
   display: grid;
@@ -469,9 +431,6 @@ a.secondary-button { display: inline-block; text-decoration: none; text-align: c
   white-space: nowrap;
 }
 
-.room-hash { color: var(--text-muted); font-weight: 500; }
-.room-button.active .room-hash { color: var(--signature-text); }
-
 .room-flag {
   padding: 0.05rem 0.4rem;
   border: 1px solid var(--line);
@@ -490,23 +449,6 @@ a.secondary-button { display: inline-block; text-decoration: none; text-align: c
   font-size: 0.78rem;
 }
 
-.dm-list { display: grid; gap: 0.1rem; margin: 0; padding: 0 0.5rem; list-style: none; }
-.dm-list > .room-meta { padding: 0.35rem 0.65rem; }
-
-.dm-button {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  padding: 0.35rem 0.65rem;
-  border-radius: 0.65rem;
-  color: var(--text-muted);
-  text-decoration: none;
-}
-
-.dm-button:hover { background: var(--surface); color: var(--text); }
-.dm-button.unread { color: var(--text); font-weight: 700; }
-.dm-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
 .unread-count {
   min-width: 1.35rem;
   padding: 0 0.35rem;
@@ -518,16 +460,6 @@ a.secondary-button { display: inline-block; text-decoration: none; text-align: c
   line-height: 1.35rem;
   text-align: center;
 }
-
-.all-conversations {
-  margin: 0.2rem 0.5rem 0;
-  padding: 0.35rem 0.65rem;
-  color: var(--text-muted);
-  font-size: 0.82rem;
-  text-decoration: none;
-}
-
-.all-conversations:hover { color: var(--text); }
 
 /* Small round initials, shared by direct messages, members, and the account menu. */
 .mini-avatar {
@@ -577,10 +509,8 @@ a.secondary-button { display: inline-block; text-decoration: none; text-align: c
 
 .has-photo > .avatar-photo { opacity: 1; }
 .mini-avatar.online::after { z-index: 1; }
-.user-button { position: relative; }
 
-/* Search sits in the top bar on wide screens and in the drawer on phones. */
-.chat-shell .drawer-search,
+/* The list pane's close button, the overlay toggle and its backdrop show only where panes.css needs them. */
 .chat-shell .drawer-close,
 .chat-shell .drawer-toggle,
 .chat-shell .drawer-backdrop { display: none; }
@@ -687,21 +617,6 @@ a.secondary-button { display: inline-block; text-decoration: none; text-align: c
 
 .header-divider { width: 1px; height: 1.5rem; margin: 0 0.35rem; background: var(--line); }
 
-.user-button {
-  width: 2.5rem;
-  height: 2.5rem;
-  margin-left: 0.25rem;
-  padding: 0;
-  border: 2px solid var(--signature-text);
-  border-radius: 50%;
-  background: color-mix(in srgb, var(--signature) 18%, var(--surface));
-  /* Persimmon text on its own tint is under 4.5:1 in dark; the ring carries the colour. */
-  color: var(--text);
-  font-size: 0.75rem;
-  font-weight: 800;
-  letter-spacing: 0.03em;
-}
-
 .popover-anchor { position: relative; }
 
 .popover {
@@ -719,8 +634,6 @@ a.secondary-button { display: inline-block; text-decoration: none; text-align: c
   background: var(--surface);
   box-shadow: 0 18px 48px var(--shadow-strong);
 }
-
-#notifications-popover { width: 22rem; }
 
 .popover hr { width: 100%; margin: 0.3rem 0; border: 0; border-top: 1px solid var(--line); }
 
@@ -866,26 +779,6 @@ a.secondary-button { display: inline-block; text-decoration: none; text-align: c
 
 .notification-preview { display: grid; gap: 0.1rem; margin: 0; padding: 0; list-style: none; }
 .notification-preview > .room-meta { padding: 0.6rem 0.7rem; }
-
-.notification-item {
-  display: grid;
-  gap: 0.15rem;
-  width: 100%;
-  padding: 0.6rem 0.7rem;
-  border: 0;
-  border-radius: 0.6rem;
-  background: transparent;
-  color: var(--text);
-  font-size: 0.85rem;
-  text-align: left;
-  text-decoration: none;
-}
-
-a.notification-item:hover { background: var(--raised); }
-.notification-item.unread { background: color-mix(in srgb, var(--signature) 9%, var(--surface)); }
-.notification-item strong { font-weight: 700; }
-.notification-item span { color: var(--text-muted); }
-.notification-item time { color: var(--text-muted); font-size: 0.75rem; }
 
 /* A username that opens the name menu; it reads as text until hovered. */
 .user-name {
@@ -1628,28 +1521,6 @@ button.user-name.mention { padding: 0 0.2rem; border-radius: 0.25rem; background
   .chat-shell:has(> .lockdown-banner:not(.hidden)) { grid-template-rows: auto minmax(0, 1fr); }
   .chat-shell > .lockdown-banner { border-radius: 0; border-width: 0 0 1px; font-size: 0.8rem; }
 
-  /* The sidebar is a drawer behind the menu button. */
-  .sidebar {
-    position: fixed;
-    z-index: 30;
-    inset: 0 auto 0 0;
-    width: min(20rem, 86vw);
-    padding-bottom: 1rem;
-    border-right: 1px solid var(--line);
-    background: var(--ground);
-    box-shadow: 0 0 60px var(--shadow-strong);
-    transform: translateX(-105%);
-    visibility: hidden;
-    transition: transform 0.2s ease, visibility 0s linear 0.2s;
-  }
-
-  .chat-shell.drawer-open .sidebar {
-    transform: none;
-    visibility: visible;
-    transition: transform 0.2s ease;
-  }
-
-  .chat-shell.drawer-open .drawer-backdrop,
   .chat-shell.members-open .drawer-backdrop,
   .chat-shell.sheet-open .drawer-backdrop {
     position: fixed;
@@ -1661,34 +1532,16 @@ button.user-name.mention { padding: 0 0.2rem; border-radius: 0.25rem; background
 
   .chat-shell.sheet-open .drawer-backdrop { z-index: 35; }
 
-  .chat-shell .drawer-close, .chat-shell .drawer-toggle { display: inline-flex; }
-  .sidebar-header { padding: 0.9rem 0.75rem 0.5rem 1.1rem; }
   .room-button { padding: 0.65rem 0.75rem; font-size: 0.95rem; }
-  .dm-button { padding: 0.55rem 0.75rem; }
-
-  .chat-shell .drawer-search {
-    display: flex;
-    align-items: center;
-    gap: 0.55rem;
-    margin: 0.25rem 0.75rem;
-    padding: 0.65rem 0.8rem;
-    border: 1px solid var(--field-line);
-    border-radius: 0.8rem;
-    background: var(--surface);
-    color: var(--text-muted);
-    font-size: 0.9rem;
-    text-decoration: none;
-  }
 
   .room-header { gap: 0.35rem; padding: 0.5rem 0.5rem 0.5rem 0.4rem; border-radius: 0; }
   .room-heading h2 { overflow: hidden; font-size: 1.25rem; text-overflow: ellipsis; white-space: nowrap; }
   .header-actions { gap: 0.1rem; }
   .header-button { min-width: 2.75rem; height: 2.75rem; padding: 0 0.45rem; }
   .header-divider, .header-search { display: none; }
-  .user-button { width: 2.4rem; height: 2.4rem; }
   .join-button { padding: 0.45rem 0.7rem; font-size: 0.85rem; }
 
-  /* Members and the menus open as sheets from the bottom. */
+  /* Members and the name menu open as sheets from the bottom. */
   .chat-shell.members-open .members-panel {
     position: fixed;
     z-index: 30;
@@ -1700,8 +1553,7 @@ button.user-name.mention { padding: 0 0.2rem; border-radius: 0.25rem; background
     box-shadow: 0 -12px 48px var(--shadow-strong);
   }
 
-  .popover,
-  #notifications-popover {
+  .popover {
     position: fixed;
     z-index: 40;
     inset: auto 0 0 0;
