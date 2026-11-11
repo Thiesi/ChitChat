@@ -144,6 +144,7 @@ async function loadConversations(preferredUserId = null) {
     const response = await apiGet('/api/v1/direct-messages/conversations.php');
     state.conversations = Array.isArray(response.conversations) ? response.conversations : [];
     renderConversations();
+    reportDirectCount();
 
     const selectedId = preferredUserId ?? state.selectedUser?.id ?? null;
     if (selectedId !== null) {
@@ -151,7 +152,8 @@ async function loadConversations(preferredUserId = null) {
       if (existing && (!state.selectedUser || state.selectedUser.id !== selectedId)) {
         await selectUser(existing.user);
       }
-    } else if (state.conversations[0]) {
+    } else if (state.conversations[0] && !phoneListShowing()) {
+      // On the phone list screen nothing opens until a conversation is chosen.
       await selectUser(state.conversations[0].user);
     }
   } catch (error) {
@@ -205,6 +207,22 @@ function renderConversations() {
     });
     list.append(button);
   }
+}
+
+/**
+ * True while a phone shows the list screen (panes.js). Nothing is opened
+ * behind it then: an unseen conversation must not be marked read, announced
+ * or counted as present (S2c review).
+ */
+function phoneListShowing() {
+  const frame = document.querySelector('[data-panes]');
+  return frame?.dataset.stack === 'list' && window.matchMedia('(max-width: 47.99rem)').matches;
+}
+
+/** The rail's Direct badge (shell.js): the unread total across conversations. */
+function reportDirectCount() {
+  const count = state.conversations.reduce((sum, item) => sum + (Number.isInteger(item?.unread_count) ? item.unread_count : 0), 0);
+  window.dispatchEvent(new CustomEvent('chitchat:direct-count', { detail: { count } }));
 }
 
 /** A person's pebble: initials on a circle in their identity hue (CCM visual vocabulary). */

@@ -289,6 +289,9 @@
   :is(.chat-shell, .dm-shell)[data-stack="conversation"] > .list-pane { display: none; }
   :is(.chat-shell, .dm-shell) > .list-pane { padding: 0.25rem 0 1rem; background: var(--ground); }
 
+  /* The list screen has no conversation to skip to. */
+  body:has([data-panes][data-stack="list"]) .skip-link { display: none; }
+
   /* A pushed screen has no bottom bar. */
   .app-frame.has-nav:has(> [data-panes][data-stack="conversation"]) { --bar-space: 0px; }
   .app-frame.has-nav:has(> [data-panes][data-stack="conversation"]) > .app-nav { display: none; }

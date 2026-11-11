@@ -48,8 +48,19 @@ window.addEventListener('DOMContentLoaded', () => {
     return frame.classList.contains('list-open');
   }
 
+  // While the list is open over the conversation, everything else is inert:
+  // the conversation, the strips and the rail can't be reached under the backdrop.
+  const navigation = document.getElementById('app-nav');
+  function setInert(on) {
+    for (const node of [...frame.children, navigation]) {
+      if (!node || node === list || node === backdrop) continue;
+      node.inert = on;
+    }
+  }
+
   function setOverlay(open, { restoreFocus = false } = {}) {
     frame.classList.toggle('list-open', open);
+    setInert(open);
     if (tablet.matches) toggle.setAttribute('aria-expanded', String(open));
     if (open) {
       (list.querySelector('[aria-current="true"]') ?? list.querySelector(FOCUSABLE))?.focus();
@@ -85,13 +96,17 @@ window.addEventListener('DOMContentLoaded', () => {
   function applyMode() {
     if (phone.matches) {
       frame.classList.remove('list-open');
+      setInert(false);
       toggle.removeAttribute('aria-expanded');
       toggle.setAttribute('aria-label', `Back to ${listName.toLowerCase()}`);
       frame.dataset.stack ??= 'list';
     } else {
       toggle.setAttribute('aria-label', listName);
       toggle.setAttribute('aria-expanded', String(isOverlayOpen()));
-      if (!tablet.matches) frame.classList.remove('list-open');
+      if (!tablet.matches) {
+        frame.classList.remove('list-open');
+        setInert(false);
+      }
     }
   }
 
@@ -103,12 +118,18 @@ window.addEventListener('DOMContentLoaded', () => {
   applyMode();
   tablet.addEventListener('change', applyMode);
   phone.addEventListener('change', () => {
-    // Narrowing a wider window keeps you in the conversation you were reading.
-    if (phone.matches) {
-      frame.dataset.stack = 'conversation';
-      pushed = false;
+    if (!phone.matches) {
+      applyMode();
+      return;
     }
+    // Narrowing a wider window keeps you in the conversation you were reading,
+    // unless the list was open over it (a rotated tablet) or nothing is open.
+    const wasListOpen = isOverlayOpen();
+    const current = list.querySelector('[aria-current="true"]');
+    frame.dataset.stack = current && !wasListOpen ? 'conversation' : 'list';
+    pushed = false;
     applyMode();
+    if (wasListOpen) (current ?? list.querySelector(FOCUSABLE))?.focus();
   });
 
   toggle.addEventListener('click', () => {
@@ -124,6 +145,8 @@ window.addEventListener('DOMContentLoaded', () => {
     if (isOverlayOpen()) setOverlay(false, { restoreFocus: true });
   });
   document.addEventListener('keydown', (event) => {
+    // A dialog opened from the list (Create room) handles its own Escape first.
+    if (event.defaultPrevented || document.querySelector('dialog[open]')) return;
     if (event.key === 'Escape' && isOverlayOpen() && tablet.matches) {
       event.preventDefault();
       setOverlay(false, { restoreFocus: true });

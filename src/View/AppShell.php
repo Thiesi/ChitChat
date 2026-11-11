@@ -99,8 +99,9 @@ final class AppShell
     private static function item(string $key, string $href, string $label, string $icon, string $tab): string
     {
         $current = $key === $tab ? ' aria-current="page"' : '';
-        $badge = $key === 'activity'
-            ? '<span class="app-nav-badge" data-badge="activity" aria-hidden="true" hidden></span>'
+        // Activity and Direct carry unread counts (shell.js), read with the tab's name.
+        $badge = in_array($key, ['activity', 'direct'], true)
+            ? '<span class="app-nav-badge" data-badge="' . $key . '" aria-hidden="true" hidden></span>'
             : '';
 
         return '<a class="app-nav-item" data-tab="' . $key . '" href="' . $href . '"' . $current . '>'

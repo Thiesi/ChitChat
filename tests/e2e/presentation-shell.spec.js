@@ -70,7 +70,9 @@ async function linkNames(page) {
 
 async function openRooms(page) {
   await page.goto('/');
-  await expect(page.locator('#message-list article.message')).toHaveCount(2);
+  // Phones open on the Rooms list with nothing opened behind it (S2c).
+  if ((page.viewportSize()?.width ?? 1280) < 768) await expect(page.locator('#room-list .room-button').first()).toBeVisible();
+  else await expect(page.locator('#message-list article.message')).toHaveCount(2);
   await expect(nav(page)).toBeVisible();
 }
 

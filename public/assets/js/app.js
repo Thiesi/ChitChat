@@ -437,9 +437,11 @@ async function loadRooms(preferredRoomId = null) {
     renderRoomList();
 
     const desiredId = preferredRoomId ?? state.currentRoom?.id ?? null;
+    // On the phone list screen nothing opens until a room is chosen.
+    const initial = phoneListShowing() ? null : chooseInitialRoom();
     const desired = desiredId === null
-      ? chooseInitialRoom()
-      : state.rooms.find((room) => room.id === desiredId) ?? chooseInitialRoom();
+      ? initial
+      : state.rooms.find((room) => room.id === desiredId) ?? initial;
 
     if (desired) {
       await selectRoom(desired);
@@ -522,6 +524,16 @@ function roomLock(visibility) {
   return lock;
 }
 
+/**
+ * True while a phone shows the list screen (panes.js). Nothing is opened
+ * behind it then: an unseen conversation must not be marked read, announced
+ * or counted as present (S2c review).
+ */
+function phoneListShowing() {
+  const frame = document.querySelector('[data-panes]');
+  return frame?.dataset.stack === 'list' && window.matchMedia('(max-width: 47.99rem)').matches;
+}
+
 function chooseInitialRoom() {
   return state.rooms.find((room) => room.member_role !== null) ?? state.rooms[0] ?? null;
 }
@@ -595,6 +607,12 @@ function renderRoomList() {
 
 async function selectRoom(chosen) {
   let room = chosen;
+  // The previous room's "N here now" and glow never carry over; presence for this room fills them in.
+  const here = document.getElementById('room-here');
+  if (here && state.currentRoom?.id !== chosen?.id) {
+    here.hidden = true;
+    here.textContent = '';
+  }
   if (state.user?.guest && room.member_role === null) {
     try {
       room = (await apiPost('/api/v1/rooms/join.php', { room_id: room.id })).room ?? room;
@@ -827,6 +845,12 @@ function lantern(room) {
   return hash;
 }
 
+/** A room opened by the page (created, joined): panes.js closes the overlay or pushes the conversation. */
+function announceRoomOpened(roomId) {
+  const opener = elements['room-list'].querySelector(`[data-room-id="${roomId}"]`);
+  window.dispatchEvent(new CustomEvent('chitchat:room-chosen', { detail: { opener, user: true } }));
+}
+
 function renderNoRoom() {
   elements['room-title'].textContent = 'Choose a room';
   elements['room-info'].textContent = 'Select a room from the list.';
@@ -855,6 +879,7 @@ async function joinCurrentRoom() {
     });
     replaceRoom(response.room);
     await selectRoom(response.room);
+    announceRoomOpened(response.room.id);
     toast(`Joined #${response.room.name}.`);
   } catch (error) {
     handleApiFailure(error);
@@ -1732,6 +1757,7 @@ async function createRoom(event) {
     });
     elements['room-dialog'].close();
     await loadRooms(response.room.id);
+    announceRoomOpened(response.room.id);
     toast(`Created #${response.room.name}.`);
   } catch (error) {
     elements['room-dialog-error'].textContent = errorMessage(error);

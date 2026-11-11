@@ -33,9 +33,11 @@ const dmHistory = [1, 2].map((id) => ({
 }));
 
 async function fixture(page, { user = member, present = [] } = {}) {
+  const requests = [];
   await page.route('**/api/v1/**', async (route) => {
     const url = new URL(route.request().url());
     const path = url.pathname.replace('/api/v1/', '');
+    requests.push(`${path}${url.search}`);
     if (path === 'events/stream.php') return route.fulfill({ contentType: 'text/event-stream', body: 'retry: 600000\n\n' });
     if (path === 'avatars/show.php') return route.fulfill({ status: 404, body: '' });
     if (path === 'session.php') {
@@ -66,9 +68,11 @@ async function fixture(page, { user = member, present = [] } = {}) {
       'direct-messages/attachments/metadata.php': { attachments: [] },
       'direct-messages/read.php': {},
       'users/profile.php': { user: rowan },
+      'rooms/create.php': { room: { ...baseRoom, id: 9, key: 'room-9', name: 'Porch' } },
     };
     await route.fulfill({ json: responses[path] ?? {} });
   });
+  return requests;
 }
 
 const list = (page) => page.getByRole('region', { name: 'Rooms' });
@@ -346,3 +350,73 @@ for (const [scheme, theme] of [['lantern', 'light'], ['lantern', 'dark'], ['dusk
     await noSideScroll(page);
   });
 }
+
+// ---- Review fixes (lead review of #239) ----
+
+test('phone: nothing opens behind the Rooms list, so nothing is read until a room is chosen', async ({ page }) => {
+  const requests = await fixture(page);
+  await openRooms(page, 360);
+  await page.waitForLoadState('networkidle');
+  expect(requests.filter((path) => path.startsWith('rooms/read.php') || path.startsWith('rooms/messages.php'))).toEqual([]);
+  await expect(page.locator('#room-title')).toHaveText('Choose a room');
+  await expect(roomButton(page, 'Garden')).toContainText('3 unread');
+  await expect(page.locator('.skip-link')).toBeHidden();
+
+  await roomButton(page, 'The living room').click();
+  await expect(page.locator('#message-list article.message')).toHaveCount(2);
+  expect(requests.some((path) => path.startsWith('rooms/messages.php?room_id=1'))).toBe(true);
+  expect(requests.some((path) => path.startsWith('rooms/messages.php?room_id=4'))).toBe(false);
+});
+
+test('phone: nothing opens behind the Direct list, so no conversation is marked read until chosen', async ({ page }) => {
+  const requests = await fixture(page);
+  await openDirect(page, 360);
+  await page.waitForLoadState('networkidle');
+  expect(requests.filter((path) => path.startsWith('direct-messages/read.php') || path.startsWith('direct-messages/history.php'))).toEqual([]);
+  await expect(page.locator('.conversation-button', { hasText: 'Sam' }).locator('.unread-badge')).toHaveText('1');
+
+  await page.locator('.conversation-button', { hasText: 'Rowan' }).click();
+  await expect(page.locator('#dm-message-list .dm-message')).toHaveCount(2);
+  expect(requests.some((path) => path.startsWith('direct-messages/history.php?user_id=2'))).toBe(true);
+  expect(requests.some((path) => path.includes('user_id=3'))).toBe(false);
+});
+
+test('the rail\'s Direct tab carries the unread direct-message count, read with its name', async ({ page }) => {
+  await fixture(page);
+  await openRooms(page, 1280);
+  const direct = bar(page).getByRole('link', { name: /^Direct/ });
+  await expect(direct).toHaveAccessibleName('Direct, 1 unread');
+  await expect(direct.locator('[data-badge="direct"]')).toHaveText('1');
+  await openDirect(page, 1280);
+  await expect(bar(page).getByRole('link', { name: /^Direct/ })).toHaveAccessibleName('Direct, 1 unread');
+});
+
+test('tablet: everything under the open list is inert, and comes back when it closes', async ({ page }) => {
+  await fixture(page);
+  await openRooms(page, 900);
+  await toggle(page).click();
+  await expect(list(page)).toBeVisible();
+  for (const selector of ['#conversation', '#app-nav']) {
+    expect(await page.locator(selector).evaluate((node) => node.inert), selector).toBe(true);
+  }
+  expect(await list(page).evaluate((node) => node.inert)).toBe(false);
+  await page.keyboard.press('Escape');
+  await expect(list(page)).toBeHidden();
+  for (const selector of ['#conversation', '#app-nav']) {
+    expect(await page.locator(selector).evaluate((node) => node.inert), selector).toBe(false);
+  }
+  await expect(toggle(page)).toBeFocused();
+});
+
+test('tablet: Escape in Create room closes the dialog, not the list; a created room closes the list', async ({ page }) => {
+  await fixture(page, { user: { ...member, roles: ['admin'] } });
+  await openRooms(page, 900);
+  await toggle(page).click();
+  await list(page).getByRole('button', { name: 'Create room' }).click();
+  const dialog = page.locator('#room-dialog');
+  await expect(dialog).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+  await expect(list(page)).toBeVisible();
+  await expect(list(page).getByRole('button', { name: 'Create room' })).toBeFocused();
+});

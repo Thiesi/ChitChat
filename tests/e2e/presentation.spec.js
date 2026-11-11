@@ -176,9 +176,9 @@ test('empty conversations, long names, and user accessibility preferences', asyn
     expect(empty.y + empty.height).toBeLessThanOrEqual(composer.y + 1);
   }
   await page.goto('/messages.php');
-  await expect(page.locator('#dm-empty-state')).toHaveText('No messages yet.');
-  // Phones open on the conversation list (S2c).
+  // Phones open on the conversation list, with nothing opened behind it (S2c).
   if ((page.viewportSize()?.width ?? 1280) < 768) await page.locator('#dm-conversation-list .conversation-button').first().click();
+  await expect(page.locator('#dm-empty-state')).toHaveText('No messages yet.');
   await expect(page.locator('#dm-composer')).toBeVisible();
   await noOverflow(page);
   const [empty, composer] = await Promise.all([page.locator('#dm-empty-state').boundingBox(), page.locator('#dm-composer').boundingBox()]);

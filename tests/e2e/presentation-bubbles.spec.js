@@ -95,9 +95,9 @@ const message = (page, id) => page.locator(`#message-list article[data-message-i
 
 async function openRoom(page) {
   await page.goto('/');
-  await expect(page.locator('#message-list article.message')).toHaveCount(8);
-  // Phones open on the Rooms list (S2c): open the room as a person would.
+  // Phones open on the Rooms list with nothing opened behind it (S2c): open the room as a person would.
   if ((page.viewportSize()?.width ?? 1280) < 768) await page.locator('#room-list .room-button').first().click();
+  await expect(page.locator('#message-list article.message')).toHaveCount(8);
   await expect(message(page, 9).locator('.attachment-card')).toHaveCount(1);
 }
 

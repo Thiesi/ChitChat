@@ -88,9 +88,9 @@ async function noOverflow(page) {
 
 async function openRowansCard(page) {
   await page.goto('/');
-  await expect(page.locator('#message-list .message').first()).toBeAttached();
-  // Phones open on the Rooms list (S2c): open the room as a person would.
+  // Phones open on the Rooms list with nothing opened behind it (S2c): open the room as a person would.
   if ((page.viewportSize()?.width ?? 1280) < 768) await page.locator('#room-list .room-button').first().click();
+  await expect(page.locator('#message-list .message').first()).toBeAttached();
   await expect(page.locator('.message').first()).toBeVisible();
   await page.locator('.message .user-name', { hasText: 'Rowan' }).first().click();
   await expect(page.locator('#name-menu')).toBeVisible();

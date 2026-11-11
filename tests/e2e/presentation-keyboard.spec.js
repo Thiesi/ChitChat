@@ -69,9 +69,9 @@ const focusedId = (page) => page.evaluate(() => document.activeElement?.closest(
 
 async function openRoom(page) {
   await page.goto('/');
-  await expect(page.locator('#message-list article.message')).toHaveCount(6);
-  // Phones open on the Rooms list (S2c): open the room as a person would.
+  // Phones open on the Rooms list with nothing opened behind it (S2c): open the room as a person would.
   if ((page.viewportSize()?.width ?? 1280) < 768) await page.locator('#room-list .room-button').first().click();
+  await expect(page.locator('#message-list article.message')).toHaveCount(6);
   // Decorators (edit/delete) arrive after rendering; wait for them so the tab-stop check is meaningful.
   await expect(message(page, 6).locator('.message-mutation-button').first()).toBeVisible();
 }
