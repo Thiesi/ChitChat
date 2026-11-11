@@ -5,6 +5,8 @@ declare(strict_types=1);
 require dirname(__DIR__, 2) . '/vendor/autoload.php';
 
 use ChitChat\Auth\AuthService;
+use ChitChat\Auth\UserRepository;
+use ChitChat\Admin\ApplicationNameService;
 use ChitChat\Config;
 use ChitChat\Database;
 use ChitChat\InstallationIcon\IconRepository;
@@ -24,7 +26,9 @@ if (($argv[1] ?? '') === 'seed') {
     $service->update($actor,IncomingFile::forTesting('fixture.png',
         dirname(__DIR__,2).'/public/assets/app-icons/icon-512.png'),'#14111C','127.0.0.1');
     $service->update($actor,null,'#FBF7F1','127.0.0.1');
-    $expected = ['current'=>$repository->currentRevision(),'generations'=>[]];
+    $service->choosePreset($actor, 'initial', '127.0.0.1');
+    $expected = ['current'=>$repository->currentRevision(), 'selection'=>$repository->selection(),
+        'actor_id'=>$actor->id, 'generations'=>[]];
     foreach ($pdo->query('SELECT revision FROM installation_icons ORDER BY revision')->fetchAll(PDO::FETCH_COLUMN) as $revision) {
         $generation = $repository->find($revision)['generation'];
         $expected['generations'][$revision] = [];
@@ -36,6 +40,7 @@ if (($argv[1] ?? '') === 'seed') {
 } elseif (($argv[1] ?? '') === 'verify') {
     $expected = json_decode((string)file_get_contents($expectedPath),true,32,JSON_THROW_ON_ERROR);
     if ($repository->currentRevision() !== $expected['current']
+        || $repository->selection() !== $expected['selection']
         || (int)$pdo->query('SELECT count(*) FROM installation_icons')->fetchColumn() !== 2) {
         throw new RuntimeException('Restored icon pointer/generation retention differs.');
     }
@@ -48,7 +53,13 @@ if (($argv[1] ?? '') === 'seed') {
             }
         }
     }
-    echo "Installation icon pointer and all rendition bytes survived backup/restore.\n";
+    $actor = (new UserRepository($pdo))->findAuthenticatedById((int) $expected['actor_id']);
+    if ($actor === null) throw new RuntimeException('Restored icon owner is missing.');
+    $name = (new ApplicationNameService($pdo, $config))->update($actor, 'Restored Harbor', '127.0.0.1');
+    if ($name['icon_notice'] !== null || $repository->selection()['initial'] !== 'R') {
+        throw new RuntimeException('Restored initial did not follow its installation rename.');
+    }
+    echo "Installation icon selection, rendition bytes and initial tracking survived backup/restore.\n";
 } else {
     throw new RuntimeException('Use seed or verify.');
 }

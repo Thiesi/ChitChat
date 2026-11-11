@@ -1,0 +1,15 @@
+{
+  "size_unit": "px",
+  "full": {
+    "canvas": 1024,
+    "font_size": 493,
+    "offset_x": 0,
+    "offset_y": 0
+  },
+  "compact": {
+    "canvas": 256,
+    "font_size": 166,
+    "offset_x": 0,
+    "offset_y": 0
+  }
+}
