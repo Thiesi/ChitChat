@@ -216,6 +216,8 @@ async function saveApplicationName(event) {
     });
     renderApplicationName(response.application_name);
     toast('Application name saved. Pages show it the next time they load.');
+    // The icon card follows the name (Your initial, #226) and says when it couldn't.
+    window.dispatchEvent(new CustomEvent('chitchat:application-name-saved', { detail: response.application_name }));
   } catch (error) {
     elements['settings-error'].textContent = errorMessage(error);
   } finally {

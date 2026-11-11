@@ -72,7 +72,7 @@ final class ApplicationNameService
 
     /**
      * @param string|null $name null restores the APP_NAME server default
-     * @return array{override: string|null, default: string, effective: string}
+     * @return array{override: string|null, default: string, effective: string, icon_notice:?string}
      */
     public function update(AuthenticatedUser $actor, ?string $name, string $ipAddress): array
     {
@@ -92,6 +92,8 @@ final class ApplicationNameService
             }
             $statement->bindValue(':name', $name, $name === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
             $statement->execute();
+            $iconNotice = (new \ChitChat\InstallationIcon\IconService($this->pdo, $this->config))->renameInitial(
+                $actor, $name ?? $this->config->applicationName, $ipAddress);
             $this->audit->log(
                 actorUserId: $actor->id,
                 action: 'system.application_name_updated',
@@ -108,7 +110,7 @@ final class ApplicationNameService
             throw $exception;
         }
 
-        return $this->describe();
+        return $this->describe() + ['icon_notice' => $iconNotice];
     }
 
     /** @return array{override: string|null, default: string, effective: string} */

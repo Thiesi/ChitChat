@@ -109,6 +109,80 @@ final class IconRenderer
         }
     }
 
+    /** Authored adaptive canvases already have their approved size and optical offset.
+     * Scale the whole canvas; never refit or recenter the foreground.
+     */
+    public function preset(string $bytes, string $background, ?string $compact = null): IconGeneration
+    {
+        $background = self::background($background);
+        if (!self::available()) {
+            throw new ApiException(409, 'preset_unavailable', 'This icon cannot be drawn on this server right now.');
+        }
+        $source = $this->presetCanvas($bytes);
+        $small = null;
+        try {
+            if ($compact !== null) $small = $this->presetCanvas($compact, 256);
+            $output = [];
+            foreach (IconGeneration::VARIANTS as $variant => $spec) {
+                if ($variant === 'ico') {
+                    $png = $output['favicon'] ?? throw new RuntimeException('Missing favicon rendition.');
+                    $output['ico'] = pack('vvv', 0, 1, 1)
+                        . pack('CCCCvvVV', 32, 32, 0, 0, 1, 32, strlen($png), 22) . $png;
+                    continue;
+                }
+                $drawing = $spec['size'] <= 32 && $small !== null ? $small : $source;
+                $target = $this->canvas($spec['size'], $background);
+                try {
+                    if (!imagecopyresampled($target, $drawing, 0, 0, 0, 0,
+                        $spec['size'], $spec['size'], imagesx($drawing), imagesy($drawing))) {
+                        throw new RuntimeException('Unable to render a packaged icon.');
+                    }
+                    $output[$variant] = $this->png($target);
+                } finally { imagedestroy($target); }
+            }
+            return new IconGeneration($output, $background, 1024, 1024, 1.0);
+        } finally {
+            if ($small !== null) imagedestroy($small);
+            imagedestroy($source);
+        }
+    }
+
+    /** Bounded catalog thumbnail from the same authored source as publication.
+     * @param 256|1024 $sourceSide
+     */
+    public function presetThumbnail(string $bytes, string $background, int $sourceSide = 1024): string
+    {
+        $source = $this->presetCanvas($bytes, $sourceSide);
+        try {
+            $target = $this->canvas(32, self::background($background));
+            try {
+                if (!imagecopyresampled($target, $source, 0, 0, 0, 0, 32, 32, $sourceSide, $sourceSide)) {
+                    throw new RuntimeException('Unable to draw an icon thumbnail.');
+                }
+                return $this->png($target);
+            } finally { imagedestroy($target); }
+        } finally { imagedestroy($source); }
+    }
+
+    /** @param 256|1024 $side */
+    private function presetCanvas(string $bytes, int $side = 1024): GdImage
+    {
+        if (!self::available() || strlen($bytes) > IconGeneration::MAX_BYTES) {
+            throw new ApiException(409, 'preset_unavailable', 'This icon cannot be drawn on this server right now.');
+        }
+        $header = @getimagesizefromstring($bytes);
+        if (!is_array($header) || $header['mime'] !== 'image/png' || $header[0] !== $side || $header[1] !== $side) {
+            throw new RuntimeException('A packaged preset must match its authored PNG canvas dimensions.');
+        }
+        $limit = ini_parse_quantity(ini_get('memory_limit') ?: '-1');
+        if ($limit > 0 && memory_get_usage(true) + 32 * 1024 * 1024 >= $limit) {
+            throw new ApiException(409, 'preset_unavailable', 'There is not enough rendering memory for this icon right now.');
+        }
+        $source = @imagecreatefromstring($bytes);
+        if (!$source instanceof GdImage) throw new RuntimeException('A packaged preset cannot be decoded.');
+        return $source;
+    }
+
     /** @param int<1,max> $side */
     private function canvas(int $side, ?string $background = null): GdImage
     {

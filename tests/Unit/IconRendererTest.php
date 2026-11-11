@@ -77,6 +77,38 @@ final class IconRendererTest extends TestCase
         }
     }
 
+    public function testPresetKeepsAuthoredOffsetAndUsesCompactArtOnlyAtFaviconSizes(): void
+    {
+        $draw = static function (bool $compact): string {
+            $image = imagecreatetruecolor($compact ? 256 : 1024, $compact ? 256 : 1024);
+            imagealphablending($image, false);
+            imagesavealpha($image, true);
+            imagefill($image, 0, 0, imagecolorallocatealpha($image, 0, 0, 0, 127));
+            if ($compact) imagefilledrectangle($image, 160, 160, 192, 192, imagecolorallocate($image, 0, 255, 0));
+            else imagefilledrectangle($image, 256, 320, 512, 480, imagecolorallocate($image, 255, 0, 0));
+            ob_start(); imagepng($image); $png = ob_get_clean(); imagedestroy($image);
+            self::assertIsString($png);
+            return $png;
+        };
+        $generation = (new IconRenderer())->preset($draw(false), '#213D38', $draw(true));
+        self::assertSame(1.0, $generation->maskableScale);
+        self::assertSame(1024, $generation->sourceWidth);
+        // The authored off-centre rectangle stays in that position; the maskable is not refitted.
+        self::assertSame($generation->bytes['icon_512'], $generation->bytes['maskable']);
+        $full = imagecreatefromstring($generation->bytes['maskable']);
+        self::assertNotFalse($full);
+        self::assertSame(0xFF0000, imagecolorat($full, 192, 200) & 0xffffff);
+        self::assertSame(0x213D38, imagecolorat($full, 256, 256) & 0xffffff);
+        self::assertSame(0, (imagecolorat($full, 0, 0) >> 24) & 127);
+        imagedestroy($full);
+        $small = imagecreatefromstring($generation->bytes['favicon']);
+        self::assertNotFalse($small);
+        self::assertSame(0x00FF00, imagecolorat($small, 22, 22) & 0xffffff);
+        self::assertSame(0x213D38, imagecolorat($small, 12, 12) & 0xffffff);
+        imagedestroy($small);
+        self::assertSame($generation->bytes['favicon'], substr($generation->bytes['ico'], 22));
+    }
+
     public function testInvalidAndTruncatedImagesAreRejectedBeforeReplacingAnything(): void
     {
         foreach (['garbage', substr(TestImages::png(512,512), 0, 35),
