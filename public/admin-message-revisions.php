@@ -26,7 +26,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
 <body>
   <div id="revision-review-loading" class="app-loading" role="status">Loading revision-review controls…</div>
 
-  <?= \ChitChat\View\AppShell::open('stewarding', 'revision-review-shell') ?>
+  <?= \ChitChat\View\AppShell::open('stewarding', 'revision-review-shell', config: $config) ?>
   <main id="revision-review-shell" tabindex="-1" class="revision-review-shell hidden">
     <header class="admin-header">
       <div>

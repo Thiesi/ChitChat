@@ -113,12 +113,14 @@ for (const theme of ['dark', 'light']) {
       await expect(page.locator('#composer-input')).toBeInViewport();
     }
     await accessible(page);
-    await page.locator('#drawer-toggle').click();
+    // Phones stack the list and the conversation (S2c): Back shows the Rooms
+    // list and the bottom bar (with You, S2b); a room returns to the conversation.
+    await page.getByRole('button', { name: 'Back to rooms' }).click();
     await expect(page.getByRole('navigation', { name: 'Rooms' })).toBeVisible();
-    await page.keyboard.press('Escape');
-    // The account menu is gone (S2b): You is in the bottom bar.
     await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'You', exact: true })).toBeVisible();
     await noOverflow(page);
+    await page.getByRole('navigation', { name: 'Rooms' }).locator('.room-button').first().click();
+    await expect(page.locator('#composer-input')).toBeInViewport();
     await page.locator('#composer-input').fill('A little hello.');
     await page.locator('#emoji-button').click();
     await expect(page.locator('.emoji-picker')).toBeVisible();
@@ -165,7 +167,8 @@ test('empty conversations, long names, and user accessibility preferences', asyn
   await expect(page.locator('#empty-state')).toHaveText('No messages yet.');
   for (const width of [1440, 640, 320]) {
     await page.setViewportSize({ width, height: 844 });
-    await page.locator('.sidebar-header h1').evaluate((heading) => { heading.textContent = 'A'.repeat(64); });
+    // A long list title (a translation, say) must not push the page sideways.
+    await page.locator('#rooms-heading').evaluate((heading) => { heading.textContent = 'A'.repeat(64); });
     await page.locator('#room-title').evaluate((heading) => { heading.textContent = 'A very long room name for a lovely group of people'; });
     await noOverflow(page);
     await expect(page.locator('#send-button')).toBeInViewport();
@@ -173,6 +176,8 @@ test('empty conversations, long names, and user accessibility preferences', asyn
     expect(empty.y + empty.height).toBeLessThanOrEqual(composer.y + 1);
   }
   await page.goto('/messages.php');
+  // Phones open on the conversation list, with nothing opened behind it (S2c).
+  if ((page.viewportSize()?.width ?? 1280) < 768) await page.locator('#dm-conversation-list .conversation-button').first().click();
   await expect(page.locator('#dm-empty-state')).toHaveText('No messages yet.');
   await expect(page.locator('#dm-composer')).toBeVisible();
   await noOverflow(page);

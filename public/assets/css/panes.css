@@ -1,0 +1,338 @@
+/* The list pane and the conversation (S2c, #168; behaviour in panes.js).
+   Desktop (64rem and wider): the list sits beside the conversation, wider on
+   very wide screens. Tablet (48rem to 64rem): the list opens over the
+   conversation from the header toggle. Phone (below 48rem): a stack, the list
+   first, the conversation pushed over it. Lanterns (rooms) and pebbles
+   (people) take their identity hue (identity-hue.js, CCM visual vocabulary).
+   Uses only existing tokens. */
+
+/* ---- The list pane ---- */
+
+.list-pane {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding-bottom: 0.5rem;
+  overflow-y: auto;
+}
+
+.list-pane > * { flex-shrink: 0; }
+
+.list-pane-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.6rem 0.35rem 0.75rem 1rem;
+}
+
+.list-pane-title { display: grid; gap: 0.2rem; min-width: 0; }
+
+.list-title {
+  margin: 0;
+  font-family: var(--display-font);
+  font-size: 1.85rem;
+  font-weight: 400;
+  letter-spacing: var(--display-tracking);
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+
+/* Phones have no rail, so the installation's icon and name head the list. */
+.list-pane-brand { display: none; }
+
+.list-pane-actions { display: flex; flex: none; align-items: center; gap: 0.15rem; }
+.list-pane-actions .header-button { color: var(--text-muted); }
+.list-pane-actions .header-button:hover { color: var(--text); }
+
+.list-pane .room-list { padding: 0 0.5rem; }
+.list-pane .room-button { min-height: 3rem; gap: 0.6rem; padding: 0.4rem 0.6rem; }
+.list-pane .guest-dm-card { margin: 0.75rem 0.75rem 0; }
+
+/* ---- Lanterns and pebbles ---- */
+
+.lantern,
+.pebble {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  background: var(--raised);
+  color: var(--text-muted);
+  font-weight: 700;
+  line-height: 1;
+  vertical-align: middle;
+}
+
+/* A squircle: the corner is about a third of the side. */
+.lantern { border-radius: 0.75rem; font-size: 1rem; }
+.pebble { border-radius: 50%; font-size: 0.8rem; letter-spacing: 0.02em; }
+
+.list-pane .lantern { width: 2.25rem; height: 2.25rem; margin-right: 0.15rem; }
+.room-heading .lantern { margin-right: 0.45rem; font-family: inherit; font-size: 1.05rem; letter-spacing: 0; vertical-align: 0.1em; }
+
+:is(.lantern, .pebble)[data-hue="0"] { background: var(--hue-0); color: var(--hue-ink); }
+:is(.lantern, .pebble)[data-hue="1"] { background: var(--hue-1); color: var(--hue-ink); }
+:is(.lantern, .pebble)[data-hue="2"] { background: var(--hue-2); color: var(--hue-ink); }
+:is(.lantern, .pebble)[data-hue="3"] { background: var(--hue-3); color: var(--hue-ink); }
+:is(.lantern, .pebble)[data-hue="4"] { background: var(--hue-4); color: var(--hue-ink); }
+:is(.lantern, .pebble)[data-hue="5"] { background: var(--hue-5); color: var(--hue-ink); }
+:is(.lantern, .pebble)[data-hue="6"] { background: var(--hue-6); color: var(--hue-ink); }
+:is(.lantern, .pebble)[data-hue="7"] { background: var(--hue-7); color: var(--hue-ink); }
+
+/* People are here: a gap in the header's colour, a honey ring and a soft halo.
+   Static, and always next to "N here now". */
+.lantern.glow {
+  box-shadow:
+    0 0 0 2px var(--surface),
+    0 0 0 4px var(--presence),
+    0 0 14px 5px color-mix(in srgb, var(--presence) 40%, transparent);
+}
+
+/* ---- The conversation header ---- */
+
+.room-heading .room-meta-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.1rem 0.65rem;
+}
+
+.room-here { color: var(--presence-text); font-weight: 600; }
+.room-here[hidden] { display: none; }
+
+.conversation-title:focus { outline: none; }
+.conversation-title:focus-visible { outline: 2px solid var(--signature-text); outline-offset: 4px; border-radius: 0.4rem; }
+
+.drawer-toggle .toggle-back { display: none; }
+
+/* ---- The Direct page: the same frame as the Rooms page ---- */
+
+.messages-shell.dm-shell {
+  --sidebar-width: 21.25rem;
+  position: relative;
+  display: grid;
+  width: auto;
+  max-width: none;
+  height: 100vh;
+  height: 100dvh;
+  margin: 0;
+  padding: 1rem;
+  gap: 1rem;
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.dm-shell:has(> .rules-banner:not(.hidden)) { grid-template-rows: auto minmax(0, 1fr); }
+.dm-shell > .rules-banner { grid-column: 1 / -1; margin: 0; }
+.dm-shell .drawer-close,
+.dm-shell .drawer-toggle,
+.dm-shell .drawer-backdrop { display: none; }
+
+.list-pane-status { margin: 0; color: var(--text-muted); font-size: 0.82rem; overflow-wrap: anywhere; }
+
+.dm-list-pane { gap: 0.6rem; }
+.dm-list-pane > :not(.list-pane-header) { margin-inline: 0.75rem; }
+.dm-start-row { display: flex; gap: 0.5rem; }
+.dm-start-row input { flex: 1; min-width: 0; }
+.list-section-heading {
+  margin: 0.6rem 0.75rem 0;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.dm-shell .conversation-list { gap: 0.25rem; overflow: visible; }
+.dm-shell .conversation-button {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  min-height: 3.5rem;
+  border-color: transparent;
+  background: transparent;
+}
+.dm-shell .conversation-button:hover { border-color: transparent; background: var(--surface); }
+.dm-shell .conversation-button.active {
+  border-color: color-mix(in srgb, var(--signature-text) 30%, var(--field-line));
+  background: color-mix(in srgb, var(--signature) 13%, var(--ground));
+}
+.conversation-text { display: grid; flex: 1; gap: 0.15rem; min-width: 0; }
+.dm-shell .conversation-button .pebble { width: 2.5rem; height: 2.5rem; }
+
+.dm-shell .conversation-main {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: 1.5rem;
+  background: var(--ground);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.dm-shell .conversation-main > * { flex: none; }
+.dm-shell .dm-empty-state { flex: 1 1 auto; }
+.dm-shell .dm-message-list { flex: 1 1 0; min-height: 0; }
+.dm-shell .conversation-main > .error-text:empty { display: none; }
+
+.dm-shell .conversation-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.9rem 1rem 0.9rem 1.5rem;
+  background: var(--surface);
+}
+.dm-shell .dm-heading { display: grid; flex: 1; gap: 0.2rem; min-width: 0; }
+.dm-shell .conversation-header h2 {
+  font-family: var(--display-font);
+  font-size: 1.65rem;
+  font-weight: 400;
+  letter-spacing: var(--display-tracking);
+}
+.dm-shell .conversation-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.pebble[hidden] { display: none; }
+
+/* The privacy notice: one line, the detail behind "Learn more". */
+.privacy-line {
+  padding: 0.45rem 1.5rem;
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--unsure-line) 6%, var(--surface));
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+.privacy-line summary { cursor: pointer; list-style: none; }
+.privacy-line summary::-webkit-details-marker { display: none; }
+.privacy-line .privacy-more { color: var(--steward); font-weight: 600; text-decoration: underline; text-underline-offset: 0.15em; }
+.privacy-line[open] .privacy-more { display: none; }
+.privacy-line p { margin: 0.4rem 0 0; line-height: 1.5; }
+.privacy-line summary:focus-visible { outline: 2px solid var(--signature-text); outline-offset: 2px; border-radius: 0.3rem; }
+
+/* ---- Desktop: the list beside the conversation ---- */
+
+.chat-shell { --sidebar-width: 21.25rem; }
+
+@media (min-width: 90rem) {
+  .chat-shell, .messages-shell.dm-shell { --sidebar-width: 26.25rem; }
+}
+
+/* ---- Tablet: the list over the conversation ---- */
+
+@media (min-width: 48rem) and (max-width: 63.99rem) {
+  .chat-shell,
+  .chat-shell.members-open,
+  .messages-shell.dm-shell { grid-template-columns: minmax(0, 1fr); }
+
+  :is(.chat-shell, .dm-shell) > .list-pane {
+    position: fixed;
+    z-index: 30;
+    inset: 0 auto 0 var(--rail-width, 0px);
+    width: min(22rem, 70vw);
+    padding: 0.5rem 0.25rem 1rem;
+    border-right: 1px solid var(--line);
+    background: var(--ground);
+    box-shadow: 0 0 60px var(--shadow-strong);
+    transform: translateX(-110%);
+    visibility: hidden;
+    transition: transform 0.2s ease, visibility 0s linear 0.2s;
+  }
+
+  :is(.chat-shell, .dm-shell).list-open > .list-pane {
+    transform: none;
+    visibility: visible;
+    transition: transform 0.2s ease;
+  }
+
+  :is(.chat-shell, .dm-shell).list-open .drawer-backdrop {
+    position: fixed;
+    z-index: 25;
+    inset: 0;
+    display: block;
+    background: var(--scrim);
+  }
+
+  :is(.chat-shell, .dm-shell) :is(.drawer-toggle, .drawer-close) { display: inline-flex; }
+}
+
+/* ---- Phone: the stack ---- */
+
+@media (max-width: 47.99rem) {
+  .chat-shell,
+  .chat-shell.members-open {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    gap: 0;
+    padding: 0;
+  }
+
+  .chat-shell:has(> .lockdown-banner:not(.hidden)) { grid-template-rows: auto minmax(0, 1fr); }
+
+  .messages-shell.dm-shell {
+    grid-template-columns: minmax(0, 1fr);
+    height: calc(100vh - var(--bar-space));
+    height: calc(100dvh - var(--bar-space));
+    padding: 0;
+    gap: 0;
+  }
+  .dm-shell .conversation-main { border: 0; border-radius: 0; box-shadow: none; }
+  .dm-shell .conversation-header { gap: 0.35rem; padding: 0.5rem 0.5rem 0.5rem 0.4rem; }
+  .dm-shell .conversation-header h2 { overflow: hidden; font-size: 1.25rem; text-overflow: ellipsis; white-space: nowrap; }
+  .dm-shell #dm-peer-status { font-size: 0.82rem; }
+  .privacy-line { padding-inline: 0.85rem; }
+
+  /* The list is the first screen; a chosen conversation covers it. */
+  :is(.chat-shell, .dm-shell)[data-stack="list"] > :is(.chat-main, .conversation-main, .members-panel) { display: none; }
+  :is(.chat-shell, .dm-shell)[data-stack="conversation"] > .list-pane { display: none; }
+  :is(.chat-shell, .dm-shell) > .list-pane { padding: 0.25rem 0 1rem; background: var(--ground); }
+
+  /* The list screen has no conversation to skip to. */
+  body:has([data-panes][data-stack="list"]) .skip-link { display: none; }
+
+  /* A pushed screen has no bottom bar. */
+  .app-frame.has-nav:has(> [data-panes][data-stack="conversation"]) { --bar-space: 0px; }
+  .app-frame.has-nav:has(> [data-panes][data-stack="conversation"]) > .app-nav { display: none; }
+
+  :is(.chat-shell, .dm-shell) .drawer-toggle { display: inline-flex; }
+  .drawer-toggle .toggle-list { display: none; }
+  .drawer-toggle .toggle-back { display: block; }
+
+  .list-pane-brand {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin: 0 0 0.35rem;
+    min-width: 0;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    font-weight: 700;
+  }
+  .list-pane-brand img { width: 1.5rem; height: 1.5rem; flex: none; border-radius: 22%; object-fit: cover; }
+  .list-pane-brand span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .list-pane .room-button { min-height: 3.25rem; font-size: 1rem; }
+  .list-pane .lantern { width: 2.5rem; height: 2.5rem; }
+
+  /* Room details give way on narrow headers; "N here now" stays. */
+  .room-heading p.room-meta-line { display: flex; margin-top: 0.1rem; font-size: 0.82rem; }
+  .room-meta-line #room-info { display: none; }
+  /* The title clips for its ellipsis; room inside the clip keeps the glow whole. */
+  .room-heading h2 { margin: -0.5rem; padding: 0.5rem; }
+}
+
+@media (any-pointer: coarse) {
+  .list-pane-actions .header-button,
+  .chat-shell .drawer-toggle { min-width: 3rem; min-height: 3rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :is(.chat-shell, .dm-shell) > .list-pane { transition: none; }
+}
+
+@media (forced-colors: active) {
+  .lantern, .pebble { border: 1px solid CanvasText; }
+  .lantern.glow { outline: 2px solid Highlight; outline-offset: 2px; }
+}

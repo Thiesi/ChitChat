@@ -27,7 +27,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
 <body>
   <div id="moderation-loading" class="app-loading" role="status">Loading moderation queue…</div>
 
-  <?= \ChitChat\View\AppShell::open('stewarding', 'moderation-shell') ?>
+  <?= \ChitChat\View\AppShell::open('stewarding', 'moderation-shell', config: $config) ?>
   <main id="moderation-shell" tabindex="-1" class="moderation-shell hidden">
     <header class="moderation-header">
       <div>

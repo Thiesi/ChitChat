@@ -32,6 +32,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <link rel="stylesheet" href="/assets/css/guest.css">
   <link rel="stylesheet" href="/assets/css/rules.css">
   <link rel="stylesheet" href="/assets/css/shell.css">
+  <link rel="stylesheet" href="/assets/css/panes.css">
 </head>
 <body>
   <!-- One polite announcer per page, fed by events (announcer.js); the transcript itself never speaks. -->
@@ -166,8 +167,8 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
     <?= \ChitChat\View\PoweredBy::html($config) ?>
   </main>
 
-  <?= \ChitChat\View\AppShell::open('rooms', 'conversation', 'Skip to conversation', true) ?>
-  <main id="chat-shell" class="chat-shell hidden">
+  <?= \ChitChat\View\AppShell::open('rooms', 'conversation', 'Skip to conversation', true, config: $config) ?>
+  <div id="chat-shell" class="chat-shell hidden" data-panes data-list="sidebar" data-toggle="drawer-toggle" data-close="drawer-close" data-backdrop="drawer-backdrop" data-title="room-title" data-list-name="Rooms" data-deep-link="room_id">
     <p id="chat-lockdown" class="lockdown-notice lockdown-banner hidden" role="status"><strong>Maintenance lockdown.</strong> <span data-lockdown-text></span> New sign-ins are paused; you can keep chatting.</p>
     <p class="rules-banner hidden" data-rules-gate role="status"><span><strong>The community rules have changed.</strong> Agree to keep writing.</span> <button class="secondary-button" type="button" data-rules-review>Review</button></p>
     <p id="recovery-nudge" class="recovery-nudge hidden" role="status"><span><strong>Forgot your password one day?</strong> Create a recovery key so you can reset it yourself.</span> <a class="secondary-button" href="/account.php?recovery=create">Create key</a> <button id="recovery-nudge-dismiss" class="icon-button close-button" type="button" aria-label="Dismiss">×</button></p>
@@ -177,49 +178,41 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
       <a href="/?register=1">Create an account</a>
       <button id="guest-banner-dismiss" class="icon-button close-button" type="button" aria-label="Dismiss">×</button>
     </div>
-    <aside id="sidebar" class="sidebar" aria-label="Rooms and conversations">
-      <header class="sidebar-header">
-        <div class="brand-row">
-          <h1><?= $appName ?></h1>
+    <!-- The Rooms list pane (S2c): beside the conversation on desktop, over it
+         on tablets (the toggle in the conversation header), and the first
+         screen of the phone stack. Direct messages live on the Direct tab. -->
+    <section id="sidebar" class="sidebar list-pane" aria-labelledby="rooms-heading">
+      <header class="list-pane-header">
+        <div class="list-pane-title">
+          <?= \ChitChat\View\AppShell::brand($config, 'list-pane-brand') ?>
+          <h1 id="rooms-heading" class="list-title">Rooms</h1>
           <span id="connection-status" class="connection-status" data-state="disconnected" role="status" aria-live="polite" aria-atomic="true">Offline</span>
         </div>
-        <button id="drawer-close" class="icon-button close-button drawer-close" type="button" aria-label="Close rooms and conversations">×</button>
+        <div class="list-pane-actions">
+          <a class="header-button list-search member-only" href="/search.php" aria-label="Search messages" title="Search messages"><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></a>
+          <button id="new-room-button" class="header-button section-add hidden" type="button" aria-label="Create room" title="Create room"><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+          <button id="drawer-close" class="header-button close-button drawer-close" type="button" aria-label="Close rooms">×</button>
+        </div>
       </header>
-
-      <a class="drawer-search member-only" href="/search.php"><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>Search messages</a>
-
-      <section class="nav-section" aria-labelledby="rooms-heading">
-        <div class="rooms-heading-row">
-          <h2 id="rooms-heading" class="rooms-heading">Rooms</h2>
-          <button id="new-room-button" class="icon-button section-add hidden" type="button" aria-label="Create room" title="Create room">+</button>
-        </div>
-        <nav id="room-list" class="room-list" aria-labelledby="rooms-heading"></nav>
-      </section>
-
-      <section class="nav-section" aria-labelledby="dm-heading">
-        <div class="rooms-heading-row">
-          <h2 id="dm-heading" class="rooms-heading">Direct messages</h2>
-          <a class="icon-button section-add member-only" href="/messages.php" aria-label="New conversation" title="New conversation">+</a>
-        </div>
-        <ul id="dm-list" class="dm-list member-only"></ul>
-        <a class="all-conversations member-only" href="/messages.php">All conversations →</a>
-        <div class="guest-dm-card guest-only">
-          <span><strong>Direct messages are for members.</strong> With a free account you can message people, mention them and get notified.</span>
-          <a class="secondary-button" href="/?register=1">Create an account</a>
-        </div>
-      </section>
-    </aside>
+      <nav id="room-list" class="room-list" aria-labelledby="rooms-heading"></nav>
+      <div class="guest-dm-card guest-only">
+        <span><strong>Direct messages are for members.</strong> With a free account you can message people, mention them and get notified.</span>
+        <a class="secondary-button" href="/?register=1">Create an account</a>
+      </div>
+    </section>
     <div id="drawer-backdrop" class="drawer-backdrop" aria-hidden="true"></div>
 
-    <section id="conversation" class="chat-main" aria-labelledby="room-title" tabindex="-1">
+    <main id="conversation" class="chat-main" aria-labelledby="room-title" tabindex="-1">
       <header class="room-header">
-        <button id="drawer-toggle" class="header-button drawer-toggle" type="button" aria-label="Rooms and conversations" aria-expanded="false" aria-controls="sidebar">
-          <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        <!-- Tablets: opens the Rooms list over the conversation. Phones: back to the list. -->
+        <button id="drawer-toggle" class="header-button drawer-toggle" type="button" aria-label="Rooms" aria-expanded="false" aria-controls="sidebar">
+          <svg class="toggle-list" aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+          <svg class="toggle-back" aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
         </button>
         <span id="current-user" hidden></span>
         <div class="room-heading">
-          <h2 id="room-title">Choose a room</h2>
-          <p id="room-info">Select a room from the sidebar.</p>
+          <h2 id="room-title" class="conversation-title" tabindex="-1">Choose a room</h2>
+          <p class="room-meta-line"><span id="room-here" class="room-here" hidden></span><span id="room-info">Select a room from the list.</span></p>
         </div>
         <button id="join-button" class="join-button hidden" type="button">Join room</button>
         <div class="header-actions">
@@ -281,7 +274,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
         <p class="composer-help member-only">Enter sends · Shift+Enter adds a line · Attachments may include an optional caption · Type <code>/</code> for commands, <code>/help</code> for formatting</p>
         <p class="composer-help guest-only">Enter sends · Shift+Enter adds a line · As a guest, <code>@names</code> and <code>/ping</code> don’t notify anyone</p>
       </div>
-    </section>
+    </main>
 
     <aside id="presence-panel" class="members-panel hidden" aria-labelledby="members-heading">
       <header>
@@ -293,7 +286,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
       <h3 id="guest-presence-heading" class="guest-heading hidden">Guests</h3>
       <ul id="guest-presence-list" class="member-list hidden" aria-labelledby="guest-presence-heading"></ul>
     </aside>
-  </main>
+  </div>
   <?= \ChitChat\View\AppShell::close() ?>
 
   <dialog id="room-dialog" class="room-dialog" aria-labelledby="room-dialog-title">
@@ -351,6 +344,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <script type="module" src="/assets/js/password-reset.js"></script>
   <script type="module" src="/assets/js/app.js"></script>
   <script type="module" src="/assets/js/search-result-navigation.js"></script>
+  <script type="module" src="/assets/js/panes.js"></script>
   <script type="module" src="/assets/js/auth-tabs.js"></script>
   <script type="module" src="/assets/js/admin-link.js"></script>
   <script type="module" src="/assets/js/navigation.js"></script>
