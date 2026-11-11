@@ -48,6 +48,7 @@ SET registration_enabled = TRUE,
     application_icon_updated_at = NULL,
     application_icon_updated_by = NULL,
     guest_access_enabled = FALSE,
+    sign_in_decoration = 'off',
     updated_at = NOW()
 WHERE id = 1
 SQL);

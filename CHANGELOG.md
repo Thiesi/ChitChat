@@ -6,6 +6,8 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ## [Unreleased]
 
+- Let a Super-Administrator choose the sign-in screen's seasonal decoration (`off`, `winter`, `spring`, `celebration`) by hand in operational settings (#242). Published as `session.php` → `sign_in_decoration` (`null` when off); changes are audited. Apply migration 0055.
+
 - Add approved installation icon presets with compact favicon artwork and a bundled-font initial that follows administrative name changes. Unsupported initials preserve the existing icon while the rename succeeds with a notice and audit. Apply migration 0053; uploads retain their existing background controls.
 
 No changes since `v3.7.0`.

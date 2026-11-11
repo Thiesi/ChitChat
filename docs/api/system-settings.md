@@ -102,6 +102,21 @@ Both require a Super-Administrator; the update also requires active privileged s
 
 The effective name appears in page titles and headings (and the `<meta name="application-name">` tag that scripts read), passkey prompts, push notifications, personal-data exports, backup manifests, and the system-status page. `/health.php` and the metrics authentication realm report `APP_NAME`, because they must not depend on the database. Machine identifiers such as the `chitchat-backup` and `chitchat-personal-data-export` format names never change.
 
+## Sign-in decoration
+
+```text
+GET  /api/v1/admin/settings/sign-in-decoration/get.php
+POST /api/v1/admin/settings/sign-in-decoration/update.php
+```
+
+Both require a Super-Administrator; the update also requires the current `X-CSRF-Token` and active privileged step-up (without it: `403 step_up_required`, and nothing changes). It chooses, by hand, which seasonal decoration the signed-out sign-in screen shows. There are no date windows, because hemispheres and calendars differ.
+
+```json
+{ "sign_in_decoration": "winter" }
+```
+
+The value is `off`, `winter`, `spring` or `celebration`; anything else is `400 validation_error`. Both endpoints return `{"sign_in_decoration": {"value": "winter", "options": ["off", "winter", "spring", "celebration"]}}`, with `options` in the order a select offers them. A change is audited as `system.sign_in_decoration_updated` with `old` and `new`; saving the current value again is a successful no-op without an audit entry. No account is notified. `session.php` publishes the choice as `sign_in_decoration` (see [Session bootstrap](session.md)).
+
 ## Registration protection
 
 ```text
