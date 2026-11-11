@@ -23,6 +23,7 @@ import { agreementErrorMessage, guestAgreement, registrationAgreement, renderSig
 import { openResetIfRequested, showKeyStepInCard } from './password-reset.js';
 import { issuedKey } from './recovery.js';
 import { renderRecoveryNudge, setRecoveryNudgeUser } from './recovery-nudge.js';
+import { phoneListShowing } from './pane-stack.js';
 
 const registrationChallenge = createRegistrationChallenge();
 const guestChallenge = createRegistrationChallenge('/api/v1/guest/challenge.php');
@@ -522,16 +523,6 @@ function roomLock(visibility) {
     lock.append(shape);
   }
   return lock;
-}
-
-/**
- * True while a phone shows the list screen (panes.js). Nothing is opened
- * behind it then: an unseen conversation must not be marked read, announced
- * or counted as present (S2c review).
- */
-function phoneListShowing() {
-  const frame = document.querySelector('[data-panes]');
-  return frame?.dataset.stack === 'list' && window.matchMedia('(max-width: 47.99rem)').matches;
 }
 
 function chooseInitialRoom() {

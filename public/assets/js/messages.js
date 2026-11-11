@@ -15,6 +15,7 @@ import { startRulesGate } from './rules.js';
 import { REVOKED_NOTICE, rememberSignedOutNotice } from './signed-out-notice.js';
 import { initials } from './avatar.js';
 import { identityHueIndex } from './identity-hue.js';
+import { phoneListShowing } from './pane-stack.js';
 
 let transcriptKeys = null;
 const state = {
@@ -144,7 +145,6 @@ async function loadConversations(preferredUserId = null) {
     const response = await apiGet('/api/v1/direct-messages/conversations.php');
     state.conversations = Array.isArray(response.conversations) ? response.conversations : [];
     renderConversations();
-    reportDirectCount();
 
     const selectedId = preferredUserId ?? state.selectedUser?.id ?? null;
     if (selectedId !== null) {
@@ -162,6 +162,8 @@ async function loadConversations(preferredUserId = null) {
 }
 
 function renderConversations() {
+  // Every re-render (load, opening one, read, a new message) keeps the rail's Direct badge current.
+  reportDirectCount();
   const list = elements['dm-conversation-list'];
   list.replaceChildren();
   if (state.conversations.length === 0) {
@@ -207,16 +209,6 @@ function renderConversations() {
     });
     list.append(button);
   }
-}
-
-/**
- * True while a phone shows the list screen (panes.js). Nothing is opened
- * behind it then: an unseen conversation must not be marked read, announced
- * or counted as present (S2c review).
- */
-function phoneListShowing() {
-  const frame = document.querySelector('[data-panes]');
-  return frame?.dataset.stack === 'list' && window.matchMedia('(max-width: 47.99rem)').matches;
 }
 
 /** The rail's Direct badge (shell.js): the unread total across conversations. */

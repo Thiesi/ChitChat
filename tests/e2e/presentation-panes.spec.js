@@ -420,3 +420,54 @@ test('tablet: Escape in Create room closes the dialog, not the list; a created r
   await expect(list(page)).toBeVisible();
   await expect(list(page).getByRole('button', { name: 'Create room' })).toBeFocused();
 });
+
+test('on the Direct page the rail\'s Direct badge follows a new message and reading it', async ({ page }) => {
+  // A stand-in event stream the test can send a direct message through.
+  await page.addInitScript(() => {
+    class FakeEventSource extends EventTarget {
+      constructor(url) {
+        super();
+        this.url = url;
+        this.readyState = 1;
+        (window.__sources ??= []).push(this);
+        window.setTimeout(() => this.dispatchEvent(new Event('open')), 0);
+      }
+
+      close() { this.readyState = 2; }
+    }
+    window.EventSource = FakeEventSource;
+    window.__emit = (type, payload) => {
+      for (const source of window.__sources ?? []) {
+        if (source.readyState !== 2) source.dispatchEvent(new MessageEvent(type, { data: JSON.stringify({ type, payload }) }));
+      }
+    };
+  });
+  await fixture(page);
+  let samUnread = 1;
+  // Registered after the fixture, so these answer first: the server's counts as they change.
+  await page.route('**/api/v1/direct-messages/conversations.php', (route) => route.fulfill({ json: { conversations: [
+    { user: rowan, unread_count: 0, last_message: { body: 'Direct 2', outgoing: true } },
+    { user: sam, unread_count: samUnread, last_message: { body: 'See you', outgoing: false } },
+  ] } }));
+  await page.route('**/api/v1/direct-messages/read.php', (route) => {
+    if (route.request().postDataJSON()?.user_id === sam.id) samUnread = 0;
+    return route.fulfill({ json: {} });
+  });
+  await openDirect(page, 1280);
+  const direct = () => bar(page).locator('.app-nav-item[data-tab="direct"]');
+  await expect(direct()).toHaveAccessibleName('Direct, 1 unread');
+
+  // Sam writes again while Rowan's conversation is open.
+  samUnread = 2;
+  await page.evaluate((payload) => window.__emit('direct_message', payload), { message: {
+    id: 30, body: 'Still there?', created_at: '2026-10-04T10:05:00Z', mentions: [], reactions: [], reply_to: null,
+    sender: sam, recipient: member, outgoing: false, read_at: null,
+  } });
+  await expect(direct()).toHaveAccessibleName('Direct, 2 unread');
+  await expect(direct().locator('[data-badge="direct"]')).toHaveText('2');
+
+  // Opening Sam's conversation reads it; the badge goes and the name is plain again.
+  await page.locator('.conversation-button', { hasText: 'Sam' }).click();
+  await expect(direct()).toHaveAccessibleName('Direct');
+  await expect(direct().locator('[data-badge="direct"]')).toBeHidden();
+});
