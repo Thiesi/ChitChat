@@ -117,7 +117,9 @@ for (const theme of ['dark', 'light']) {
     expect(await checkbox.evaluate((element) => element.validity.valid)).toBe(false);
 
     await checkbox.check();
-    await page.getByRole('button', { name: 'Create account' }).click();
+    // Send with Enter from a field: on Windows, Firefox's native validation
+    // bubble from the blocked attempt can swallow a click that lands under it.
+    await page.locator('#register-username').press('Enter');
     await expect(page.locator('#chat-shell')).toBeVisible();
     expect(requests.find((entry) => entry.path === 'register.php').body.accepted_rules_version).toBe(3);
 
