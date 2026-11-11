@@ -22,12 +22,14 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <link rel="stylesheet" href="/assets/css/components.css">
   <link rel="stylesheet" href="/assets/css/accessibility.css">
   <link rel="stylesheet" href="/assets/css/totp.css">
+  <link rel="stylesheet" href="/assets/css/auth.css">
 </head>
 <body>
-  <main class="auth-shell">
+  <main class="auth-shell auth-shell-single">
+    <?= \ChitChat\View\Lockup::html($config, 'restore-brand', horizontal: true) ?>
     <section class="auth-card" aria-labelledby="restore-title">
-      <h1 id="restore-title" class="brand">Restore account</h1>
-      <p class="tagline">
+      <h2 id="restore-title" class="auth-greeting">Restore your account</h2>
+      <p class="auth-lead">
         A closure request can be reversed during its 14-day cooling-off period. Normal sign-in remains disabled until restoration succeeds.
       </p>
       <form id="restore-account-form" class="form-stack" autocomplete="on">
@@ -35,10 +37,15 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
           Username
           <input id="restore-username" name="username" type="text" autocomplete="username" minlength="3" maxlength="32" required>
         </label>
-        <label>
-          Current password
-          <input id="restore-password" name="password" type="password" autocomplete="current-password" minlength="12" maxlength="4096" required>
-        </label>
+        <div class="password-field">
+          <label for="restore-password">Current password</label>
+          <div class="password-field-row">
+            <input id="restore-password" name="password" type="password" autocomplete="current-password" minlength="12" maxlength="4096" required>
+            <button class="password-toggle" type="button" data-reveal="restore-password" aria-controls="restore-password" aria-pressed="false" aria-label="Show password">
+              <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+        </div>
         <button class="primary-button" type="submit">Restore account</button>
       </form>
       <div id="restore-providers" class="sign-in-providers hidden">
@@ -46,10 +53,11 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
       </div>
       <p id="restore-account-status" role="status" aria-live="polite"></p>
       <p id="restore-account-error" class="error-text" role="alert"></p>
-      <a class="secondary-button" href="/">Back to sign in</a>
+      <a class="quiet-action" href="/">Back to sign in</a>
     </section>
     <?= \ChitChat\View\PoweredBy::html($config) ?>
   </main>
   <script type="module" src="/assets/js/restore-account.js"></script>
+  <script type="module" src="/assets/js/password-reveal.js"></script>
 </body>
 </html>

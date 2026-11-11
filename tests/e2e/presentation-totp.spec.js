@@ -302,7 +302,7 @@ test('restoring an account accepts a code from the app', async ({ page }) => {
   await page.goto('/restore-account.php');
   await page.locator('#restore-username').fill('Jamie');
   await page.locator('#restore-password').fill('a long passphrase');
-  await page.locator('#restore-account-form').getByRole('button').first().click();
+  await page.locator('#restore-account-form').getByRole('button', { name: 'Restore account' }).click();
   const panel = page.locator('#restore-mfa-panel');
   await expect(panel.getByLabel('Code from your authenticator app')).toBeFocused();
   await axe(page, '#restore-mfa-panel', 'restoration with the app');

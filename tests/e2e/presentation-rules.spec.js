@@ -145,8 +145,8 @@ test('guests agree by starting a visit', async ({ page }) => {
   const requests = [];
   await fixture(page, { user: signedOut, requests });
   await page.goto('/');
-  await expect(page.locator('.auth-intro [data-guest-rules]')).toHaveText(/By looking around, you agree to the community rules/);
-  await page.locator('.auth-intro [data-guest-start]').click();
+  await expect(page.locator('.guest-entry [data-guest-rules]')).toHaveText(/By looking around, you agree to the community rules/);
+  await page.locator('.guest-entry [data-guest-start]').click();
   await expect(page.locator('#chat-shell')).toBeVisible();
   expect(requests.find((entry) => entry.path === 'guest/start.php').body.accepted_rules_version).toBe(3);
 });

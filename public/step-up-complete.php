@@ -18,11 +18,13 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <link rel="stylesheet" href="/assets/css/app.css">
 <?= \ChitChat\View\HeadAssets::html(\ChitChat\InstallationIcon\IconService::resolve($config)) ?>
   <link rel="stylesheet" href="/assets/css/components.css">
+  <link rel="stylesheet" href="/assets/css/auth.css">
 </head>
 <body>
-  <main class="auth-shell">
+  <main class="auth-shell auth-shell-single">
+    <?= \ChitChat\View\Lockup::html($config, 'step-up-complete-brand', horizontal: true) ?>
     <section class="auth-card" aria-labelledby="step-up-complete-title">
-      <h1 id="step-up-complete-title" class="brand"><?= $appName ?></h1>
+      <h2 id="step-up-complete-title" class="auth-greeting">Confirming it’s you</h2>
       <p id="step-up-complete-status" role="status" aria-live="polite">Confirming…</p>
       <p id="step-up-complete-error" class="error-text" role="alert"></p>
       <p>You can close this window and return to <?= $appName ?>.</p>

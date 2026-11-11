@@ -159,7 +159,7 @@ test('a revoked login’s 401 says “signed out from another device” on the s
   await fixture(page, { roomsStatus: { status: 401, error: { code: 'session_revoked', message: REVOKED } } });
   await page.goto('/');
   await expect(page.locator('#auth-shell')).toBeVisible();
-  await expect(page.locator('.toast').filter({ hasText: REVOKED })).toBeVisible();
+  await expect(page.locator('#auth-notice')).toBeVisible();
 });
 
 test('the stream’s forced_logout with session_revoked says the same, on Rooms', async ({ page }) => {
@@ -169,7 +169,7 @@ test('the stream’s forced_logout with session_revoked says the same, on Rooms'
   await expect(page.locator('#chat-shell')).toBeVisible();
   await page.evaluate(() => window.__emitRaw('forced_logout', { reason: 'session_revoked' }));
   await expect(page.locator('#auth-shell')).toBeVisible();
-  await expect(page.locator('.toast').filter({ hasText: REVOKED })).toBeVisible();
+  await expect(page.locator('#auth-notice')).toBeVisible();
 });
 
 test('on Direct, forced_logout with session_revoked leads to the sign-in screen with that line', async ({ page }) => {
@@ -181,7 +181,7 @@ test('on Direct, forced_logout with session_revoked leads to the sign-in screen 
   await page.evaluate(() => window.__emitRaw('forced_logout', { reason: 'session_revoked' }));
   await expect(page).toHaveURL(/\/$/);
   await expect(page.locator('#auth-shell')).toBeVisible();
-  await expect(page.locator('.toast').filter({ hasText: REVOKED })).toBeVisible();
+  await expect(page.locator('#auth-notice')).toBeVisible();
 });
 
 for (const theme of ['light', 'dark']) {

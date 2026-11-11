@@ -23,28 +23,6 @@
 .password-reset .error-text:empty { display: none; }
 .recovery-key-input { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing: 0.06em; text-transform: uppercase; }
 .recovery-key-input::placeholder { text-transform: none; letter-spacing: 0.04em; }
-.password-field { display: grid; gap: 0.4rem; }
-.password-field > label { display: block; color: var(--text-muted); font-size: 0.92rem; }
-.password-field-row { position: relative; }
-.password-field-row input { padding-right: 3.25rem; }
-.password-toggle {
-  position: absolute;
-  inset: 0 0.25rem 0 auto;
-  width: 2.75rem;
-  height: 2.75rem;
-  margin: auto 0;
-  transform: none;
-  transition: none;
-  display: grid;
-  place-items: center;
-  padding: 0;
-  border: 0;
-  border-radius: 0.6rem;
-  background: transparent;
-  color: var(--text-muted);
-}
-.password-toggle[aria-pressed="true"] { color: var(--signature-text); }
-.password-toggle:focus-visible { outline: 2px solid var(--signature-text); outline-offset: -2px; }
 
 /* ---- "Save your recovery key" ---- */
 .recovery-key-step h2 { margin: 0; font-family: var(--display-font); font-weight: 400; font-size: 1.75rem; line-height: 1.15; }

@@ -24,6 +24,7 @@ import { openResetIfRequested, showKeyStepInCard } from './password-reset.js';
 import { issuedKey } from './recovery.js';
 import { renderRecoveryNudge, setRecoveryNudgeUser } from './recovery-nudge.js';
 import { phoneListShowing } from './pane-stack.js';
+import { renderSeason } from './sign-in-season.js';
 
 const registrationChallenge = createRegistrationChallenge();
 const guestChallenge = createRegistrationChallenge('/api/v1/guest/challenge.php');
@@ -214,6 +215,8 @@ async function bootstrap() {
   renderLockdown(session.lockdown);
   renderSignInProviders(session.sign_in_providers);
   renderSignedOutAgreements(session);
+  // The installation's seasonal decoration on the sign-in screen (#242), when one is chosen.
+  renderSeason(session.sign_in_decoration);
   state.guestAccess = session.guest_access === true;
   elements['app-loading'].classList.add('hidden');
 
@@ -263,8 +266,12 @@ async function enterApplication(user) {
   await loadRooms();
 }
 
+const GREETINGS = { login: 'Welcome back', register: 'Make yourself at home' };
+
 function showAuthMode(mode) {
   const login = mode === 'login';
+  const greeting = document.getElementById('auth-greeting');
+  if (greeting) greeting.textContent = GREETINGS[login ? 'login' : 'register'];
   elements['login-tab'].setAttribute('aria-selected', String(login));
   elements['register-tab'].setAttribute('aria-selected', String(!login));
   elements['login-form'].classList.toggle('hidden', !login);
@@ -421,8 +428,15 @@ function showSignedOutPage(mode) {
 
 /** Signing out on You (sign-out.js) leaves one line for the sign-in screen. */
 function showSignedOutMessage() {
-  const message = takeSignedOutNotice();
-  if (message) toast(message);
+  showAuthNotice(takeSignedOutNotice());
+}
+
+/** One line on the sign-in card (S3): signed out, from here or another device (#205). */
+function showAuthNotice(message) {
+  const notice = document.getElementById('auth-notice');
+  if (!notice) return;
+  notice.textContent = message ?? '';
+  notice.classList.toggle('hidden', !message);
 }
 
 /** A guest posts only where the room lets guests write. */
@@ -1906,13 +1920,12 @@ function forceSignedOut(message) {
   elements['chat-shell'].classList.remove('guest-mode');
   elements['auth-shell'].classList.remove('hidden');
   showAuthMode('login');
-  if (message) {
-    toast(message, 'error');
-  }
+  showAuthNotice(message);
   apiGet('/api/v1/session.php')
     .then((session) => {
       setCsrfToken(session.csrf_token);
       renderLockdown(session.lockdown);
+      renderSeason(session.sign_in_decoration);
       state.guestAccess = session.guest_access === true;
       renderGuestEntry();
     })

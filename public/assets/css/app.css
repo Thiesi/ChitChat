@@ -132,90 +132,6 @@ button:disabled {
   width: auto;
 }
 
-.auth-shell {
-  display: grid;
-  min-height: 100vh;
-  grid-template-rows: 1fr auto;
-  gap: 2rem;
-  padding: clamp(1.25rem, 5vw, 4rem);
-  place-items: center;
-  background: radial-gradient(ellipse at 10% 30%, color-mix(in srgb, var(--signature) 8%, transparent), transparent 65%);
-}
-
-.auth-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 27rem);
-  align-items: center;
-  gap: clamp(2rem, 7vw, 7rem);
-  width: min(100%, 72rem);
-}
-
-.welcome-eyebrow {
-  margin: 0 0 1.5rem;
-  color: var(--signature-text);
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-}
-
-.welcome-title {
-  margin: 0;
-  font-family: var(--display-font);
-  font-size: clamp(2.7rem, 5vw, 4.5rem);
-  font-weight: 400;
-  line-height: 1.08;
-  letter-spacing: var(--display-tracking);
-}
-
-.welcome-copy {
-  max-width: 31rem;
-  margin: 1.5rem 0 0;
-  color: var(--text-muted);
-  font-size: 1.05rem;
-  line-height: 1.8;
-}
-
-.welcome-art { display: block; width: min(100%, 24rem); margin-top: 2rem; }
-.art-orbit { stroke: var(--line); stroke-dasharray: 3 8; }
-.art-bubble-back { fill: var(--raised); stroke: var(--line); }
-.art-bubble-front { fill: var(--signature); }
-.art-lines { stroke: var(--text-muted); stroke-width: 5; stroke-linecap: round; }
-.art-dots { fill: var(--on-signature); }
-.art-spark { stroke: var(--presence-text); stroke-width: 2; stroke-linecap: round; }
-
-.auth-card {
-  width: min(100%, 30rem);
-  padding: clamp(1.5rem, 3vw, 2.5rem);
-  border: 1px solid var(--line);
-  border-radius: 1.75rem;
-  background: var(--surface);
-  box-shadow: var(--shadow);
-}
-
-.brand {
-  margin: 0;
-  font-size: clamp(1.65rem, 4vw, 2.4rem);
-  letter-spacing: -0.045em;
-  overflow-wrap: anywhere;
-}
-
-.tagline {
-  margin: 0.4rem 0 1.75rem;
-  color: var(--text-muted);
-}
-
-.auth-tabs {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.25rem;
-  padding: 0.3rem;
-  border-radius: 0.9rem;
-  background: var(--ground);
-  margin-bottom: 1.5rem;
-}
-
-.auth-tabs button,
 .secondary-button,
 .room-button,
 .join-button {
@@ -223,19 +139,6 @@ button:disabled {
   border-radius: 0.75rem;
   background: var(--raised);
   color: var(--text);
-}
-
-.auth-tabs button {
-  padding: 0.7rem;
-  border-color: transparent;
-  background: transparent;
-}
-
-.auth-tabs button[aria-selected="true"] {
-  border-color: var(--field-line);
-  background: var(--surface);
-  box-shadow: 0 2px 5px var(--shadow-soft);
-  color: var(--signature-text);
 }
 
 .form-stack {
@@ -1489,12 +1392,6 @@ button.user-name.mention { padding: 0 0.2rem; border-radius: 0.25rem; background
 }
 
 @media (max-width: 48rem) {
-  .auth-layout { grid-template-columns: minmax(0, 28rem); justify-content: center; gap: 2rem; }
-  .auth-intro { text-align: center; }
-  .welcome-eyebrow { margin-bottom: 0.75rem; }
-  .welcome-title { font-size: 2.7rem; }
-  .welcome-copy, .welcome-art { display: none; }
-
   .chat-shell {
     --sidebar-width: 13rem;
     padding: 0.5rem;
@@ -1507,9 +1404,6 @@ button.user-name.mention { padding: 0 0.2rem; border-radius: 0.25rem; background
 
 
 @media (max-width: 34rem) {
-  .auth-shell { padding: 1.25rem; gap: 1rem; }
-  .welcome-title { font-size: 2.2rem; }
-  .auth-card { padding: 1.35rem; border-radius: 1.25rem; }
   .chat-shell,
   .chat-shell.members-open {
     grid-template-columns: 1fr;

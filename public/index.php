@@ -33,6 +33,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <link rel="stylesheet" href="/assets/css/rules.css">
   <link rel="stylesheet" href="/assets/css/shell.css">
   <link rel="stylesheet" href="/assets/css/panes.css">
+  <link rel="stylesheet" href="/assets/css/auth.css">
 </head>
 <body>
   <!-- One polite announcer per page, fed by events (announcer.js); the transcript itself never speaks. -->
@@ -41,30 +42,33 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
 
   <main id="auth-shell" class="auth-shell hidden">
     <div class="auth-layout">
-      <div class="auth-intro">
-        <p class="welcome-eyebrow">Make yourself at home</p>
-        <p class="welcome-title">Good company.<br>Great conversations.</p>
-        <p class="welcome-copy">A little hello can go a long way. Settle in, find your people, and let the conversation flow.</p>
-        <div class="guest-intro-cta hidden" data-guest-entry>
-          <button class="secondary-button" type="button" data-guest-start>Look around as a guest →</button>
-          <span>No account needed.</span>
-          <p class="guest-rules-note hidden" data-guest-rules>By looking around, you agree to the <a href="#" target="_blank" rel="noopener">community rules<span class="visually-hidden"> (opens in a new tab)</span></a>.</p>
-        </div>
-        <svg class="welcome-art" viewBox="0 0 400 220" fill="none" aria-hidden="true" focusable="false">
-          <circle cx="196" cy="108" r="96" class="art-orbit"/>
-          <circle cx="196" cy="108" r="70" class="art-orbit"/>
-          <path d="M46 56a24 24 0 0 1 24-24h156a24 24 0 0 1 24 24v66a24 24 0 0 1-24 24H99l-36 25v-27a24 24 0 0 1-17-23Z" class="art-bubble-back"/>
-          <path d="M166 107a24 24 0 0 1 24-24h130a24 24 0 0 1 24 24v57a24 24 0 0 1-24 24h-9v24l-34-24h-87a24 24 0 0 1-24-24Z" class="art-bubble-front"/>
-          <path d="M81 72h117M81 92h76" class="art-lines"/>
-          <g class="art-dots"><circle cx="222" cy="136" r="6"/><circle cx="254" cy="136" r="6"/><circle cx="286" cy="136" r="6"/></g>
-          <path d="M336 34v20m-10-10h20M75 190v14m-7-7h14" class="art-spark"/>
+      <!-- S3 (#169): the installation's lockup is the headline (#227, web only).
+           The art is drawn from Lantern shapes only; the seasonal decoration
+           (sign_in_decoration, #242) is placed around it by sign-in-season.js. -->
+      <header class="auth-intro">
+        <div class="auth-season" data-season hidden aria-hidden="true"></div>
+        <?= \ChitChat\View\Lockup::html($config, 'auth-title') ?>
+        <svg class="auth-art" viewBox="0 0 400 210" aria-hidden="true" focusable="false">
+          <rect class="art-lantern art-h3" x="34" y="58" width="56" height="56" rx="17"/>
+          <rect class="art-lantern art-h5" x="318" y="22" width="42" height="42" rx="13"/>
+          <rect class="art-lantern art-h1" x="270" y="146" width="46" height="46" rx="14"/>
+          <path class="art-bubble" d="M140 30h104a30 30 0 0 1 30 30v26a30 30 0 0 1-30 30H140a30 30 0 0 1-30-30V60a30 30 0 0 1 30-30Z"/>
+          <circle class="art-chit" cx="292" cy="132" r="9"/>
+          <path class="art-lines" d="M142 64h82M142 84h52"/>
+          <circle class="art-pebble art-h6" cx="92" cy="168" r="20"/>
+          <circle class="art-pebble art-h4" cx="146" cy="186" r="11"/>
+          <circle class="art-pebble art-h2" cx="368" cy="110" r="13"/>
         </svg>
-      </div>
-      <section class="auth-card" aria-labelledby="auth-title">
-        <h1 id="auth-title" class="brand"><?= $appName ?></h1>
-        <p class="tagline">Your people. Your place to talk.</p>
-
-        <p id="auth-lockdown" class="lockdown-notice hidden" role="status"><strong>Maintenance.</strong> <span data-lockdown-text></span></p>
+        <svg class="auth-band-art" viewBox="0 0 64 40" aria-hidden="true" focusable="false">
+          <circle class="art-pebble art-h6" cx="14" cy="24" r="10"/>
+          <circle class="art-pebble art-h4" cx="34" cy="32" r="6"/>
+          <circle class="art-chit" cx="54" cy="10" r="5"/>
+        </svg>
+      </header>
+      <section class="auth-card" aria-labelledby="auth-greeting">
+        <h2 id="auth-greeting" class="auth-greeting">Welcome back</h2>
+        <p id="auth-notice" class="auth-strip hidden" role="status"></p>
+        <p id="auth-lockdown" class="lockdown-notice auth-strip hidden" role="status"><strong>Maintenance.</strong> <span data-lockdown-text></span></p>
         <div class="auth-tabs" role="tablist" aria-label="Account access">
           <button id="login-tab" type="button" role="tab" aria-selected="true" aria-controls="login-form" tabindex="0">Sign in</button>
           <button id="register-tab" type="button" role="tab" aria-selected="false" aria-controls="register-form" tabindex="-1">Register</button>
@@ -75,16 +79,21 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
             Username
             <input id="login-username" name="username" type="text" autocomplete="username" minlength="3" maxlength="32" required>
           </label>
-          <label>
-            Password
-            <input id="login-password" name="password" type="password" autocomplete="current-password" minlength="12" maxlength="4096" required>
-          </label>
+          <div class="password-field">
+            <label for="login-password">Password</label>
+            <div class="password-field-row">
+              <input id="login-password" name="password" type="password" autocomplete="current-password" minlength="12" maxlength="4096" required>
+              <button class="password-toggle" type="button" data-reveal="login-password" aria-controls="login-password" aria-pressed="false" aria-label="Show password">
+                  <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+            </div>
+          </div>
           <p class="forgot-password"><a id="forgot-password-link" href="/?reset=1">Forgot password?</a></p>
           <button class="primary-button" type="submit">Sign in</button>
           <div id="sign-in-providers" class="sign-in-providers hidden">
             <p class="sign-in-divider"><span>or</span></p>
           </div>
-          <a class="secondary-button" href="/restore-account.php">Restore a closing account</a>
+          <a class="quiet-action" href="/restore-account.php">Restore a closing account</a>
         </form>
 
         <form id="register-form" class="form-stack hidden" role="tabpanel" aria-labelledby="register-tab" autocomplete="on" hidden>
@@ -96,10 +105,15 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
             Username
             <input id="register-username" name="username" type="text" autocomplete="username" minlength="3" maxlength="32" pattern="[A-Za-z0-9][A-Za-z0-9._\-]{2,31}" required>
           </label>
-          <label id="register-password-field">
-            Password
-            <input id="register-password" name="password" type="password" autocomplete="new-password" minlength="12" maxlength="4096" required>
-          </label>
+          <div id="register-password-field" class="password-field">
+            <label for="register-password">Password <span class="optional-label">at least 12 characters</span></label>
+            <div class="password-field-row">
+              <input id="register-password" name="password" type="password" autocomplete="new-password" minlength="12" maxlength="4096" required>
+              <button class="password-toggle" type="button" data-reveal="register-password" aria-controls="register-password" aria-pressed="false" aria-label="Show password">
+                  <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+            </div>
+          </div>
           <label>
             Birth date <span class="optional-label">optional; required for age-restricted rooms</span>
             <input id="register-birth-date" name="birth_date" type="date" autocomplete="bday">
@@ -126,7 +140,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
         </form>
 
         <div class="guest-entry hidden" data-guest-entry>
-          <p>Just curious?</p>
+          <p class="guest-entry-lead">Just curious?</p>
           <button class="secondary-button" type="button" data-guest-start>Look around as a guest</button>
           <p>No account needed. Read open rooms and chat where guests are welcome.</p>
           <p class="guest-rules-note hidden" data-guest-rules>By looking around, you agree to the <a href="#" target="_blank" rel="noopener">community rules<span class="visually-hidden"> (opens in a new tab)</span></a>.</p>
@@ -346,6 +360,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <script type="module" src="/assets/js/search-result-navigation.js"></script>
   <script type="module" src="/assets/js/panes.js"></script>
   <script type="module" src="/assets/js/auth-tabs.js"></script>
+  <script type="module" src="/assets/js/password-reveal.js"></script>
   <script type="module" src="/assets/js/admin-link.js"></script>
   <script type="module" src="/assets/js/navigation.js"></script>
   <script type="module" src="/assets/js/room-message-mutations.js"></script>
