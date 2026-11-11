@@ -190,6 +190,7 @@ test.describe.serial('ChitChat accessibility checks', () => {
 
     await you.click();
     await expect(page).toHaveURL(/\/account\.php$/);
-    await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible();
+    // Exact: each row of "Where you're signed in" (#205) has its own "Sign out <device>".
+    await expect(page.getByRole('button', { name: 'Sign out', exact: true })).toBeVisible();
   });
 });

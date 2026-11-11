@@ -98,6 +98,12 @@ async function openRoom(page) {
   // Phones open on the Rooms list with nothing opened behind it (S2c): open the room as a person would.
   if ((page.viewportSize()?.width ?? 1280) < 768) await page.locator('#room-list .room-button').first().click();
   await expect(page.locator('#message-list article.message')).toHaveCount(5);
+  // Opening a room on a phone pushes the conversation in under the pointer, which
+  // then hovers a message and fades its actions in; axe run mid-fade blends their
+  // half-transparent labels into the ground (seen on WebKit). Move the pointer off
+  // and measure once nothing is moving.
+  await page.mouse.move(0, 0);
+  await page.waitForFunction(() => document.getAnimations().every((animation) => animation.playState !== 'running'));
 }
 
 const announcer = (page) => page.locator('#announcer');
