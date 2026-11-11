@@ -27,7 +27,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
 <body>
   <div id="privacy-notifications-loading" class="app-loading" role="status">Loading activity…</div>
 
-  <?= \ChitChat\View\AppShell::open('activity', 'privacy-notifications-shell', 'Skip to content', true) ?>
+  <?= \ChitChat\View\AppShell::open('activity', 'privacy-notifications-shell', 'Skip to content', true, config: $config) ?>
   <main id="privacy-notifications-shell" tabindex="-1" class="account-shell hidden">
     <header class="account-header">
       <div>

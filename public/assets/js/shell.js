@@ -19,6 +19,11 @@ const nav = document.getElementById('app-nav');
 
 if (frame && nav) {
   window.addEventListener('chitchat:activity-count', (event) => renderActivity(event.detail?.count));
+  // Direct messages (S2c): the Direct page reports exact counts; elsewhere a new DM refreshes them.
+  window.addEventListener('chitchat:direct-count', (event) => renderBadge('direct', 'Direct', event.detail?.count));
+  window.addEventListener('chitchat:realtime', (event) => {
+    if (event.detail?.type === 'direct_message' && !directIsPage()) scheduleDirect();
+  });
   // Signing in, out or starting a guest visit happens in place on the Rooms page.
   window.addEventListener('chitchat:session-changed', () => { void start(); });
   watchKeyboard();
@@ -49,6 +54,7 @@ async function start() {
   if (guest) return;
 
   if (frame.dataset.activitySource !== 'page') void refreshActivity();
+  if (!directIsPage()) void refreshDirect();
   await placeSteward(user);
 }
 
@@ -62,15 +68,41 @@ async function refreshActivity() {
 }
 
 function renderActivity(count) {
+  renderBadge('activity', 'Activity', count);
+}
+
+let directTimer = 0;
+
+/** The Direct page counts its own conversations and reports them. */
+function directIsPage() {
+  return frame.dataset.tab === 'direct';
+}
+
+function scheduleDirect() {
+  window.clearTimeout(directTimer);
+  directTimer = window.setTimeout(() => void refreshDirect(), 300);
+}
+
+async function refreshDirect() {
+  try {
+    const payload = await apiGet('/api/v1/direct-messages/conversations.php');
+    const conversations = Array.isArray(payload?.conversations) ? payload.conversations : [];
+    renderBadge('direct', 'Direct', conversations.reduce((sum, item) => sum + (Number.isInteger(item?.unread_count) ? item.unread_count : 0), 0));
+  } catch {
+    // Without a count the tab simply shows no badge.
+  }
+}
+
+/** A tab's unread badge, read as part of its name ("Direct, 3 unread"). */
+function renderBadge(key, label, count) {
   const unread = Number.isInteger(count) && count > 0 ? count : 0;
-  const link = nav.querySelector('.app-nav-item[data-tab="activity"]');
-  const badge = link?.querySelector('[data-badge="activity"]');
+  const link = nav.querySelector(`.app-nav-item[data-tab="${key}"]`);
+  const badge = link?.querySelector(`[data-badge="${key}"]`);
   if (!link || !badge) return;
   badge.textContent = unread > 99 ? '99+' : String(unread);
   badge.hidden = unread === 0;
-  // Read with the tab: "Activity, 2 unread". The visible label starts the name.
   if (unread === 0) link.removeAttribute('aria-label');
-  else link.setAttribute('aria-label', `Activity, ${unread} unread`);
+  else link.setAttribute('aria-label', `${label}, ${unread} unread`);
 }
 
 /**

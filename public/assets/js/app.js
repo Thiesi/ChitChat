@@ -23,6 +23,7 @@ import { agreementErrorMessage, guestAgreement, registrationAgreement, renderSig
 import { openResetIfRequested, showKeyStepInCard } from './password-reset.js';
 import { issuedKey } from './recovery.js';
 import { renderRecoveryNudge, setRecoveryNudgeUser } from './recovery-nudge.js';
+import { phoneListShowing } from './pane-stack.js';
 
 const registrationChallenge = createRegistrationChallenge();
 const guestChallenge = createRegistrationChallenge('/api/v1/guest/challenge.php');
@@ -437,9 +438,11 @@ async function loadRooms(preferredRoomId = null) {
     renderRoomList();
 
     const desiredId = preferredRoomId ?? state.currentRoom?.id ?? null;
+    // On the phone list screen nothing opens until a room is chosen.
+    const initial = phoneListShowing() ? null : chooseInitialRoom();
     const desired = desiredId === null
-      ? chooseInitialRoom()
-      : state.rooms.find((room) => room.id === desiredId) ?? chooseInitialRoom();
+      ? initial
+      : state.rooms.find((room) => room.id === desiredId) ?? initial;
 
     if (desired) {
       await selectRoom(desired);
@@ -552,10 +555,8 @@ function renderRoomList() {
 
     const name = document.createElement('span');
     name.className = 'room-name';
-    const hash = document.createElement('span');
-    hash.className = 'room-hash';
-    hash.textContent = '#';
-    name.append(hash, ` ${room.name}`);
+    // The room's lantern (S2c): its "#" on a squircle in the room's identity hue.
+    name.append(lantern(room), ` ${room.name}`);
     button.append(name);
 
     const unread = state.currentRoom?.id === room.id ? 0 : (room.unread_count ?? 0);
@@ -585,8 +586,10 @@ function renderRoomList() {
       button.append(roomFlag('read only'));
     }
 
-    button.addEventListener('click', () => {
-      window.dispatchEvent(new CustomEvent('chitchat:room-chosen'));
+    button.addEventListener('click', (event) => {
+      // panes.js: close the tablet overlay, or push the conversation on phones.
+      // A scripted click (a deep link) opens it without moving focus.
+      window.dispatchEvent(new CustomEvent('chitchat:room-chosen', { detail: { opener: button, user: event.isTrusted } }));
       selectRoom(room);
     });
     elements['room-list'].append(button);
@@ -595,6 +598,12 @@ function renderRoomList() {
 
 async function selectRoom(chosen) {
   let room = chosen;
+  // The previous room's "N here now" and glow never carry over; presence for this room fills them in.
+  const here = document.getElementById('room-here');
+  if (here && state.currentRoom?.id !== chosen?.id) {
+    here.hidden = true;
+    here.textContent = '';
+  }
   if (state.user?.guest && room.member_role === null) {
     try {
       room = (await apiPost('/api/v1/rooms/join.php', { room_id: room.id })).room ?? room;
@@ -759,7 +768,10 @@ function renderRoomHeader() {
     return;
   }
 
-  elements['room-title'].textContent = `# ${room.name}`;
+  const roomLantern = lantern(room);
+  // Presence may already be known (presence.js); keep its glow on the new lantern.
+  roomLantern.classList.toggle('glow', document.getElementById('room-here')?.hidden === false);
+  elements['room-title'].replaceChildren(roomLantern, ` ${room.name}`);
   const details = [];
   if (room.info_line) {
     details.push(room.info_line);
@@ -814,9 +826,25 @@ function renderMuteNotice(room, mute) {
   }
 }
 
+/** A room's "#" drawn as its lantern; the text stays "# name" for every reader. */
+function lantern(room) {
+  const hash = document.createElement('span');
+  hash.className = 'room-hash lantern';
+  const hue = identityHueIndex(room.id);
+  if (hue !== null) hash.dataset.hue = String(hue);
+  hash.textContent = '#';
+  return hash;
+}
+
+/** A room opened by the page (created, joined): panes.js closes the overlay or pushes the conversation. */
+function announceRoomOpened(roomId) {
+  const opener = elements['room-list'].querySelector(`[data-room-id="${roomId}"]`);
+  window.dispatchEvent(new CustomEvent('chitchat:room-chosen', { detail: { opener, user: true } }));
+}
+
 function renderNoRoom() {
   elements['room-title'].textContent = 'Choose a room';
-  elements['room-info'].textContent = 'Select a room from the sidebar.';
+  elements['room-info'].textContent = 'Select a room from the list.';
   elements['join-button'].classList.add('hidden');
   elements['composer-wrap'].classList.add('hidden');
   state.messages = [];
@@ -842,6 +870,7 @@ async function joinCurrentRoom() {
     });
     replaceRoom(response.room);
     await selectRoom(response.room);
+    announceRoomOpened(response.room.id);
     toast(`Joined #${response.room.name}.`);
   } catch (error) {
     handleApiFailure(error);
@@ -1719,6 +1748,7 @@ async function createRoom(event) {
     });
     elements['room-dialog'].close();
     await loadRooms(response.room.id);
+    announceRoomOpened(response.room.id);
     toast(`Created #${response.room.name}.`);
   } catch (error) {
     elements['room-dialog-error'].textContent = errorMessage(error);

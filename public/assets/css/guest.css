@@ -29,8 +29,6 @@
   color: var(--text-muted) !important;
 }
 .guest-avatar svg { width: 58%; height: 58%; }
-.user-button.guest-avatar { display: grid; }
-.user-button.guest-avatar svg { width: 1.2rem; height: 1.2rem; }
 
 /* The strip across the top, like the maintenance one. */
 .guest-banner,
