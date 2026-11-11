@@ -31,7 +31,9 @@ use Throwable;
  * then the username claim locks, then a moderation case. Locking the actor
  * before the target regardless of IDs would still deadlock two moderators
  * acting on each other; ID order does not. Person reports also lock the
- * account before the case.
+ * account before the case. Other staff actions (for example a moderator
+ * removing an avatar) still lock target then actor; that residual cross-path
+ * cycle is tracked in #248.
  */
 final class UsernameChangeService
 {

@@ -508,7 +508,7 @@ SQL, 'moderation assignment update');
         $subject = $this->prepare('SELECT subject_user_id FROM moderation_cases WHERE id = :id', 'moderation-case subject lookup');
         $subject->execute(['id' => $caseId]);
         $subjectUserId = $subject->fetchColumn();
-        if ($subjectUserId === false) {
+        if ($subjectUserId === false || $subjectUserId === null) {
             return;
         }
         $this->prepare('SELECT id FROM users WHERE id = :id FOR KEY SHARE', 'moderation-case subject lock')
