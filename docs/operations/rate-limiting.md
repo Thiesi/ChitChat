@@ -79,6 +79,7 @@ The `registration` policy's environment values are server defaults: a Super-Admi
 | `message_revision_review` | 60 / 3600 s | Audited exact-message revision review |
 | `message_report` | 10 / 3600 s | Participant submission of a room or direct-message report |
 | `user_report` | 10 / 3600 s | Person-report attempts, per member or guest identity, independently of message reports |
+| `username_change` | 10 / 3600 s | Choosing a new username after a moderator required one, per account |
 | `moderation_queue` | 120 / 60 s | Authorization-scoped moderation queue, case and copied-avatar reads |
 | `moderation_action` | 60 / 3600 s | Case assignment, release, dismissal, and resolution |
 | `push_subscription_management` | 20 / 3600 s | Web Push registration changes, unsubscribe, preference updates, and device revocation |

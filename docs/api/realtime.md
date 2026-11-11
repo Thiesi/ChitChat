@@ -170,6 +170,14 @@ Emitted when a presence connection enters a room, changes rooms, leaves through 
 
 The event is an invalidation signal, not a complete online/offline transition. Because one user may have several tabs, clients must reload `GET /api/v1/rooms/presence.php` to obtain authoritative aggregated state. These transient invalidations expire from the event ledger after one hour.
 
+### `user_renamed`
+
+```json
+{ "user": { "id": 17, "username": "member-k7q2xm" } }
+```
+
+Sent to every connection when a moderator replaces an account's username and again when the account chooses its new one ([required username changes](username-change.md)). Clients update every rendered occurrence of that user ID; for the viewer's own ID they refresh `session.php`. Stored events are not rewritten: a client replaying older events after a reconnect receives this event after them, in order.
+
 ### `forced_logout`
 
 Kicks, bans, and administrator password resets publish a targeted forced-logout event in the same transaction that increments the user's session version. The stream also revalidates session version and active bans during every poll, so invalidation remains enforced even if the event is missed or expires.

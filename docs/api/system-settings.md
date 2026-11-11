@@ -26,12 +26,13 @@ Response:
     "login_attempt_retention_days": 30,
     "deleted_room_grace_days": 30,
     "guest_access_enabled": false,
+    "username_reservation_days": 365,
     "updated_at": "2026-07-17 00:00:00+00"
   }
 }
 ```
 
-A retention value of `0` means permanent retention. The grace and operational-ledger values must be positive. `deleted_room_grace_days` is how long a deleted room stays restorable before maintenance removes it permanently; `0` keeps deleted rooms until they are restored. `guest_access_enabled` lets visitors look around without an account, in rooms that allow guests (see [Guest access](guest-access.md)).
+A retention value of `0` means permanent retention. The grace and operational-ledger values must be positive. `deleted_room_grace_days` is how long a deleted room stays restorable before maintenance removes it permanently; `0` keeps deleted rooms until they are restored. `guest_access_enabled` lets visitors look around without an account, in rooms that allow guests (see [Guest access](guest-access.md)). `username_reservation_days` (0–3650) is how long a username a moderator removed stays unclaimable after the account chose its new one; it is always held while the change is pending, and `0` releases it as soon as the new name is chosen (see [Required username changes](username-change.md)).
 
 ## Update settings
 
@@ -43,7 +44,7 @@ X-CSRF-Token: <session token>
 
 Requires active privileged step-up. Without recent verification the endpoint returns HTTP 403 with `step_up_required`; no setting or audit record is changed. The bundled browser asks for the current password and retries the update once after successful verification.
 
-The request must include every field returned above except `updated_at`; `deleted_room_grace_days` and `guest_access_enabled` are optional and left unchanged when omitted. Switching `guest_access_enabled` off ends every guest session at once:
+The request must include every field returned above except `updated_at`; `deleted_room_grace_days`, `guest_access_enabled` and `username_reservation_days` are optional and left unchanged when omitted. Switching `guest_access_enabled` off ends every guest session at once:
 
 ```json
 {

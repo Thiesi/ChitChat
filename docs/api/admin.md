@@ -81,12 +81,13 @@ Moderators act from the chat: from **Delete** on a message and from the **Modera
   "everywhere": {
     "can_kick": true, "can_ban": true, "can_mute": true, "can_open_administration": true,
     "ban": { "id": 3, "reason": "Spam", "expires_at": "2026-10-12T09:45:00+00:00" },
-    "mute": null
+    "mute": null,
+    "can_require_username_change": true, "username_change_required": false
   }
 }
 ```
 
-`room` is present only with `room_id`, for room managers and moderators of that room; `everywhere` only for Global Moderators and up (muting) and Administrators and up (signing out, banning).
+`room` is present only with `room_id`, for room managers and moderators of that room; `everywhere` only for Global Moderators and up (muting, requiring a new username) and Administrators and up (signing out, banning). `can_require_username_change` is false for guests and while a change is already required (`username_change_required`); see [Required username changes](username-change.md).
 
 ### Muting: `POST /api/v1/moderation/mute.php`
 

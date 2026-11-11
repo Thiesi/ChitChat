@@ -25,6 +25,7 @@ final class EventRepository
         'message_reaction_changed',
         'rooms_changed',
         'typing',
+        'user_renamed',
     ];
 
     public function __construct(private readonly PDO $pdo)

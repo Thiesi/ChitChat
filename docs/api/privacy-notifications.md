@@ -11,7 +11,7 @@ The initial notification vocabulary is deliberately fixed and bounded:
 - `admin_password_reset` — an administrator reset the account password and invalidated existing sessions;
 - `system_policy_changed` — a Super-Administrator changed one or more installation-wide registration, MFA, retention, attachment-cleanup, realtime-retention, or login-history policies.
 
-An account whose profile picture a moderator removed gets an `avatar_removed` notification (it names no moderator). Room members also get `room_deleted` and `room_restored` notifications when a room they belong to is deleted or restored (the account that did it is not notified); they store only the room ID and name.
+An account whose profile picture a moderator removed gets an `avatar_removed` notification (it names no moderator). An account whose username a moderator replaced gets a `username_change_required` notification with the moderator's reason, linking to `/choose-username.php` ([required username changes](username-change.md)); it names no moderator. Stored `mentioned` and `pinged` notifications keep their sender's name current: a required change rewrites their `sender_username`. Room members also get `room_deleted` and `room_restored` notifications when a room they belong to is deleted or restored (the account that did it is not notified); they store only the room ID and name.
 
 Two participation kinds share the same table: `mentioned` (see [replies and mentions](../architecture/0004-replies-and-mentions.md)) and `pinged`, created for the target of every `/ping`. A `pinged` notification stores only the ping ID, room ID and name, and sender; the ping text stays in `room_pings` and is shown only inside the room. Its link opens the room at the ping (`/?room_id=…&ping_id=…`).
 

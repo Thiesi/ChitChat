@@ -10,6 +10,15 @@ use RuntimeException;
 
 final class UserRepository
 {
+    /**
+     * Sign-in by name also accepts a name a moderator removed, until the account
+     * chooses its new one (#164). The removed name is reserved meanwhile, so it
+     * can match at most one account; the current name wins regardless.
+     * Bind `:sign_in`; append SIGN_IN_ORDER.
+     */
+    public const SIGN_IN_MATCH = '(username_canonical = :sign_in OR username_change_previous_canonical = :sign_in)';
+    public const SIGN_IN_ORDER = ' ORDER BY (username_canonical = :sign_in) DESC LIMIT 1';
+
     public function __construct(private readonly PDO $pdo)
     {
     }
@@ -34,13 +43,13 @@ SELECT id,
        account_state,
        closure_finalizes_at
 FROM users
-WHERE username_canonical = :username
-SQL);
+WHERE
+SQL . ' ' . self::SIGN_IN_MATCH . self::SIGN_IN_ORDER);
         if ($statement === false) {
             throw new RuntimeException('Unable to prepare user credential lookup.');
         }
 
-        $statement->execute(['username' => $canonical]);
+        $statement->execute(['sign_in' => $canonical]);
         $row = $statement->fetch();
         if (!is_array($row)) {
             return null;
@@ -95,7 +104,8 @@ SQL);
         $statement = $this->pdo->prepare(<<<'SQL'
 SELECT u.id, u.username, u.session_version, u.account_kind, u.guest_expires_at,
        u.has_password::int AS has_password, recovery.created_at AS recovery_created_at,
-       u.mfa_policy_generation, (u.mfa_enabled_at IS NOT NULL)::int AS mfa_enabled
+       u.mfa_policy_generation, (u.mfa_enabled_at IS NOT NULL)::int AS mfa_enabled,
+       u.username_change_required_at, u.username_change_reason
 FROM users u
 LEFT JOIN password_recovery_keys recovery ON recovery.user_id = u.id
 WHERE u.id = :id
@@ -128,6 +138,12 @@ SQL);
                 'created_at' => $row['recovery_created_at'] === null
                     ? null : RecoveryKeyService::timestamp((string) $row['recovery_created_at']),
             ] : null,
+            usernameChange: $row['username_change_required_at'] === null ? null : [
+                'required' => true,
+                'required_at' => RecoveryKeyService::timestamp((string) $row['username_change_required_at']),
+                'reason' => (string) $row['username_change_reason'],
+                'sign_in_with_previous_username' => true,
+            ],
         );
     }
 

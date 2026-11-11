@@ -144,7 +144,8 @@ SQL);
         $previous = null;
         $this->pdo->beginTransaction();
         try {
-            (new PolicyService($this->pdo))->assertMayWrite($actor);
+            // This transaction updates the actor's own row: lock it at that level from the start.
+            (new PolicyService($this->pdo))->assertMayWrite($actor, accountForUpdate: true);
             $previous = $this->lockAvatarKey($actor->id);
             $statement = $this->pdo->prepare(
                 'UPDATE users SET avatar_key = :key, avatar_updated_at = NOW(), updated_at = NOW() WHERE id = :id',

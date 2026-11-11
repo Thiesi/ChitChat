@@ -13,6 +13,7 @@ sign-in and remain present for members and guests; every existing v1 field stays
   "capabilities": {
     "schema_version": 1,
     "signed_in_sessions": true,
+    "moderated_username_change": true,
     "native_passkey_origins": false,
     "native_auth_handoff": false
   }
@@ -34,6 +35,9 @@ sign-in and remain present for members and guests; every existing v1 field stays
   forced override of the configured version during development.
 - `capabilities.schema_version` identifies this additive discovery schema.
   Clients ignore unknown capability keys and continue to accept additive fields.
+- **moderated_username_change** is true on servers where a moderator can
+  require a new username: `user.username_change`, `403 username_change_required`
+  and `POST /api/v1/account/username.php`. See [Required username changes](username-change.md).
 - **native_passkey_origins** is true only when WebAuthn is enabled and
   **NATIVE_ANDROID_APPS** contains at least one trusted package/certificate pair.
   It describes configured server support, not proof of Digital Asset Links

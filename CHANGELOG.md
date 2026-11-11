@@ -6,6 +6,8 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ## [Unreleased]
 
+- Let Global Moderators and up require a new username for an offensive name (#164). The name is replaced at once by a neutral placeholder; the account keeps reading and signing in (also with its previous name) but gets `403 username_change_required` on writes until it chooses a new name with `POST /api/v1/account/username.php`. The removed name is reserved while pending and for a configurable `username_reservation_days` (default 365) after. Adds capability `moderated_username_change`, SSE `user_renamed`, notification `username_change_required` and resolution code `username_change_required`. Apply migration 0054. See [docs/api/username-change.md](docs/api/username-change.md).
+
 - Add approved installation icon presets with compact favicon artwork and a bundled-font initial that follows administrative name changes. Unsupported initials preserve the existing icon while the rename succeeds with a notice and audit. Apply migration 0053; uploads retain their existing background controls.
 
 No changes since `v3.7.0`.

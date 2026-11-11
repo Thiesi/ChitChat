@@ -147,17 +147,29 @@ SQL);
         });
     }
 
-    /** Hold the shared rules-row lock through the caller's content transaction. */
-    public function assertMayWrite(AuthenticatedUser $actor): void
+    /**
+     * Hold the shared rules-row lock through the caller's content transaction,
+     * then the actor's account row (#164). FOR KEY SHARE conflicts with the
+     * username key update of a moderator's "require a new username" and of
+     * choosing the new name, but not with ordinary updates of the actor's row.
+     * A path that will update the actor's own row passes $accountForUpdate, so
+     * it never upgrades a weaker lock while a rename waits.
+     */
+    public function assertMayWrite(AuthenticatedUser $actor, bool $accountForUpdate = false): void
     {
         $rules = $this->lockedRules();
-        if ($rules['source'] === 'none') {
-            return;
+        if ($rules['source'] !== 'none') {
+            $statement = $this->prepare('SELECT COALESCE(MAX(version), 0) FROM rules_acceptances WHERE user_id = :id');
+            $statement->execute(['id' => $actor->id]);
+            if ((int) $statement->fetchColumn() < (int) $rules['version']) {
+                throw new ApiException(403, 'rules_acceptance_required', 'Agree to the updated community rules to write. You can still read.');
+            }
         }
-        $statement = $this->prepare('SELECT COALESCE(MAX(version), 0) FROM rules_acceptances WHERE user_id = :id');
-        $statement->execute(['id' => $actor->id]);
-        if ((int) $statement->fetchColumn() < (int) $rules['version']) {
-            throw new ApiException(403, 'rules_acceptance_required', 'Agree to the updated community rules to write. You can still read.');
+        $account = $this->prepare('SELECT (username_change_required_at IS NOT NULL)::int FROM users WHERE id = :id '
+            . ($accountForUpdate ? 'FOR UPDATE' : 'FOR KEY SHARE'));
+        $account->execute(['id' => $actor->id]);
+        if ((int) $account->fetchColumn() === 1) {
+            throw new ApiException(403, 'username_change_required', 'Choose a new username to write. You can still read.');
         }
     }
 

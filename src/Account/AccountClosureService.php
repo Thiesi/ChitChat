@@ -9,6 +9,7 @@ use ChitChat\Audit\AuditLogger;
 use ChitChat\Auth\AuthenticatedUser;
 use ChitChat\Auth\PasswordPolicy;
 use ChitChat\Auth\Username;
+use ChitChat\Auth\UsernameClaims;
 use ChitChat\Auth\UserRepository;
 use ChitChat\Config;
 use ChitChat\Http\ApiException;
@@ -158,9 +159,9 @@ SQL, 'account-closure state update');
 SELECT id, username, password_hash, session_version, account_state, closure_finalizes_at,
        mfa_policy_generation, mfa_enabled_at
 FROM users
-WHERE username_canonical = :canonical
-SQL, 'account-restoration authentication');
-        $lookup->execute(['canonical' => $canonical]);
+WHERE
+SQL . ' ' . UserRepository::SIGN_IN_MATCH . UserRepository::SIGN_IN_ORDER, 'account-restoration authentication');
+        $lookup->execute(['sign_in' => $canonical]);
         $user = $lookup->fetch();
         // Always run password_verify, even for a nonexistent account, against a fixed
         // dummy hash so the response timing cannot be used to enumerate valid usernames.
@@ -400,6 +401,9 @@ SET username = :username,
     account_state = 'closed',
     closed_at = NOW(),
     session_version = session_version + 1,
+    username_change_required_at = NULL,
+    username_change_reason = NULL,
+    username_change_previous_canonical = NULL,
     updated_at = NOW()
 WHERE id = :user_id
 SQL, [
@@ -408,6 +412,8 @@ SQL, [
             'password_hash' => password_hash(bin2hex(random_bytes(32)), PASSWORD_DEFAULT),
             'user_id' => $userId,
         ], 'account tombstoning');
+        // A pending required name change ends here: its removed name stays reserved for the configured period.
+        (new UsernameClaims($this->pdo))->startReservationPeriod($userId);
         $this->execute(
             'UPDATE account_closures SET finalized_at = NOW() WHERE id = :id',
             ['id' => $closureId],

@@ -282,7 +282,10 @@ authorization. Anonymous requests receive 401; out-of-scope/revoked viewers
 403; a missing case or picture 404. It grants no access to the subject's
 other pictures or conversations.
 
-Resolution adds `profile_picture_removed` for person cases only. Resolution
+Resolution adds `profile_picture_removed` and `username_change_required` for
+person cases only. `moderation/require-username-change.php` with `case_id`
+resolves the case with `username_change_required` in the same step as replacing
+the name ([required username changes](username-change.md)). Resolution
 records an outcome; actual avatar removal, muting or banning still use their
 own existing authorization/endpoints. Being allowed to see a snapshot never
 implies permission to act on the account. Reporters receive no outcome

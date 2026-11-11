@@ -108,6 +108,10 @@ final class CleanupService
                 'expired_presence_leases' => $this->scalarCount(
                     'SELECT COUNT(*) FROM room_presence WHERE lease_expires_at <= NOW()',
                 ),
+                // Names a moderator removed become claimable again after their reservation period (#164).
+                'expired_username_reservations' => $this->scalarCount(
+                    'SELECT COUNT(*) FROM username_reservations WHERE reserved_until IS NOT NULL AND reserved_until <= NOW()',
+                ),
                 'tracked_files' => count($trackedKeys),
                 'orphan_files' => count($orphanPaths),
                 'files_removed' => 0,
@@ -163,6 +167,14 @@ final class CleanupService
                 }
                 $presence->execute();
                 $result['expired_presence_leases'] = $presence->rowCount();
+                $reservations = $this->pdo->prepare(
+                    'DELETE FROM username_reservations WHERE reserved_until IS NOT NULL AND reserved_until <= NOW()',
+                );
+                if ($reservations === false) {
+                    throw new RuntimeException('Unable to prepare expired username-reservation cleanup.');
+                }
+                $reservations->execute();
+                $result['expired_username_reservations'] = $reservations->rowCount();
                 $this->pdo->commit();
             } catch (Throwable $exception) {
                 if ($this->pdo->inTransaction()) {

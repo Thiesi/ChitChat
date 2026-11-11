@@ -48,10 +48,14 @@ SQL;
         'no_violation',
         'content_removed',
         'profile_picture_removed',
+        'username_change_required',
         'user_warned',
         'account_restricted',
         'other',
     ];
+
+    /** Outcomes that only make sense for a reported person. */
+    private const PERSON_RESOLUTION_CODES = ['profile_picture_removed', 'username_change_required'];
 
     private readonly AuditLogger $audit;
     private readonly RoomRepository $rooms;
@@ -451,14 +455,54 @@ SQL, 'moderation assignment update');
         try {
             $case = $this->caseRow($caseId, true);
             $this->requireCaseAccess($actor, $case);
-            if ($resolutionCode === 'profile_picture_removed' && $case['subject_kind'] !== 'user') {
+            if (in_array($resolutionCode, self::PERSON_RESOLUTION_CODES, true) && $case['subject_kind'] !== 'user') {
                 throw new ApiException(400, 'validation_error', 'This outcome is only valid for person cases.');
             }
             if (in_array((string) $case['status'], ['resolved', 'dismissed'], true)) {
                 throw new ApiException(409, 'moderation_case_closed', 'This moderation case is already closed.');
             }
+            $this->close($actor, $case, $status, $resolutionCode, $note, $ipAddress);
+            $this->pdo->commit();
+        } catch (Throwable $exception) {
+            $this->rollBack();
+            throw $exception;
+        }
 
-            $statement = $this->prepare(<<<'SQL'
+        return $this->caseDetail($actor, $caseId);
+    }
+
+    /**
+     * Resolves an open person case about `$subjectUserId` as part of the caller's
+     * "require a new username" transaction (#164), after the subject's account row
+     * is locked (the same account-then-case order as person reports).
+     */
+    public function resolveForUsernameChange(AuthenticatedUser $actor, int $caseId, int $subjectUserId, string $ipAddress): void
+    {
+        if (!$this->pdo->inTransaction()) {
+            throw new RuntimeException('Resolving a case for a username change requires the caller\'s transaction.');
+        }
+        $case = $this->caseRow($caseId, true);
+        $this->requireCaseAccess($actor, $case);
+        if ($case['subject_kind'] !== 'user' || (int) $case['subject_user_id'] !== $subjectUserId) {
+            throw new ApiException(400, 'validation_error', 'case_id must be a person case about this account.');
+        }
+        if (in_array((string) $case['status'], ['resolved', 'dismissed'], true)) {
+            throw new ApiException(409, 'moderation_case_closed', 'This moderation case is already closed.');
+        }
+        $this->close($actor, $case, 'resolved', 'username_change_required', null, $ipAddress);
+    }
+
+    /** @param array<string, mixed> $case */
+    private function close(
+        AuthenticatedUser $actor,
+        array $case,
+        string $status,
+        string $resolutionCode,
+        ?string $note,
+        string $ipAddress,
+    ): void {
+        $caseId = (int) $case['id'];
+        $statement = $this->prepare(<<<'SQL'
 UPDATE moderation_cases
 SET status = :status,
     assigned_user_id = COALESCE(assigned_user_id, :actor_id),
@@ -469,36 +513,29 @@ SET status = :status,
     updated_at = NOW()
 WHERE id = :case_id
 SQL, 'moderation resolution');
-            $statement->bindValue(':status', $status);
-            $statement->bindValue(':actor_id', $actor->id, PDO::PARAM_INT);
-            $statement->bindValue(':resolution_code', $resolutionCode);
-            $statement->bindValue(
-                ':resolution_note',
-                $note,
-                $note === null ? PDO::PARAM_NULL : PDO::PARAM_STR,
-            );
-            $statement->bindValue(':case_id', $caseId, PDO::PARAM_INT);
-            $statement->execute();
+        $statement->bindValue(':status', $status);
+        $statement->bindValue(':actor_id', $actor->id, PDO::PARAM_INT);
+        $statement->bindValue(':resolution_code', $resolutionCode);
+        $statement->bindValue(
+            ':resolution_note',
+            $note,
+            $note === null ? PDO::PARAM_NULL : PDO::PARAM_STR,
+        );
+        $statement->bindValue(':case_id', $caseId, PDO::PARAM_INT);
+        $statement->execute();
 
-            $this->audit->log(
-                $actor->id,
-                'moderation.case_closed',
-                'moderation_case',
-                (string) $caseId,
-                [
-                    ...$this->auditMetadata($case),
-                    'status' => $status,
-                    'resolution_code' => $resolutionCode,
-                ],
-                $ipAddress,
-            );
-            $this->pdo->commit();
-        } catch (Throwable $exception) {
-            $this->rollBack();
-            throw $exception;
-        }
-
-        return $this->caseDetail($actor, $caseId);
+        $this->audit->log(
+            $actor->id,
+            'moderation.case_closed',
+            'moderation_case',
+            (string) $caseId,
+            [
+                ...$this->auditMetadata($case),
+                'status' => $status,
+                'resolution_code' => $resolutionCode,
+            ],
+            $ipAddress,
+        );
     }
 
     /**
