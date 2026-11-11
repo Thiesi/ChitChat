@@ -14,6 +14,8 @@ use ChitChat\Auth\AuthService;
 use ChitChat\Auth\PasswordResetService;
 use ChitChat\Auth\Username;
 use ChitChat\Auth\UserRepository;
+use ChitChat\DirectMessage\DirectMessageAttachmentService;
+use ChitChat\DirectMessage\DirectMessageMutationService;
 use ChitChat\DirectMessage\DirectMessageService;
 use ChitChat\Http\ApiException;
 use ChitChat\Http\PublicSessionMetadata;
@@ -21,6 +23,7 @@ use ChitChat\Maintenance\CleanupService;
 use ChitChat\Moderation\ReportService;
 use ChitChat\Moderation\UserReportService;
 use ChitChat\Policy\PolicyService;
+use ChitChat\Reactions\DirectMessageReactionService;
 use ChitChat\Reactions\RoomReactionService;
 use ChitChat\Realtime\EventRepository;
 use ChitChat\Realtime\PingService;
@@ -28,6 +31,7 @@ use ChitChat\Room\MessageService;
 use ChitChat\Room\RoomMessageMutationService;
 use ChitChat\Room\RoomService;
 use ChitChat\Tests\Support\TemporaryPaths;
+use ChitChat\Upload\AttachmentService;
 use ChitChat\Upload\IncomingFile;
 
 final class UsernameChangeServiceTest extends DatabaseTestCase
@@ -107,6 +111,9 @@ final class UsernameChangeServiceTest extends DatabaseTestCase
         $messages = new MessageService($this->pdo);
         $own = $messages->send($member, $room->id, 'Before');
         $other = $messages->send($root, $room->id, 'Root speaks');
+        $direct = new DirectMessageService($this->pdo);
+        $ownDirect = $direct->send($member, $root->id, 'Direct before');
+        $rootDirect = $direct->send($root, $member->id, 'Direct reply');
         (new UsernameChangeService($this->pdo))->requireChange($moderator, $member->id, self::REASON, null, '127.0.0.2');
         $member = $this->reload($member);
 
@@ -116,6 +123,11 @@ final class UsernameChangeServiceTest extends DatabaseTestCase
         $this->assertError('username_change_required', 403, fn () => (new RoomReactionService($this->pdo))->add($member, $other['id'], "\u{1F44D}"));
         $this->assertError('username_change_required', 403, fn () => (new PingService($this->pdo))->send($member, $room->id, 'Root'));
         $this->assertError('username_change_required', 403, fn () => (new AvatarService($this->pdo, $this->config))->upload($member, $this->image(), '127.0.0.3'));
+        $this->assertError('username_change_required', 403, fn () => (new AttachmentService($this->pdo, $this->config))->upload($member, $room->id, $this->image(), '', '127.0.0.3'));
+        $this->assertError('username_change_required', 403, fn () => (new DirectMessageAttachmentService($this->pdo, $this->config))->upload($member, $root->id, $this->image(), '', '127.0.0.3'));
+        $this->assertError('username_change_required', 403, fn () => (new DirectMessageMutationService($this->pdo))->edit($member, $ownDirect['id'], 'Edited', '127.0.0.3'));
+        $this->assertError('username_change_required', 403, fn () => (new DirectMessageReactionService($this->pdo))->add($member, $rootDirect['id'], "\u{1F44D}"));
+        self::assertSame(0, $this->scalar('SELECT COUNT(*) FROM attachments') + $this->scalar('SELECT COUNT(*) FROM direct_message_attachments'));
         self::assertSame(1, $this->scalar("SELECT COUNT(*) FROM room_messages WHERE sender_id = {$member->id}"));
 
         // Reading, reporting, removing one's own content and leaving stay available.
@@ -330,6 +342,48 @@ final class UsernameChangeServiceTest extends DatabaseTestCase
         $messageCase = (new ReportService($this->pdo))->reportRoomMessage($root, $message['id'], 'spam', null, '127.0.0.1');
         $this->assertError('validation_error', 400, fn () => (new ReportService($this->pdo))->resolve($moderator, $messageCase['id'], 'resolved', 'username_change_required', null, '127.0.0.2'));
         $this->assertError('validation_error', 400, fn () => $service->requireChange($moderator, $member->id, self::REASON, $messageCase['id'], '127.0.0.2'));
+    }
+
+    public function testStoredSenderNamesComeFromTheWriteTransactionNotTheRequestStart(): void
+    {
+        [$root, $moderator, $member] = $this->people();
+        $rooms = new RoomService($this->pdo);
+        $room = $rooms->create($root, 'lounge', 'Lounge', '', 'public', 0, 0, '127.0.0.1');
+        $rooms->join($member, $room->id, '127.0.0.3');
+        $service = new UsernameChangeService($this->pdo);
+        $service->requireChange($moderator, $member->id, self::REASON, null, '127.0.0.2');
+        $service->choose($this->reload($member), 'Kind.Name', '127.0.0.3');
+        // $member still carries the name loaded before the rename, like a request that started earlier.
+        self::assertSame('Rude.Name', $member->username);
+
+        (new MessageService($this->pdo))->send($member, $room->id, 'Hello @Root');
+        (new DirectMessageService($this->pdo))->send($member, $root->id, 'Hi @Root');
+        $ping = (new PingService($this->pdo))->send($member, $room->id, 'Root');
+
+        self::assertSame(['Kind.Name', 'Kind.Name', 'Kind.Name'], array_map(
+            static fn (array $row): string => (string) $row[0],
+            $this->pdo->query("SELECT context_json->>'sender_username' FROM account_notifications WHERE kind IN ('mentioned', 'pinged') ORDER BY id")?->fetchAll(\PDO::FETCH_NUM) ?: [],
+        ));
+        self::assertSame('Kind.Name', $ping['sender']['username']);
+    }
+
+    public function testRemovedNameSignInAttemptsAreExportedAndRemovedAtFinalization(): void
+    {
+        [, $moderator, $member] = $this->people();
+        (new UsernameChangeService($this->pdo))->requireChange($moderator, $member->id, self::REASON, null, '127.0.0.2');
+        $auth = new AuthService($this->pdo, $this->config);
+        $this->assertError('invalid_credentials', 401, fn () => $auth->login('Rude.Name', 'wrong password', '198.51.100.7'));
+        self::assertSame(1, $this->scalar("SELECT COUNT(*) FROM login_attempts WHERE username_canonical = 'rude.name'"));
+
+        $export = (new PersonalDataExportService($this->pdo, $this->config))->export($this->reload($member), '127.0.0.3');
+        self::assertStringContainsString('198.51.100.7', json_encode($export, JSON_THROW_ON_ERROR), 'The removed-name attempt belongs to this account.');
+
+        $closures = new AccountClosureService($this->pdo, $this->config);
+        $closures->request($this->reload($member), '127.0.0.3');
+        $this->pdo->exec("UPDATE account_closures SET requested_at = NOW() - interval '2 days', finalizes_at = NOW() - interval '1 day'");
+        $this->pdo->exec("UPDATE users SET closure_requested_at = NOW() - interval '2 days', closure_finalizes_at = NOW() - interval '1 day' WHERE id = {$member->id}");
+        self::assertSame(1, $closures->finalizeDue());
+        self::assertSame(0, $this->scalar("SELECT COUNT(*) FROM login_attempts WHERE username_canonical = 'rude.name'"));
     }
 
     public function testThePersonalDataExportShowsAPendingChange(): void

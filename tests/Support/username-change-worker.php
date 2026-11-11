@@ -23,6 +23,8 @@ try {
             (string) $input['username'], 'Racing-Registration-Aa1!', '127.0.0.52')->toArray(),
         'resolve' => ['case' => (new ChitChat\Moderation\ReportService($pdo))->resolve(
             $actor ?? throw new RuntimeException('Missing actor.'), (int) $input['case_id'], 'resolved', 'user_warned', null, '127.0.0.53')['status']],
+        'send' => (new ChitChat\Room\MessageService($pdo))->send(
+            $actor ?? throw new RuntimeException('Missing actor.'), (int) $input['room_id'], (string) $input['body']),
         default => throw new RuntimeException('Unknown action.'),
     };
     fwrite(STDOUT, json_encode(['status' => 200, 'result' => $result], JSON_THROW_ON_ERROR));

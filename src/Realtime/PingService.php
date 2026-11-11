@@ -89,7 +89,8 @@ SQL);
 
         $this->pdo->beginTransaction();
         try {
-            (new PolicyService($this->pdo))->assertMayWrite($actor);
+            // The name as of this transaction: a rename serializes with the gate's lock (#164).
+            $senderUsername = (new PolicyService($this->pdo))->assertMayWrite($actor);
             $insert = $this->pdo->prepare(<<<'SQL'
 INSERT INTO room_pings (room_id, sender_id, target_id, body)
 VALUES (:room_id, :sender_id, :target_id, :body)
@@ -112,7 +113,7 @@ SQL);
             $ping = [
                 'id' => (int) $row['id'],
                 'room_id' => $roomId,
-                'sender' => ['id' => $actor->id, 'username' => $actor->username],
+                'sender' => ['id' => $actor->id, 'username' => $senderUsername],
                 'target' => ['id' => $targetUserId, 'username' => (string) $target['username']],
                 'message' => $message,
                 'created_at' => (new DateTimeImmutable((string) $row['created_at']))->format(DATE_ATOM),
@@ -135,7 +136,7 @@ SQL);
                         'room_id' => $roomId,
                         'room_name' => $room->name,
                         'sender_user_id' => $actor->id,
-                        'sender_username' => $actor->username,
+                        'sender_username' => $senderUsername,
                     ], JSON_THROW_ON_ERROR),
                 ]);
             }

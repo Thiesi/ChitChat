@@ -154,8 +154,12 @@ SQL);
      * choosing the new name, but not with ordinary updates of the actor's row.
      * A path that will update the actor's own row passes $accountForUpdate, so
      * it never upgrades a weaker lock while a rename waits.
+     *
+     * Returns the actor's username as of this lock. A rename cannot commit
+     * until the caller's transaction ends, so names stored or published by
+     * the write (mention and ping notices, ping events) are never stale.
      */
-    public function assertMayWrite(AuthenticatedUser $actor, bool $accountForUpdate = false): void
+    public function assertMayWrite(AuthenticatedUser $actor, bool $accountForUpdate = false): string
     {
         $rules = $this->lockedRules();
         if ($rules['source'] !== 'none') {
@@ -165,12 +169,15 @@ SQL);
                 throw new ApiException(403, 'rules_acceptance_required', 'Agree to the updated community rules to write. You can still read.');
             }
         }
-        $account = $this->prepare('SELECT (username_change_required_at IS NOT NULL)::int FROM users WHERE id = :id '
+        $account = $this->prepare('SELECT username, (username_change_required_at IS NOT NULL)::int AS pending FROM users WHERE id = :id '
             . ($accountForUpdate ? 'FOR UPDATE' : 'FOR KEY SHARE'));
         $account->execute(['id' => $actor->id]);
-        if ((int) $account->fetchColumn() === 1) {
+        $row = $account->fetch();
+        if (is_array($row) && (int) $row['pending'] === 1) {
             throw new ApiException(403, 'username_change_required', 'Choose a new username to write. You can still read.');
         }
+
+        return is_array($row) ? (string) $row['username'] : $actor->username;
     }
 
     /**

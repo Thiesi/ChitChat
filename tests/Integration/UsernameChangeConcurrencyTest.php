@@ -101,35 +101,135 @@ final class UsernameChangeConcurrencyTest extends DatabaseTestCase
         }
     }
 
-    public function testAnActionWithACaseAndAPlainResolveOfThatCaseCannotBothCloseIt(): void
+    public function testAPlainResolveQueuedFirstClosesTheCaseAndTheActionRollsBack(): void
+    {
+        // Before resolve took the subject's account first, this order deadlocked (40P01):
+        // the resolve held the case and needed the account; the action held the account and needed the case.
+        [$action, $resolve, $member, $caseId] = $this->raceActionAndResolve(resolveFirst: true);
+        self::assertSame(['status' => 200, 'result' => ['case' => 'resolved']], $resolve);
+        self::assertSame(['status' => 409, 'error_code' => 'moderation_case_closed'], $action);
+        self::assertSame('Rude.Name', (string) $this->pdo->query("SELECT username FROM users WHERE id = {$member->id}")?->fetchColumn(), 'The refused action rolled back completely.');
+        self::assertSame('user_warned', (string) $this->pdo->query("SELECT resolution_code FROM moderation_cases WHERE id = {$caseId}")?->fetchColumn());
+        self::assertSame(0, (int) $this->pdo->query('SELECT COUNT(*) FROM username_reservations')?->fetchColumn());
+    }
+
+    public function testAnActionQueuedFirstClosesTheCaseAndThePlainResolveIsRefused(): void
+    {
+        [$action, $resolve, $member, $caseId] = $this->raceActionAndResolve(resolveFirst: false);
+        self::assertSame(200, $action['status']);
+        self::assertSame(['status' => 409, 'error_code' => 'moderation_case_closed'], $resolve);
+        self::assertSame($action['result']['username'], (string) $this->pdo->query("SELECT username FROM users WHERE id = {$member->id}")?->fetchColumn());
+        self::assertSame('username_change_required', (string) $this->pdo->query("SELECT resolution_code FROM moderation_cases WHERE id = {$caseId}")?->fetchColumn());
+    }
+
+    /** @return array{0:array<string, mixed>, 1:array<string, mixed>, 2:AuthenticatedUser, 3:int} */
+    private function raceActionAndResolve(bool $resolveFirst): array
     {
         [$root, $moderator, $member] = $this->people();
         $case = (new UserReportService($this->pdo, $this->config))->report($root, $member->id, 'offensive_username', null, null, '127.0.0.1');
+        $action = ['action' => 'require', 'actor_id' => $moderator->id, 'user_id' => $member->id, 'case_id' => $case['id'], 'application_name' => 'cc-case-action'];
+        $resolve = ['action' => 'resolve', 'actor_id' => $moderator->id, 'case_id' => $case['id'], 'application_name' => 'cc-case-resolve'];
         $this->pdo->beginTransaction();
         $processes = [];
         try {
             $hold = $this->pdo->prepare('SELECT id FROM moderation_cases WHERE id = :id FOR UPDATE');
             $hold->execute(['id' => $case['id']]);
-            $processes[] = $this->worker(['action' => 'require', 'actor_id' => $moderator->id, 'user_id' => $member->id, 'case_id' => $case['id'], 'application_name' => 'cc-case-0']);
-            $processes[] = $this->worker(['action' => 'resolve', 'actor_id' => $moderator->id, 'case_id' => $case['id'], 'application_name' => 'cc-case-1']);
+            // Queue the two in a fixed order: the first is observably waiting before the second starts.
+            $processes[] = $this->worker($resolveFirst ? $resolve : $action);
+            $this->waitForLockWaiters('cc-case-%', 1);
+            $processes[] = $this->worker($resolveFirst ? $action : $resolve);
             $this->waitForLockWaiters('cc-case-%', 2);
             $this->pdo->commit();
-            [$action, $resolve] = $this->outcomes($processes);
+            [$first, $second] = $this->outcomes($processes);
         } finally {
             $this->cleanUp($processes);
         }
-        self::assertSame([200, 409], [min($action['status'], $resolve['status']), max($action['status'], $resolve['status'])]);
-        $username = (string) $this->pdo->query("SELECT username FROM users WHERE id = {$member->id}")?->fetchColumn();
-        $code = (string) $this->pdo->query("SELECT resolution_code FROM moderation_cases WHERE id = {$case['id']}")?->fetchColumn();
-        if ($action['status'] === 200) {
-            self::assertSame(['status' => 409, 'error_code' => 'moderation_case_closed'], $resolve);
-            self::assertSame('username_change_required', $code);
-            self::assertNotSame('Rude.Name', $username);
-        } else {
-            self::assertSame(['status' => 409, 'error_code' => 'moderation_case_closed'], $action);
-            self::assertSame('user_warned', $code);
-            self::assertSame('Rude.Name', $username, 'The refused action rolled back completely.');
+
+        return $resolveFirst ? [$second, $first, $member, $case['id']] : [$first, $second, $member, $case['id']];
+    }
+
+    public function testTwoSuperAdministratorsActingOnEachOtherDoNotDeadlock(): void
+    {
+        $auth = new AuthService($this->pdo, $this->config);
+        $first = $auth->register('FirstRoot', self::PASSWORD, '127.0.0.1');
+        $second = $auth->register('SecondRoot', self::PASSWORD, '127.0.0.2');
+        $this->pdo->exec("INSERT INTO user_roles (user_id, role) VALUES ({$second->id}, 'super_admin')");
+        $this->pdo->beginTransaction();
+        $processes = [];
+        try {
+            // Both workers queue on the same held rows; each then needs both accounts.
+            $hold = $this->pdo->prepare('SELECT id FROM users WHERE id IN (:first, :second) ORDER BY id FOR KEY SHARE');
+            $hold->execute(['first' => $first->id, 'second' => $second->id]);
+            $processes[] = $this->worker(['action' => 'require', 'actor_id' => $first->id, 'user_id' => $second->id, 'application_name' => 'cc-mutual-0']);
+            $processes[] = $this->worker(['action' => 'require', 'actor_id' => $second->id, 'user_id' => $first->id, 'application_name' => 'cc-mutual-1']);
+            $this->waitForLockWaiters('cc-mutual-%', 2);
+            $this->pdo->commit();
+            $outcomes = $this->outcomes($processes);
+        } finally {
+            $this->cleanUp($processes);
         }
+        // Account rows are locked in ID order, so the two serialize instead of failing with 40P01.
+        self::assertSame([200, 200], array_column($outcomes, 'status'));
+        self::assertSame(2, (int) $this->pdo->query('SELECT COUNT(*) FROM users WHERE username_change_required_at IS NOT NULL')?->fetchColumn());
+    }
+
+    public function testRegistrationOfTheRemovedNameRacingTheActionIsRefused(): void
+    {
+        [, $moderator, $member] = $this->people();
+        $this->pdo->beginTransaction();
+        $processes = [];
+        try {
+            (new UsernameClaims($this->pdo))->lock('rude.name');
+            $processes[] = $this->worker(['action' => 'require', 'actor_id' => $moderator->id, 'user_id' => $member->id, 'application_name' => 'cc-old-0']);
+            $processes[] = $this->worker(['action' => 'register', 'username' => 'RUDE.name', 'application_name' => 'cc-old-1']);
+            $this->waitForLockWaiters('cc-old-%', 2);
+            $this->pdo->commit();
+            [$action, $registration] = $this->outcomes($processes);
+        } finally {
+            $this->cleanUp($processes);
+        }
+        // Whichever claim lock is granted first, the removed name is never handed to a new account.
+        self::assertSame(200, $action['status']);
+        self::assertSame(['status' => 409, 'error_code' => 'username_taken'], $registration);
+        self::assertSame(1, (int) $this->pdo->query("SELECT COUNT(*) FROM username_reservations WHERE username_canonical = 'rude.name' AND reserved_until IS NULL")?->fetchColumn());
+        self::assertSame(0, (int) $this->pdo->query("SELECT COUNT(*) FROM users WHERE username_canonical = 'rude.name'")?->fetchColumn());
+    }
+
+    public function testAGatedWriteNeverWaitsOnItsLoginRow(): void
+    {
+        // #205: a revocation holds the login row and then the account; a write transaction that
+        // touched last_seen while holding the gate's account lock would form a cycle with it.
+        [$root, , $member] = $this->people();
+        $room = (new \ChitChat\Room\RoomService($this->pdo))->create($root, 'lounge', 'Lounge', '', 'public', 0, 0, '127.0.0.1');
+        (new \ChitChat\Room\RoomService($this->pdo))->join($member, $room->id, '127.0.0.3');
+        $login = (new \ChitChat\Auth\LoginSessionRepository($this->pdo))->issue($member);
+        $this->pdo->exec("UPDATE login_sessions SET last_seen_at = NOW() - interval '1 hour' WHERE id = '{$login->id}'");
+        $this->pdo->beginTransaction();
+        $processes = [];
+        try {
+            $hold = $this->pdo->prepare('SELECT id FROM login_sessions WHERE user_id = :id FOR UPDATE');
+            $hold->execute(['id' => $member->id]);
+            $processes[] = $this->worker(['action' => 'send', 'actor_id' => $member->id, 'room_id' => $room->id, 'body' => 'Still fine', 'application_name' => 'cc-login-0']);
+            // The write completes while the login row stays locked (bounded, so a regression fails rather than hangs).
+            [$process, $pipes] = $processes[0];
+            $deadline = microtime(true) + 15;
+            do {
+                $state = proc_get_status($process);
+                if (!$state['running']) {
+                    break;
+                }
+                usleep(50_000);
+            } while (microtime(true) < $deadline);
+            self::assertFalse($state['running'], 'The gated write waited on its login row.');
+            self::assertSame(0, $state['exitcode']);
+            self::assertSame('', (string) stream_get_contents($pipes[2]));
+            $outcome = json_decode((string) stream_get_contents($pipes[1]), true, 8, JSON_THROW_ON_ERROR);
+            $this->pdo->commit();
+        } finally {
+            $this->cleanUp($processes);
+        }
+        self::assertSame(200, $outcome['status']);
+        self::assertSame(1, (int) $this->pdo->query("SELECT COUNT(*) FROM room_messages WHERE sender_id = {$member->id}")?->fetchColumn());
     }
 
     /** @return array{0:AuthenticatedUser, 1:AuthenticatedUser, 2:AuthenticatedUser} */

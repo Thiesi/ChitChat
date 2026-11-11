@@ -734,7 +734,8 @@ SELECT attempt.id,
        attempt.reason,
        attempt.created_at
 FROM login_attempts attempt
-JOIN users account ON account.username_canonical = attempt.username_canonical
+-- While a moderator requires a new name, sign-in attempts may also use the removed name (#164).
+JOIN users account ON attempt.username_canonical IN (account.username_canonical, account.username_change_previous_canonical)
 WHERE account.id = :user_id
 ORDER BY attempt.id
 SQL, ['user_id' => $userId], 'personal-data login attempts', fn (array $row): array => [

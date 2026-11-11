@@ -25,9 +25,13 @@ use Throwable;
  * and signing in (also with the removed name, which stays reserved), but every
  * gated write is refused until it chooses a new name here.
  *
- * Lock order: the account row FOR UPDATE first (changing username_canonical is
- * a key update), then the username claim locks, then a moderation case. This
- * matches person reports (account, then case) and the write gate's FOR KEY SHARE.
+ * Lock order: account rows first, in numeric ID order (the target FOR UPDATE,
+ * since changing username_canonical is a key update; the acting moderator FOR
+ * KEY SHARE, which the audit, case and event rows referencing it need anyway),
+ * then the username claim locks, then a moderation case. Locking the actor
+ * before the target regardless of IDs would still deadlock two moderators
+ * acting on each other; ID order does not. Person reports also lock the
+ * account before the case.
  */
 final class UsernameChangeService
 {
@@ -64,13 +68,19 @@ final class UsernameChangeService
         if ($reason === '' || !mb_check_encoding($reason, 'UTF-8') || mb_strlen($reason, 'UTF-8') > self::REASON_MAX_LENGTH) {
             throw new ApiException(400, 'validation_error', sprintf('reason must be 1-%d characters of valid UTF-8.', self::REASON_MAX_LENGTH));
         }
-        if (ModerationRank::globalRankOf($actor) < self::GLOBAL_MODERATION_RANK) {
+        if (ModerationRank::globalRankOf($actor) < self::GLOBAL_MODERATION_RANK || $actor->id === $userId) {
             throw self::forbidden();
         }
 
         $this->pdo->beginTransaction();
         try {
-            $target = $this->lockAccount($userId);
+            if ($actor->id < $userId) {
+                $this->lockActor($actor->id);
+                $target = $this->lockAccount($userId);
+            } else {
+                $target = $this->lockAccount($userId);
+                $this->lockActor($actor->id);
+            }
             if ($target === null || $target['account_state'] === 'closed') {
                 throw new ApiException(404, 'user_not_found', 'User not found.');
             }
@@ -213,6 +223,11 @@ SQL, 'account lock');
         $row = $statement->fetch();
 
         return is_array($row) ? $row : null;
+    }
+
+    private function lockActor(int $actorId): void
+    {
+        $this->statement('SELECT id FROM users WHERE id = :id FOR KEY SHARE', 'actor lock')->execute(['id' => $actorId]);
     }
 
     private function freshPlaceholder(): string

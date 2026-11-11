@@ -34,6 +34,7 @@ cp "$fixture" "$ATTACHMENT_STORAGE_PATH/nested directory/preserved attachment.tx
 printf 'second payload\n' > "$ATTACHMENT_STORAGE_PATH/second.bin"
 
 php tests/stabilization/installation-icon-backup.php seed "$work_root/icon-expected.json"
+php tests/stabilization/username-change-backup.php seed "$work_root/username-expected.json"
 
 backup_json="$(php bin/chitchat-backup \
   --destination "$backup_parent" \
@@ -83,6 +84,7 @@ jq -e --arg database "$restore_db" --arg storage "$restore_storage" '
 ' <<< "$restore_json" >/dev/null
 
 DB_NAME="$restore_db" php tests/stabilization/installation-icon-backup.php verify "$work_root/icon-expected.json"
+DB_NAME="$restore_db" php tests/stabilization/username-change-backup.php verify "$work_root/username-expected.json"
 
 cmp "$fixture" "$restore_storage/nested directory/preserved attachment.txt"
 printf 'second payload\n' | cmp - "$restore_storage/second.bin"

@@ -57,7 +57,7 @@ Reserved and placeholder-pattern names are deliberately reported exactly like ta
 
 ## Signing in while a change is required
 
-Password sign-in, account restoration and password recovery identify the account by its username. The person does not know the placeholder unless they were signed in when it happened, so the **previous username keeps working as a sign-in identifier** until a new name is chosen. The placeholder works too. Nobody else can claim the previous name meanwhile, because it is reserved. Once a new name is chosen, only the new name signs in. Passkeys, Google/Twitch and native hand-off do not use the username and are unaffected. Login throttling keys on the name as typed.
+Password sign-in, account restoration and password recovery identify the account by its username. The person does not know the placeholder unless they were signed in when it happened, so the **previous username keeps working as a sign-in identifier** until a new name is chosen. The placeholder works too. Nobody else can claim the previous name meanwhile, because it is reserved. Once a new name is chosen, only the new name signs in. Passkeys, Google/Twitch and native hand-off do not use the username and are unaffected. Login throttling keys on the name as typed, so while a change is pending the account has two per-username budgets, one for the previous name and one for the placeholder. This is accepted: the per-IP `login_ip` limit still bounds attempts, and the pending state is temporary.
 
 ## Reservation of the removed name
 
@@ -110,5 +110,6 @@ Audited as `moderation.username_change_required` with `old_username`, `placehold
 
 - Push alerts already shown on a device cannot be recalled.
 - The literal text "@OldName" typed inside existing message bodies is people's content and is not rewritten. Moderators remove such messages with the existing tools. Mentions and `/ping` with the old name no longer resolve to anyone.
+- A typing indicator sent just before a rename can show the old name for its few remaining seconds after `user_renamed`. Typing signals are ephemeral (8 seconds) and are never stored.
 - Stored realtime events are not rewritten. A client that reconnects within `realtime_event_retention_hours` may replay older events carrying the old name; the later `user_renamed` event follows them in order and corrects it.
 - The personal data export of an account with a pending change includes `account.username_change` (`required_at`, `reason`, `previous_username_canonical`).

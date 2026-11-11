@@ -144,7 +144,8 @@ final class AttachmentService
             $imageMetadata = $files->imageMetadata($storagePath, $mimeType);
 
             $this->pdo->beginTransaction();
-            (new PolicyService($this->pdo))->assertMayWrite($actor);
+            // The name as of this transaction: a rename serializes with the gate's lock (#164).
+            $senderUsername = (new PolicyService($this->pdo))->assertMayWrite($actor);
             $messageStatement = $this->pdo->prepare(<<<'SQL'
 INSERT INTO room_messages (room_id, sender_id, message_type, body, reply_to_message_kind, reply_to_message_id)
 VALUES (:room_id, :sender_id, 'attachment', :body, :reply_to_message_kind, :reply_to_message_id)
@@ -173,7 +174,7 @@ SQL);
                     $roomId,
                     $room->name,
                     $actor->id,
-                    $actor->username,
+                    $senderUsername,
                     $mentions,
                 );
             }

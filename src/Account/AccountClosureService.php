@@ -348,7 +348,7 @@ SQL);
         $this->pdo->beginTransaction();
         try {
             $due = $this->pdo->query(<<<'SQL'
-SELECT ac.id AS closure_id, ac.user_id, u.username_canonical
+SELECT ac.id AS closure_id, ac.user_id, u.username_canonical, u.username_change_previous_canonical
 FROM account_closures ac
 JOIN users u ON u.id = ac.user_id
 WHERE ac.restored_at IS NULL
@@ -372,6 +372,7 @@ SQL);
                     (int) $row['closure_id'],
                     (int) $row['user_id'],
                     (string) $row['username_canonical'],
+                    $row['username_change_previous_canonical'] === null ? null : (string) $row['username_change_previous_canonical'],
                 );
                 $avatarFiles[] = $this->avatars->clearForClosure((int) $row['user_id']);
                 $count++;
@@ -389,7 +390,7 @@ SQL);
         }
     }
 
-    private function finalizeOne(int $closureId, int $userId, string $oldCanonical): void
+    private function finalizeOne(int $closureId, int $userId, string $oldCanonical, ?string $previousCanonical): void
     {
         $this->execute(<<<'SQL'
 UPDATE users
@@ -439,6 +440,14 @@ SQL, [
             ['canonical' => $oldCanonical],
             'closed-account login-history cleanup',
         );
+        if ($previousCanonical !== null) {
+            // Sign-ins with a name a moderator removed were recorded under that name (#164).
+            $this->execute(
+                'DELETE FROM login_attempts WHERE username_canonical = :canonical',
+                ['canonical' => $previousCanonical],
+                'closed-account removed-name login-history cleanup',
+            );
+        }
         $this->audit->log(
             null,
             'account.closure_finalized',

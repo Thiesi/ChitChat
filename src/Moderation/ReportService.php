@@ -453,6 +453,7 @@ SQL, 'moderation assignment update');
 
         $this->pdo->beginTransaction();
         try {
+            $this->lockSubjectBeforeCase($caseId);
             $case = $this->caseRow($caseId, true);
             $this->requireCaseAccess($actor, $case);
             if (in_array($resolutionCode, self::PERSON_RESOLUTION_CODES, true) && $case['subject_kind'] !== 'user') {
@@ -490,6 +491,28 @@ SQL, 'moderation assignment update');
             throw new ApiException(409, 'moderation_case_closed', 'This moderation case is already closed.');
         }
         $this->close($actor, $case, 'resolved', 'username_change_required', null, $ipAddress);
+    }
+
+    /**
+     * Closing a case updates it twice in one transaction (the resolution, then
+     * the closed-audit link trigger), so PostgreSQL re-checks its foreign keys
+     * and takes FOR KEY SHARE on the subject's account row after the case lock.
+     * Take that lock first, so resolving follows the same account-then-case
+     * order as person reports and "require a new username" (#164), which holds
+     * the subject's row FOR UPDATE while it resolves the case. The subject of
+     * a case never changes, so an unlocked read finds it.
+     */
+    private function lockSubjectBeforeCase(int $caseId): void
+    {
+        $this->requirePositiveId($caseId, 'case_id');
+        $subject = $this->prepare('SELECT subject_user_id FROM moderation_cases WHERE id = :id', 'moderation-case subject lookup');
+        $subject->execute(['id' => $caseId]);
+        $subjectUserId = $subject->fetchColumn();
+        if ($subjectUserId === false) {
+            return;
+        }
+        $this->prepare('SELECT id FROM users WHERE id = :id FOR KEY SHARE', 'moderation-case subject lock')
+            ->execute(['id' => (int) $subjectUserId]);
     }
 
     /** @param array<string, mixed> $case */
