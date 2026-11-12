@@ -93,6 +93,10 @@ The application currently provides:
 
 Horizontal scaling and optional external identity (OpenID Connect) integration were considered and intentionally left out of the final release — see the [roadmap](docs/roadmap.md) for why each was deferred rather than pursued. Release-specific manual assistive-technology sign-off remains, as it always has, a per-installation operator responsibility rather than something automated CI can certify once for every deployment.
 
+## Accessibility
+
+See the [accessibility statement](docs/accessibility.md) for what the web client supports (keyboard, screen-reader announcements, colour schemes including High contrast, forced colours, reduced motion), how it is tested, and how to report a problem with the [Accessibility problem](https://github.com/Thiesi/ChitChat/issues/new?template=accessibility.yml) form.
+
 ## Installation and operation
 
 See [INSTALL.md](INSTALL.md). API contracts are documented in [`docs/api/`](docs/api/), operating procedures in [`docs/operations/`](docs/operations/), and release procedures in [`docs/releases/`](docs/releases/).
