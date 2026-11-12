@@ -151,7 +151,6 @@ final class BackupManager
                 ],
             ];
 
-            /** @var array<string, mixed> $manifestData */
             $manifest = BackupManifest::fromArray($manifestData);
             $manifest->write($partialPath . '/manifest.json');
             $this->verify($partialPath);
