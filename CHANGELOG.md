@@ -6,6 +6,8 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ## [Unreleased]
 
+- Add `user.available` and the blocking `relationship` (`blocked_by_me`, `messaging_available`) to each row of `GET /api/v1/direct-messages/conversations.php` (#274), so the Direct list can show blocked, unavailable and closed conversations without a request per row. Same semantics and privacy as `block-status.php`; no ban or raw account state is exposed. Additive to API v1.
+
 - Add `unread_mention_count` to each joined room in `GET /api/v1/rooms/list.php` (#266): unread room mentions after the account's read position, from senders it doesn't ignore, capped at 100. Reading the room clears it without marking the notification read. This replaces deriving the room list's "@" from the newest notifications, which missed older ones. Additive to API v1. Apply migration 0056, a partial index on unread room-mention notifications.
 
 - Fix a deadlock between a moderator removing someone's profile picture and that account requiring a new username for the moderator (#262). `avatar_key` is unique, so clearing it is a key change; the removal now locks through the same actor/target ID order as other staff key changes. No migration.

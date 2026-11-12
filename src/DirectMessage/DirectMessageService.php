@@ -78,9 +78,10 @@ SQL);
 
     /**
      * @return list<array{
-     *   user:array{id:int, username:string},
+     *   user:array{id:int, username:string, available:bool},
      *   last_message:array{id:int, sender_id:int, body:string, created_at:string, outgoing:bool},
-     *   unread_count:int
+     *   unread_count:int,
+     *   relationship:array{blocked_by_me:bool, messaging_available:bool}
      * }>
      */
     public function conversations(AuthenticatedUser $actor, int $limit = 100): array
@@ -117,7 +118,17 @@ SELECT u.id AS other_user_id,
        dm.sender_user_id AS last_sender_id,
        dm.body AS last_body,
        dm.created_at AS last_created_at,
-       ps.unread_count
+       ps.unread_count,
+       u.account_state = 'active' AS available,
+       EXISTS (
+           SELECT 1 FROM direct_message_blocks b
+           WHERE b.blocker_user_id = :actor_blocks AND b.blocked_user_id = u.id
+       ) AS blocked_by_me,
+       EXISTS (
+           SELECT 1 FROM direct_message_blocks b
+           WHERE (b.blocker_user_id = :actor_either AND b.blocked_user_id = u.id)
+              OR (b.blocker_user_id = u.id AND b.blocked_user_id = :actor_either_back)
+       ) AS any_block
 FROM peer_summary ps
 JOIN users u ON u.id = ps.other_user_id
 JOIN direct_messages dm ON dm.id = ps.last_message_id
@@ -131,6 +142,9 @@ SQL);
         $statement->bindValue(':actor_unread', $actor->id, PDO::PARAM_INT);
         $statement->bindValue(':actor_sender', $actor->id, PDO::PARAM_INT);
         $statement->bindValue(':actor_recipient', $actor->id, PDO::PARAM_INT);
+        $statement->bindValue(':actor_blocks', $actor->id, PDO::PARAM_INT);
+        $statement->bindValue(':actor_either', $actor->id, PDO::PARAM_INT);
+        $statement->bindValue(':actor_either_back', $actor->id, PDO::PARAM_INT);
         $statement->bindValue(':limit', $limit, PDO::PARAM_INT);
         $statement->execute();
 
@@ -139,10 +153,13 @@ SQL);
             if (!is_array($row)) {
                 continue;
             }
+            $available = self::databaseBoolean($row['available']);
             $result[] = [
                 'user' => [
                     'id' => (int) $row['other_user_id'],
                     'username' => (string) $row['other_username'],
+                    // Active or not, never the raw state, and never a ban (#274).
+                    'available' => $available,
                 ],
                 'last_message' => [
                     'id' => (int) $row['last_message_id'],
@@ -152,6 +169,13 @@ SQL);
                     'outgoing' => (int) $row['last_sender_id'] === $actor->id,
                 ],
                 'unread_count' => (int) $row['unread_count'],
+                // As block-status.php reports it for an available peer. For an unavailable one,
+                // which block-status.php refuses, only the actor's own block is told; messaging is
+                // unavailable in any case, so the other side's block is not revealed (#274).
+                'relationship' => [
+                    'blocked_by_me' => self::databaseBoolean($row['blocked_by_me']),
+                    'messaging_available' => $available && !self::databaseBoolean($row['any_block']),
+                ],
             ];
         }
 
@@ -591,5 +615,10 @@ SQL;
                 'deleted' => (int) $row['reply_target_deleted'] === 1,
             ],
         ];
+    }
+
+    private static function databaseBoolean(mixed $value): bool
+    {
+        return $value === true || $value === 1 || $value === '1' || $value === 't' || $value === 'true';
     }
 }
