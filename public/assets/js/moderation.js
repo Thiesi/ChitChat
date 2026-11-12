@@ -229,10 +229,12 @@ function renderDetail() {
   elements['moderation-closed'].classList.toggle('hidden', !closed);
   elements['moderation-resolution-note'].value = '';
   elements['moderation-resolution-code'].value = person ? 'user_warned' : 'content_removed';
-  elements['moderation-resolution-code'].querySelector(`option[value="${PROFILE_PICTURE_REMOVED}"]`).hidden = !person;
-  elements['moderation-resolution-code'].querySelector('option[value="content_removed"]').hidden = person;
-  // A required new username (#164) closes person cases only.
-  elements['moderation-resolution-code'].querySelector('option[value="username_change_required"]').hidden = !person;
+  offerResolution(PROFILE_PICTURE_REMOVED, person);
+  offerResolution('content_removed', !person);
+  // "New username required" (#164) waits for the profile: it's offered here only
+  // when the person already has to choose one (a second case about the same
+  // name); otherwise the case action does both (renderPersonCaseActions).
+  offerResolution('username_change_required', false);
 
   if (closed) {
     const resolver = item.resolved_by?.username ? ` by ${item.resolved_by.username}` : '';
@@ -353,6 +355,7 @@ function renderPersonCaseActions(item, profile) {
   const everywhere = options?.everywhere ?? null;
   const guest = options?.guest ?? null;
   const buttons = [];
+  offerResolution('username_change_required', everywhere?.username_change_required === true);
 
   if (profile?.can_remove_avatar && profile?.has_avatar) {
     buttons.push(caseActionButton('Remove profile picture', async () => {
@@ -499,6 +502,20 @@ function renderPersonEvidence(item) {
     image.focus();
   });
   frame.append(image, reveal);
+}
+
+/**
+ * Shows or withdraws one resolution choice. `hidden` alone doesn't hide an
+ * <option> in Safari, so it's disabled too, and a withdrawn choice that was
+ * selected falls back to the first one offered.
+ */
+function offerResolution(value, offered) {
+  const select = elements['moderation-resolution-code'];
+  const option = select.querySelector(`option[value="${value}"]`);
+  if (!option) return;
+  option.hidden = !offered;
+  option.disabled = !offered;
+  if (!offered && select.value === value) select.value = [...select.options].find((candidate) => !candidate.disabled)?.value ?? '';
 }
 
 function caseActionButton(label, action) {

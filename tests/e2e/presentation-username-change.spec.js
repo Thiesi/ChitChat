@@ -226,7 +226,11 @@ test('in a person case, requiring a new username closes the case', async ({ page
   });
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto('/moderation.php');
-  await expect(page.locator('#moderation-resolution-code option[value="username_change_required"]')).not.toHaveAttribute('hidden', '');
+  // The case action does both, so the plain choice isn't offered (hidden and disabled, for Safari).
+  const plain = page.locator('#moderation-resolution-code option[value="username_change_required"]');
+  await expect(page.getByRole('button', { name: 'Require a new username…' })).toBeVisible();
+  await expect(plain).toBeDisabled();
+  await expect(plain).toHaveJSProperty('hidden', true);
   await page.getByRole('button', { name: 'Require a new username…' }).click();
   await page.getByRole('dialog', { name: /Require Rowan/ }).getByRole('button', { name: 'Replace the name' }).click();
   await expect(page.locator('#moderation-closed-summary')).toContainText('new username required');
@@ -308,3 +312,23 @@ for (const width of [1280, 360]) {
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   });
 }
+
+test('a second case about a name already replaced can be closed as "new username required"', async ({ page }) => {
+  const requests = await fixture(page, {
+    session: () => moderator,
+    profile: peerProfile({ room: null, everywhere: everywhere({ can_require_username_change: false, username_change_required: true }) }),
+    overrides: {
+      'moderation/cases.php': { cases: [personCase], has_more: false, next_before_id: null },
+      'moderation/case.php': { case: { ...personCase, snapshot: { username: 'Rowan', avatar_url: null }, avatar_changed_since_report: false, reports: [] } },
+      'moderation/resolve.php': (request) => ({ case: { ...personCase, status: 'resolved', resolution_code: request.postDataJSON().resolution_code, resolved_by: moderator, reports: [] } }),
+    },
+  });
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto('/moderation.php');
+  const plain = page.locator('#moderation-resolution-code option[value="username_change_required"]');
+  await expect(plain).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Require a new username…' })).toHaveCount(0);
+  await page.locator('#moderation-resolution-code').selectOption('username_change_required');
+  await page.locator('#moderation-resolution-form').getByRole('button', { name: /Resolve/ }).click();
+  await expect.poll(() => requests.find((entry) => entry.path === 'moderation/resolve.php')?.body?.resolution_code).toBe('username_change_required');
+});
