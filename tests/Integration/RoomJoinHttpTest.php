@@ -53,6 +53,7 @@ final class RoomJoinHttpTest extends DatabaseTestCase
             self::assertSame(0, $joined['room']['unread_count']);
             self::assertSame($newest['id'], $joined['room']['last_read_message_id']);
             self::assertSame(0, $joined['room']['unread_mention_count']);
+            self::assertSame($newest['id'], $joined['room']['unread_through_message_id'], 'The snapshot covers everything up to the newest message (#279).');
         } finally {
             if (proc_get_status($process)['running']) {
                 proc_terminate($process);

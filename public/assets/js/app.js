@@ -4,6 +4,7 @@ import { controlItem, dayItem, dayKey, moreButton, newMessagesItem, reactButton,
 import { identityHueIndex } from './identity-hue.js';
 import { lantern, renderRoomList as drawRoomList, unreadRoomMentions } from './room-list.js';
 import { attachTranscriptKeys } from './transcript-keys.js';
+import { countLiveMessage } from './unread-count.js';
 import { createPresenceClient } from './presence.js';
 import { renderMessageBody, buildReplyPreview, buildReactionBar } from './message-content.js';
 import { attachMentionAutocomplete } from './mention-autocomplete.js';
@@ -1533,13 +1534,11 @@ function countUnread(message) {
   if (!message || message.sender_id === state.user?.id || isIgnored(message.sender_id)) return;
   const room = state.rooms.find((candidate) => candidate.id === message.room_id);
   if (!room || !room.member_role) return;
-  // Already read: joining replays the room's recent events, which start before the
-  // read position the join set (#268).
-  if (Number.isInteger(room.last_read_message_id) && message.id <= room.last_read_message_id) return;
   if (room.id === state.currentRoom?.id) {
     if (document.visibilityState === 'visible' && isNearBottom()) return;
   }
-  room.unread_count = Math.min(100, (room.unread_count ?? 0) + 1);
+  // Skips messages already read or already in the list's snapshot (#268, #279).
+  if (!countLiveMessage(room, message.id)) return;
   if (room.id !== state.currentRoom?.id) renderRoomList();
 }
 

@@ -6,7 +6,7 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ## [Unreleased]
 
-- Start the room read position when an account joins or creates a room (#268). Before, a member who never sent a read saw `unread_count: 0` in that room forever, and a rejoin counted the whole absence as unread. Apply migration 0057, which starts existing members without a read position at the room's newest message.
+- Start the room read position when an account joins or creates a room (#268). Before, a member who never sent a read saw `unread_count: 0` in that room forever, and a rejoin counted the whole absence as unread. Apply migration 0057, which starts existing members without a read position at the room's newest message. Room list entries and the join response also carry `unread_through_message_id`, the newest message the unread count covers, so a client adding live messages never counts one twice (#279).
 
 - Add `unread_mention_count` to each joined room in `GET /api/v1/rooms/list.php` (#266): unread room mentions after the account's read position, from senders it doesn't ignore, capped at 100. Reading the room clears it without marking the notification read. This replaces deriving the room list's "@" from the newest notifications, which missed older ones. Additive to API v1. Apply migration 0056, a partial index on unread room-mention notifications.
 

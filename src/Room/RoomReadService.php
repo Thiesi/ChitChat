@@ -31,7 +31,11 @@ final class RoomReadService
      * position (0 for a membership without one) and not deleted, and its sender is not ignored now.
      * Reading the room clears the count without marking the notification read (#266).
      *
-     * @return array<int, array{unread_count:int, last_read_message_id:?int, unread_mention_count:int}> keyed by room ID
+     * `unread_through_message_id` is the room's newest message when the counts were taken: a
+     * client adding live messages to unread_count skips any at or below it, which this
+     * snapshot already covers (#279).
+     *
+     * @return array<int, array{unread_count:int, last_read_message_id:?int, unread_mention_count:int, unread_through_message_id:int}> keyed by room ID
      */
     public function forUser(int $userId): array
     {
@@ -74,7 +78,8 @@ SELECT rm.room_id,
                  )
                LIMIT :mention_cap
            ) mentions
-       ) AS unread_mention_count
+       ) AS unread_mention_count,
+       COALESCE((SELECT MAX(newest.id) FROM room_messages newest WHERE newest.room_id = rm.room_id), 0) AS unread_through_message_id
 FROM room_members rm
 LEFT JOIN room_reads rr ON rr.room_id = rm.room_id AND rr.user_id = rm.user_id
 WHERE rm.user_id = :user_id
@@ -90,6 +95,7 @@ SQL);
                     'unread_count' => (int) $row['unread_count'],
                     'last_read_message_id' => $row['last_read_message_id'] === null ? null : (int) $row['last_read_message_id'],
                     'unread_mention_count' => (int) $row['unread_mention_count'],
+                    'unread_through_message_id' => (int) $row['unread_through_message_id'],
                 ];
             }
         }

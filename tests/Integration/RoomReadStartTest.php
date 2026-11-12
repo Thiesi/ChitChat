@@ -34,8 +34,12 @@ final class RoomReadStartTest extends DatabaseTestCase
         $rooms->join($member, $room->id, '127.0.0.2');
         self::assertSame(['unread_count' => 0, 'last_read_message_id' => $newest['id']], $this->counts($member, $room->id));
 
-        $messages->send($owner, $room->id, 'After you came');
+        $after = $messages->send($owner, $room->id, 'After you came');
         self::assertSame(1, $this->counts($member, $room->id)['unread_count']);
+        $listed = array_values(array_filter((new RoomService($this->pdo))->list($member), static fn (array $entry): bool => $entry['id'] === $room->id))[0];
+        self::assertSame($after['id'], $listed['unread_through_message_id'], 'The count covers messages up to the newest one (#279).');
+        $outsiderView = array_values(array_filter((new RoomService($this->pdo))->list($owner), static fn (array $entry): bool => $entry['id'] === $room->id))[0];
+        self::assertSame($after['id'], $outsiderView['unread_through_message_id']);
 
         // A repeated join is a no-op and keeps the position.
         $rooms->join($member, $room->id, '127.0.0.2');
