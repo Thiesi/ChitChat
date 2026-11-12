@@ -8,6 +8,8 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 - Add `unread_mention_count` to each joined room in `GET /api/v1/rooms/list.php` (#266): unread room mentions after the account's read position, from senders it doesn't ignore, capped at 100. Reading the room clears it without marking the notification read. This replaces deriving the room list's "@" from the newest notifications, which missed older ones. Additive to API v1. Apply migration 0056, a partial index on unread room-mention notifications.
 
+- Fix a deadlock between a moderator removing someone's profile picture and that account requiring a new username for the moderator (#262). `avatar_key` is unique, so clearing it is a key change; the removal now locks through the same actor/target ID order as other staff key changes. No migration.
+
 ## [3.8.0] - 2026-11-12
 
 The room and direct-message lists and new sign-in screens (Lantern redesign S2c and S3), moderator-required username changes, installation icon presets and a seasonal sign-in decoration, additive to API v1, with three forward-only database migrations (`0053` to `0055`) and no configuration changes. Nobody is signed out. See the [`v3.8.0` release notes](docs/releases/v3.8.0.md).
