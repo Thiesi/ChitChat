@@ -21,6 +21,9 @@ We do not claim conformance with any WCAG level. The automated checks below use 
 - **The message box:** Enter sends, Shift+Enter starts a new line. While the @-mention or /command suggestions are open, ↑ / ↓ choose, Enter or Tab accepts, and Escape closes them.
 - **The emoji picker** is navigated with the arrow keys, Home and End; Escape closes it.
 - **Menus and panels:** Escape closes the profile card menu, the members panel on phones, and the overlaid list on tablet-sized screens.
+- **Lists and conversations:** on tablet-sized screens, everything under the overlaid room or conversation list is inert while it's open, and Escape closes it with focus back on its toggle. On phones, choosing a room or conversation moves focus to its title, and going back returns focus to the item you came from.
+- **Signing in:** every password field has a show/hide toggle ("Show password" / "Hide password", announced as pressed or not). A shown password is hidden again when the form is submitted. A missing tick on the community-rules checkbox is explained next to it, not in the browser's popup.
+- **Choosing a new username** (when a moderator requires one): errors are shown next to the field and tied to it, so screen readers read them with the field.
 
 ### What screen readers hear
 
@@ -33,6 +36,7 @@ We do not claim conformance with any WCAG level. The automated checks below use 
   - Your own messages, edits, reactions, typing and presence changes are not announced; they're read when you reach the message.
   - Loading older history says "Loading older messages…" and then how many arrived.
 - Opening a room or conversation with unread messages announces its name and the number of new messages.
+- A "signed out" line on the sign-in screen, for example after signing out on another device, is also announced.
 
 ### Colour, contrast and motion
 
@@ -41,7 +45,7 @@ We do not claim conformance with any WCAG level. The automated checks below use 
 - **Contrast floors are checked for every scheme in both modes:** at least 4.5:1 for text and icons that carry meaning, and 3:1 for component boundaries and meaningful non-text marks.
 - **Forced colours** (for example Windows Contrast themes): selected items, the primary action, focus outlines, the current navigation tab and unread badges keep visible system-colour outlines or borders.
 - **Reduced motion:** when your system asks for reduced motion, animations, transitions and smooth scrolling are switched off.
-- **Reflow:** core screens fit narrow windows, down to 320 CSS pixels for the conversation, without horizontal page scrolling.
+- **Reflow:** core screens fit narrow windows, down to 320 CSS pixels for the conversation, without horizontal page scrolling. Below that width (for example at 200% zoom on a small phone) the room title is cut short and the message box gets cramped; that's a known gap.
 - On touch screens the navigation tabs are at least 48 × 48 pixels.
 
 ## How it is tested
