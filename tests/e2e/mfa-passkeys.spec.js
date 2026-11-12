@@ -99,7 +99,8 @@ test.describe('Passkey multi-factor authentication', () => {
 
     try {
       await register(page, account);
-      await page.goto('/account.php');
+      // S5a: passkeys live under Sign-in and security.
+      await page.goto('/account.php#security');
       await expect(page.locator('#account-shell')).toBeVisible();
       await expect(page.locator('#mfa-add-form')).toBeVisible();
       await page.locator('#mfa-label').fill('Chromium virtual authenticator');

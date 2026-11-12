@@ -4,6 +4,23 @@
 import { ApiError, apiGet, apiPost, apiUpload } from './api.js';
 import { attachPhoto, avatarTone, initials, refreshPhoto } from './avatar.js';
 import { withProviderIcon } from './provider-icons.js';
+import { formatDateTime } from './datetime.js';
+
+/**
+ * "Member since" on You (S5a): from the profile this card already loads, so
+ * no request of its own. The list pane shows it under the name, Profile in full.
+ */
+function showMemberSince(value) {
+  if (typeof value !== 'string' || value === '') return;
+  const day = formatDateTime(value, { dateStyle: 'long', timeStyle: null });
+  const short = document.getElementById('you-member-since');
+  if (short) {
+    short.textContent = `Member since ${day}`;
+    short.hidden = false;
+  }
+  const full = document.getElementById('you-member-since-full');
+  if (full) full.textContent = day;
+}
 
 const ACCEPTED = ['image/jpeg', 'image/png', 'image/webp'];
 const MAX_BYTES = 5 * 1024 * 1024;
@@ -33,6 +50,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     try {
       const response = await apiGet(`/api/v1/users/profile.php?user_id=${encodeURIComponent(user.id)}`);
       removeButton.classList.toggle('hidden', !response.profile?.has_avatar);
+      showMemberSince(response.profile?.member_since);
       if (response.avatars_available === false) {
         fileInput.disabled = true;
         fileInput.labels?.[0]?.classList.add('is-disabled');

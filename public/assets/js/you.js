@@ -7,6 +7,7 @@ import { attachPhoto, avatarTone, initials } from './avatar.js';
 import { setSoundEnabled, soundEnabled } from './attention.js';
 import { markGuestAvatar } from './guest.js';
 import { signOut } from './sign-out.js';
+import { startSections } from './you-sections.js';
 
 const signOutButton = document.getElementById('logout-button');
 const avatar = document.getElementById('you-avatar');
@@ -37,6 +38,14 @@ async function start() {
   document.body.dataset.audience = guest ? 'guest' : 'member';
   for (const node of document.querySelectorAll('[data-guest-only]')) node.hidden = !guest;
   for (const node of document.querySelectorAll('#you-session [data-member-only]')) node.hidden = guest;
+
+  // Profile (S5a): the username, and a moderator's request for a new one (#164).
+  const username = document.getElementById('you-username');
+  if (username) username.textContent = user.username;
+  const change = document.getElementById('you-username-change');
+  if (change) change.hidden = !user.username_change;
+
+  startSections({ guest });
 
   if (avatar) {
     avatar.classList.add('mini-avatar');

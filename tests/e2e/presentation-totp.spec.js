@@ -80,7 +80,7 @@ const axe = async (page, include, label) => {
 
 test('offered: You invites setting up an authenticator app', async ({ page }) => {
   await fixture(page);
-  await page.goto('/account.php');
+  await page.goto('/account.php#security');
   await expect(block(page).getByRole('heading', { name: 'Authenticator app' })).toBeVisible();
   await expect(block(page).getByRole('button', { name: 'Set up an authenticator app' })).toBeVisible();
   await expect(page.locator('#mfa-summary')).toHaveText('Add a passkey or an authenticator app to require a second step after your password.');
@@ -88,14 +88,14 @@ test('offered: You invites setting up an authenticator app', async ({ page }) =>
 
 test('not offered by the server and not set up: no authenticator block', async ({ page }) => {
   await fixture(page, { capability: false });
-  await page.goto('/account.php');
+  await page.goto('/account.php#security');
   await expect(page.locator('#mfa-summary')).toBeVisible();
   await expect(block(page)).toBeHidden();
 });
 
 test('setup draws the QR on the page, shows the key as text, and never puts the secret in a URL or attribute', async ({ page }) => {
   const state = await fixture(page);
-  await page.goto('/account.php');
+  await page.goto('/account.php#security');
   await block(page).getByRole('button', { name: 'Set up an authenticator app' }).click();
   const qr = block(page).getByRole('img', { name: 'QR code for your authenticator app' });
   await expect(qr).toBeVisible();
@@ -117,7 +117,7 @@ test('a wrong code says to wait for a new one; the right one finishes setup and 
       ? error(403, 'invalid_totp', 'Invalid code.')
       : { mfa: mfaApp, recovery_codes: ['AAAA-BBBB', 'CCCC-DDDD'] }),
   } });
-  await page.goto('/account.php');
+  await page.goto('/account.php#security');
   await block(page).getByRole('button', { name: 'Set up an authenticator app' }).click();
   await block(page).getByLabel('Code from the app').fill('123 456');
   await block(page).getByRole('button', { name: 'Confirm' }).click();
@@ -136,7 +136,7 @@ test('a wrong code says to wait for a new one; the right one finishes setup and 
 
 test('cancelling clears the setup from the page; an expired setup says to start again', async ({ page }) => {
   const state = await fixture(page, { overrides: { 'account/mfa/totp/confirm.php': error(409, 'totp_enrollment_expired', 'Expired.') } });
-  await page.goto('/account.php');
+  await page.goto('/account.php#security');
   await block(page).getByRole('button', { name: 'Set up an authenticator app' }).click();
   await block(page).getByRole('button', { name: 'Cancel' }).click();
   await expect(block(page).locator('.totp-key-value')).toHaveCount(0);
@@ -156,7 +156,7 @@ test('a confirm answered after the local expiry still shows success and the firs
     'account/mfa/totp/begin.php': () => ({ enrollment_id: 'enr-9', secret: SECRET, otpauth_uri: URI, expires_at: new Date(Date.now() + 800).toISOString() }),
     'account/mfa/totp/confirm.php': () => new Promise((resolve) => setTimeout(() => resolve({ mfa: mfaApp, recovery_codes: ['AAAA-BBBB'] }), 2000)),
   } });
-  await page.goto('/account.php');
+  await page.goto('/account.php#security');
   await block(page).getByRole('button', { name: 'Set up an authenticator app' }).click();
   await block(page).getByLabel('Code from the app').fill('246802');
   await block(page).getByRole('button', { name: 'Confirm' }).click();
@@ -172,7 +172,7 @@ test('a step-up finished after the local expiry still confirms the setup it star
     'account/mfa/totp/begin.php': () => ({ enrollment_id: 'enr-7', secret: SECRET, otpauth_uri: URI, expires_at: new Date(Date.now() + 800).toISOString() }),
     'account/mfa/totp/confirm.php': () => (++confirms === 1 ? error(403, 'step_up_required', 'Confirm it’s you.') : { mfa: mfaApp, recovery_codes: [] }),
   } });
-  await page.goto('/account.php');
+  await page.goto('/account.php#security');
   await block(page).getByRole('button', { name: 'Replace with a new app' }).click();
   await block(page).getByLabel('Code from the app').fill('112233');
   await block(page).getByRole('button', { name: 'Confirm' }).click();
@@ -193,7 +193,7 @@ test('set up: replace confirms with the app in the step-up dialog first; remove 
       : { enrollment_id: 'enr-2', secret: SECRET, otpauth_uri: URI, expires_at: new Date(Date.now() + 300_000).toISOString() }),
     'account/mfa/totp/remove.php': error(409, 'last_mfa_method', ''),
   } });
-  await page.goto('/account.php');
+  await page.goto('/account.php#security');
   await expect(block(page)).toContainText('last used');
   await block(page).getByRole('button', { name: 'Replace with a new app' }).click();
   const dialog = page.getByRole('dialog', { name: 'Confirm with multi-factor authentication' });
@@ -215,7 +215,7 @@ test('removing the app shows why a remaining passkey cannot currently be used', 
   await fixture(page, { mfa: mfaApp, overrides: {
     'account/mfa/totp/remove.php': error(409, 'last_mfa_method', reason),
   } });
-  await page.goto('/account.php');
+  await page.goto('/account.php#security');
   page.once('dialog', (confirm) => confirm.accept());
   await block(page).getByRole('button', { name: 'Remove authenticator app' }).click();
   await expect(block(page).locator('.error-text')).toHaveText(reason);
@@ -224,7 +224,7 @@ test('removing the app shows why a remaining passkey cannot currently be used', 
 
 test('set up but unavailable on the server: You says so and offers the other ways', async ({ page }) => {
   await fixture(page, { mfa: mfaAppUnavailable });
-  await page.goto('/account.php');
+  await page.goto('/account.php#security');
   await expect(block(page)).toContainText('can’t be checked on this server right now');
   await expect(block(page).getByRole('button')).toHaveCount(0);
 });
@@ -399,7 +399,7 @@ for (const theme of ['light', 'dark']) {
     await fixture(page, { user: superAdmin, overrides: { 'admin/settings/totp/get.php': adminKey({ mode: 'database', available: true, database_key_enabled: true, database_key_references: 2 }) } });
     for (const width of [1280, 360]) {
       await page.setViewportSize({ width, height: 860 });
-      await page.goto('/account.php');
+      await page.goto('/account.php#security');
       await expect(block(page).getByRole('button', { name: 'Set up an authenticator app' })).toBeVisible();
       await axe(page, '.mfa-totp', `offered ${width}`);
       await block(page).getByRole('button', { name: 'Set up an authenticator app' }).click();
@@ -417,7 +417,7 @@ for (const theme of ['light', 'dark']) {
   test(`${theme}: set up and unavailable states pass axe`, async ({ page }) => {
     await page.addInitScript((choice) => localStorage.setItem('chitchat-theme', choice), theme);
     await fixture(page, { mfa: mfaApp });
-    await page.goto('/account.php');
+    await page.goto('/account.php#security');
     await expect(block(page).getByRole('button', { name: 'Remove authenticator app' })).toBeVisible();
     await axe(page, '.mfa-totp', 'set up');
   });

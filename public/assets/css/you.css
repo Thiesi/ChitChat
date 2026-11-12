@@ -1,0 +1,151 @@
+/* You (S5a, #171): the sections pattern. Wide screens: the list of sections
+   beside the chosen one, the list staying in view while the section scrolls
+   with the page. Phones: the list first, a section pushed over it (panes.js),
+   the bottom bar out of the way while it's open. The cards themselves keep
+   account.css. Uses only existing tokens. */
+
+.you-frame {
+  --you-list-width: 17.5rem;
+  display: grid;
+  grid-template-columns: var(--you-list-width) minmax(0, 1fr);
+  align-items: start;
+  gap: 1.5rem;
+  width: 100%;
+  max-width: 78rem;
+  margin: 0 auto;
+  padding: 1rem 1rem 3rem;
+}
+
+@media (min-width: 48rem) {
+  .app-frame.has-nav > .you-frame { grid-column: 2; min-width: 0; }
+}
+
+/* ---- The list pane ---- */
+
+.you-list {
+  position: sticky;
+  top: 1rem;
+  max-height: calc(100vh - 2rem);
+  max-height: calc(100dvh - 2rem);
+  padding: 0 0 0.5rem;
+}
+
+.you-list.hidden { display: none; }
+
+.you-person {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0 0.75rem 0.5rem;
+  min-width: 0;
+}
+
+.you-person .mini-avatar { flex: none; width: 3rem; height: 3rem; font-size: 0.9rem; }
+.you-person-text { display: grid; gap: 0.1rem; min-width: 0; }
+.you-name { margin: 0; font-weight: 700; overflow-wrap: anywhere; }
+
+.you-guest-card { margin: 0 0.75rem 0.5rem; }
+
+.you-sections { display: grid; gap: 0.15rem; margin: 0; padding: 0 0.5rem; list-style: none; }
+.you-sections > li[hidden] { display: none; }
+
+.you-section-link {
+  display: flex;
+  align-items: center;
+  min-height: 2.75rem;
+  padding: 0.45rem 0.75rem;
+  border: 1px solid transparent;
+  border-radius: 0.65rem;
+  color: var(--text);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.you-section-link:hover { background: var(--surface); }
+
+.you-section-link[aria-current="page"] {
+  border-color: color-mix(in srgb, var(--signature-text) 30%, var(--field-line));
+  background: color-mix(in srgb, var(--signature) 13%, var(--ground));
+  box-shadow: inset 3px 0 var(--signature-text);
+}
+
+/* Stewarding keeps its Dusk, as on the rail. */
+.you-steward-link { color: var(--steward); }
+
+.you-session { margin: 0.75rem 0.75rem 0; padding-top: 0.75rem; border-top: 1px solid var(--line); }
+.you-session .secondary-button { width: 100%; justify-content: center; }
+
+/* ---- The main pane ---- */
+
+.you-main.account-shell { width: auto; max-width: 52rem; margin: 0; padding: 0; }
+
+.you-main-header { display: flex; align-items: center; gap: 0.5rem; margin: 0.35rem 0 1.25rem; }
+.you-frame .drawer-toggle, .you-frame .drawer-backdrop { display: none; }
+
+.you-section-title {
+  margin: 0;
+  font-family: var(--display-font);
+  font-size: clamp(1.9rem, 4vw, 2.6rem);
+  font-weight: 400;
+  letter-spacing: var(--display-tracking);
+  line-height: 1.1;
+}
+
+.you-section-title:focus { outline: none; }
+.you-section-title:focus-visible { outline: 2px solid var(--signature-text); outline-offset: 4px; border-radius: 0.4rem; }
+
+.you-section[hidden] { display: none; }
+
+/* Card headings moved down a level under the section title; they keep their look. */
+.you-section .account-card h3:not(.push-sounds h3) { margin: 0; font-size: 1.35rem; letter-spacing: -0.025em; }
+.you-section .account-card h4 { margin: 0; font-size: 1rem; }
+
+/* Profile: the name and when you joined. */
+.you-facts { display: grid; gap: 0.6rem; margin: 0; }
+.you-facts > div { display: flex; flex-wrap: wrap; gap: 0.25rem 1rem; }
+.you-facts dt { min-width: 8rem; color: var(--text-muted); }
+.you-facts dd { margin: 0; font-weight: 650; overflow-wrap: anywhere; }
+
+.you-notice:not([hidden]) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem 1rem;
+  margin: 0;
+  padding: 0.75rem 1rem;
+  border: 1px solid color-mix(in srgb, var(--presence-text) 45%, var(--line));
+  border-radius: 0.85rem;
+  background: var(--presence-wash);
+}
+
+/* ---- Tablets: a narrower list, still beside the section ---- */
+
+@media (min-width: 48rem) and (max-width: 63.99rem) {
+  .you-frame { --you-list-width: 14.5rem; gap: 1rem; }
+}
+
+/* ---- Phones: the stack ---- */
+
+@media (max-width: 47.99rem) {
+  .you-frame { grid-template-columns: minmax(0, 1fr); gap: 0; padding: 0 0 2rem; }
+  .you-list { position: static; max-height: none; padding: 0.25rem 0 1rem; }
+  .you-frame[data-stack="list"] > .you-main { display: none; }
+  .you-frame[data-stack="conversation"] > .you-list { display: none; }
+  .app-frame.has-nav:has(> .you-frame[data-stack="conversation"]) { --bar-space: 0px; }
+  .app-frame.has-nav:has(> .you-frame[data-stack="conversation"]) > .app-nav { display: none; }
+  body:has(.you-frame[data-stack="list"]) .skip-link { display: none; }
+
+  .you-main.account-shell { padding: 0 0.5rem; }
+  .you-main-header { position: sticky; top: 0; z-index: 4; margin: 0 -0.5rem 0.75rem; padding: 0.5rem 0.5rem 0.5rem 0.25rem; background: var(--ground); border-bottom: 1px solid var(--line); }
+  .you-frame .drawer-toggle { display: inline-flex; }
+  .you-section-title { font-size: 1.5rem; overflow-wrap: anywhere; }
+  .you-section-link { min-height: 3rem; font-size: 1rem; }
+}
+
+@media (any-pointer: coarse) {
+  .you-section-link { min-height: 3rem; }
+}
+
+@media (forced-colors: active) {
+  .you-section-link[aria-current="page"] { border: 2px solid Highlight; }
+}

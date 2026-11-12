@@ -25,6 +25,8 @@ test('the theme follows the system by default and remembers an explicit choice o
 
   // The theme is chosen on You since the account menu went (#168, S2b).
   await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'You', exact: true }).click();
+  // S5a: You opens on Profile; the theme is under Appearance.
+  await page.getByRole('navigation', { name: 'Settings' }).getByRole('link', { name: 'Appearance', exact: true }).click();
   const theme = page.locator('#account-shell').getByRole('combobox', { name: 'Theme' });
   await expect(theme).toHaveValue('system');
   await theme.selectOption('light');
@@ -35,7 +37,7 @@ test('the theme follows the system by default and remembers an explicit choice o
   await expect(html(page)).toHaveAttribute('data-theme', 'light');
   await page.goto('/');
   await expect(html(page)).toHaveAttribute('data-theme', 'light');
-  await page.goto('/account.php');
+  await page.goto('/account.php#appearance');
   await expect(theme).toHaveValue('light');
 
   // Firefox does not keep media emulation across navigations, so set it again here.

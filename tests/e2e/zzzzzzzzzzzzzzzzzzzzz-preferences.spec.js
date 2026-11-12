@@ -19,12 +19,14 @@ test('colour schemes apply on every page, and dates follow the account format', 
 
   // A colour scheme chosen on You applies everywhere on this device (the account menu went in #168, S2b).
   await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'You', exact: true }).click();
+  // S5a: You opens on Profile; colour schemes are under Appearance.
+  await page.getByRole('navigation', { name: 'Settings' }).getByRole('link', { name: 'Appearance', exact: true }).click();
   const accountSchemes = page.locator('#account-shell').getByRole('radiogroup', { name: 'Colour scheme' });
   await accountSchemes.getByRole('radio', { name: 'Dusk' }).check();
   await expect(page.locator('html')).toHaveAttribute('data-scheme', 'dusk');
   await page.goto('/');
   await expect(page.locator('html')).toHaveAttribute('data-scheme', 'dusk');
-  await page.goto('/account.php');
+  await page.goto('/account.php#appearance');
   await expect(accountSchemes.getByRole('radio', { name: 'Dusk' })).toBeChecked();
 
   try {
@@ -45,7 +47,7 @@ test('colour schemes apply on every page, and dates follow the account format', 
     await expect(time).toHaveAttribute('title', /^\d{2}\.\d{2}\.\d{2}, \d{2}:\d{2}$/);
   } finally {
     // Other specs share this account and expect the defaults.
-    await page.goto('/account.php');
+    await page.goto('/account.php#appearance');
     await page.getByLabel('Format region').selectOption('');
     await page.getByLabel('Clock').selectOption('');
     await page.getByRole('button', { name: 'Save date and time format' }).click();

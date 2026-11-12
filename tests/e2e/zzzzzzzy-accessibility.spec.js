@@ -140,7 +140,8 @@ test.describe.serial('ChitChat accessibility checks', () => {
     await expect(page.locator('#message-search-shell')).toBeVisible();
     await expectAccessibleStructure(page);
 
-    await page.goto('/account.php');
+    // S5a: the MFA summary is under Sign-in and security.
+    await page.goto('/account.php#security');
     await expect(page.locator('#account-shell')).toBeVisible();
     await expect(page.locator('#mfa-summary')).not.toHaveText('');
     await expectAccessibleStructure(page);

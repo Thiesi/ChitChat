@@ -169,7 +169,8 @@ for (const theme of ['dark', 'light']) {
     expect(send.y).toBeLessThan(field.y + field.height);
 
     await page.goto('/account.php');
-    await expect(page.locator('#account-shell')).toBeVisible();
+    // S5a: on phones You opens on its list of sections.
+    await expect(page.locator('#you-list')).toBeVisible();
     await noOverflow(page);
     await accessible(page);
     await page.screenshot({ path: testInfo.outputPath(`account-mobile-${theme}.png`), fullPage: true });

@@ -24,7 +24,7 @@ async function login(page, account = member) {
 
 test('a cropped profile picture replaces initials in chat and on the profile card', async ({ page, browser }) => {
   await login(page);
-  await page.goto('/account.php');
+  await page.goto('/account.php#profile');
   await page.locator('#avatar-file').setInputFiles(sample);
   const crop = page.getByRole('dialog', { name: 'Crop your picture' });
   await expect(crop).toBeVisible();
@@ -63,7 +63,7 @@ test('a cropped profile picture replaces initials in chat and on the profile car
   } finally {
     await rootContext.close();
     // Other specs expect initials for this shared account.
-    await page.goto('/account.php');
+    await page.goto('/account.php#profile');
     await page.getByRole('button', { name: 'Remove picture' }).click();
     await expect(page.locator('#avatar-status')).toContainText('Picture removed');
   }

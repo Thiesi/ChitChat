@@ -96,15 +96,17 @@ test('You: picture and name, alerts with Sounds, appearance, and Sign out last',
   await page.goto('/account.php');
   await expect(page.locator('#account-identity')).toHaveText('Signed in as Jamie');
   await expect(page.locator('#you-avatar')).toHaveText('JA');
+  // S5a: one section at a time; Alerts and Appearance are sections of their own.
+  await page.getByRole('navigation', { name: 'Settings' }).getByRole('link', { name: 'Alerts', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Alerts' })).toBeVisible();
   const sounds = page.getByRole('group', { name: 'Sounds on this device' });
   await expect(sounds.getByRole('checkbox')).toHaveCount(3);
   await sounds.getByRole('checkbox', { name: 'Mentions' }).uncheck();
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('chitchat.sounds')))).toMatchObject({ mention: false });
+  await page.getByRole('navigation', { name: 'Settings' }).getByRole('link', { name: 'Appearance', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Theme and colours' })).toBeVisible();
-  // Sign out is the last card on the page.
-  const lastCard = page.locator('#account-shell > .account-card').last();
-  await expect(lastCard.getByRole('button', { name: 'Sign out' })).toBeVisible();
+  // Sign out is the last row of the list pane, after the sections (S5a).
+  await expect(page.locator('#you-list > :last-child').getByRole('button', { name: 'Sign out' })).toBeVisible();
   await expect(page.locator('#you-steward-card')).toBeHidden();
   // The guest invitation and Leave are for guests only.
   await expect(page.getByRole('heading', { name: 'Want to stay?' })).toBeHidden();
@@ -140,16 +142,17 @@ for (const width of [1280, 360]) {
 test('staff find Stewarding on You', async ({ page }) => {
   await fixture(page, { user: { ...member, roles: ['admin'] } });
   await page.goto('/account.php');
-  await expect(page.getByRole('heading', { name: 'Looking after this server' })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Open Stewarding' })).toHaveAttribute('href', '/admin.php');
+  // S5a: the list's first row.
+  await expect(page.getByRole('link', { name: 'Looking after this server' })).toHaveAttribute('href', '/admin.php');
 });
 
 test('guests get a short You: their name, appearance, an invitation, and Leave', async ({ page }) => {
   const calls = await fixture(page, { user: guest });
   await page.goto('/account.php');
   await expect(page.locator('#account-identity')).toHaveText('Visiting as Guest 4821');
-  const visible = page.locator('#account-shell > .account-card:visible');
-  await expect(visible).toHaveCount(3);
+  // S5a: the invitation in the list pane, Appearance's theme card in the main pane.
+  const visible = page.locator('#you-frame .account-card:visible');
+  await expect(visible).toHaveCount(2);
   await expect(page.getByRole('heading', { name: 'Want to stay?' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Create an account' })).toHaveAttribute('href', '/?register=1');
   await expect(page.getByRole('heading', { name: 'Theme and colours' })).toBeVisible();
@@ -169,7 +172,7 @@ for (const theme of ['light', 'dark']) {
       await page.goto('/account.php');
       await expect(page.locator('#you-steward-card')).toBeVisible();
       await page.getByRole('button', { name: 'Sign out' }).focus();
-      const you = await new AxeBuilder({ page }).include('#account-shell').withTags(WCAG).analyze();
+      const you = await new AxeBuilder({ page }).include('#you-frame').withTags(WCAG).analyze();
       expect(you.violations, `You ${width}`).toEqual([]);
       await page.screenshot({ path: testInfo.outputPath(`you-${theme}-${width}.png`), fullPage: true });
 
@@ -192,7 +195,7 @@ for (const theme of ['light', 'dark']) {
     await fixture(page, { user: guest });
     await page.goto('/account.php');
     await expect(page.getByRole('button', { name: 'Leave' })).toBeVisible();
-    const result = await new AxeBuilder({ page }).include('#account-shell').withTags(WCAG).analyze();
+    const result = await new AxeBuilder({ page }).include('#you-frame').withTags(WCAG).analyze();
     expect(result.violations).toEqual([]);
     await page.screenshot({ path: testInfo.outputPath(`you-guest-${theme}.png`), fullPage: true });
   });

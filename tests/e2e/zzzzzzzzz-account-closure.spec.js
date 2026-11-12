@@ -40,6 +40,8 @@ async function closeAndRestore(page, onClosureRequested) {
   // The account page is the shell's You since the account menu went (#168, S2b).
   await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'You', exact: true }).click();
   await expect(page).toHaveURL(/\/account\.php$/);
+  // S5a: closing the account is under Account.
+  await page.getByRole('navigation', { name: 'Settings' }).getByRole('link', { name: 'Account', exact: true }).click();
 
   await page.getByLabel(/I understand that I will be signed out immediately/).check();
   await page.getByRole('button', { name: 'Request account closure' }).click();

@@ -241,7 +241,8 @@ test.describe('phones: the bottom bar', () => {
       await fixture(page, options);
       await page.goto('/account.php');
       await nav(page).getByRole('link', { name: 'You', exact: true }).waitFor();
-      const link = page.getByRole('link', { name: 'Open Stewarding' });
+      // S5a: Stewarding is the first row of You's list pane.
+      const link = page.getByRole('link', { name: 'Looking after this server' });
       await expect(link).toBeVisible();
       await expect(link).toHaveAttribute('href', destination);
     });

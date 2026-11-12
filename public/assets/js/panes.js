@@ -19,7 +19,7 @@
 // item that opened it.
 //
 // Pages announce a choice with chitchat:room-chosen or
-// chitchat:conversation-chosen, detail { opener, user }: opener is the list
+// chitchat:conversation-chosen (chitchat:section-chosen on You, S5a), detail { opener, user }: opener is the list
 // item, and user is false for choices the page made itself (a deep link),
 // which open the conversation without moving focus.
 
@@ -115,7 +115,9 @@ window.addEventListener('DOMContentLoaded', () => {
   // A deep link (a search result, an activity item, a profile's "Message")
   // starts on the conversation it points at.
   const query = new URLSearchParams(window.location.search);
-  const deepLinked = (frame.dataset.deepLink ?? '').split(',').some((key) => key && query.has(key));
+  // The You page (S5a) addresses its sections by hash (#security), so data-deep-link-hash counts any.
+  const deepLinked = (frame.dataset.deepLink ?? '').split(',').some((key) => key && query.has(key))
+    || (frame.dataset.deepLinkHash !== undefined && window.location.hash.length > 1);
   frame.dataset.stack = deepLinked ? 'conversation' : 'list';
   applyMode();
   tablet.addEventListener('change', applyMode);
@@ -158,7 +160,7 @@ window.addEventListener('DOMContentLoaded', () => {
     if (phone.matches && frame.dataset.stack === 'conversation') showList({ restoreFocus: true });
   });
 
-  for (const type of ['chitchat:room-chosen', 'chitchat:conversation-chosen']) {
+  for (const type of ['chitchat:room-chosen', 'chitchat:conversation-chosen', 'chitchat:section-chosen']) {
     window.addEventListener(type, (event) => {
       const user = event.detail?.user !== false;
       if (event.detail?.opener) opener = event.detail.opener;
