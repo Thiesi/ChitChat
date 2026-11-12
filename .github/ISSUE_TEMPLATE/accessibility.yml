@@ -1,7 +1,7 @@
 name: Accessibility problem
 description: Something in ChitChat is hard or impossible to use with a screen reader, keyboard, magnifier, voice control or other assistive technology.
 title: "Accessibility: "
-labels: ["bug"]
+labels: ["bug", "accessibility"]
 body:
   - type: markdown
     attributes:
