@@ -24,42 +24,72 @@ final class RoomReadService
     {
     }
 
-    /** @return array<int, array{unread_count:int, last_read_message_id:int}> keyed by room ID */
+    /**
+     * Every joined room: messages after the read position, and unread room mentions after it.
+     *
+     * A mention counts while its notification is unread, its message is after the read
+     * position (0 before the first read) and not deleted, and its sender is not ignored now.
+     * Reading the room clears the count without marking the notification read (#266).
+     *
+     * @return array<int, array{unread_count:int, last_read_message_id:?int, unread_mention_count:int}> keyed by room ID
+     */
     public function forUser(int $userId): array
     {
         $statement = $this->pdo->prepare(<<<'SQL'
-SELECT rr.room_id,
+SELECT rm.room_id,
        rr.last_read_message_id,
        (
            SELECT COUNT(*)
            FROM (
                SELECT 1
                FROM room_messages m
-               WHERE m.room_id = rr.room_id
+               WHERE m.room_id = rm.room_id
                  AND m.id > rr.last_read_message_id
                  AND m.deleted_at IS NULL
-                 AND m.sender_id IS DISTINCT FROM rr.user_id
+                 AND m.sender_id IS DISTINCT FROM rm.user_id
                  AND NOT EXISTS (
                      SELECT 1 FROM user_ignores ignoring
-                     WHERE ignoring.user_id = rr.user_id AND ignoring.ignored_user_id = m.sender_id
+                     WHERE ignoring.user_id = rm.user_id AND ignoring.ignored_user_id = m.sender_id
                  )
                LIMIT :cap
            ) unread
-       ) AS unread_count
-FROM room_reads rr
-JOIN room_members rm ON rm.room_id = rr.room_id AND rm.user_id = rr.user_id
-WHERE rr.user_id = :user_id
+       ) AS unread_count,
+       (
+           SELECT COUNT(*)
+           FROM (
+               SELECT 1
+               FROM account_notifications n
+               JOIN room_messages m ON m.id = (n.context_json->>'message_id')::bigint
+               WHERE n.user_id = rm.user_id
+                 AND n.kind = 'mentioned'
+                 AND n.read_at IS NULL
+                 AND n.context_json->>'message_kind' = 'room'
+                 AND n.context_json->>'room_id' = rm.room_id::text
+                 AND m.room_id = rm.room_id
+                 AND m.id > COALESCE(rr.last_read_message_id, 0)
+                 AND m.deleted_at IS NULL
+                 AND NOT EXISTS (
+                     SELECT 1 FROM user_ignores ignoring
+                     WHERE ignoring.user_id = rm.user_id AND ignoring.ignored_user_id = m.sender_id
+                 )
+               LIMIT :mention_cap
+           ) mentions
+       ) AS unread_mention_count
+FROM room_members rm
+LEFT JOIN room_reads rr ON rr.room_id = rm.room_id AND rr.user_id = rm.user_id
+WHERE rm.user_id = :user_id
 SQL);
         if ($statement === false) {
             throw new RuntimeException('Unable to prepare unread counts.');
         }
-        $statement->execute(['user_id' => $userId, 'cap' => self::UNREAD_CAP]);
+        $statement->execute(['user_id' => $userId, 'cap' => self::UNREAD_CAP, 'mention_cap' => self::UNREAD_CAP]);
         $reads = [];
         foreach ($statement->fetchAll() as $row) {
             if (is_array($row)) {
                 $reads[(int) $row['room_id']] = [
                     'unread_count' => (int) $row['unread_count'],
-                    'last_read_message_id' => (int) $row['last_read_message_id'],
+                    'last_read_message_id' => $row['last_read_message_id'] === null ? null : (int) $row['last_read_message_id'],
+                    'unread_mention_count' => (int) $row['unread_mention_count'],
                 ];
             }
         }
