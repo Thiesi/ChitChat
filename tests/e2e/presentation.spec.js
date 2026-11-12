@@ -119,7 +119,16 @@ for (const theme of ['dark', 'light']) {
     await expect(page.getByRole('navigation', { name: 'Rooms' })).toBeVisible();
     await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'You', exact: true })).toBeVisible();
     await noOverflow(page);
-    await page.getByRole('navigation', { name: 'Rooms' }).locator('.room-button').first().click();
+    // Since S4a the first row is another room (name order when no room has
+    // activity), so this click really switches rooms. Wait for that room's
+    // message-mutations answer: a later navigation would cancel it, and WebKit
+    // reports a cancelled fetch as a page error.
+    const firstRoom = page.getByRole('navigation', { name: 'Rooms' }).locator('.room-button').first();
+    const switchedTo = await firstRoom.getAttribute('data-room-id');
+    const mutations = page.waitForResponse((response) => response.url().includes('/api/v1/rooms/message-mutations.php')
+      && new URL(response.url()).searchParams.get('room_id') === switchedTo);
+    await firstRoom.click();
+    await mutations;
     await expect(page.locator('#composer-input')).toBeInViewport();
     await page.locator('#composer-input').fill('A little hello.');
     await page.locator('#emoji-button').click();
@@ -133,10 +142,6 @@ for (const theme of ['dark', 'light']) {
     await page.screenshot({ path: testInfo.outputPath(`chat-mobile-${theme}.png`) });
 
     await page.setViewportSize({ width: 1440, height: 1000 });
-    // Since S4a the first row is a different room (name order when no room has
-    // activity), so the click above really switches rooms. Let its requests
-    // finish: WebKit reports a fetch that navigation cancels as a page error.
-    await page.waitForLoadState('networkidle');
     await page.goto('/messages.php');
     await expect(page.locator('.dm-message')).toHaveCount(3);
     await expect(page.locator('#dm-composer')).toBeVisible();

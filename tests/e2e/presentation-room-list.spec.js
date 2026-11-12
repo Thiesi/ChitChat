@@ -152,6 +152,32 @@ test('a plain click switches in the page; a modified click is the browser’s', 
   await expect(page.locator('#room-title')).toHaveText('# Garden');
 });
 
+test('phones (320px): a row click or tap switches in the page, with no reload', async ({ browser }) => {
+  // A real reload here would cost every phone room switch (Safari included) a full page load.
+  const context = await browser.newContext({ hasTouch: true, viewport: { width: 320, height: 700 } });
+  const page = await context.newPage();
+  try {
+    await fixture(page, { notifications: [] });
+    await open(page, 320);
+    await page.evaluate(() => { window.__stayed = true; });
+
+    await row(page, 'Attic').click();
+    await expect(page.locator('#room-title')).toHaveText('# Attic');
+    await expect(page.locator('#room-title')).toBeFocused();
+    expect(await page.evaluate(() => window.__stayed)).toBe(true);
+
+    await page.getByRole('button', { name: 'Back to rooms' }).click();
+    await expect(row(page, 'Garden')).toBeVisible();
+    await row(page, 'Garden').tap();
+    await expect(page.locator('#room-title')).toHaveText('# Garden');
+    expect(await page.evaluate(() => window.__stayed)).toBe(true);
+    // Only the phone stack's own history entry: the address is still the page's, not /?room_id=N.
+    expect(new URL(page.url()).search).toBe('');
+  } finally {
+    await context.close();
+  }
+});
+
 test('Join on an Other rooms row joins and opens it; it moves to Your rooms', async ({ page }) => {
   const posts = await fixture(page, { notifications: [] });
   await open(page);
