@@ -6,6 +6,8 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ## [Unreleased]
 
+- Add `user.available` and the blocking `relationship` (`blocked_by_me`, `messaging_available`) to each row of `GET /api/v1/direct-messages/conversations.php` (#274), so the Direct list can show blocked, unavailable and closed conversations without a request per row. Same semantics and privacy as `block-status.php`; no ban or raw account state is exposed. Additive to API v1.
+
 - Stop the event stream rescanning old events on every poll (#281). A connection resuming from an old cursor, or a fresh one, now moves past retained events it can't see once no event is still being published, and remembers that position across reconnects with a bare `id:` line. With 200,000 such events, polls after the first drop from about 0.7 s to under 2 ms. Replayed messages also carry the sender's current name after a moderator replaced it. No migration.
 
 - Start the room read position when an account joins or creates a room (#268). Before, a member who never sent a read saw `unread_count: 0` in that room forever, and a rejoin counted the whole absence as unread. Apply migration 0057, which starts existing members without a read position at the room's newest message. Room list entries and the join response also carry `unread_through_message_id`, the newest message the unread count covers, so a client adding live messages never counts one twice (#279).
