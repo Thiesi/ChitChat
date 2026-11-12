@@ -349,17 +349,6 @@ SQL);
     }
 
     /**
-     * The message as change events carry it, from its current state for the viewer:
-     * a deleted message has no body (#276, replayed events).
-     *
-     * @return array<string, mixed>
-     */
-    public function currentEventMessage(int $messageId, int $viewerUserId): array
-    {
-        return $this->eventMessage($messageId, $viewerUserId);
-    }
-
-    /**
      * @return array{
      *   id:int,
      *   sender:array{id:int, username:string},

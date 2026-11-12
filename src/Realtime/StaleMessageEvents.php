@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace ChitChat\Realtime;
 
-use ChitChat\DirectMessage\DirectMessageMutationService;
+use ChitChat\DirectMessage\DirectMessageService;
 use ChitChat\Room\MessageService;
 use PDO;
 use RuntimeException;
@@ -15,7 +15,8 @@ use RuntimeException;
  * A room_message or direct_message event stores the message as it was when the event
  * was published. Retained events can be served much later: to a client reconnecting
  * with an old cursor, or (for global moderators) after a join. If the message, or the
- * message it quotes, was deleted or edited after the event was published, the stored
+ * message it quotes, was deleted or edited after the event was published (or no longer
+ * exists), the stored
  * payload would hand out text that was since withdrawn. Such events are re-rendered
  * from the message's current state for the viewer; a message that no longer exists is
  * redacted. Events are never dropped, so the stream's cursor still moves past them.
@@ -50,7 +51,7 @@ final class StaleMessageEvents
         }
 
         $messages = new MessageService($this->pdo);
-        $direct = new DirectMessageMutationService($this->pdo);
+        $direct = new DirectMessageService($this->pdo);
         $refreshed = [];
         foreach ($events as $event) {
             $messageId = $this->messageId($event);
@@ -84,6 +85,7 @@ LEFT JOIN {$table} quoted ON quoted.id = m.reply_to_message_id
 WHERE e.id = ANY(CAST(:ids AS bigint[]))
   AND (
       m.id IS NULL
+      OR (m.reply_to_message_id IS NOT NULL AND quoted.id IS NULL)
       OR GREATEST(m.deleted_at, m.edited_at, quoted.deleted_at, quoted.edited_at) > e.created_at
   )
 SQL);

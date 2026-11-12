@@ -110,6 +110,91 @@ final class RealtimeReplayPrivacyTest extends DatabaseTestCase
         self::assertStringContainsString('Edited words', $stream);
     }
 
+    public function testAGlobalModeratorReplayingFromTheStartGetsOnlyCurrentText(): void
+    {
+        // Global moderators see every room without membership, so only the stale check protects them.
+        $global = (new AuthService($this->pdo, $this->config))->register('GlobalModerator', self::PASSWORD, '127.0.0.4');
+        $this->pdo->exec("INSERT INTO user_roles (user_id, role) VALUES ({$global->id}, 'global_moderator')");
+        $global = (new \ChitChat\Auth\UserRepository($this->pdo))->findAuthenticatedById($global->id) ?? self::fail('reload');
+        $messages = new MessageService($this->pdo);
+        $deleted = $messages->send($this->author, $this->roomId, 'Deleted secret');
+        $messages->delete($this->moderator, $deleted['id'], '127.0.0.1', 'Off-topic');
+        $edited = $messages->send($this->author, $this->roomId, 'Original wording');
+        (new RoomMessageMutationService($this->pdo))->edit($this->author, $edited['id'], 'Corrected wording', '127.0.0.2');
+
+        $stream = $this->stream($global, 0);
+        self::assertStringNotContainsString('Deleted secret', $stream);
+        self::assertStringNotContainsString('Original wording', $stream);
+        self::assertStringContainsString('Corrected wording', $stream);
+    }
+
+    public function testAMessageEditedTwiceIsReplayedOnlyWithItsFinalText(): void
+    {
+        (new RoomService($this->pdo))->join($this->member, $this->roomId, '127.0.0.3');
+        $cursor = $this->newestEventId();
+        $sent = (new MessageService($this->pdo))->send($this->author, $this->roomId, 'Version one');
+        $mutations = new RoomMessageMutationService($this->pdo);
+        $mutations->edit($this->author, $sent['id'], 'Version two', '127.0.0.2');
+        $mutations->edit($this->author, $sent['id'], 'Version three', '127.0.0.2');
+
+        $stream = $this->stream($this->member, $cursor);
+        self::assertStringNotContainsString('Version one', $stream);
+        self::assertStringNotContainsString('Version two', $stream);
+        self::assertStringContainsString('Version three', $stream);
+    }
+
+    public function testAPurgedMessageIsRedactedAndAPurgedQuoteIsNotCarried(): void
+    {
+        (new RoomService($this->pdo))->join($this->member, $this->roomId, '127.0.0.3');
+        $cursor = $this->newestEventId();
+        $messages = new MessageService($this->pdo);
+        $purged = $messages->send($this->author, $this->roomId, 'Purged secret');
+        $quoted = $messages->send($this->author, $this->roomId, 'Purged quote');
+        $reply = $messages->send($this->moderator, $this->roomId, 'A reply that stays', $quoted['id']);
+        // Retention removes the rows; their events are still retained.
+        $this->pdo->exec("DELETE FROM room_messages WHERE id IN ({$purged['id']}, {$quoted['id']})");
+
+        $events = $this->events($this->member, $cursor);
+        $stream = json_encode($events, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
+        self::assertStringNotContainsString('Purged secret', $stream);
+        self::assertStringNotContainsString('Purged quote', $stream);
+        $byId = [];
+        foreach ($events as $event) {
+            if ($event['type'] === 'room_message') {
+                $byId[$event['payload']['message']['id']] = $event['payload']['message'];
+            }
+        }
+        self::assertTrue($byId[$purged['id']]['deleted']);
+        self::assertNull($byId[$purged['id']]['body']);
+        self::assertSame('A reply that stays', $byId[$reply['id']]['body']);
+        self::assertFalse($byId[$reply['id']]['reply_to']['available'] ?? true, 'The quote is shown as unavailable.');
+    }
+
+    public function testAReplayedDirectMessageKeepsItsFullShape(): void
+    {
+        $cursor = $this->newestEventId();
+        $direct = new DirectMessageService($this->pdo);
+        $first = $direct->send($this->author, $this->member->id, 'The first one');
+        $reply = $direct->send($this->author, $this->member->id, 'A reply for @Member', $first['id']);
+        (new DirectMessageMutationService($this->pdo))->edit($this->author, $reply['id'], 'An edited reply for @Member', '127.0.0.2');
+
+        $replayed = null;
+        foreach ($this->events($this->member, $cursor) as $event) {
+            if ($event['type'] === 'direct_message' && $event['payload']['message']['id'] === $reply['id']) {
+                $replayed ??= $event['payload']['message'];
+            }
+        }
+        self::assertIsArray($replayed, 'The original send event is still delivered, re-rendered.');
+        self::assertSame('An edited reply for @Member', $replayed['body']);
+        self::assertFalse($replayed['deleted']);
+        self::assertNotNull($replayed['edited_at']);
+        self::assertSame($first['id'], $replayed['reply_to']['message_id'] ?? null, 'The quote survives.');
+        self::assertArrayHasKey('mentions', $replayed);
+        self::assertArrayHasKey('reactions', $replayed);
+        self::assertSame(['id' => $this->author->id, 'username' => 'Author'], $replayed['sender']);
+        self::assertFalse($replayed['outgoing'], 'Rendered for the viewer.');
+    }
+
     public function testLiveMessagesAreDeliveredUnchanged(): void
     {
         (new RoomService($this->pdo))->join($this->member, $this->roomId, '127.0.0.3');
