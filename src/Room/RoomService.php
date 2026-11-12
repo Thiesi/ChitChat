@@ -547,6 +547,8 @@ SQL);
                     throw new RuntimeException('Unable to prepare invitation consumption.');
                 }
                 $invitation->execute(['room_id' => $roomId, 'user_id' => $targetUserId]);
+                // A new membership starts reading at the room's newest message (#268).
+                (new RoomReadService($this->pdo))->startAt($targetUserId, $roomId);
             }
 
             $this->audit->log(

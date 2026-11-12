@@ -115,6 +115,7 @@ final class RoomOwnershipTransferTest extends DatabaseTestCase
         self::assertSame('owner', $room->memberRole);
         self::assertSame([$admin->id], $this->owners($roomId));
         self::assertSame(0, (int) $this->scalar("SELECT COUNT(*) FROM room_invitations WHERE room_id = {$roomId}"), 'The invitation is consumed.');
+        self::assertSame(1, (int) $this->scalar("SELECT COUNT(*) FROM room_reads WHERE room_id = {$roomId} AND user_id = {$admin->id}"), 'The new membership starts a read position (#268).');
         self::assertEquals(
             ['from_user_id' => $owner->id, 'to_user_id' => $admin->id, 'joined' => true],
             json_decode((string) $this->scalar("SELECT metadata_json::text FROM audit_log WHERE action = 'room.ownership_transferred'"), true),
