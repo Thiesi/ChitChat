@@ -6,6 +6,16 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ## [Unreleased]
 
+## [3.9.0] - 2026-11-12
+
+A privacy fix for the event stream, room ownership transfer, and the next stages of the Lantern redesign (the Rooms, Direct, Activity and search lists, and You in sections), plus fixes for unread counts and slow reconnects. Additive to API v1, with three forward-only database migrations (`0056` to `0058`) and no configuration changes. Nobody is signed out. Run the read-only owner check before upgrading. See the [`v3.9.0` release notes](docs/releases/v3.9.0.md).
+
+- Redesign You into six sections with their own addresses (S5a, #171): a list pane with the person, Stewarding for staff and Sign out last; one section at a time; a list-then-section stack on phones. Old anchors and deep links land in their sections. Profile shows the username, "Member since" and a moderator's username request. No setting or step-up changes.
+
+- Redesign the Rooms, Direct, Activity and search lists (S4, #170): lists of links, groups, presence, row times and states, an "@" with a mention card, day headings in Activity, and highlighted matches with scope chips in search. The Direct list refetches only when something changed (#270).
+
+- Run the multi-process database race tests nightly in a repeat matrix (#271).
+
 - Let administrators and room owners transfer a room's ownership with `POST /api/v1/rooms/transfer-ownership.php` (#273), so a room whose owner left or closed their account can be handed on inside ChitChat. An administrator can also take over an invite-only room they aren't in. Requires step-up; audited; both owners are told. A room can now have only one owner, enforced by the database. Apply migration 0058, which first checks for rooms with two owners and stops, naming them, if it finds any (nothing is changed). Operators can run this read-only check beforehand: `SELECT room_id, COUNT(*) FROM room_members WHERE role = 'owner' GROUP BY room_id HAVING COUNT(*) > 1;` (it must return no rows).
 
 - Add `user.available` and the blocking `relationship` (`blocked_by_me`, `messaging_available`) to each row of `GET /api/v1/direct-messages/conversations.php` (#274), so the Direct list can show blocked, unavailable and closed conversations without a request per row. Same semantics and privacy as `block-status.php`; no ban or raw account state is exposed. Additive to API v1.
