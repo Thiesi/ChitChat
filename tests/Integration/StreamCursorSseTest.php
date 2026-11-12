@@ -39,33 +39,48 @@ SQL);
         SessionManager::login($member, (new LoginSessionRepository($this->pdo))->issue($member));
         $cookie = $this->config->sessionName . '=' . session_id();
         session_write_close();
+        // The built-in server handles one request at a time and the first stream keeps running
+        // until it notices the client left, so the reconnect gets a server of its own.
+        $servers = [];
+        try {
+            $servers[] = $first = $this->server('stream-cursor-sse-1');
+            $servers[] = $second = $this->server('stream-cursor-sse-2');
+            $before = $this->read($first['address'], $cookie, null, static fn (string $body): bool => str_contains($body, "id: {$settled}\n\n"));
+            self::assertStringContainsString("id: {$settled}\n\n", $before, 'A bare id line moves the cursor to the settled horizon.');
+            self::assertStringNotContainsString('event: room_broadcast', $before, 'Nothing from the other room is sent.');
+
+            $sent = (new MessageService($this->pdo))->send($owner, $lounge->id, 'After the reconnect');
+            $after = $this->read($second['address'], $cookie, $settled, static fn (string $body): bool => str_contains($body, 'After the reconnect'));
+            self::assertStringContainsString('After the reconnect', $after);
+            self::assertStringContainsString('"id":' . $sent['id'], $after);
+            self::assertStringNotContainsString('event: room_broadcast', $after, 'Resumed after the horizon, not from the start.');
+        } finally {
+            foreach ($servers as $server) {
+                if (proc_get_status($server['process'])['running']) {
+                    proc_terminate($server['process']);
+                }
+                proc_close($server['process']);
+                TestScratch::remove($server['log']);
+            }
+        }
+    }
+
+    /** @return array{process:resource, address:string, log:string} */
+    private function server(string $label): array
+    {
         $socket = stream_socket_server('tcp://127.0.0.1:0', $code, $message);
         self::assertIsResource($socket, $message);
         $address = stream_socket_get_name($socket, false);
         self::assertIsString($address);
         fclose($socket);
-        $log = TestScratch::file('stream-cursor-sse');
+        $log = TestScratch::file($label);
         $process = proc_open([PHP_BINARY, '-d', 'session.save_path=' . session_save_path(), '-S', $address,
             '-t', dirname(__DIR__, 2) . '/public'], [0 => ['pipe', 'r'], 1 => ['file', $log, 'a'], 2 => ['file', $log, 'a']], $pipes);
         self::assertIsResource($process);
         fclose($pipes[0]);
-        try {
-            PhpHttpFixture::waitUntilReady($process, $address, $log);
-            $first = $this->read($address, $cookie, null, static fn (string $body): bool => str_contains($body, "id: {$settled}\n\n"));
-            self::assertStringContainsString("id: {$settled}\n\n", $first, 'A bare id line moves the cursor to the settled horizon.');
-            self::assertStringNotContainsString('event: room_broadcast', $first, 'Nothing from the other room is sent.');
+        PhpHttpFixture::waitUntilReady($process, $address, $log);
 
-            $sent = (new MessageService($this->pdo))->send($owner, $lounge->id, 'After the reconnect');
-            $second = $this->read($address, $cookie, $settled, static fn (string $body): bool => str_contains($body, 'After the reconnect'));
-            self::assertStringContainsString('After the reconnect', $second);
-            self::assertStringContainsString('"id":' . $sent['id'], $second);
-        } finally {
-            if (proc_get_status($process)['running']) {
-                proc_terminate($process);
-            }
-            proc_close($process);
-            TestScratch::remove($log);
-        }
+        return ['process' => $process, 'address' => $address, 'log' => $log];
     }
 
     /** Reads the stream until $done says so, or for a few seconds. */
