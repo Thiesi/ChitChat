@@ -23,6 +23,8 @@ data: {"id":1235,"type":"room_message",...}
 
 ```
 
+The stream may also send a bare `id: <n>` line with no `event` or `data` (#281). It moves the cursor past events this account can't see; per the SSE specification it updates `Last-Event-ID` without dispatching an event, and a native client should store it as its resume position like any other `id:`.
+
 The stream sends heartbeat comments at least every ten seconds and closes after approximately 25 seconds. Browser `EventSource` reconnects automatically. The server requests a one-second retry interval.
 
 The stream releases the PHP session lock before polling, so the same browser session can continue making API requests while SSE is open.
@@ -34,7 +36,7 @@ Retained events (see `realtime_event_retention_hours`) are replayed to a client 
 - **Room events start at the membership.** A room's events are delivered only if they were published after the account's current membership began. Joining (or rejoining) a room never replays its earlier events. Global moderators, who see every room, are not bound this way. The bound compares transaction start times: a message whose sending began just before the join but committed after it is not streamed to the new member, who sees it in history on the next load.
 - **Messages are served as they are now.** A `room_message` or `direct_message` event is re-rendered from the message's current state for the viewer when the message, or the message it quotes, was edited or deleted after the event was published. An edited message carries its current text; a deleted one has `"body": null, "deleted": true`; a message that no longer exists is redacted the same way. The later edit or deletion event is still delivered, in order. Events whose message hasn't changed are served exactly as stored.
 
-Other event types are served exactly as stored, subject only to the membership rule. Names embedded in replayed events (such as a sender's username) are as they were when the event was published; a later `user_renamed` event follows them.
+Other event types are served exactly as stored, subject only to the membership rule. A replayed message whose sender (or quoted sender) has been renamed since, for example by a moderator (#164), is re-rendered too, so it carries the current name (#281).
 
 ## Visibility
 

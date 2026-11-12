@@ -42,7 +42,7 @@ Optional `limit` is 1-100 and defaults to 100.
 {
   "conversations": [
     {
-      "user": {"id": 7, "username": "Bob"},
+      "user": {"id": 7, "username": "Bob", "available": true},
       "last_message": {
         "id": 18,
         "sender_id": 4,
@@ -50,11 +50,18 @@ Optional `limit` is 1-100 and defaults to 100.
         "created_at": "2026-07-17T00:00:00+00:00",
         "outgoing": true
       },
-      "unread_count": 0
+      "unread_count": 0,
+      "relationship": {"blocked_by_me": false, "messaging_available": true}
     }
   ]
 }
 ```
+
+Each row also carries what the list needs to label a conversation (#274):
+
+- `user.available` is `true` while the other account is active and `false` once its closure is pending or finalized. A finalized closure also shows the `Closed account #<id>` username. The raw account state isn't exposed, and a ban never changes `available`.
+- `relationship` is the [blocking relationship](#blocking-relationship) object. For an available peer it's exactly what `block-status.php` returns for that pair. For an unavailable peer, which `block-status.php` refuses, `blocked_by_me` still reports your own block and `messaging_available` is `false`; the other side's block is never revealed.
+- A new message can be sent exactly when `relationship.messaging_available` is `true`.
 
 ## `GET /api/v1/direct-messages/history.php`
 
