@@ -25,6 +25,8 @@ import { issuedKey } from './recovery.js';
 import { renderRecoveryNudge, setRecoveryNudgeUser } from './recovery-nudge.js';
 import { phoneListShowing } from './pane-stack.js';
 import { renderSeason } from './sign-in-season.js';
+import { renamedUser, renameInMessages, renameInPings } from './renames.js';
+import { startUsernameGate, stopUsernameGate } from './username-gate.js';
 
 const registrationChallenge = createRegistrationChallenge();
 const guestChallenge = createRegistrationChallenge('/api/v1/guest/challenge.php');
@@ -257,6 +259,7 @@ async function enterApplication(user) {
   renderGuestBanner();
   renderNewLook(user);
   startRulesGate(user);
+  startUsernameGate(user);
   setRecoveryNudgeUser(user.id);
   renderRecoveryNudge(user, { lockdown: document.getElementById('chat-lockdown')?.classList.contains('hidden') === false });
   elements['new-room-button'].classList.toggle('hidden', !canCreateRooms(user));
@@ -1687,6 +1690,18 @@ function startEventStream() {
     }
   });
 
+  // A name changed (#164): every rendered occurrence follows; your own refreshes the session.
+  source.addEventListener('user_renamed', (event) => {
+    const user = renamedUser(parseEvent(event)?.payload);
+    if (!user) return;
+    if (user.id === state.user?.id) void refreshOwnSession();
+    const changedMessages = renameInMessages(state.messages, user);
+    const changedPings = renameInPings(state.pings, user);
+    if (changedMessages || changedPings) renderMessages();
+    roomTyping?.remove(user.id);
+    if (state.currentRoom) presence.handleChanged(state.currentRoom.id).catch(handleApiFailure);
+  });
+
   source.addEventListener('presence_changed', (event) => {
     const envelope = parseEvent(event);
     const roomId = envelope?.payload?.room_id;
@@ -1916,10 +1931,24 @@ function sessionEndedMessage() {
     ?? (state.user?.guest ? GUEST_ENDED_NOTICE : 'Your session has ended. Please sign in again.');
 }
 
+/** Your own name changed (#164): the session says the new name and whether writing is still paused. */
+async function refreshOwnSession() {
+  try {
+    const session = await apiGet('/api/v1/session.php');
+    if (!session.user || session.user.id !== state.user?.id) return;
+    state.user = session.user;
+    elements['current-user'].textContent = session.user.username;
+    startUsernameGate(session.user);
+  } catch (error) {
+    handleApiFailure(error);
+  }
+}
+
 function forceSignedOut(message) {
   // Already signed out: a late 401 never replaces a weightier line (#205).
   const already = state.user === null && !elements['auth-shell'].classList.contains('hidden');
   stopEventStream();
+  stopUsernameGate();
   presence?.stop();
   state.user = null;
   state.rooms = [];

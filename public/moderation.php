@@ -116,6 +116,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
               <select id="moderation-resolution-code">
                 <option value="content_removed">Reported content removed</option>
                 <option value="profile_picture_removed">Profile picture removed</option>
+                <option value="username_change_required">New username required</option>
                 <option value="user_warned">User warned</option>
                 <option value="account_restricted">Account restricted</option>
                 <option value="other">Other action</option>

@@ -318,6 +318,44 @@ export function confirmAction({ title, text, confirmLabel, announce }) {
   return settle(dialog, form, () => ({ announce: Boolean(announceBox?.checked) }));
 }
 
+export const USERNAME_CHANGE_REASON = 'Your username was reported and found to break the community rules.';
+
+/**
+ * "Require a new username" (#164): the reason, required and shown to the
+ * person, and what happens at once. Resolves to { reason }, or null.
+ *
+ * @param {{ name: string }} person
+ * @returns {Promise<{ reason: string } | null>}
+ */
+export function chooseUsernameChange({ name }) {
+  const id = `username-change-${(dialogCount += 1)}`;
+  const { dialog, form } = dialogShell(id, `Require ${name} to choose a new username?`);
+  const effect = document.createElement('p');
+  effect.textContent = `“${name}” is replaced at once, everywhere it shows, by a neutral name such as member-k7q2xm. They can still read and sign in, also with the old name, but choose a new name before they write again. The old name stays reserved.`;
+  const label = document.createElement('label');
+  label.htmlFor = `${id}-reason`;
+  label.append('Reason ');
+  const hint = document.createElement('span');
+  hint.className = 'optional-label';
+  hint.textContent = `required, shown to ${name} and kept in the audit log`;
+  label.append(hint);
+  const reason = document.createElement('textarea');
+  reason.id = `${id}-reason`;
+  reason.rows = 3;
+  reason.maxLength = 500;
+  reason.required = true;
+  reason.value = USERNAME_CHANGE_REASON;
+  form.append(effect, label, reason, actionRow('Replace the name'));
+  dialog.append(form);
+  document.body.append(dialog);
+  dialog.showModal();
+  reason.focus();
+  reason.select();
+  // Spaces alone aren't a reason (the server trims to 1–500 characters).
+  reason.addEventListener('input', () => reason.setCustomValidity(reason.value.trim() ? '' : 'Say why, in a sentence.'));
+  return settle(dialog, form, () => ({ reason: reason.value.trim() }));
+}
+
 function dialogShell(id, title) {
   const dialog = document.createElement('dialog');
   dialog.className = 'room-dialog moderation-dialog';

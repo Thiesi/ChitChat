@@ -1,7 +1,7 @@
 import { ApiError, apiGet, apiPost, setCsrfToken } from './api.js';
 import { nameButton } from './name-menu.js';
 import { formatDateTime } from './datetime.js';
-import { chooseGuestBlock, chooseRestriction, confirmAction } from './moderation-tools.js';
+import { chooseGuestBlock, chooseRestriction, chooseUsernameChange, confirmAction } from './moderation-tools.js';
 import { refreshPhoto } from './avatar.js';
 import {
   CATEGORY_LABELS,
@@ -229,8 +229,12 @@ function renderDetail() {
   elements['moderation-closed'].classList.toggle('hidden', !closed);
   elements['moderation-resolution-note'].value = '';
   elements['moderation-resolution-code'].value = person ? 'user_warned' : 'content_removed';
-  elements['moderation-resolution-code'].querySelector(`option[value="${PROFILE_PICTURE_REMOVED}"]`).hidden = !person;
-  elements['moderation-resolution-code'].querySelector('option[value="content_removed"]').hidden = person;
+  offerResolution(PROFILE_PICTURE_REMOVED, person);
+  offerResolution('content_removed', !person);
+  // "New username required" (#164) waits for the profile: it's offered here only
+  // when the person already has to choose one (a second case about the same
+  // name); otherwise the case action does both (renderPersonCaseActions).
+  offerResolution('username_change_required', false);
 
   if (closed) {
     const resolver = item.resolved_by?.username ? ` by ${item.resolved_by.username}` : '';
@@ -351,6 +355,7 @@ function renderPersonCaseActions(item, profile) {
   const everywhere = options?.everywhere ?? null;
   const guest = options?.guest ?? null;
   const buttons = [];
+  offerResolution('username_change_required', everywhere?.username_change_required === true);
 
   if (profile?.can_remove_avatar && profile?.has_avatar) {
     buttons.push(caseActionButton('Remove profile picture', async () => {
@@ -364,6 +369,23 @@ function renderPersonCaseActions(item, profile) {
       await apiPost('/api/v1/account/avatar/remove.php', { user_id: item.subject.id });
       refreshPhoto(item.subject.id);
       await closeCaseAs(item, PROFILE_PICTURE_REMOVED, 'Profile picture removed.');
+    }));
+  }
+  // A name that breaks the rules (#164): replaced at once; the server closes this case with it.
+  if (!guest && everywhere?.can_require_username_change) {
+    buttons.push(caseActionButton('Require a new username…', async () => {
+      const choice = await chooseUsernameChange({ name });
+      if (!choice) return false;
+      const response = await apiPost('/api/v1/moderation/require-username-change.php', {
+        user_id: item.subject.id, reason: choice.reason, case_id: item.id,
+      });
+      if (response.case) {
+        state.selectedCase = response.case;
+        replaceSummary(response.case);
+        renderDetail();
+      }
+      toast(`${name}’s name was replaced. They’ll choose a new one before writing again. Case resolved.`);
+      return true;
     }));
   }
   const muteRoom = room?.can_mute && !room.mute ? room : null;
@@ -480,6 +502,20 @@ function renderPersonEvidence(item) {
     image.focus();
   });
   frame.append(image, reveal);
+}
+
+/**
+ * Shows or withdraws one resolution choice. `hidden` alone doesn't hide an
+ * <option> in Safari, so it's disabled too, and a withdrawn choice that was
+ * selected falls back to the first one offered.
+ */
+function offerResolution(value, offered) {
+  const select = elements['moderation-resolution-code'];
+  const option = select.querySelector(`option[value="${value}"]`);
+  if (!option) return;
+  option.hidden = !offered;
+  option.disabled = !offered;
+  if (!offered && select.value === value) select.value = [...select.options].find((candidate) => !candidate.disabled)?.value ?? '';
 }
 
 function caseActionButton(label, action) {
@@ -649,6 +685,7 @@ function formatResolution(value) {
     no_violation: 'no violation',
     content_removed: 'content removed',
     profile_picture_removed: 'profile picture removed',
+    username_change_required: 'new username required',
     user_warned: 'user warned',
     account_restricted: 'account restricted',
     other: 'other action',

@@ -261,6 +261,9 @@
 
 .guest-entry .guest-entry-lead { font-weight: 600; }
 
+/* Choosing a new username (#164): the name shown meanwhile. */
+.choose-username-current { margin: 0; color: var(--text-muted); overflow-wrap: anywhere; }
+
 /* The rules box's reason, inline instead of the browser's bubble (rules.js). */
 .field-error {
   margin: 0.35rem 0 0;
