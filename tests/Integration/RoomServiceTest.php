@@ -150,8 +150,9 @@ final class RoomServiceTest extends DatabaseTestCase
 
         $rooms->join($member, $private->id, '127.0.0.2');
         $rooms->update($admin, $private->id, 'Staff room', '', 'private', 0, 0, '127.0.0.1');
-        // Membership is checked when events are read, so the room's creation now counts too.
-        self::assertSame(5, $this->roomListSignalCount($events, $member), 'Joining and renaming reach the member.');
+        // Room events from before the membership are never replayed (#276), so the private room's
+        // creation stays unseen; the invitation, the join and the rename reach the member.
+        self::assertSame(4, $this->roomListSignalCount($events, $member), 'Joining and renaming reach the member.');
         self::assertSame(1, $this->roomListSignalCount($events, $outsider), 'A private rename stays hidden.');
 
         $rooms->update($admin, $private->id, 'Staff room', '', 'public', 0, 0, '127.0.0.1');
