@@ -10,7 +10,7 @@ body:
 
         Please don't include your account details, passwords or the content of anyone's messages. If you attach a speech log or transcript, remove anything personal that was read out from your chats first, such as names, message text or room names.
 
-        See [ChitChat's accessibility statement](https://github.com/Thiesi/ChitChat/blob/main/docs/accessibility.md) for what we support and how we test.
+        See [ChitChat's accessibility statement](https://github.com/Thiesi/ChitChat/blob/main/docs/accessibility.md) for what we support and how we test, and the optional [assistive-technology checklist](https://github.com/Thiesi/ChitChat/blob/main/docs/operations/accessibility-review.md) if you'd like ideas for what to try.
   - type: input
     id: assistive-technology
     attributes:
