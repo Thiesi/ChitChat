@@ -179,6 +179,8 @@ Lists deleted rooms the account could restore, newest deletion first: every dele
 
 Private rooms require an invitation unless the user has a global moderation role. If the room has a minimum age, the account must have a birth date and meet the requirement. Joining consumes any invitation.
 
+The response is `{"room": …}` with the room's details plus the read fields the room list carries: `unread_count`, `last_read_message_id` (the room's newest message at the join, #268) and `unread_mention_count`. A client can replace its list entry with it without fetching the list again.
+
 ### `POST /api/v1/rooms/leave.php`
 
 ```json
