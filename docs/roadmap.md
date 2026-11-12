@@ -40,9 +40,9 @@ The protected manual workflow validates one exact `main` commit, required checks
 
 ### Accessibility and browser quality
 
-**Status:** automated implementation complete; release-specific manual assistive-technology sign-off remains a human task.
+**Status:** automated implementation complete. Verification is automated by the maintainer's decision (2026-11-09); there is no manual assistive-technology release gate. Reports from assistive-technology users are invited (see the [accessibility statement](accessibility.md)), and [`operations/accessibility-review.md`](operations/accessibility-review.md) is an optional checklist for anyone who wants to test.
 
-The committed gates cover structural and keyboard accessibility across Chromium, Firefox and WebKit, plus Chromium axe-core, reflow, forced-colors, reduced-motion and selected screenshot regression. These checks do not claim a completed manual WCAG audit or real NVDA/VoiceOver sign-off.
+The committed gates run axe-core, keyboard and accessibility-tree checks across Chromium, Firefox and WebKit, plus Chromium-only reflow, forced-colors and reduced-motion gates and selected screenshot regression. These checks do not claim a completed manual WCAG audit or real NVDA/VoiceOver sign-off.
 
 ## Post-v1.2 product work
 

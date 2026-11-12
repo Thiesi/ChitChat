@@ -63,6 +63,7 @@ Every change runs these checks in continuous integration:
 - **No manual testing with screen readers or other assistive technology.** That's the maintainer's decision. Automated checks can't tell whether something is pleasant or efficient to use, only whether certain rules are met.
 - **No conformance audit** against WCAG or any other standard.
 - Operators who need a formal sign-off for their own installation should arrange their own assessment.
+- If you'd like to test yourself, the optional [assistive-technology checklist](operations/accessibility-review.md) suggests journeys for screen readers, keyboard, zoom, contrast themes and reduced motion. It isn't a release requirement; partial runs are welcome.
 
 ## Reporting a problem
 

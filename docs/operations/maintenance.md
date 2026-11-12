@@ -29,12 +29,13 @@ The command:
 3. removes content older than the configured nonzero retention periods;
 4. removes expired room-presence and SSE-connection leases;
 5. removes expired or old realtime events, login attempts, and stale rate-limit rows;
-6. commits database content cleanup;
-7. removes attachment files whose database records were deleted;
-8. removes opaque attachment files that are not referenced in PostgreSQL and are older than the configured orphan grace period;
-9. finalizes due account closures by tombstoning profile credentials and releasing original usernames;
-10. writes the relevant maintenance and account-lifecycle audits;
-11. records success or failure, duration, and the JSON result in `maintenance_runs`.
+6. removes signed-in session records retired (signed out or revoked) more than seven days ago (`retired_login_sessions`) and username reservations whose period has ended (`expired_username_reservations`);
+7. commits database content cleanup;
+8. removes attachment files whose database records were deleted;
+9. removes opaque attachment files that are not referenced in PostgreSQL and are older than the configured orphan grace period;
+10. finalizes due account closures by tombstoning profile credentials and releasing original usernames;
+11. writes the relevant maintenance and account-lifecycle audits;
+12. records success or failure, duration, and the JSON result in `maintenance_runs`.
 
 The result field `account_closures_finalized` is a count. In dry-run mode it reports closures currently due; in destructive mode it reports closures finalized during that invocation.
 
@@ -71,7 +72,7 @@ An account becomes ineligible for restoration as soon as its 14-day deadline pas
 - clears birth date and last-login metadata;
 - removes global roles, invitations, live leases, block preferences, and login-attempt rows tied to the old canonical username;
 - retains shared messages, revisions, attachment evidence, open moderation evidence, room attribution, bans, and audits under their existing retention rules;
-- releases the original username for registration by another account.
+- releases the original username for registration by another account. Exception: if a moderator had required a new username and the account never chose one, the removed name stays reserved for `username_reservation_days` from finalization (see [Required username changes](../api/username-change.md)).
 
 See [`../api/account.md`](../api/account.md) for the complete request, restoration, and retained-data contract.
 
@@ -96,7 +97,7 @@ systemctl list-timers chitchat-maintenance.timer
 
 The timer runs daily at approximately 03:15 with a randomized delay and uses `Persistent=true`, so a missed run is performed after the host returns.
 
-A cron equivalent remains valid:
+On NetBSD with cron and rc.d, use the per-instance [`deploy/netbsd/crontab.example`](../../deploy/netbsd/crontab.example) described in [`netbsd-apache.md`](netbsd-apache.md#scheduled-jobs-cron). A plain cron equivalent elsewhere:
 
 ```cron
 17 3 * * * cd /srv/chitchat && /usr/bin/php bin/maintenance-cleanup >> var/log/maintenance.log 2>&1
@@ -115,6 +116,7 @@ Do not run cleanup from multiple hosts. A database advisory lock prevents concur
 - `orphan_attachment_grace_hours`: protects files created shortly before a failed database transaction from immediate deletion.
 - `realtime_event_retention_hours`: bounds the delivery ledger. Persistent message history is stored separately.
 - `login_attempt_retention_days`: bounds authentication-throttle evidence.
+- `username_reservation_days`: how long a username a moderator removed stays unclaimable after the account chose its new one (0–3650, default 365; `0` releases it as soon as the new name is chosen). It is always held while the change is pending. Expired reservations are removed by cleanup.
 - `deleted_room_grace_days`: how long a deleted room stays restorable. After it, cleanup permanently removes the room with its messages, attachment files, memberships, invitations, and pings (reported as `purged_rooms`, each audited as `room.purged`); moderation cases keep their evidence. `0` keeps deleted rooms until they are restored.
 
 Lowering a retention period can make a large amount of data, including closed moderation evidence, eligible on the next run. Take and verify a backup first.

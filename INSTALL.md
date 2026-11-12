@@ -1,6 +1,6 @@
 # ChitChat installation and operation
 
-This document applies to stable `v2.0.0`, the final release of the clean reconstruction. The supported initial deployment model is one application server backed by PostgreSQL; review the privacy defaults, forward-only migrations, known limitations, backup procedure, authentication configuration, and worker-capacity requirements before serving users.
+This document describes installing and operating the current release; each release's notes in [`docs/releases/`](docs/releases/) list what changed and any upgrade actions. The supported deployment model is one application server backed by PostgreSQL; review the privacy defaults, forward-only migrations, known limitations, backup procedure, authentication configuration, and worker-capacity requirements before serving users.
 
 ## Requirements
 
@@ -8,7 +8,7 @@ This document applies to stable `v2.0.0`, the final release of the clean reconst
 - Composer 2
 - PostgreSQL 15 or newer
 - PHP extensions: `pdo`, `pdo_pgsql`, `json`, `mbstring`, `fileinfo`, `openssl`, and `curl` (needed only if Web Push is enabled)
-- Recommended: `gd` with WebP support, for profile pictures (Debian/Ubuntu: `php8.x-gd`). Without it ChitChat works normally, shows initials instead of pictures, and the Account page explains that uploads are unavailable. ChitChat re-encodes every uploaded picture with GD, so it never serves an uploaded file as-is.
+- Recommended: `gd` with PNG, WebP and FreeType support (Debian/Ubuntu: `php8.x-gd`; check with `php -r 'var_export(gd_info());'`). GD is used for profile pictures, image preview renditions, the installation icon (presets and uploads) and the icon preset that shows the installation name's initial, which needs FreeType. Without GD, ChitChat works normally: it shows initials instead of pictures, offers no previews, keeps the default icon, and the relevant settings explain why. ChitChat re-encodes every uploaded image with GD, so it never serves an uploaded file as-is. A `memory_limit` of at least 256M is recommended for large icon uploads.
 - Node.js 24 or newer only for CI-equivalent JavaScript and browser tests
 
 The deployed browser client has no Node.js runtime dependency and uses no npm packages. Composer installs the Web Push dependencies (`minishlink/web-push`, its HTTP client and PSR-7 implementation) and `league/commonmark` for bounded, sanitized policy Markdown rendering; see [ADR 0006](docs/architecture/0006-web-push.md) and the [policy API](docs/api/policies.md).
@@ -54,7 +54,19 @@ The deployed browser client has no Node.js runtime dependency and uses no npm pa
    ```
 
    Leave all three unset to keep Web Push disabled. See `docs/operations/web-push.md` for the dispatch sweep, scheduling, and notification-category details before enabling the feature.
-7. Install dependencies:
+7. To offer authenticator-app (TOTP) codes as a second factor, give ChitChat an encryption key for the stored secrets. The recommended source is a server key ring: run this in a private terminal and copy its two lines into `.env`:
+
+   ```sh
+   php bin/totp-key generate
+   ```
+
+   ```text
+   TOTP_ENCRYPTION_KEYS=<generated key ring>
+   TOTP_ACTIVE_KEY_ID=<generated key ID>
+   ```
+
+   The output is a secret: don't paste it into tickets, logs or shell history. The alternative is a key generated and stored in the database by a Super-Administrator in Operational settings, which the interface warns about; a server key ring always wins. Without either source, authenticator enrollment simply isn't offered. When you add or change these values on a running installation, reload PHP-FPM so every worker picks them up. Read `docs/operations/totp.md` before choosing, and for rotation and escrow.
+8. Install dependencies:
 
    ```sh
    composer install
@@ -66,26 +78,26 @@ The deployed browser client has no Node.js runtime dependency and uses no npm pa
    composer install --no-dev --classmap-authoritative
    ```
 
-8. Apply the migrations:
+9. Apply the migrations:
 
    ```sh
    composer migrate
    ```
 
-9. Ensure the attachment storage directory is writable by the PHP process. By default ChitChat uses `var/uploads`, which is outside the served `public/` tree:
+10. Ensure the attachment storage directory is writable by the PHP process. By default ChitChat uses `var/uploads`, which is outside the served `public/` tree:
 
    ```sh
    mkdir -p var/uploads
    chmod 700 var/uploads
    ```
 
-10. Start PHP's built-in server with `public/` as the document root for local evaluation:
+11. Start PHP's built-in server with `public/` as the document root for local evaluation:
 
     ```sh
     PHP_CLI_SERVER_WORKERS=8 php -S 127.0.0.1:8080 -t public
     ```
 
-11. Open `http://127.0.0.1:8080/`.
+12. Open `http://127.0.0.1:8080/`.
 
 For local passkey evaluation use `WEBAUTHN_RP_ID=localhost`, `WEBAUTHN_ORIGIN=http://localhost:8080`, and open that exact origin rather than `127.0.0.1`.
 
@@ -93,14 +105,14 @@ The first account created through the browser becomes Super-Administrator. That 
 
 For a production-like single-server deployment, use Nginx and PHP-FPM as described in `docs/operations/nginx-php-fpm.md`; do not use PHP's development server. That Nginx instance must terminate the client's TCP connection directly — see [Do not add another proxy or CDN in front of this Nginx](docs/operations/nginx-php-fpm.md#do-not-add-another-proxy-or-cdn-in-front-of-this-nginx) before placing any CDN, load balancer, or additional reverse proxy in front of it. On NetBSD with rc.d, cron, and Apache 2.4 plus PHP-FPM, follow [`docs/operations/netbsd-apache.md`](docs/operations/netbsd-apache.md) instead; the same rule applies to that Apache instance.
 
-## Upgrade from v1.0.0
+## Upgrading
 
-`v1.1.0` applies forward-only migrations `0010` through `0013`. Later development migrations, including the account lifecycle and passkey schema, remain forward-only as well. Do not run older ChitChat source against a database after applying newer migrations.
+Migrations are forward-only: there is no down-migration path, and older ChitChat source must not run against a database after newer migrations have been applied. Read the release notes in [`docs/releases/`](docs/releases/) for every release you skip; they list required `.env` changes and one-time actions (for example the single sign-out when registered sessions were introduced, described in `docs/operations/session-registry-upgrade.md`).
 
 1. Stop or drain application writes.
-2. Back up PostgreSQL and the complete attachment-storage directory together.
+2. Back up PostgreSQL and the complete attachment-storage directory together (`php bin/chitchat-backup`, then `php bin/chitchat-verify-backup`; see `docs/operations/backup-restore.md`).
 3. Preserve `.env` and the configured attachment-storage path.
-4. Deploy the intended ChitChat source or release.
+4. Deploy the intended ChitChat release.
    If your `.env` sets `APP_VERSION`, remove it (recommended) or update it to the
    deployed version; an old pin would keep health and client discovery reporting
    the previous release.
@@ -112,10 +124,11 @@ For a production-like single-server deployment, use Nginx and PHP-FPM as describ
    composer maintenance:dry-run
    ```
 
-6. Review new optional feature and security settings before enabling them, especially WebAuthn identity, administrative-MFA enforcement, revision review, and Prometheus access.
-7. Verify `/health.php`, `/ready.php`, password login, MFA login when enabled, retained room and direct-message history, attachment downloads, SSE through the production reverse proxy, account export/restoration, and the Administrator system-status page.
+6. Restart long-running processes such as the Web Push listener, and reload PHP-FPM.
+7. Review new optional features and settings named in the release notes before enabling them.
+8. Verify `/health.php`, `/ready.php`, the `application.version` reported by `/api/v1/session.php`, sign-in (with MFA when enabled), retained room and direct-message history, attachment downloads, SSE through the production reverse proxy, and the Administrator system-status page.
 
-Rollback requires restoring a matching pre-upgrade PostgreSQL and attachment backup. There is no down-migration path.
+Rollback requires restoring a matching pre-upgrade PostgreSQL and attachment backup.
 
 ## Authentication bootstrap
 
@@ -194,41 +207,23 @@ Confirming a sensitive action through a provider is as strong as the provider's 
 
 ## Endpoints
 
-- `/` serves the browser chat client.
-- `/messages.php` serves the direct-message inbox and its fixed privacy notice.
-- `/account.php` serves account security, personal-data export, and account closure controls.
-- `/restore-account.php` serves closure restoration and its MFA completion flow.
-- `/search.php` serves authorization-aware full-text search over room and direct-message history.
-- `/moderation.php` serves the authorization-scoped moderation queue for eligible room and global moderators.
-- `/notifications.php` serves the signed-in participant's privacy-notification center and Web Push subscription/preference controls.
-- `/admin.php` serves the permission-aware administration console.
-- `/admin-messages.php` serves audited direct-message inspection for eligible administrators.
-- `/admin-message-revisions.php` serves exact-ID, reason-required revision review when separately enabled.
-- `/admin-settings.php` serves Super-Administrator operational and administrative-MFA settings.
-- `/admin-status.php` serves aggregate system status for Administrators and Super-Administrators.
+Browser pages:
+
+- `/` serves the chat client (rooms) and the sign-in, registration and guest entry screens.
+- `/messages.php` serves direct messages, `/notifications.php` the Activity feed, `/search.php` message search, and `/account.php` the You page (account, security, notifications and push, appearance, export and closure).
+- `/moderation.php` serves the moderation queue for eligible moderators.
+- `/admin.php`, `/admin-settings.php`, `/admin-status.php`, `/admin-messages.php` and `/admin-message-revisions.php` serve administration, operational settings, system status, direct-message inspection and revision review for the roles that may use them.
+- `/restore-account.php`, `/choose-username.php`, `/step-up-complete.php` and `/native-auth.php` serve account restoration, choosing a new username after a moderator requires one, finishing a privileged re-confirmation through Google or Twitch, and the native-app sign-in hand-off.
+- `/rules.php` and `/privacy.php` serve the installation's community rules and privacy policy when configured.
+- `/installation-icon.php` (and `/favicon.ico` through the front controller) serve the installation icon, and `/manifest.php` the web app manifest; `/.well-known/assetlinks.json` serves Android credential association when native apps are configured.
+
+Operational endpoints:
+
 - `/health.php` reports whether the PHP process is alive.
 - `/ready.php` verifies that the application can connect to PostgreSQL and use attachment storage.
 - `/metrics.php` serves optional bearer-protected Prometheus metrics when explicitly enabled.
-- `/api/v1/step-up.php` verifies the current password for non-MFA accounts and creates short-lived privileged elevation.
-- `/api/v1/mfa/` contains passkey and recovery-code login and privileged-step-up endpoints.
-- `/api/v1/account/mfa/` contains status, enrollment, passkey management, recovery-code rotation, and MFA disablement endpoints.
-- `/api/v1/account/export.php` creates a step-up-protected retained-data JSON export for the signed-in account.
-- `/api/v1/account/notifications/` contains privacy-notification list and mark-read endpoints.
-- `/api/v1/events/stream.php` provides the authenticated SSE stream.
-- `/api/v1/presence/heartbeat.php` renews a browser tab's presence lease.
-- `/api/v1/rooms/presence.php` lists active users in an authorized room.
-- `/api/v1/attachments/` contains upload, protected download, and bounded metadata endpoints.
-- `/api/v1/direct-messages/` contains user search, conversation, history, blocking, mutation, attachment, send, and read-acknowledgement endpoints.
-- `/api/v1/search/messages.php` provides authorization-aware full-text search over room and direct-message history.
-- `/api/v1/reports/message.php` submits a participant report for one specific visible, undeleted room or direct message.
-- `/api/v1/moderation/` contains moderation-queue case listing, claim, and resolution endpoints for eligible moderators.
-- `/api/v1/push/` contains Web Push subscribe, unsubscribe, preference, and device-management endpoints; inert unless VAPID keys are configured (see [`docs/operations/web-push.md`](docs/operations/web-push.md)).
-- `/api/v1/admin/direct-messages/` contains inspection user search and audited inspection endpoints.
-- `/api/v1/admin/message-revisions/` contains the audited exact-message revision-review endpoint.
-- `/api/v1/admin/rooms/` contains room-scoped administrative membership, invitation, and search endpoints.
-- `/api/v1/admin/settings/` contains Super-Administrator settings read and update endpoints.
-- `/api/v1/admin/system-status.php` contains the Administrator status snapshot used by the browser page.
-- API contracts are documented in `docs/api/`.
+
+The JSON API lives under `/api/v1/`. Its contracts, including authentication, CSRF and step-up requirements, are documented per feature in [`docs/api/README.md`](docs/api/README.md).
 
 ## Server-Sent Events
 
@@ -252,21 +247,11 @@ Presence is distinct from room membership. Lease expiry, an unclean disconnect, 
 
 User, audit, and system-status controls are visible only to Super-Administrators and Administrators. Room controls are visible to Super-Administrators, Administrators, Chat Admins, and owners of the selected room. Only Super-Administrators may change registration, administrative-MFA, or retention policy.
 
-The following operations additionally require active privileged step-up:
-
-- global role replacement;
-- administrator password reset;
-- passkey enrollment and credential management;
-- recovery-code replacement and MFA disablement;
-- direct-message inspection POSTs;
-- message-revision review POSTs;
-- registration, administrative-MFA and retention-policy updates;
-- personal-data export generation;
-- account closure.
+Sensitive actions additionally require active privileged step-up (a recent re-confirmation of the password, passkey or authenticator code), among them: every Super-Administrator setting (operational settings, application name, installation icon, sign-in decoration, lockdown, registration protection, authenticator key settings and policies), global role changes, administrator password resets, direct-message inspection and revision review, room deletion and restoration, and, for one's own account, password changes, MFA and recovery-key management, connecting or disconnecting a sign-in provider, signing out other sessions, personal-data export and account closure. The API documentation in [`docs/api/`](docs/api/) describes the individual routes.
 
 Coarse role and feature-policy checks occur before step-up, so an unauthorized account is denied without receiving an authentication prompt. Successful verification and the later protected action create separate audit records.
 
-Administrative-MFA enforcement covers `super_admin`, `admin`, `chat_admin`, and `global_moderator`. It cannot be enabled until every current holder has passkey MFA and an unused recovery code. Once enabled, later protected-role grants require passkey MFA and are enforced both by the application transaction and PostgreSQL.
+Administrative-MFA enforcement covers `super_admin`, `admin`, `chat_admin`, and `global_moderator`. It cannot be enabled until every current holder has a second factor (a passkey or an authenticator app) and an unused recovery code. Once enabled, later protected-role grants require a second factor and are enforced both by the application transaction and PostgreSQL.
 
 Room-message, direct-message, and audit retention default to `0`, meaning permanent retention. Nonzero policies become effective only when maintenance runs:
 
@@ -275,9 +260,9 @@ composer maintenance:dry-run
 composer maintenance
 ```
 
-The command also removes expired presence and SSE leases, old realtime events and throttle ledgers, deleted attachment files, and opaque orphan files older than their grace period. Every invocation is recorded with mode, status, duration, and result or failure information. A destructive run with attachment-file failures is recorded as a warning and does not count as a fresh clean success.
+The command also removes expired presence and SSE leases, old realtime events and throttle ledgers, signed-in session records retired more than seven days ago, expired username reservations, deleted attachment files, and opaque orphan files older than their grace period. `docs/operations/maintenance.md` lists every step and result field. Every invocation is recorded with mode, status, duration, and result or failure information. A destructive run with attachment-file failures is recorded as a warning and does not count as a fresh clean success.
 
-`MAINTENANCE_MAX_AGE_HOURS` defaults to 26 and controls the overdue state on `/admin-status.php` and in Prometheus metrics. Schedule maintenance as the same operating-system account that owns attachment storage. Ready-to-adapt `systemd` service and timer files are provided under `deploy/systemd/`. See `docs/operations/maintenance.md`.
+`MAINTENANCE_MAX_AGE_HOURS` defaults to 26 and controls the overdue state on `/admin-status.php` and in Prometheus metrics. Schedule maintenance as the same operating-system account that owns attachment storage. Ready-to-adapt files are provided for systemd (`deploy/systemd/`) and for cron with rc.d on NetBSD (`deploy/netbsd/crontab.example`, described in `docs/operations/netbsd-apache.md`). See `docs/operations/maintenance.md`.
 
 Message revisions reference their canonical room or direct message with `ON DELETE CASCADE`. Soft deletion retains revisions; hard deletion by configured message retention removes the canonical message and revision chain together.
 
