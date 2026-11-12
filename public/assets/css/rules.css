@@ -43,6 +43,14 @@
 .rules-gated .composer-help { display: none !important; }
 .conversation-main:has(#dm-composer.hidden) .rules-notice { display: none; }
 
+/* A required new username (#164, username-gate.js): the same pause, its own
+   notice. The rules come first: their notice shows alone until agreed. */
+.username-gated #composer-form,
+.username-gated #dm-composer,
+.username-gated .composer-help { display: none !important; }
+.rules-gated [data-username-gate] { display: none !important; }
+.username-notice .username-reason { color: var(--text-muted); overflow-wrap: anywhere; }
+
 /* ---- The dialog ---- */
 .rules-dialog { width: min(40rem, calc(100vw - 2rem)); }
 .rules-dialog > .form-stack { padding: 1.5rem; }

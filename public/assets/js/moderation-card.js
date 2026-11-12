@@ -3,7 +3,7 @@
 // server worked out the options (users/profile.php) and checks every action.
 import { apiPost } from './api.js';
 import { formatDateTime } from './datetime.js';
-import { chooseGuestBlock, chooseRestriction, confirmAction } from './moderation-tools.js';
+import { chooseGuestBlock, chooseRestriction, chooseUsernameChange, confirmAction } from './moderation-tools.js';
 
 /**
  * @param {{ id: number, username: string, moderation: null | { room: null | object, everywhere: null | object, guest?: null | object } }} profile
@@ -133,6 +133,17 @@ export function moderationSection(profile, { refresh, report }) {
             announce: choice.announce,
           }), `${name} is banned.`);
         }));
+    }
+    // A name that breaks the rules (#164): replaced at once, the person chooses a new one.
+    if (everywhere.username_change_required) group.append(status('Has to choose a new username'));
+    if (everywhere.can_require_username_change) {
+      group.append(item('Require a new username…', true, async (button) => {
+        const choice = await chooseUsernameChange({ name });
+        if (!choice) return;
+        await run(button, () => apiPost('/api/v1/moderation/require-username-change.php', {
+          user_id: profile.id, reason: choice.reason, case_id: null,
+        }), `${name}’s name was replaced. They’ll choose a new one before writing again.`);
+      }));
     }
     if (everywhere.can_open_administration) {
       const link = document.createElement('a');

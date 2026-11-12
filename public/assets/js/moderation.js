@@ -1,7 +1,7 @@
 import { ApiError, apiGet, apiPost, setCsrfToken } from './api.js';
 import { nameButton } from './name-menu.js';
 import { formatDateTime } from './datetime.js';
-import { chooseGuestBlock, chooseRestriction, confirmAction } from './moderation-tools.js';
+import { chooseGuestBlock, chooseRestriction, chooseUsernameChange, confirmAction } from './moderation-tools.js';
 import { refreshPhoto } from './avatar.js';
 import {
   CATEGORY_LABELS,
@@ -231,6 +231,8 @@ function renderDetail() {
   elements['moderation-resolution-code'].value = person ? 'user_warned' : 'content_removed';
   elements['moderation-resolution-code'].querySelector(`option[value="${PROFILE_PICTURE_REMOVED}"]`).hidden = !person;
   elements['moderation-resolution-code'].querySelector('option[value="content_removed"]').hidden = person;
+  // A required new username (#164) closes person cases only.
+  elements['moderation-resolution-code'].querySelector('option[value="username_change_required"]').hidden = !person;
 
   if (closed) {
     const resolver = item.resolved_by?.username ? ` by ${item.resolved_by.username}` : '';
@@ -364,6 +366,23 @@ function renderPersonCaseActions(item, profile) {
       await apiPost('/api/v1/account/avatar/remove.php', { user_id: item.subject.id });
       refreshPhoto(item.subject.id);
       await closeCaseAs(item, PROFILE_PICTURE_REMOVED, 'Profile picture removed.');
+    }));
+  }
+  // A name that breaks the rules (#164): replaced at once; the server closes this case with it.
+  if (!guest && everywhere?.can_require_username_change) {
+    buttons.push(caseActionButton('Require a new username…', async () => {
+      const choice = await chooseUsernameChange({ name });
+      if (!choice) return false;
+      const response = await apiPost('/api/v1/moderation/require-username-change.php', {
+        user_id: item.subject.id, reason: choice.reason, case_id: item.id,
+      });
+      if (response.case) {
+        state.selectedCase = response.case;
+        replaceSummary(response.case);
+        renderDetail();
+      }
+      toast(`${name}’s name was replaced. They’ll choose a new one before writing again. Case resolved.`);
+      return true;
     }));
   }
   const muteRoom = room?.can_mute && !room.mute ? room : null;
@@ -649,6 +668,7 @@ function formatResolution(value) {
     no_violation: 'no violation',
     content_removed: 'content removed',
     profile_picture_removed: 'profile picture removed',
+    username_change_required: 'new username required',
     user_warned: 'user warned',
     account_restricted: 'account restricted',
     other: 'other action',

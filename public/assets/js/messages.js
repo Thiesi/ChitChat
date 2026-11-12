@@ -16,6 +16,8 @@ import { REVOKED_NOTICE, rememberSignedOutNotice } from './signed-out-notice.js'
 import { initials } from './avatar.js';
 import { identityHueIndex } from './identity-hue.js';
 import { phoneListShowing } from './pane-stack.js';
+import { renamedUser, renameInMessages } from './renames.js';
+import { startUsernameGate } from './username-gate.js';
 
 let transcriptKeys = null;
 const state = {
@@ -101,6 +103,7 @@ async function bootstrap() {
   elements['messages-identity'].textContent = `Signed in as ${state.user.username}`;
   renderPrivacyNotice();
   startRulesGate(state.user);
+  startUsernameGate(state.user);
   elements['messages-loading'].classList.add('hidden');
   elements['messages-shell'].classList.remove('hidden');
   startEventStream();
@@ -742,6 +745,26 @@ function startEventStream() {
     const payload = parseEvent(event)?.payload;
     // Direct conversations only; room typing belongs to the chat page.
     if (payload?.room_id === null && payload.user?.id === state.selectedUser?.id) peerTyping?.add(payload.user);
+  });
+  // A name changed (#164): the open conversation and the inbox follow; your own refreshes the session.
+  source.addEventListener('user_renamed', (event) => {
+    const user = renamedUser(parseEvent(event)?.payload);
+    if (!user) return;
+    if (user.id === state.user?.id) {
+      apiGet('/api/v1/session.php').then((session) => {
+        if (session.user?.id !== state.user?.id) return;
+        state.user = session.user;
+        startUsernameGate(session.user);
+      }).catch(handleApiFailure);
+    }
+    if (state.selectedUser?.id === user.id) {
+      state.selectedUser = { ...state.selectedUser, username: user.username };
+      elements['dm-peer-name'].textContent = user.username;
+      document.getElementById('dm-peer-pebble')?.replaceWith(Object.assign(pebble(state.selectedUser), { id: 'dm-peer-pebble' }));
+    }
+    if (renameInMessages(state.messages, user)) renderMessages();
+    peerTyping?.remove(user.id);
+    refreshConversationsOnly().catch(handleApiFailure);
   });
   source.addEventListener('forced_logout', (event) => {
     // Signed out from another device (#205): the sign-in screen says so.

@@ -137,6 +137,10 @@ async function request(path, options) {
     if (response.status === 403 && error.code === 'rules_acceptance_required') {
       window.dispatchEvent(new CustomEvent('chitchat:rules-required'));
     }
+    // A write paused until a new username is chosen (#164, username-gate.js).
+    if (response.status === 403 && error.code === 'username_change_required') {
+      window.dispatchEvent(new CustomEvent('chitchat:username-change-required'));
+    }
     const headerRetry = Number.parseInt(response.headers.get('retry-after') ?? '', 10);
     throw new ApiError(
       response.status,
