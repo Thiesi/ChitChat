@@ -25,6 +25,11 @@ try {
             $actor ?? throw new RuntimeException('Missing actor.'), (int) $input['case_id'], 'resolved', 'user_warned', null, '127.0.0.53')['status']],
         'send' => (new ChitChat\Room\MessageService($pdo))->send(
             $actor ?? throw new RuntimeException('Missing actor.'), (int) $input['room_id'], (string) $input['body']),
+        'remove_avatar' => (static function () use ($pdo, $config, $actor, $input): array {
+            (new ChitChat\Account\AvatarService($pdo, $config))->remove(
+                $actor ?? throw new RuntimeException('Missing actor.'), (int) $input['user_id'], '127.0.0.54');
+            return ['removed' => true];
+        })(),
         default => throw new RuntimeException('Unknown action.'),
     };
     fwrite(STDOUT, json_encode(['status' => 200, 'result' => $result], JSON_THROW_ON_ERROR));

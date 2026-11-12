@@ -145,7 +145,7 @@ SQL);
         $this->pdo->beginTransaction();
         try {
             // This transaction updates the actor's own row: lock it at that level from the start.
-            (new PolicyService($this->pdo))->assertMayWrite($actor, accountForUpdate: true);
+            (new PolicyService($this->pdo))->assertMayWrite($actor, accountForNoKeyUpdate: true);
             $previous = $this->lockAvatarKey($actor->id);
             $statement = $this->pdo->prepare(
                 'UPDATE users SET avatar_key = :key, avatar_updated_at = NOW(), updated_at = NOW() WHERE id = :id',
@@ -398,7 +398,9 @@ SQL);
 
     private function lockAvatarKey(int $userId): ?string
     {
-        $statement = $this->pdo->prepare('SELECT avatar_key FROM users WHERE id = :id FOR UPDATE');
+        // avatar_key is not a key: NO KEY UPDATE serializes avatar writes with each other and
+        // with renames, but never blocks another staff action's FK KEY SHARE on this row (#248).
+        $statement = $this->pdo->prepare('SELECT avatar_key FROM users WHERE id = :id FOR NO KEY UPDATE');
         if ($statement === false) {
             throw new RuntimeException('Unable to prepare avatar lock.');
         }

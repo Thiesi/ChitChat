@@ -173,6 +173,38 @@ final class UsernameChangeConcurrencyTest extends DatabaseTestCase
         self::assertSame(2, (int) $this->pdo->query('SELECT COUNT(*) FROM users WHERE username_change_required_at IS NOT NULL')?->fetchColumn());
     }
 
+    public function testAModeratorRemovingAnAvatarAndARenameActingOnEachOtherDoNotDeadlock(): void
+    {
+        // #248: the avatar path used to lock its target FOR UPDATE and then take the actor's FK KEY SHARE,
+        // while "require a new username" holds its target FOR UPDATE and needs the actor's KEY SHARE.
+        $auth = new AuthService($this->pdo, $this->config);
+        $auth->register('Root', self::PASSWORD, '127.0.0.1');
+        $moderator = $auth->register('Moderator', self::PASSWORD, '127.0.0.2');
+        $this->pdo->exec("INSERT INTO user_roles (user_id, role) VALUES ({$moderator->id}, 'global_moderator')");
+        $superAdmin = $auth->register('SecondRoot', self::PASSWORD, '127.0.0.3');
+        $this->pdo->exec("INSERT INTO user_roles (user_id, role) VALUES ({$superAdmin->id}, 'super_admin')");
+        $this->pdo->exec("UPDATE users SET avatar_key = '" . str_repeat('ab', 32) . "', avatar_updated_at = NOW() WHERE id = {$superAdmin->id}");
+        self::assertLessThan($superAdmin->id, $moderator->id);
+        $this->pdo->beginTransaction();
+        $processes = [];
+        try {
+            // Hold both first locks so the workers start together: the avatar's lock on its target, the rename's on its target.
+            $this->pdo->prepare('SELECT id FROM users WHERE id = :id FOR NO KEY UPDATE')->execute(['id' => $superAdmin->id]);
+            $this->pdo->prepare('SELECT id FROM users WHERE id = :id FOR KEY SHARE')->execute(['id' => $moderator->id]);
+            $processes[] = $this->worker(['action' => 'remove_avatar', 'actor_id' => $moderator->id, 'user_id' => $superAdmin->id, 'application_name' => 'cc-avatar-0']);
+            $processes[] = $this->worker(['action' => 'require', 'actor_id' => $superAdmin->id, 'user_id' => $moderator->id, 'application_name' => 'cc-avatar-1']);
+            $this->waitForLockWaiters('cc-avatar-%', 2);
+            $this->pdo->commit();
+            [$removal, $rename] = $this->outcomes($processes);
+        } finally {
+            $this->cleanUp($processes);
+        }
+        self::assertSame(['status' => 200, 'result' => ['removed' => true]], $removal);
+        self::assertSame(200, $rename['status']);
+        self::assertNull($this->pdo->query("SELECT avatar_key FROM users WHERE id = {$superAdmin->id}")?->fetchColumn());
+        self::assertSame($rename['result']['username'], (string) $this->pdo->query("SELECT username FROM users WHERE id = {$moderator->id}")?->fetchColumn());
+    }
+
     public function testRegistrationOfTheRemovedNameRacingTheActionIsRefused(): void
     {
         [, $moderator, $member] = $this->people();
