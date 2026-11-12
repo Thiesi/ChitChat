@@ -1,0 +1,69 @@
+name: Accessibility problem
+description: Something in ChitChat is hard or impossible to use with a screen reader, keyboard, magnifier, voice control or other assistive technology.
+title: "Accessibility: "
+labels: ["bug", "accessibility"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for telling us. We test ChitChat with automated checks only, so reports from people who use assistive technology every day are the most useful input we get.
+
+        Please don't include your account details, passwords or the content of anyone's messages. If you attach a speech log or transcript, remove anything personal that was read out from your chats first, such as names, message text or room names.
+
+        See [ChitChat's accessibility statement](https://github.com/Thiesi/ChitChat/blob/main/docs/accessibility.md) for what we support and how we test.
+  - type: input
+    id: assistive-technology
+    attributes:
+      label: Assistive technology and version
+      description: For example "NVDA 2026.3", "VoiceOver on iOS 26", "JAWS 2026", "TalkBack 16", "Windows Magnifier", or "keyboard only".
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and version
+      description: For example "Firefox 159" or "Safari on iPhone".
+    validations:
+      required: true
+  - type: input
+    id: system
+    attributes:
+      label: Operating system
+      description: For example "Windows 11", "macOS 26" or "Android 16".
+    validations:
+      required: true
+  - type: textarea
+    id: task
+    attributes:
+      label: What were you trying to do?
+      description: In your own words, for example "reply to a message in a room" or "find the button to leave a room".
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect to hear or happen?
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happened instead?
+      description: What you heard, where focus went, or what you couldn't reach.
+    validations:
+      required: true
+  - type: textarea
+    id: speech-log
+    attributes:
+      label: Speech log or transcript (optional)
+      description: If your screen reader can save what it said, paste it here. Please remove anything personal from your chats first.
+      render: text
+    validations:
+      required: false
+  - type: textarea
+    id: anything-else
+    attributes:
+      label: Anything else (optional)
+      description: Settings that might matter, such as zoom level, colour scheme, high-contrast or forced colours, or reduced motion.
+    validations:
+      required: false

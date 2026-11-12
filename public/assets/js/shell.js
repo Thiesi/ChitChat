@@ -20,7 +20,7 @@ const nav = document.getElementById('app-nav');
 if (frame && nav) {
   window.addEventListener('chitchat:activity-count', (event) => renderActivity(event.detail?.count));
   // Direct messages (S2c): the Direct page reports exact counts; elsewhere a new DM refreshes them.
-  window.addEventListener('chitchat:direct-count', (event) => renderBadge('direct', 'Direct', event.detail?.count));
+  window.addEventListener('chitchat:direct-count', (event) => renderBadge('direct', event.detail?.count));
   window.addEventListener('chitchat:realtime', (event) => {
     if (event.detail?.type === 'direct_message' && !directIsPage()) scheduleDirect();
   });
@@ -68,7 +68,7 @@ async function refreshActivity() {
 }
 
 function renderActivity(count) {
-  renderBadge('activity', 'Activity', count);
+  renderBadge('activity', count);
 }
 
 let directTimer = 0;
@@ -87,22 +87,23 @@ async function refreshDirect() {
   try {
     const payload = await apiGet('/api/v1/direct-messages/conversations.php');
     const conversations = Array.isArray(payload?.conversations) ? payload.conversations : [];
-    renderBadge('direct', 'Direct', conversations.reduce((sum, item) => sum + (Number.isInteger(item?.unread_count) ? item.unread_count : 0), 0));
+    renderBadge('direct', conversations.reduce((sum, item) => sum + (Number.isInteger(item?.unread_count) ? item.unread_count : 0), 0));
   } catch {
     // Without a count the tab simply shows no badge.
   }
 }
 
 /** A tab's unread badge, read as part of its name ("Direct, 3 unread"). */
-function renderBadge(key, label, count) {
+function renderBadge(key, count) {
   const unread = Number.isInteger(count) && count > 0 ? count : 0;
   const link = nav.querySelector(`.app-nav-item[data-tab="${key}"]`);
   const badge = link?.querySelector(`[data-badge="${key}"]`);
+  const spoken = link?.querySelector(`[data-badge-label="${key}"]`);
   if (!link || !badge) return;
   badge.textContent = unread > 99 ? '99+' : String(unread);
   badge.hidden = unread === 0;
-  if (unread === 0) link.removeAttribute('aria-label');
-  else link.setAttribute('aria-label', `${label}, ${unread} unread`);
+  // Read after the visible label: "Activity, 3 unread" (no aria-label, so the name keeps the visible text).
+  if (spoken) spoken.textContent = unread === 0 ? '' : `, ${unread} unread`;
 }
 
 /**

@@ -195,6 +195,8 @@
   letter-spacing: var(--display-tracking);
 }
 .dm-shell .conversation-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+/* "More actions" is for phones only; wider screens show the actions in the row. */
+.dm-more-toggle { display: none; }
 .pebble[hidden] { display: none; }
 
 /* The privacy notice: one line, the detail behind "Learn more". */
@@ -282,6 +284,26 @@
   .dm-shell .conversation-header { gap: 0.35rem; padding: 0.5rem 0.5rem 0.5rem 0.4rem; }
   .dm-shell .conversation-header h2 { overflow: hidden; font-size: 1.25rem; text-overflow: ellipsis; white-space: nowrap; }
   .dm-shell #dm-peer-status { font-size: 0.82rem; }
+  /* One row: Report and Block open from "More actions" as a small menu under it. */
+  .dm-shell .conversation-header { position: relative; }
+  .dm-shell .dm-more-toggle:not([hidden]) { display: grid; flex: none; }
+  .dm-shell .conversation-actions {
+    position: absolute;
+    z-index: 5;
+    inset-block-start: calc(100% - 0.25rem);
+    inset-inline-end: 0.5rem;
+    display: none;
+    flex-direction: column;
+    align-items: stretch;
+    min-width: 11rem;
+    padding: 0.4rem;
+    border: 1px solid var(--line);
+    border-radius: 0.9rem;
+    background: var(--surface);
+    box-shadow: var(--shadow);
+  }
+  .dm-shell .conversation-actions.open { display: flex; }
+  .dm-shell .conversation-actions .secondary-button { justify-content: flex-start; text-align: start; }
   .privacy-line { padding-inline: 0.85rem; }
 
   /* The list is the first screen; a chosen conversation covers it. */
