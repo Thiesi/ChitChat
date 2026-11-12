@@ -23,7 +23,7 @@ Never perform account closure, password reset, role changes or destructive moder
 
 Use any screen reader and browser you actually use. The [accessibility statement](../accessibility.md) describes what you should hear and which keys apply.
 
-1. On the signed-out page, check that the page title, heading, Sign in and Register tabs, fields, the password show/hide toggle and the submit button are announced meaningfully. Submit an invalid sign-in and check that the error is announced once, without focus jumping.
+1. On the signed-out page, check that the page title, heading, Sign in and Register tabs, fields, the password show/hide toggle and the submit button are announced meaningfully. Submit an invalid sign-in and check that the error is announced once, without focus jumping. On Register, leave the community-rules box unticked and submit: the reason should be announced once and tied to the box, next to it rather than in a browser popup.
 2. Sign in. Navigate by landmarks and headings: the navigation (Rooms, Direct, Activity, You), the room or conversation list, the conversation heading, the message list and the message box should all have understandable names. Try the skip link.
 3. Open a room. Tab to the conversation and move between messages with the arrow keys, Home and End. Each message should be read as one sentence (author, text, date and time, and any reply, file, edit or reactions) without re-reading the whole history.
 4. Open a message's actions with Enter or Shift+F10. Reply, react and copy from the keyboard. Escape should return to the message, then to the message box.
