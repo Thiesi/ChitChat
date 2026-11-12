@@ -6,6 +6,8 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ## [Unreleased]
 
+- Never skip an event that commits after a later one (#286). Event ids are assigned when an event is written but become visible at commit, so a lower id could commit after a higher one had been streamed and was then missed until a reload. A stream opened with `GET /api/v1/events/stream.php?resume=settled` sends each event once and uses a settled resume position as its SSE `id:`, which every visible event at or below it has already been sent. A reconnect may resend events above that position; clients drop them by `data.id`. Correctness never depends on bare `id:` lines. `GET /api/v1/rooms/list.php` and the join response add `unread_settled_message_id` and `unread_counted_ids` (at most 100), so live unread counting neither counts a message twice nor skips a late one. Advertised as `capabilities.realtime_settled_resume`. Without the parameter, the stream and `unread_through_message_id` behave exactly as before. Operators should bound idle transactions with `idle_in_transaction_session_timeout` (see `INSTALL.md`). Additive to API v1; no migration.
+
 ## [3.9.0] - 2026-11-12
 
 A privacy fix for the event stream, room ownership transfer, and the next stages of the Lantern redesign (the Rooms, Direct, Activity and search lists, and You in sections), plus fixes for unread counts and slow reconnects. Additive to API v1, with three forward-only database migrations (`0056` to `0058`) and no configuration changes. Nobody is signed out. Run the read-only owner check before upgrading, and stop application traffic for the migration. See the [`v3.9.0` release notes](docs/releases/v3.9.0.md).

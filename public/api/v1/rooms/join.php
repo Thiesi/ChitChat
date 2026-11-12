@@ -34,5 +34,7 @@ Endpoint::run($config, static function () use ($config): ApiResult {
         'last_read_message_id' => $reads['last_read_message_id'] ?? null,
         'unread_mention_count' => $reads['unread_mention_count'] ?? 0,
         'unread_through_message_id' => $reads['unread_through_message_id'] ?? null,
+        'unread_settled_message_id' => $reads['unread_settled_message_id'] ?? null,
+        'unread_counted_ids' => $reads['unread_counted_ids'] ?? [],
     ]]);
 });

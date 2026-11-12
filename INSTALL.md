@@ -233,6 +233,8 @@ Response buffering must be disabled for `/api/v1/events/stream.php`. The applica
 
 Capacity planning must account for one PHP worker per currently open SSE request. The short reconnect window bounds worker lifetime but does not remove that concurrency requirement.
 
+A stream opened with `resume=settled` (the web client's mode, #286) lets its resume position wait for any open transaction writing `realtime_events`, so a late-committing event is never skipped. A database session left idle inside such a transaction holds those positions back. Nothing is lost, but reconnects resend more, and after 30 seconds the stream logs `ChitChat realtime: a transaction writing realtime_events has been open for …`. Bound this in PostgreSQL, for example `ALTER ROLE chitchat SET idle_in_transaction_session_timeout = '60s';`. ChitChat's own writing transactions are short and never wait on a client.
+
 Each stream also maintains a leased row in `sse_connections`. `SSE_CONNECTION_LEASE_SECONDS` defaults to 40 and accepts 20-300 seconds. The stream refreshes the lease every ten seconds, deletes it on a clean close, and lets it expire after an unclean client, worker, or network failure. Maintenance removes expired rows.
 
 CI verifies SSE delivery through real Nginx and PHP-FPM by opening an authenticated stream and requiring a room event to arrive before the stream closes. The tested reference configuration is documented in `docs/operations/nginx-php-fpm.md`.

@@ -20,6 +20,15 @@ For rooms the account has joined, each entry also carries `unread_count` (messag
 
 Joined rooms also carry `unread_through_message_id`: the room's newest message when the counts were taken (`null` for other rooms). A client that adds live `room_message` events to `unread_count` must skip any message with an ID at or below it, because the snapshot already counted it (#279). Otherwise a list fetched while messages arrive counts them twice.
 
+A message with a lower ID can still commit after the snapshot, though, and that rule then skips it (#286). Clients that see `capabilities.realtime_settled_resume` should use these two fields instead, which every joined room also carries (`null` and `[]` for other rooms):
+
+- `unread_settled_message_id`: every message with an ID at or below it had committed when the counts were taken.
+- `unread_counted_ids`: the IDs above it that `unread_count` includes, in ID order. There are at most 100 (the cap), and usually none.
+
+**Count a live message unless its ID is at or below `last_read_message_id` or `unread_settled_message_id`, or is in `unread_counted_ids`.** That counts each message once, whatever order the messages commit in. Use it together with the stream's `resume=settled` mode and its de-duplication by event ID (see [`realtime.md`](realtime.md)).
+
+`unread_settled_message_id` is `0` when an older message insert was still open as the counts were taken; the list then holds every counted ID. At the cap, `unread_count` is 100 and the list holds the 100 lowest counted IDs. Live counting stops at 100 too, so the badge stays at "99+" whichever messages arrive. `unread_through_message_id` is unchanged, for clients that rely on it.
+
 Joined rooms also carry `unread_mention_count` (#266): room mentions of the account, explicit or through `@room`/`@here`, that are still unseen. A mention counts while all of these hold:
 - its `mentioned` notification is unread;
 - its message is after the read position;
@@ -181,7 +190,7 @@ Lists deleted rooms the account could restore, newest deletion first: every dele
 
 Private rooms require an invitation unless the user has a global moderation role. If the room has a minimum age, the account must have a birth date and meet the requirement. Joining consumes any invitation.
 
-The response is `{"room": …}` with the room's details plus the read fields the room list carries: `unread_count`, `last_read_message_id` (the room's newest message at the join, #268), `unread_mention_count` and `unread_through_message_id`. A client can replace its list entry with it without fetching the list again.
+The response is `{"room": …}` with the room's details plus the read fields the room list carries: `unread_count`, `last_read_message_id` (the room's newest message at the join, #268), `unread_mention_count`, `unread_through_message_id`, `unread_settled_message_id` and `unread_counted_ids`. A client can replace its list entry with it without fetching the list again.
 
 ### `POST /api/v1/rooms/leave.php`
 

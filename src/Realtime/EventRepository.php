@@ -93,8 +93,11 @@ SQL);
         return $this->hydrate($row);
     }
 
-    /** @return list<RealtimeEvent> */
-    public function visibleAfter(AuthenticatedUser $actor, int $afterId, int $limit = 100): array
+    /**
+     * @param list<int> $excludeIds
+     * @return list<RealtimeEvent>
+     */
+    public function visibleAfter(AuthenticatedUser $actor, int $afterId, int $limit = 100, array $excludeIds = []): array
     {
         if ($afterId < 0) {
             throw new ApiException(400, 'validation_error', 'after_id must not be negative.');
@@ -141,6 +144,9 @@ SQL
 )
 SQL;
 
+        // Ids already sent on a settled-resume connection (#286), so the limit counts only new ones.
+        $exclusion = $excludeIds === [] ? '' : 'AND NOT (e.id = ANY (CAST(:exclude_ids AS bigint[])))';
+
         $statement = $this->pdo->prepare(<<<SQL
 SELECT e.id,
        e.event_type,
@@ -151,6 +157,7 @@ SELECT e.id,
        e.created_at
 FROM realtime_events e
 WHERE e.id > :after_id
+  {$exclusion}
   AND (e.expires_at IS NULL OR e.expires_at > NOW())
   AND {$visibility}
   -- Typing works both ways, so whoever turned it off sees nobody typing.
@@ -171,6 +178,9 @@ SQL);
             $statement->bindValue(':member_user_id', $actor->id, PDO::PARAM_INT);
         }
         $statement->bindValue(':limit', $limit, PDO::PARAM_INT);
+        if ($excludeIds !== []) {
+            $statement->bindValue(':exclude_ids', '{' . implode(',', array_map('intval', $excludeIds)) . '}');
+        }
         $statement->execute();
 
         $events = [];

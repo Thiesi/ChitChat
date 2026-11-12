@@ -25,7 +25,7 @@ final readonly class PublicSessionMetadata
         ];
     }
 
-    /** @return array{schema_version:int, native_passkey_origins:bool, native_auth_handoff:bool,signed_in_sessions:bool,totp:bool,moderated_username_change:bool} */
+    /** @return array{schema_version:int, native_passkey_origins:bool, native_auth_handoff:bool,signed_in_sessions:bool,totp:bool,moderated_username_change:bool,realtime_settled_resume:bool} */
     public function capabilities(): array
     {
         return [
@@ -33,6 +33,9 @@ final readonly class PublicSessionMetadata
             'signed_in_sessions' => true,
             // user.username_change, 403 username_change_required and account/username.php (#164).
             'moderated_username_change' => true,
+            // events/stream.php?resume=settled and the rooms' unread_settled_message_id and
+            // unread_counted_ids (#286): no event is skipped when ids commit out of order.
+            'realtime_settled_resume' => true,
             'totp' => \ChitChat\View\TotpPresentation::integrated()
                 && (new \ChitChat\Auth\Totp\TotpKeyStore($this->pdo, $this->config))->available(),
             // Native passkeys require explicit installation trust; handoff is separate.

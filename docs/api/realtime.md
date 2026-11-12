@@ -29,6 +29,25 @@ The stream sends heartbeat comments at least every ten seconds and closes after 
 
 The stream releases the PHP session lock before polling, so the same browser session can continue making API requests while SSE is open.
 
+### Settled resume: `resume=settled` (#286)
+
+Event IDs are assigned when an event is written, but it only becomes visible when its transaction commits. Two events written at about the same time can therefore commit out of order: event 101 can be delivered before event 100 exists. In the default mode, the stream's position moves past 101, and a client that later receives 100's commit never gets it from the stream. It sees the message only after a history reload.
+
+A client that sets `?resume=settled` never misses such an event. Support is advertised as `capabilities.realtime_settled_resume: true` in `GET /api/v1/session.php`.
+
+```text
+GET /api/v1/events/stream.php?resume=settled
+```
+
+In this mode:
+
+- **The SSE `id:` is a resume position, not the event's identity.** Every visible event with an ID at or below it has already been sent. It may be lower than the event's own ID, which stays in `data.id`. It never decreases within a connection. Each `id:` is safe to store as soon as that event has been received, including the last event before a dropped connection.
+- **Resume with the stored `id:`** (as `Last-Event-ID` or `after_id`) and keep `resume=settled`. Browser `EventSource` does both automatically, because it reconnects to the same URL with the last `id:`.
+- **A reconnect may resend events,** those sent above the resume position. **Clients must drop an event whose `data.id` they have already processed.** Keep the IDs seen above your stored position, and forget any once your stored position passes them. As a backstop, apply message events idempotently by message ID: the same `message.id` never adds a second message or a second unread count. A resend covers only events sent since the position last settled: normally the last second or less, and never more than one normal batch per poll. While one writing transaction stays open (a stuck database session), the position waits for it, so the window covers events sent since that transaction began. Nothing is skipped past it. Operators bound this with `idle_in_transaction_session_timeout` (see `INSTALL.md`).
+- **Bare `id:` lines are optional for the client.** The stream also sends a bare `id: <n>` (no `event`, no `data`) when the position settles without a new event. Storing it saves the server rescanning on the next reconnect. A client whose SSE reader doesn't expose bare IDs (for example OkHttp's) loses nothing: the `id:` of the next dispatched event carries the position too, and correctness never depends on the bare line.
+
+Without `resume=settled`, the stream behaves exactly as before: `id:` is the event's own ID, a reconnect never resends, and a late-committing lower ID can be missed. The room list's matching unread fields are `unread_settled_message_id` and `unread_counted_ids` (see [`rooms.md`](rooms.md)).
+
 ### Replayed events
 
 Retained events (see `realtime_event_retention_hours`) are replayed to a client that resumes from an older cursor. Two rules keep a replay from handing out message content the account couldn't read now (#276):
