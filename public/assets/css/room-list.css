@@ -1,0 +1,171 @@
+/* The Rooms list (S4a, #170; behaviour in room-list.js). Rows are links in
+   lists: the lantern on the left across two lines, the name over its
+   sub-line, and the time over the badges on the right. The mention card and
+   invitation cards sit above the groups. Uses only existing tokens. */
+
+#room-list { display: grid; gap: 0.35rem; align-content: start; }
+
+.room-group { display: grid; gap: 0.1rem; }
+.room-group[hidden] { display: none; }
+
+.room-group-heading {
+  margin: 0.6rem 0.6rem 0.2rem;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.room-rows { display: grid; gap: 0.1rem; margin: 0; padding: 0; list-style: none; }
+
+.room-row { display: flex; align-items: center; gap: 0.35rem; min-width: 0; }
+.room-row > .room-button { flex: 1; min-width: 0; }
+
+/* ---- A row ---- */
+
+.list-pane .room-button {
+  display: grid;
+  grid-template-areas: "mark name meta" "mark sub meta";
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 0.65rem;
+  row-gap: 0.05rem;
+  min-height: 3.5rem;
+  padding: 0.45rem 0.6rem;
+  text-decoration: none;
+}
+
+.list-pane .room-button .lantern { grid-area: mark; margin: 0; }
+
+.list-pane .room-button .room-name {
+  grid-area: name;
+  align-self: end;
+  color: var(--text);
+  font-weight: 650;
+}
+
+.room-button.unread .room-name { font-weight: 800; }
+
+.room-sub {
+  grid-area: sub;
+  align-self: start;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-weight: 450;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.room-sub.empty { display: none; }
+.room-button:has(.room-sub.empty) .room-name { grid-row: 1 / span 2; align-self: center; }
+
+.room-row-here { color: var(--presence-text); font-weight: 650; }
+
+.room-row-meta {
+  grid-area: meta;
+  display: grid;
+  justify-items: end;
+  align-content: center;
+  gap: 0.25rem;
+}
+
+.room-time { color: var(--text-muted); font-size: 0.72rem; font-weight: 500; white-space: nowrap; }
+.room-button.unread .room-time { color: var(--text); font-weight: 700; }
+
+.room-badges { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 0.25rem; }
+
+/* "@": an unread mention waits in this room. Honey, like presence's warmth. */
+.mention-badge {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.35rem;
+  height: 1.35rem;
+  border-radius: 999px;
+  background: var(--presence);
+  color: var(--hue-ink);
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+/* Over 99 the count goes quiet: the number stops mattering. */
+.unread-count.quiet { border: 1px solid var(--line); background: var(--raised); color: var(--text); }
+
+/* The lantern's glow in a row: the ring gap takes the pane's colour. */
+.list-pane .room-button .lantern.glow {
+  box-shadow:
+    0 0 0 2px var(--surface),
+    0 0 0 4px var(--presence),
+    0 0 10px 3px color-mix(in srgb, var(--presence) 35%, transparent);
+}
+
+.room-join { flex: none; min-height: 2.25rem; padding: 0.25rem 0.8rem; font-size: 0.85rem; }
+
+/* ---- Invitations ---- */
+
+.room-invitation {
+  margin: 0 0.1rem;
+  padding: 0.15rem 0.5rem 0.15rem 0;
+  border: 1px solid color-mix(in srgb, var(--presence-text) 45%, var(--line));
+  border-radius: 0.85rem;
+  background: var(--raised);
+}
+
+.room-invitation .room-button:hover { background: transparent; }
+
+/* ---- The pinned mention card ---- */
+
+.mention-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0 0.6rem 0.25rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--presence-text) 45%, var(--line));
+  border-radius: 0.85rem;
+  background: var(--presence-wash);
+  color: var(--text);
+}
+
+.mention-card-text { margin: 0; min-width: 0; font-size: 0.86rem; line-height: 1.35; overflow-wrap: anywhere; }
+
+.mention-card-open {
+  display: inline-grid;
+  place-items: center;
+  min-height: 2.25rem;
+  padding: 0 0.6rem;
+  border-radius: 0.6rem;
+  color: var(--text);
+  font-weight: 750;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.mention-card-open:hover { background: color-mix(in srgb, var(--presence) 22%, transparent); }
+
+/* ---- Find rooms (phones) ---- */
+
+.find-rooms-button { justify-self: start; margin: 0.4rem 0.6rem 0; }
+
+.room-list-empty { margin: 0.4rem 0.6rem; }
+
+/* Narrow panes: the sub-line and badges stay; the lantern shrinks a little. */
+@media (max-width: 22rem) {
+  .list-pane .room-button { column-gap: 0.5rem; padding-inline: 0.45rem; }
+  .list-pane .room-button .lantern { width: 2rem; height: 2rem; }
+  .room-join { padding-inline: 0.6rem; }
+}
+
+@media (any-pointer: coarse) {
+  .room-join, .mention-card-open { min-height: 2.75rem; }
+}
+
+@media (forced-colors: active) {
+  .mention-badge, .unread-count.quiet { border: 1px solid CanvasText; }
+  .room-invitation, .mention-card { border-color: CanvasText; }
+  .list-pane .room-button .lantern.glow { outline: 2px solid Highlight; outline-offset: 2px; }
+}

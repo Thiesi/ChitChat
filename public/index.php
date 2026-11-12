@@ -33,6 +33,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <link rel="stylesheet" href="/assets/css/rules.css">
   <link rel="stylesheet" href="/assets/css/shell.css">
   <link rel="stylesheet" href="/assets/css/panes.css">
+  <link rel="stylesheet" href="/assets/css/room-list.css">
   <link rel="stylesheet" href="/assets/css/auth.css">
 </head>
 <body>
