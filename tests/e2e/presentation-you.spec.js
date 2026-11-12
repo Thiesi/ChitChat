@@ -141,6 +141,8 @@ for (const [address, section] of [
   ['?picture=ready', 'Profile'],
   ['?recovery=create', 'Sign-in and security'],
   ['?connected=google', 'Sign-in and security'],
+  // A malformed escape names no section (it must not throw and leave the pane blank).
+  ['#%E0', 'Profile'],
 ]) {
   test(`the address ${address} opens ${section}`, async ({ page }) => {
     await fixture(page);

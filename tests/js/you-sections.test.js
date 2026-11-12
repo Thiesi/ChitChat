@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { SECTIONS, sectionForAddress } from '../../public/assets/js/you-sections.js';
+import { SECTIONS, safeDecode, sectionForAddress } from '../../public/assets/js/you-sections.js';
 
 // S5a (#171): which You section an address opens.
 
@@ -23,4 +23,13 @@ test('deep links from other pages open their section', () => {
   assert.equal(sectionForAddress({ search: '?sign_in_error=taken' }), 'security');
   assert.equal(sectionForAddress({ search: '?recovery=create' }), 'security');
   assert.equal(sectionForAddress({}), null);
+});
+
+test('a malformed hash never throws: it names no section, and the first one opens', () => {
+  assert.equal(safeDecode('%E0'), '%E0');
+  assert.equal(safeDecode('%'), '%');
+  assert.equal(safeDecode('caf%C3%A9'), 'café');
+  assert.equal(sectionForAddress({ hash: '#%E0' }), null);
+  assert.equal(sectionForAddress({ hash: '#%' }, () => null), null);
+  assert.equal(sectionForAddress({ hash: '#%' , search: '?recovery=create' }), 'security');
 });

@@ -16,13 +16,22 @@ export const SECTIONS = ['profile', 'alerts', 'appearance', 'security', 'privacy
 // it away on DOMContentLoaded, before the session (and so the sections) is known.
 const OPENED = typeof window === 'undefined' ? { hash: '', search: '' } : { hash: window.location.hash, search: window.location.search };
 
+/** Decodes a hash; a malformed escape (#%E0, #%) stays as it is instead of throwing. */
+export function safeDecode(value) {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
 /**
  * Which section an address asks for: its hash, the section holding the element
  * a legacy hash names (findSection), or the section a deep-link parameter
  * belongs to. Null when the address names none.
  */
 export function sectionForAddress({ hash = '', search = '' }, findSection = () => null) {
-  const key = decodeURIComponent(String(hash).replace(/^#/, ''));
+  const key = safeDecode(String(hash).replace(/^#/, ''));
   if (SECTIONS.includes(key)) return key;
   if (key) {
     const holder = findSection(key);
@@ -99,7 +108,7 @@ export function startSections({ guest }) {
     if (legacy !== key) document.getElementById(legacy)?.scrollIntoView({ block: 'start' });
   });
 
-  const legacy = decodeURIComponent(OPENED.hash.slice(1));
+  const legacy = safeDecode(OPENED.hash.slice(1));
   const asked = sectionForAddress(OPENED, findSection);
   // With no address, the first section shows on wide screens (phones show the list) and the address stays clean.
   choose(asked ?? available[0], { address: asked !== null });

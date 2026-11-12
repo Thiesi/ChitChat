@@ -44,10 +44,12 @@ test('a member connects Google and then signs in with it instead of a password',
     await google.getByRole('button', { name: 'Connect Google' }).click();
     await passStepUp(page);
   }
-  await expect(page).toHaveURL(/\/account\.php$/);
+  // S5a: coming back from Google (?connected=) opens Sign-in and security.
+  await expect(page).toHaveURL(/\/account\.php(#security)?$/);
   await expect(google).toContainText('Connected');
 
-  // The Google picture is fetched only on request, and still goes through the crop step.
+  // The Google picture is fetched only on request, and still goes through the crop step (Profile).
+  await page.getByRole('navigation', { name: 'Settings' }).getByRole('link', { name: 'Profile', exact: true }).click();
   await page.getByRole('button', { name: 'Use my Google picture' }).click();
   const crop = page.locator('#avatar-crop-dialog');
   await expect(crop).toBeVisible();

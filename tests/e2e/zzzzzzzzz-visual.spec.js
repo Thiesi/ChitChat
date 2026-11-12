@@ -65,20 +65,30 @@ test('critical authentication and account layouts remain visually stable', async
       .map((entry) => ({ ...entry, created_at: '2026-10-04T11:58:00Z', last_active_at: '2026-10-04T12:00:00Z' }));
     await route.fulfill({ response, json: { ...body, sessions: current } });
   });
-  await page.goto('/account.php');
+  // "Member since" (S5a) is the real registration day: pin it like the dates above.
+  await page.route('**/api/v1/users/profile.php?**', async (route) => {
+    const response = await route.fetch();
+    const body = await response.json();
+    if (body?.profile?.member_since) body.profile.member_since = '2026-10-04T12:00:00Z';
+    await route.fulfill({ response, json: body });
+  });
+  // You shows one section at a time since S5a (#171). The desktop baseline is
+  // Sign-in and security, the section with the most kinds of control (fields,
+  // the recovery row, passkeys, sign-ins); the narrow one is the phone's first
+  // screen, the list of sections.
+  await page.goto('/account.php#security');
   await expect(page.locator('#account-shell')).toBeVisible();
   await expect(page.locator('#account-loading')).toBeHidden();
-  await expect(page.locator('#date-preview-medium')).not.toBeEmpty();
-  // The profile picture, passkey, and preference cards fill in from separate requests.
+  await expect(page.locator('#you-member-since')).toHaveText(/Member since/);
+  // The passkey, sign-in and recovery cards fill in from separate requests.
   await page.waitForLoadState('networkidle');
   await expect.soft(page).toHaveScreenshot('account-desktop.png', screenshotOptions);
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/account.php');
-  await expect(page.locator('#account-shell')).toBeVisible();
+  await expect(page.locator('#you-list')).toBeVisible();
   await expect(page.locator('#account-loading')).toBeHidden();
-  await expect(page.locator('#date-preview-medium')).not.toBeEmpty();
-  // The profile picture, passkey, and preference cards fill in from separate requests.
+  await expect(page.locator('#you-member-since')).toHaveText(/Member since/);
   await page.waitForLoadState('networkidle');
   await expect.soft(page).toHaveScreenshot('account-narrow.png', screenshotOptions);
 });
