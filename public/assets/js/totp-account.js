@@ -20,7 +20,8 @@ export function createTotpBlock(hooks) {
   root.setAttribute('aria-labelledby', 'mfa-totp-heading');
   root.hidden = true;
 
-  const heading = document.createElement('h3');
+  // Inside Passkeys and recovery codes (h3) under Sign-in and security (h2).
+  const heading = document.createElement('h4');
   heading.id = 'mfa-totp-heading';
   heading.textContent = 'Authenticator app';
   heading.tabIndex = -1;

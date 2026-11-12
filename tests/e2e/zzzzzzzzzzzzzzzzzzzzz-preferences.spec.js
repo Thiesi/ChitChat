@@ -24,7 +24,7 @@ test('colour schemes apply on every page, and dates follow the account format', 
   await expect(page.locator('html')).toHaveAttribute('data-scheme', 'dusk');
   await page.goto('/');
   await expect(page.locator('html')).toHaveAttribute('data-scheme', 'dusk');
-  await page.goto('/account.php');
+  await page.goto('/account.php#appearance');
   await expect(accountSchemes.getByRole('radio', { name: 'Dusk' })).toBeChecked();
 
   try {
@@ -45,7 +45,7 @@ test('colour schemes apply on every page, and dates follow the account format', 
     await expect(time).toHaveAttribute('title', /^\d{2}\.\d{2}\.\d{2}, \d{2}:\d{2}$/);
   } finally {
     // Other specs share this account and expect the defaults.
-    await page.goto('/account.php');
+    await page.goto('/account.php#appearance');
     await page.getByLabel('Format region').selectOption('');
     await page.getByLabel('Clock').selectOption('');
     await page.getByRole('button', { name: 'Save date and time format' }).click();

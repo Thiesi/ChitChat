@@ -14,10 +14,13 @@ void initialize();
 
 async function initialize() {
   const shell = document.getElementById('account-shell');
+  // Sign-in and security (S5a) holds a slot for this card; older layouts put it before closure.
+  const slot = document.getElementById('mfa-card-slot');
   const closure = document.querySelector('[aria-labelledby="account-closure-heading"]');
-  if (!shell || !closure) return;
+  if (!shell || (!slot && !closure)) return;
   card = buildCard();
-  closure.before(card.root);
+  if (slot) slot.replaceWith(card.root);
+  else closure.before(card.root);
   try {
     const session = await apiGet('/api/v1/session.php');
     setCsrfToken(session.csrf_token ?? '');
@@ -36,8 +39,7 @@ function buildCard() {
   root.setAttribute('aria-labelledby', 'mfa-heading');
   root.innerHTML = `
     <div>
-      <p class="account-eyebrow">Account security</p>
-      <h2 id="mfa-heading">Passkeys and recovery codes</h2>
+      <h3 id="mfa-heading">Passkeys and recovery codes</h3>
     </div>
     <p id="mfa-summary"></p>
     <p id="mfa-policy" class="account-muted"></p>

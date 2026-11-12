@@ -270,7 +270,7 @@ test('direct messages pause writing too', async ({ page }) => {
 
 test('account shows when you agreed, or asks you to', async ({ page }) => {
   await fixture(page, { user: { ...viewer, rules: accepted(3) } });
-  await page.goto('/account.php');
+  await page.goto('/account.php#privacy');
   const card = page.locator('#rules-card');
   await expect(card).toBeVisible();
   await expect(card).toContainText('You agreed to the community rules on');
@@ -281,7 +281,8 @@ test('account shows when you agreed, or asks you to', async ({ page }) => {
   await page.unroute('**/api/v1/**');
   await fixture(page, { user: pending });
   await page.addInitScript(() => sessionStorage.setItem('chitchat-rules-dialog-shown', '1'));
-  await page.goto('/account.php');
+  // Same address: reload for the new session (a hash-only goto would not).
+  await page.reload();
   await expect(card).toContainText('The community rules have changed since you agreed.');
   await card.getByRole('button', { name: 'Review and agree' }).click();
   await page.getByRole('dialog', { name: /community rules/ }).getByRole('button', { name: 'I agree' }).click();

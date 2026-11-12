@@ -35,7 +35,7 @@ test('the theme follows the system by default and remembers an explicit choice o
   await expect(html(page)).toHaveAttribute('data-theme', 'light');
   await page.goto('/');
   await expect(html(page)).toHaveAttribute('data-theme', 'light');
-  await page.goto('/account.php');
+  await page.goto('/account.php#appearance');
   await expect(theme).toHaveValue('light');
 
   // Firefox does not keep media emulation across navigations, so set it again here.

@@ -26,8 +26,10 @@ test('account page downloads a step-up-protected scoped JSON export', async ({ p
   // The account page is the shell's You since the account menu went (#168, S2b).
   await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'You', exact: true }).click();
   await expect(page).toHaveURL(/\/account\.php$/);
-  await expect(page.getByRole('heading', { name: 'Your account', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'You', exact: true, level: 1 })).toBeVisible();
   await expect(page.locator('#account-identity')).toContainText(member.username);
+  // S5a: the export is under Privacy and data.
+  await page.getByRole('navigation', { name: 'Settings' }).getByRole('link', { name: 'Privacy and data', exact: true }).click();
 
   await page.getByText('What the export contains').click();
   await expect(page.getByText('It does not contain password hashes')).toBeVisible();

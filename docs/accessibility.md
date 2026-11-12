@@ -23,6 +23,7 @@ We do not claim conformance with any WCAG level. The automated checks below use 
 - **Menus and panels:** Escape closes the profile card menu, the members panel on phones, and the overlaid list on tablet-sized screens.
 - **Direct conversations on phones:** Report and Block sit behind a "More actions" button that is announced as expanded or collapsed. Opening it moves focus to the first action; Escape closes it with focus back on the button.
 - **Lists and conversations:** on tablet-sized screens, everything under the overlaid room or conversation list is inert while it's open, and Escape closes it with focus back on its toggle. On phones, choosing a room or conversation moves focus to its title, and going back returns focus to the item you came from.
+- **You (settings):** the sections are a list of links, and the open one is marked as the current page. Choosing one moves focus to its title. On phones the list comes first, and Back returns focus to the section you came from. Each section has its own address (for example `/account.php#security`), so it can be bookmarked or opened in a new tab.
 - **Signing in:** every password field has a show/hide toggle ("Show password" / "Hide password", announced as pressed or not). A shown password is hidden again when the form is submitted. A missing tick on the community-rules checkbox is explained next to it, not in the browser's popup.
 - **Choosing a new username** (when a moderator requires one): errors are shown next to the field and tied to it, so screen readers read them with the field.
 

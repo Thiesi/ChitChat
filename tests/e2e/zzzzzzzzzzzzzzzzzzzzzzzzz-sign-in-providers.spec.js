@@ -36,7 +36,7 @@ test('a member connects Google and then signs in with it instead of a password',
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
   await expect(page.locator('#chat-shell')).toBeVisible();
 
-  await page.goto('/account.php');
+  await page.goto('/account.php#security');
   const methods = page.locator('#sign-in-methods');
   await expect(methods).toBeVisible();
   const google = methods.locator('.sign-in-method', { hasText: 'Google' });
@@ -81,7 +81,7 @@ test('a member connects Google and then signs in with it instead of a password',
     await expect(stranger.locator('#chat-shell')).toBeHidden();
     await strangerContext.close();
   } finally {
-    await page.goto('/account.php');
+    await page.goto('/account.php#security');
     await google.getByRole('button', { name: 'Disconnect Google' }).click();
     await passStepUp(page);
     await expect(google).toContainText('Not connected');
@@ -119,8 +119,10 @@ test('someone new signs up with Google, confirms and restores through it, then a
   await expect(page.locator('#current-user')).toHaveText(username);
 
   // Without a password, closing the account is confirmed with Google.
-  await page.goto('/account.php');
+  // S5a: the password is under Sign-in and security, closure under Account.
+  await page.goto('/account.php#security');
   await expect(page.locator('#password-submit')).toHaveText('Set a password');
+  await page.getByRole('navigation', { name: 'Settings' }).getByRole('link', { name: 'Account', exact: true }).click();
   await page.getByLabel(/I understand that I will be signed out immediately/).check();
   await page.getByRole('button', { name: 'Request account closure' }).click();
   await confirmWithGoogle(page);
@@ -134,7 +136,7 @@ test('someone new signs up with Google, confirms and restores through it, then a
   await expect(page.locator('#current-user')).toHaveText(username);
 
   // Setting a password is confirmed with Google too; afterwards it signs in.
-  await page.goto('/account.php');
+  await page.goto('/account.php#security');
   await page.locator('#password-new').fill(password);
   await page.getByRole('button', { name: 'Set a password' }).click();
   await confirmWithGoogle(page);

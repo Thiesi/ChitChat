@@ -85,7 +85,7 @@ const rows = (page) => page.locator('#sessions-list > li');
 
 test('the card lists sign-ins with this browser first, and no Sign out for it', async ({ page }) => {
   await fixture(page);
-  await page.goto('/account.php');
+  await page.goto('/account.php#security');
   await expect(card(page).getByRole('heading', { name: 'Where you’re signed in' })).toBeVisible();
   await expect(rows(page)).toHaveCount(3);
   await expect(rows(page).nth(0)).toContainText('Firefox on Windows');
@@ -104,7 +104,7 @@ test('the card lists sign-ins with this browser first, and no Sign out for it', 
 
 test('without the server capability there is no card', async ({ page }) => {
   const { calls } = await fixture(page, { capability: false });
-  await page.goto('/account.php');
+  await page.goto('/account.php#security');
   await expect(page.locator('#account-identity')).toHaveText('Signed in as Jamie');
   await expect(card(page)).toBeHidden();
   expect(calls.some((call) => call.path === 'account/sessions/list.php')).toBe(false);
@@ -112,7 +112,7 @@ test('without the server capability there is no card', async ({ page }) => {
 
 test('signing out one sign-in removes it and keeps focus in the list', async ({ page }) => {
   const { calls } = await fixture(page);
-  await page.goto('/account.php');
+  await page.goto('/account.php#security');
   await rows(page).nth(1).getByRole('button', { name: 'Sign out Pixel 8' }).click();
   await expect(rows(page)).toHaveCount(2);
   await expect(page.locator('#sessions-status')).toHaveText('Signed out Pixel 8.');
@@ -122,7 +122,7 @@ test('signing out one sign-in removes it and keeps focus in the list', async ({ 
 
 test('only session_not_found means the sign-in is gone; other errors keep the row and show the server', async ({ page }) => {
   await fixture(page, { revoke: { status: 404, json: { error: { code: 'session_not_found', message: 'That sign-in was not found.' } } } });
-  await page.goto('/account.php');
+  await page.goto('/account.php#security');
   await rows(page).nth(1).getByRole('button').click();
   await expect(page.locator('#sessions-status')).toHaveText('That sign-in had already ended.');
   await expect(rows(page)).toHaveCount(2);
@@ -130,7 +130,7 @@ test('only session_not_found means the sign-in is gone; other errors keep the ro
 
 test('a malformed request keeps the row and shows the server’s message', async ({ page }) => {
   await fixture(page, { revoke: { status: 400, json: { error: { code: 'validation_error', message: 'That sign-in ID is not valid.' } } } });
-  await page.goto('/account.php');
+  await page.goto('/account.php#security');
   await rows(page).nth(2).getByRole('button').click();
   await expect(page.locator('#sessions-error')).toHaveText('That sign-in ID is not valid.');
   await expect(rows(page)).toHaveCount(3);
@@ -138,7 +138,7 @@ test('a malformed request keeps the row and shows the server’s message', async
 
 test('signing out everywhere else leaves this browser and says how many', async ({ page }) => {
   await fixture(page);
-  await page.goto('/account.php');
+  await page.goto('/account.php#security');
   await page.getByRole('button', { name: 'Sign out everywhere else' }).click();
   await expect(page.locator('#sessions-status')).toHaveText('Signed out everywhere else (2 sign-ins).');
   await expect(rows(page)).toHaveCount(1);
@@ -148,7 +148,7 @@ test('signing out everywhere else leaves this browser and says how many', async 
 
 test('guests have no card and ask for no list', async ({ page }) => {
   const { calls } = await fixture(page, { user: { id: 9, username: 'Guest 4821', roles: [], session_version: 1, guest: true } });
-  await page.goto('/account.php');
+  await page.goto('/account.php#security');
   await expect(page.getByRole('button', { name: 'Leave' })).toBeVisible();
   await expect(card(page)).toBeHidden();
   expect(calls.some((call) => call.path === 'account/sessions/list.php')).toBe(false);
@@ -190,7 +190,9 @@ for (const theme of ['light', 'dark']) {
     await fixture(page);
     for (const width of [1280, 360]) {
       await page.setViewportSize({ width, height: 800 });
-      await page.goto('/account.php');
+      // A fresh page at each width (a second hash-only goto would not reload).
+      if (width === 1280) await page.goto('/account.php#security');
+      else await page.reload();
       await expect(rows(page)).toHaveCount(3);
       await rows(page).nth(1).getByRole('button').focus();
       const result = await new AxeBuilder({ page }).include('#sessions-card').withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();

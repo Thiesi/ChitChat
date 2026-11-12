@@ -213,7 +213,7 @@ test('a cancel that finds nothing pending is reported as uncertain, never as "no
 test('account: create a key, replace it, or nothing to recover', async ({ page }, testInfo) => {
   const requests = [];
   await fixture(page, { user: { ...viewer, recovery_key: keyless }, requests });
-  await page.goto('/account.php');
+  await page.goto('/account.php#security');
   const row = page.locator('#recovery-row');
   await expect(row).toContainText('No recovery key. If you forget your password, only an administrator can reset it.');
   await row.getByRole('button', { name: 'Create recovery key' }).click();
@@ -238,7 +238,8 @@ test('account: create a key, replace it, or nothing to recover', async ({ page }
 
   await page.unroute('**/api/v1/**');
   await fixture(page, { user: { ...viewer, recovery_key: null } });
-  await page.goto('/account.php');
+  // Same address: reload for the new session (a hash-only goto would not).
+  await page.reload();
   await expect(row).toContainText('There’s no password to forget.');
   await expect(row.getByRole('button')).toHaveCount(0);
 });

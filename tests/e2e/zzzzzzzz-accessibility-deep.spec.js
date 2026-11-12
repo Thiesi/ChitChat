@@ -98,7 +98,7 @@ test.describe.serial('ChitChat deeper accessibility validation', () => {
     for (const [path, shell, label] of [
       ['/messages.php', '#messages-shell', 'Light direct messages'],
       ['/search.php', '#message-search-shell', 'Light message search'],
-      ['/account.php', '#account-shell', 'Light account'],
+      ['/account.php', '#you-frame', 'Light account'],
       ['/notifications.php', '#privacy-notifications-shell', 'Light privacy notifications'],
     ]) {
       await page.goto(path);
@@ -129,7 +129,7 @@ test.describe.serial('ChitChat deeper accessibility validation', () => {
     const pages = [
       ['/messages.php', '#messages-shell', 'Direct messages'],
       ['/search.php', '#message-search-shell', 'Message search'],
-      ['/account.php', '#account-shell', 'Account'],
+      ['/account.php', '#you-frame', 'Account'],
       ['/notifications.php', '#privacy-notifications-shell', 'Privacy notifications'],
     ];
     for (const [path, shell, label] of pages) {
@@ -160,7 +160,7 @@ test.describe.serial('ChitChat deeper accessibility validation', () => {
     const signedInPages = [
       ['/messages.php', '#messages-shell', 'Direct messages at 200%-zoom-equivalent width'],
       ['/search.php', '#message-search-shell', 'Message search at 200%-zoom-equivalent width'],
-      ['/account.php', '#account-shell', 'Account at 200%-zoom-equivalent width'],
+      ['/account.php', '#you-frame', 'Account at 200%-zoom-equivalent width'],
       ['/notifications.php', '#privacy-notifications-shell', 'Privacy notifications at 200%-zoom-equivalent width'],
     ];
     for (const [path, shell, label] of signedInPages) {
@@ -173,8 +173,9 @@ test.describe.serial('ChitChat deeper accessibility validation', () => {
     await page.goto('/search.php');
     await expect(page.locator('#message-search-shell')).toBeVisible();
     await expectNoHorizontalDocumentOverflow(page, 'Message search at 320 CSS pixels');
+    // S5a: at phone widths You opens on its list (the frame holds both panes).
     await page.goto('/account.php');
-    await expect(page.locator('#account-shell')).toBeVisible();
+    await expect(page.locator('#you-frame')).toBeVisible();
     await expectNoHorizontalDocumentOverflow(page, 'Account at 320 CSS pixels');
     await page.goto('/notifications.php');
     await expect(page.locator('#privacy-notifications-shell')).toBeVisible();
@@ -218,8 +219,9 @@ test.describe.serial('ChitChat deeper accessibility validation', () => {
     expect(selectedStyles.outlineWidth).not.toBe('0px');
 
     await loginOrRegister(page);
-    await page.goto('/account.php');
-    await expect(page.locator('#account-shell')).toBeVisible();
+    // S5a: the export button is under Privacy and data.
+    await page.goto('/account.php#privacy');
+    await expect(page.locator('#personal-data-export')).toBeVisible();
     const primaryStyles = await page.locator('#personal-data-export').evaluate((element) => {
       const style = getComputedStyle(element);
       return { borderStyle: style.borderStyle, borderWidth: style.borderWidth };

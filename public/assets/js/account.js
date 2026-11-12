@@ -32,6 +32,8 @@ async function initialize() {
     elements.closureButton.addEventListener('click', requestClosure);
     elements.loading.classList.add('hidden');
     elements.shell.classList.remove('hidden');
+    // The You list pane (S5a) appears with the section it opens.
+    document.getElementById('you-list')?.classList.remove('hidden');
   } catch (error) {
     elements.loading.textContent = error instanceof Error ? error.message : 'Unable to load the account page.';
   }
