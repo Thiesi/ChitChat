@@ -18,6 +18,14 @@ Returns rooms visible in the user's room list. Global room moderators receive al
 
 For rooms the account has joined, each entry also carries `unread_count` (messages from others, not deleted, after the read position; counting stops at 100, shown as "99+") and `last_read_message_id` (`null` until the account first reads there). Other rooms report `0` and `null`.
 
+Joined rooms also carry `unread_mention_count` (#266): room mentions of the account, explicit or through `@room`/`@here`, that are still unseen. A mention counts while all of these hold:
+- its `mentioned` notification is unread;
+- its message is after the read position (every message counts before the first read);
+- the message isn't deleted;
+- the account doesn't ignore its sender.
+
+Counting stops at 100. Either reading the room past the mention (`POST /api/v1/rooms/read.php`) or reading the notification clears it. Reading the room does **not** mark the notification read, so Activity and push are unaffected. Other rooms report `0`. Like `unread_count`, the value is computed when the list is fetched; no realtime event carries it.
+
 Joined-room list entries additionally contain:
 
 ```json
