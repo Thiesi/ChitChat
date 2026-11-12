@@ -6,7 +6,7 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ## [Unreleased]
 
-No changes since `v3.8.0`.
+- Fix a deadlock between a moderator removing someone's profile picture and that account requiring a new username for the moderator (#262). `avatar_key` is unique, so clearing it is a key change; the removal now locks through the same actor/target ID order as other staff key changes. No migration.
 
 ## [3.8.0] - 2026-11-12
 
