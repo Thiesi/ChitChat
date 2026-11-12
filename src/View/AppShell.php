@@ -99,14 +99,19 @@ final class AppShell
     private static function item(string $key, string $href, string $label, string $icon, string $tab): string
     {
         $current = $key === $tab ? ' aria-current="page"' : '';
-        // Activity and Direct carry unread counts (shell.js), read with the tab's name.
-        $badge = in_array($key, ['activity', 'direct'], true)
+        // Activity and Direct carry unread counts (shell.js). The name is built from
+        // the content, the visible label first and then ", 3 unread" (visually
+        // hidden), so it always contains the visible text (WCAG 2.5.3, Label in
+        // Name). The digits on the badge are for the eye only.
+        $counted = in_array($key, ['activity', 'direct'], true);
+        $badge = $counted
             ? '<span class="app-nav-badge" data-badge="' . $key . '" aria-hidden="true" hidden></span>'
             : '';
+        $count = $counted ? '<span class="app-nav-count" data-badge-label="' . $key . '"></span>' : '';
 
         return '<a class="app-nav-item" data-tab="' . $key . '" href="' . $href . '"' . $current . '>'
             . '<span class="app-nav-icon">' . self::icon($icon) . $badge . '</span>'
-            . '<span class="app-nav-label">' . self::escape($label) . '</span>'
+            . '<span class="app-nav-label">' . self::escape($label) . $count . '</span>'
             . '</a>';
     }
 

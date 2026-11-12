@@ -128,6 +128,9 @@ test('the Activity badge is read with its tab, from the page’s count or one su
   await openRooms(page);
   await expect(tab(page, 'Activity, 2 unread')).toBeVisible();
   await expect(nav(page).locator('[data-badge="activity"]')).toHaveText('2');
+  // Label in Name (WCAG 2.5.3): the name is built from the content, starting with
+  // the visible "Activity", never replaced by an aria-label.
+  await expect(tab(page, 'Activity, 2 unread')).not.toHaveAttribute('aria-label', /.*/);
   // On the Rooms page the page's own notifications code reports it: the shell doesn't ask again.
   await page.waitForTimeout(300);
   const summaries = () => requests.filter((entry) => entry.startsWith('account/notifications/list.php?limit=1')).length;

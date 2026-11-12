@@ -471,3 +471,56 @@ test('on the Direct page the rail\'s Direct badge follows a new message and read
   await expect(direct()).toHaveAccessibleName('Direct');
   await expect(direct().locator('[data-badge="direct"]')).toBeHidden();
 });
+
+// ---- The Direct header on phones (J-read finding, 2026-11-12) ----
+
+test('phones: the Direct header stays one row, with Report and Block behind "More actions"', async ({ page }) => {
+  await fixture(page);
+  // A person this viewer may report (the report dialog opens from the menu).
+  await page.route('**/api/v1/users/profile.php?**', (route) => route.fulfill({ json: { profile: { id: 2, username: 'Rowan', has_avatar: false, ignored: false, can_report: true } } }));
+  await openDirect(page, 360);
+  await page.locator('.conversation-button', { hasText: 'Rowan' }).click();
+  const header = page.locator('#dm-conversation .conversation-header');
+  // Scoped: each message has its own "More actions" too.
+  const more = header.getByRole('button', { name: 'More actions' });
+  await expect(more).toBeVisible();
+  await expect(page.locator('#dm-report-person')).toBeHidden();
+  await expect(page.locator('#dm-block-toggle')).toBeHidden();
+  // One row: back, pebble, name and More are centred on the same line.
+  const centres = await header.evaluate((node) => [...node.children]
+    .filter((child) => child.getClientRects().length && getComputedStyle(child).position !== 'absolute')
+    .map((child) => { const box = child.getBoundingClientRect(); return box.top + box.height / 2; }));
+  expect(Math.max(...centres) - Math.min(...centres)).toBeLessThan(12);
+  expect((await header.boundingBox()).height).toBeLessThan(80);
+
+  await more.click();
+  await expect(more).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.getByRole('button', { name: 'Report Rowan' })).toBeFocused();
+  await expect(page.locator('#dm-block-toggle')).toBeVisible();
+  await page.mouse.move(0, 0);
+  const result = await new AxeBuilder({ page }).include('#dm-conversation').withTags(WCAG).analyze();
+  expect(result.violations).toEqual([]);
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#dm-block-toggle')).toBeHidden();
+  await expect(more).toHaveAttribute('aria-expanded', 'false');
+  await expect(more).toBeFocused();
+
+  // Choosing an action closes the menu and does it.
+  await more.click();
+  await page.getByRole('button', { name: 'Report Rowan' }).click();
+  await expect(page.getByRole('dialog', { name: 'Report Rowan' })).toBeVisible();
+  await expect(more).toHaveAttribute('aria-expanded', 'false');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});
+
+test('wider screens keep Report and Block in the header row, with no "More actions"', async ({ page }) => {
+  await fixture(page);
+  for (const width of [1280, 900]) {
+    await page.setViewportSize({ width, height: 860 });
+    await page.goto('/messages.php?with=2');
+    await expect(page.locator('#dm-peer-name')).toHaveText('Rowan');
+    await expect(page.locator('#dm-more-toggle')).toBeHidden();
+    await expect(page.locator('#dm-report-person')).toBeVisible();
+    await expect(page.locator('#dm-block-toggle')).toBeVisible();
+  }
+});

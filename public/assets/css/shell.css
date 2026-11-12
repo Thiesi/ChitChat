@@ -174,3 +174,14 @@ body:not(:has(.app-frame.has-nav)) .skip-link { display: none; }
   .app-nav-item[aria-current] .app-nav-icon { outline: 2px solid CanvasText; }
   .app-nav-badge { border: 1px solid CanvasText; }
 }
+
+/* The unread count read with a tab's name (", 3 unread"; AppShell::item()).
+   Invisible but kept inline: a visually-hidden span that is absolutely
+   positioned or inline-block counts as a block for the accessible name, and
+   Chromium then puts a space before the comma. Zero-size inline text takes no
+   room under the label and is still in the accessibility tree. */
+.app-nav-count {
+  font-size: 0;
+  line-height: 0;
+  white-space: nowrap;
+}

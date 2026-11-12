@@ -17,9 +17,4 @@
   border-color: var(--signature-text);
 }
 
-@media (max-width: 34rem) {
-  .conversation-header {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-}
+/* Phones keep the header to one row: the actions sit behind "More actions" (panes.css, dm-more.js). */
