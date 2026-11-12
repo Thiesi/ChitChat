@@ -94,12 +94,34 @@ export async function agreementErrorMessage(error, { guest = false } = {}) {
     : 'Please agree to the community rules to create your account.';
 }
 
+// The rules box says why inline (S3 review): the browser's own bubble is
+// suppressed, because Firefox keeps it up after the box is ticked and it can
+// cover "Create account". The error is tied to the box and spoken once.
+const RULES_REQUIRED = 'Please agree to the community rules to create your account.';
+
 window.addEventListener('DOMContentLoaded', () => {
   const checkbox = document.getElementById('register-rules-accept');
-  checkbox?.addEventListener('invalid', () => {
-    checkbox.setCustomValidity(checkbox.checked ? '' : 'Please agree to the community rules to create your account.');
+  const error = document.getElementById('register-rules-error');
+  if (!checkbox) return;
+  const clear = () => {
+    checkbox.setCustomValidity('');
+    if (error) {
+      error.textContent = '';
+      error.classList.add('hidden');
+    }
+  };
+  checkbox.addEventListener('invalid', (event) => {
+    if (checkbox.checked) return;
+    event.preventDefault();
+    checkbox.setCustomValidity(RULES_REQUIRED);
+    if (error) {
+      error.classList.remove('hidden');
+      error.textContent = RULES_REQUIRED;
+    }
+    checkbox.focus();
   });
-  checkbox?.addEventListener('change', () => checkbox.setCustomValidity(''));
+  checkbox.addEventListener('input', clear);
+  checkbox.addEventListener('change', clear);
 });
 
 // ---- Signed in: pausing writes after a material change ----

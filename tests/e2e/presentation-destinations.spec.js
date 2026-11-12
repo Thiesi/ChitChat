@@ -118,7 +118,7 @@ test('signing out from You ends the session and says so on the sign-in screen', 
   await expect(page).toHaveURL(/\/$/);
   expect(calls.some((call) => call.path === 'logout.php')).toBe(true);
   await expect(page.locator('#auth-shell')).toBeVisible();
-  await expect(page.locator('.toast').filter({ hasText: 'You have been signed out.' })).toBeVisible();
+  await expect(page.locator('#auth-notice')).toHaveText('You have been signed out.');
 });
 
 for (const width of [1280, 360]) {

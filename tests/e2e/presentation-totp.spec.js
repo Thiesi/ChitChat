@@ -124,7 +124,7 @@ test('a wrong code says to wait for a new one; the right one finishes setup and 
   await expect(block(page).locator('.error-text')).toHaveText('That code didn’t work. Wait for a new code in your app, then enter it.');
   await block(page).getByLabel('Code from the app').fill('654321');
   await block(page).getByRole('button', { name: 'Confirm' }).click();
-  expect(state.calls.filter((call) => call.path === 'account/mfa/totp/confirm.php').at(-1).body).toEqual({ enrollment_id: 'enr-1', code: '654321' });
+  await expect.poll(() => state.calls.filter((call) => call.path === 'account/mfa/totp/confirm.php').at(-1).body).toEqual({ enrollment_id: 'enr-1', code: '654321' });
   await expect(page.getByRole('heading', { name: 'Save your recovery codes now' })).toBeVisible();
   await page.getByRole('button', { name: 'I saved them' }).click();
   await expect(block(page)).toContainText('Set up');
@@ -201,7 +201,7 @@ test('set up: replace confirms with the app in the step-up dialog first; remove 
   await axe(page, '.step-up-dialog', 'step-up dialog with the app');
   await dialog.getByLabel('Code from your authenticator app').fill('222333');
   await dialog.getByRole('button', { name: 'Use code' }).click();
-  expect(state.calls.find((call) => call.path === 'mfa/step-up-totp.php')?.body).toEqual({ code: '222333' });
+  await expect.poll(() => state.calls.find((call) => call.path === 'mfa/step-up-totp.php')?.body).toEqual({ code: '222333' });
   await expect(block(page)).toContainText('Your current app keeps working until you confirm.');
   await block(page).getByRole('button', { name: 'Cancel' }).click();
 
@@ -302,7 +302,7 @@ test('restoring an account accepts a code from the app', async ({ page }) => {
   await page.goto('/restore-account.php');
   await page.locator('#restore-username').fill('Jamie');
   await page.locator('#restore-password').fill('a long passphrase');
-  await page.locator('#restore-account-form').getByRole('button').first().click();
+  await page.locator('#restore-account-form').getByRole('button', { name: 'Restore account' }).click();
   const panel = page.locator('#restore-mfa-panel');
   await expect(panel.getByLabel('Code from your authenticator app')).toBeFocused();
   await axe(page, '#restore-mfa-panel', 'restoration with the app');
