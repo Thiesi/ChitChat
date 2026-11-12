@@ -34,6 +34,7 @@ final class PublicSessionMetadataTest extends DatabaseTestCase
         self::assertSame([
             'schema_version' => 1,
             'signed_in_sessions' => true,
+            'moderated_username_change' => true,
             'totp' => false,
             'native_passkey_origins' => false,
             'native_auth_handoff' => false,
@@ -54,7 +55,7 @@ final class PublicSessionMetadataTest extends DatabaseTestCase
             [$apps, 'chat.test', 'https://chat.test', true],
         ] as [$trust, $rp, $origin, $expected]) {
             $config = $this->configWith(['nativeAndroidApps' => $trust, 'webauthnRpId' => $rp, 'webauthnOrigin' => $origin]);
-            self::assertSame(['schema_version' => 1, 'signed_in_sessions' => true, 'totp' => false,
+            self::assertSame(['schema_version' => 1, 'signed_in_sessions' => true, 'moderated_username_change' => true, 'totp' => false,
                 'native_passkey_origins' => $expected, 'native_auth_handoff' => false],
                 (new PublicSessionMetadata($this->pdo, $config))->capabilities());
         }

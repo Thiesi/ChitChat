@@ -298,7 +298,8 @@ SQL;
 
         $this->pdo->beginTransaction();
         try {
-            (new PolicyService($this->pdo))->assertMayWrite($actor);
+            // The name as of this transaction: a rename serializes with the gate's lock (#164).
+            $senderUsername = (new PolicyService($this->pdo))->assertMayWrite($actor);
             $this->blocks->lockPair($actor->id, $recipientUserId);
             $this->blocks->requireMessagingAvailable($actor, $recipientUserId);
             (new MuteService($this->pdo))->assertMaySendDirect($actor->id);
@@ -325,7 +326,7 @@ SQL);
             $messageId = (int) $messageIdValue;
 
             $mentions = DirectMessageMentionResolver::resolve($recipientUserId, $recipient->username, $body);
-            $this->mentionNotifier->recordDirectMessageMentions($messageId, $actor->id, $actor->username, $mentions);
+            $this->mentionNotifier->recordDirectMessageMentions($messageId, $actor->id, $senderUsername, $mentions);
 
             (new DirectMessageNotifier($this->pdo))->record($messageId);
 

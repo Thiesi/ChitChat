@@ -288,6 +288,13 @@ SQL);
             if ($reason !== null) {
                 $message .= sprintf(' Reason: “%s”.', $reason);
             }
+        } elseif ($kind === 'username_change_required') {
+            $title = 'Choose a new username';
+            $reason = $this->nonEmptyString($context['reason'] ?? null);
+            $message = 'A moderator replaced your username'
+                . ($reason === null ? '.' : sprintf(' because: “%s”.', $reason))
+                . ' Choose a new one to keep writing; you can still read.';
+            $link = '/choose-username.php';
         } elseif ($kind === 'avatar_removed') {
             $title = 'Profile picture removed by a moderator';
             $message = 'A moderator removed your profile picture. Your initials are shown instead; you can upload a different picture on your Account page.';

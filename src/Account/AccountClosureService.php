@@ -9,6 +9,7 @@ use ChitChat\Audit\AuditLogger;
 use ChitChat\Auth\AuthenticatedUser;
 use ChitChat\Auth\PasswordPolicy;
 use ChitChat\Auth\Username;
+use ChitChat\Auth\UsernameClaims;
 use ChitChat\Auth\UserRepository;
 use ChitChat\Config;
 use ChitChat\Http\ApiException;
@@ -158,9 +159,9 @@ SQL, 'account-closure state update');
 SELECT id, username, password_hash, session_version, account_state, closure_finalizes_at,
        mfa_policy_generation, mfa_enabled_at
 FROM users
-WHERE username_canonical = :canonical
-SQL, 'account-restoration authentication');
-        $lookup->execute(['canonical' => $canonical]);
+WHERE
+SQL . ' ' . UserRepository::SIGN_IN_MATCH . UserRepository::SIGN_IN_ORDER, 'account-restoration authentication');
+        $lookup->execute(['sign_in' => $canonical]);
         $user = $lookup->fetch();
         // Always run password_verify, even for a nonexistent account, against a fixed
         // dummy hash so the response timing cannot be used to enumerate valid usernames.
@@ -347,7 +348,7 @@ SQL);
         $this->pdo->beginTransaction();
         try {
             $due = $this->pdo->query(<<<'SQL'
-SELECT ac.id AS closure_id, ac.user_id, u.username_canonical
+SELECT ac.id AS closure_id, ac.user_id, u.username_canonical, u.username_change_previous_canonical
 FROM account_closures ac
 JOIN users u ON u.id = ac.user_id
 WHERE ac.restored_at IS NULL
@@ -371,6 +372,7 @@ SQL);
                     (int) $row['closure_id'],
                     (int) $row['user_id'],
                     (string) $row['username_canonical'],
+                    $row['username_change_previous_canonical'] === null ? null : (string) $row['username_change_previous_canonical'],
                 );
                 $avatarFiles[] = $this->avatars->clearForClosure((int) $row['user_id']);
                 $count++;
@@ -388,7 +390,7 @@ SQL);
         }
     }
 
-    private function finalizeOne(int $closureId, int $userId, string $oldCanonical): void
+    private function finalizeOne(int $closureId, int $userId, string $oldCanonical, ?string $previousCanonical): void
     {
         $this->execute(<<<'SQL'
 UPDATE users
@@ -400,6 +402,9 @@ SET username = :username,
     account_state = 'closed',
     closed_at = NOW(),
     session_version = session_version + 1,
+    username_change_required_at = NULL,
+    username_change_reason = NULL,
+    username_change_previous_canonical = NULL,
     updated_at = NOW()
 WHERE id = :user_id
 SQL, [
@@ -408,6 +413,8 @@ SQL, [
             'password_hash' => password_hash(bin2hex(random_bytes(32)), PASSWORD_DEFAULT),
             'user_id' => $userId,
         ], 'account tombstoning');
+        // A pending required name change ends here: its removed name stays reserved for the configured period.
+        (new UsernameClaims($this->pdo))->startReservationPeriod($userId);
         $this->execute(
             'UPDATE account_closures SET finalized_at = NOW() WHERE id = :id',
             ['id' => $closureId],
@@ -433,6 +440,14 @@ SQL, [
             ['canonical' => $oldCanonical],
             'closed-account login-history cleanup',
         );
+        if ($previousCanonical !== null) {
+            // Sign-ins with a name a moderator removed were recorded under that name (#164).
+            $this->execute(
+                'DELETE FROM login_attempts WHERE username_canonical = :canonical',
+                ['canonical' => $previousCanonical],
+                'closed-account removed-name login-history cleanup',
+            );
+        }
         $this->audit->log(
             null,
             'account.closure_finalized',

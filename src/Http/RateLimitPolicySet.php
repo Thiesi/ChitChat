@@ -195,6 +195,7 @@ final readonly class RateLimitPolicySet
             'message_revision_review' => self::definition(60, 3_600, 1, 1_000, 60, 86_400),
             'message_report' => self::definition(10, 3_600, 1, 100, 60, 86_400),
             'user_report' => self::definition(10, 3_600, 1, 100, 60, 86_400),
+            'username_change' => self::definition(10, 3_600, 1, 100, 60, 86_400),
             'moderation_queue' => self::definition(120, 60, 1, 5_000, 1, 3_600),
             'moderation_action' => self::definition(60, 3_600, 1, 1_000, 60, 86_400),
             'sessions_management' => self::definition(60, 3600, 1, 600, 60, 86400),

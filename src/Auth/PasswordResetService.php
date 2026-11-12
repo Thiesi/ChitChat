@@ -80,9 +80,9 @@ final class PasswordResetService
             $lookup = $this->prepare(<<<'SQL'
 SELECT u.id, recovery.key_hash
 FROM users u LEFT JOIN password_recovery_keys recovery ON recovery.user_id = u.id
-WHERE u.username_canonical = :name
-SQL);
-            $lookup->execute(['name' => $canonical]);
+WHERE
+SQL . ' ' . UserRepository::SIGN_IN_MATCH . UserRepository::SIGN_IN_ORDER);
+            $lookup->execute(['sign_in' => $canonical]);
             $candidate = $lookup->fetch();
             $storedHash = is_array($candidate) && is_string($candidate['key_hash'])
                 ? $candidate['key_hash'] : str_repeat('1', 64);

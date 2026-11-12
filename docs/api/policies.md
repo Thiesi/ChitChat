@@ -101,6 +101,10 @@ including policy editing. Internal moderation notices remain available. A
 pending rules acceptance does not grant any extra permission for these actions.
 No new SSE event or automatic content replay is introduced.
 
+The same write set is gated by `403 username_change_required` while a moderator
+requires a new username; `rules_acceptance_required` takes precedence when both
+apply ([required username changes](username-change.md)).
+
 ## Administration
 
 All administration routes require a member with the **Super-Administrator**

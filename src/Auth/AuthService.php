@@ -97,6 +97,7 @@ final class AuthService
         (new LockdownService($this->pdo))->assertOpen();
         $username = Username::display($usernameInput);
         $canonical = Username::canonical($usernameInput);
+        UsernameClaims::assertNotPlaceholder($username);
         $normalizedBirthDate = BirthDate::normalize($birthDate);
         if ($password !== null) {
             PasswordPolicy::validate($password, $username);
@@ -130,6 +131,10 @@ final class AuthService
                 throw new RuntimeException('Unable to count users.');
             }
             $isFirstUser = (int) $countResult->fetchColumn() === 0;
+            // A name a moderator removed stays unclaimable while reserved (#164).
+            $claims = new UsernameClaims($this->pdo);
+            $claims->lock($canonical);
+            $claims->assertNotReserved($canonical);
 
             $statement = $this->pdo->prepare(<<<'SQL'
 INSERT INTO users (username, username_canonical, password_hash, has_password, birth_date)

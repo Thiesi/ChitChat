@@ -166,7 +166,8 @@ final class PersonalDataExportService
     private function profile(int $userId): array
     {
         $statement = $this->prepare(<<<'SQL'
-SELECT id, username, birth_date, created_at, updated_at, last_login_at, date_locale, hour_cycle, share_typing::int AS share_typing
+SELECT id, username, birth_date, created_at, updated_at, last_login_at, date_locale, hour_cycle, share_typing::int AS share_typing,
+       username_change_required_at, username_change_reason, username_change_previous_canonical
 FROM users
 WHERE id = :id
 SQL, 'personal-data account profile');
@@ -188,6 +189,12 @@ SQL, 'personal-data account profile');
                 'hour_cycle' => $this->nullableString($row['hour_cycle']),
             ],
             'share_typing' => (int) $row['share_typing'] === 1,
+            // A moderator's pending "require a new username" (#164), including the removed name.
+            'username_change' => $row['username_change_required_at'] === null ? null : [
+                'required_at' => (string) $row['username_change_required_at'],
+                'reason' => (string) $row['username_change_reason'],
+                'previous_username_canonical' => (string) $row['username_change_previous_canonical'],
+            ],
         ];
     }
 
@@ -727,7 +734,8 @@ SELECT attempt.id,
        attempt.reason,
        attempt.created_at
 FROM login_attempts attempt
-JOIN users account ON account.username_canonical = attempt.username_canonical
+-- While a moderator requires a new name, sign-in attempts may also use the removed name (#164).
+JOIN users account ON attempt.username_canonical IN (account.username_canonical, account.username_change_previous_canonical)
 WHERE account.id = :user_id
 ORDER BY attempt.id
 SQL, ['user_id' => $userId], 'personal-data login attempts', fn (array $row): array => [
