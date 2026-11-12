@@ -213,6 +213,44 @@ final class DirectMessageAttachmentServiceTest extends DatabaseTestCase
         self::assertSame(0, (int) $this->pdo->query('SELECT COUNT(*) FROM direct_message_attachments')->fetchColumn());
     }
 
+    public function testAReplayedEditedAttachmentMessageKeepsItsSendEventShape(): void
+    {
+        // #280 review: a stale replayed DM must not lose fields its send event carried.
+        $auth = new AuthService($this->pdo, $this->config);
+        $alice = $auth->register('Alice', 'a very secure password', '127.0.0.1');
+        $bob = $auth->register('Bob', 'another secure password', '127.0.0.2');
+        $cursor = (int) $this->pdo->query('SELECT COALESCE(MAX(id), 0) FROM realtime_events')?->fetchColumn();
+        $message = (new DirectMessageAttachmentService($this->pdo, $this->configWithStorage($this->temporaryDirectory())))->upload(
+            actor: $alice,
+            recipientUserId: $bob->id,
+            file: IncomingFile::forTesting('notes.txt', $this->temporaryFile("notes\n")),
+            captionInput: 'Original caption',
+            ipAddress: '127.0.0.1',
+        );
+        (new \ChitChat\DirectMessage\DirectMessageMutationService($this->pdo))->edit($alice, $message['id'], 'Edited caption', '127.0.0.1');
+
+        $stored = json_decode((string) $this->pdo->query(
+            "SELECT payload::text FROM realtime_events WHERE event_type = 'direct_message' AND target_user_id = {$bob->id} AND id > {$cursor} ORDER BY id LIMIT 1",
+        )?->fetchColumn(), true);
+        self::assertIsArray($stored);
+        $replayed = null;
+        foreach ((new EventRepository($this->pdo))->visibleAfter($bob, $cursor) as $event) {
+            if ($event->type === 'direct_message') {
+                $replayed = $event->payload['message'];
+                break;
+            }
+        }
+        self::assertIsArray($replayed);
+        self::assertSame('Edited caption', $replayed['body']);
+        $sentKeys = array_keys($stored['message']);
+        sort($sentKeys);
+        $replayedKeys = array_values(array_diff(array_keys($replayed), ['edited_at', 'deleted']));
+        sort($replayedKeys);
+        self::assertSame($sentKeys, $replayedKeys, 'Every field of the send event is still there.');
+        // Attachments travel through the metadata endpoint, not the event payload.
+        self::assertArrayNotHasKey('attachment', $stored['message']);
+    }
+
     private function configWithStorage(string $path, int $maxBytes = 10_485_760): Config
     {
         return new Config(
