@@ -25,6 +25,15 @@ final class SseEncoder
         );
     }
 
+    /**
+     * Moves the client's Last-Event-ID without dispatching anything (#281): an SSE message
+     * with an id and no data updates the last event ID but fires no event.
+     */
+    public static function cursor(int $id): string
+    {
+        return sprintf("id: %d\n\n", $id);
+    }
+
     public static function heartbeat(): string
     {
         return ': heartbeat ' . gmdate(DATE_ATOM) . "\n\n";

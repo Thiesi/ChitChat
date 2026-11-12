@@ -8,9 +8,9 @@ use ChitChat\Database;
 use ChitChat\Http\ApiException;
 use ChitChat\Http\Request;
 use ChitChat\Observability\SseConnectionTracker;
-use ChitChat\Realtime\EventRepository;
 use ChitChat\Realtime\SseEncoder;
 use ChitChat\Realtime\SseBatchGuard;
+use ChitChat\Realtime\StreamCursor;
 
 /** @var ChitChat\Config $config */
 $config = require dirname(__DIR__, 4) . '/bootstrap/http.php';
@@ -58,8 +58,10 @@ try {
     echo "retry: 1000\n\n";
     flush();
 
-    $events = new EventRepository($pdo);
+    $cursor = new StreamCursor($pdo);
     $batchGuard = new SseBatchGuard($pdo);
+    // The settled-horizon check (#281) runs at most this often per connection.
+    $lastSkipCheck = 0.0;
     $deadline = microtime(true) + 25.0;
     $lastHeartbeat = 0.0;
     $lastLeaseRefresh = microtime(true);
@@ -75,7 +77,12 @@ try {
             flush();
             break;
         }
-        $batch = $events->visibleAfter($actor, $afterId, 100);
+        $mayCheck = microtime(true) - $lastSkipCheck >= 10.0;
+        $poll = $cursor->poll($actor, $afterId, 100, $mayCheck);
+        if ($poll['checked']) {
+            $lastSkipCheck = microtime(true);
+        }
+        $batch = $poll['events'];
         $checked = $batchGuard->filter($actor, $login, $batch);
         if ($checked['reason'] !== null) {
             echo SseEncoder::sessionInvalidated($checked['reason']);
@@ -86,6 +93,12 @@ try {
         foreach ($batch as $event) {
             echo SseEncoder::event($event);
             $afterId = $event->id;
+        }
+        if ($poll['cursor'] > $afterId) {
+            // Past events this account can't see: remember the position across reconnects.
+            $afterId = $poll['cursor'];
+            echo SseEncoder::cursor($afterId);
+            flush();
         }
 
         $now = microtime(true);

@@ -6,6 +6,8 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ## [Unreleased]
 
+- Stop the event stream rescanning old events on every poll (#281). A connection resuming from an old cursor, or a fresh one, now moves past retained events it can't see once no event is still being published, and remembers that position across reconnects with a bare `id:` line. With 200,000 such events, polls after the first drop from about 0.7 s to under 2 ms. Replayed messages also carry the sender's current name after a moderator replaced it. No migration.
+
 - Start the room read position when an account joins or creates a room (#268). Before, a member who never sent a read saw `unread_count: 0` in that room forever, and a rejoin counted the whole absence as unread. Apply migration 0057, which starts existing members without a read position at the room's newest message. Room list entries and the join response also carry `unread_through_message_id`, the newest message the unread count covers, so a client adding live messages never counts one twice (#279).
 
 - Fix a privacy leak in the event stream (#276). Retained events were replayed with the message text as it was sent, so a member who joined a room later, or reconnected after being offline, could receive text that had since been deleted (including by a moderator) or edited, also inside a reply's quote and in direct messages. Room events now start at the account's current membership, and replayed message events are served from the message's current state. No migration; no API shape change.
