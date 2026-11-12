@@ -413,8 +413,42 @@ SQL);
      */
     private function messageById(int $messageId, int $viewerUserId): array
     {
+        $row = $this->messageRow($messageId, $viewerUserId);
+        if ($row === null) {
+            throw new RuntimeException('Direct message could not be reloaded.');
+        }
+
+        return $this->hydrate($row, $viewerUserId);
+    }
+
+    /**
+     * A message as its send event carries it, from its current state for the viewer, plus
+     * `edited_at` and `deleted` (a deleted message has no body). Null once the message is gone.
+     * Used to serve replayed direct_message events (#276).
+     *
+     * @return ?array<string, mixed>
+     */
+    public function currentEventMessage(int $messageId, int $viewerUserId): ?array
+    {
+        $row = $this->messageRow($messageId, $viewerUserId);
+        if ($row === null) {
+            return null;
+        }
+        $deleted = $row['deleted_at'] !== null;
+
+        return ['body' => $deleted ? null : (string) $row['body']] + $this->hydrate($row, $viewerUserId) + [
+            'edited_at' => $row['edited_at'] === null ? null : (string) $row['edited_at'],
+            'deleted' => $deleted,
+        ];
+    }
+
+    /** @return ?array<string, mixed> */
+    private function messageRow(int $messageId, int $viewerUserId): ?array
+    {
         $sql = <<<'SQL'
 SELECT dm.id,
+       dm.edited_at,
+       dm.deleted_at,
        dm.sender_user_id,
        sender.username AS sender_username,
        dm.recipient_user_id,
@@ -460,11 +494,8 @@ SQL;
         }
         $statement->execute(['id' => $messageId, 'viewer_user_id' => $viewerUserId]);
         $row = $statement->fetch();
-        if (!is_array($row)) {
-            throw new RuntimeException('Direct message could not be reloaded.');
-        }
 
-        return $this->hydrate($row, $viewerUserId);
+        return is_array($row) ? $row : null;
     }
 
     private function requireReplyTargetInConversation(int $replyToMessageId, int $actorId, int $otherUserId): void

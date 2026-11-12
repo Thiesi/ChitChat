@@ -26,7 +26,7 @@
 const tablet = window.matchMedia('(min-width: 48rem) and (max-width: 63.99rem)');
 const phone = window.matchMedia('(max-width: 47.99rem)');
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])';
-// The open conversation's row: aria-current="page" on room links (S4a), "true" on DM rows until S4b.
+// The open conversation's row: aria-current="page" on room and Direct links (S4a, S4b).
 const CURRENT = '[aria-current]:not([aria-current="false"])';
 
 window.addEventListener('DOMContentLoaded', () => {

@@ -17,6 +17,7 @@ import { initials } from './avatar.js';
 import { identityHueIndex } from './identity-hue.js';
 import { phoneListShowing } from './pane-stack.js';
 import { renamedUser, renameInMessages } from './renames.js';
+import { renderConversationList as drawConversationList } from './conversation-list.js';
 import { startUsernameGate } from './username-gate.js';
 
 let transcriptKeys = null;
@@ -167,51 +168,16 @@ async function loadConversations(preferredUserId = null) {
 function renderConversations() {
   // Every re-render (load, opening one, read, a new message) keeps the rail's Direct badge current.
   reportDirectCount();
-  const list = elements['dm-conversation-list'];
-  list.replaceChildren();
-  if (state.conversations.length === 0) {
-    const empty = document.createElement('p');
-    empty.className = 'messages-muted';
-    empty.textContent = 'No conversations yet.';
-    list.append(empty);
-    return;
-  }
-
-  for (const conversation of state.conversations) {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'conversation-button';
-    button.classList.toggle('active', state.selectedUser?.id === conversation.user.id);
-    if (state.selectedUser?.id === conversation.user.id) button.setAttribute('aria-current', 'true');
-    button.append(pebble(conversation.user));
-
-    const heading = document.createElement('span');
-    heading.className = 'conversation-heading';
-    const name = document.createElement('span');
-    name.className = 'conversation-name';
-    name.textContent = conversation.user.username;
-    heading.append(name);
-    if (conversation.unread_count > 0) {
-      const badge = document.createElement('span');
-      badge.className = 'unread-badge';
-      badge.textContent = String(conversation.unread_count);
-      heading.append(badge);
-    }
-
-    const preview = document.createElement('span');
-    preview.className = 'conversation-preview';
-    preview.textContent = `${conversation.last_message.outgoing ? 'You: ' : ''}${conversation.last_message.body}`;
-    const text = document.createElement('span');
-    text.className = 'conversation-text';
-    text.append(heading, preview);
-    button.append(text);
-    button.addEventListener('click', (event) => {
+  drawConversationList(elements['dm-conversation-list'], {
+    conversations: state.conversations,
+    currentUserId: state.selectedUser?.id ?? null,
+    pebble,
+    onOpen: (user, event, link) => {
       // panes.js: close the tablet overlay, or push the conversation on phones.
-      window.dispatchEvent(new CustomEvent('chitchat:conversation-chosen', { detail: { opener: button, user: event.isTrusted } }));
-      selectUser(conversation.user);
-    });
-    list.append(button);
-  }
+      window.dispatchEvent(new CustomEvent('chitchat:conversation-chosen', { detail: { opener: link, user: event.isTrusted } }));
+      selectUser(user);
+    },
+  });
 }
 
 /** The rail's Direct badge (shell.js): the unread total across conversations. */

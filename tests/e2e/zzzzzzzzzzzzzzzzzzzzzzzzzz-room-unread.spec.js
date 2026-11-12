@@ -43,15 +43,20 @@ test('unread messages show in the room list and behind a divider until read', as
     await expect(rootPage.locator('#room-title')).toHaveText(`# ${roomName}`);
     await send(rootPage, 'Already here before you joined');
 
-    // The member joins, reads, and then looks at another room.
+    // The member joins and then looks at another room. Joining starts the read position
+    // at the newest message on the server (#268), so nothing before the join is unread.
     const memberPage = await memberContext.newPage();
     await login(memberPage, member);
     const room = memberPage.locator('.room-button', { hasText: roomName });
     await openRoom(memberPage, roomName);
-    const firstRead = memberPage.waitForResponse((response) => response.url().includes('/api/v1/rooms/read.php'));
+    const joined = memberPage.waitForResponse((response) => response.url().includes('/api/v1/rooms/join.php'));
+    // The join's own rooms_changed event refreshes the list; let it land before anything is
+    // posted, so its snapshot can't already include a message the stream then counts again.
+    const refreshed = memberPage.waitForResponse((response) => response.url().includes('/api/v1/rooms/list.php'));
     await memberPage.locator('#join-button').click();
+    expect((await joined).ok()).toBe(true);
+    expect((await refreshed).ok()).toBe(true);
     await expect(memberPage.locator('#composer-input')).toBeVisible();
-    await firstRead;
     const elsewhere = await memberPage.locator('.room-button').filter({ hasNotText: roomName }).first().locator('.room-name').textContent();
     await openRoom(memberPage, elsewhere.replace(/^#\s*/u, '').trim());
     await expect(room).not.toHaveClass(/active/);

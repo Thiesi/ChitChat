@@ -1,4 +1,5 @@
-const bridgedTypes = new Set(['room_message', 'message_deleted', 'direct_message']);
+// rooms_changed: a role or room change can change what you may edit or delete (#270 follow-up, S4c).
+const bridgedTypes = new Set(['room_message', 'message_deleted', 'direct_message', 'rooms_changed']);
 const forcedLogoutType = 'forced_logout';
 const marker = Symbol.for('chitchat.realtimeBridge');
 const sessionVersionMarker = Symbol.for('chitchat.sessionVersion');
