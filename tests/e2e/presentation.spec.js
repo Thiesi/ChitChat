@@ -133,6 +133,10 @@ for (const theme of ['dark', 'light']) {
     await page.screenshot({ path: testInfo.outputPath(`chat-mobile-${theme}.png`) });
 
     await page.setViewportSize({ width: 1440, height: 1000 });
+    // Since S4a the first row is a different room (name order when no room has
+    // activity), so the click above really switches rooms. Let its requests
+    // finish: WebKit reports a fetch that navigation cancels as a page error.
+    await page.waitForLoadState('networkidle');
     await page.goto('/messages.php');
     await expect(page.locator('.dm-message')).toHaveCount(3);
     await expect(page.locator('#dm-composer')).toBeVisible();
