@@ -6,6 +6,8 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ## [Unreleased]
 
+- Let administrators and room owners transfer a room's ownership with `POST /api/v1/rooms/transfer-ownership.php` (#273), so a room whose owner left or closed their account can be handed on inside ChitChat. An administrator can also take over an invite-only room they aren't in. Requires step-up; audited; both owners are told. A room can now have only one owner, enforced by the database. Apply migration 0058, which first checks for rooms with two owners and stops, naming them, if it finds any (nothing is changed). Operators can run this read-only check beforehand: `SELECT room_id, COUNT(*) FROM room_members WHERE role = 'owner' GROUP BY room_id HAVING COUNT(*) > 1;` (it must return no rows).
+
 - Add `user.available` and the blocking `relationship` (`blocked_by_me`, `messaging_available`) to each row of `GET /api/v1/direct-messages/conversations.php` (#274), so the Direct list can show blocked, unavailable and closed conversations without a request per row. Same semantics and privacy as `block-status.php`; no ban or raw account state is exposed. Additive to API v1.
 
 - Stop the event stream rescanning old events on every poll (#281). A connection resuming from an old cursor, or a fresh one, now moves past retained events it can't see once no event is still being published, and remembers that position across reconnects with a bare `id:` line. With 200,000 such events, polls after the first drop from about 0.7 s to under 2 ms. Replayed messages also carry the sender's current name after a moderator replaced it. No migration.

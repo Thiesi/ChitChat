@@ -308,6 +308,15 @@ SQL);
                 : sprintf('“%s” was restored and is available again.', $roomName);
             $roomId = $context['room_id'] ?? null;
             $link = !$deleted && is_int($roomId) ? sprintf('/?room_id=%d', $roomId) : null;
+        } elseif ($kind === 'room_ownership_received' || $kind === 'room_ownership_removed') {
+            $roomName = $this->nonEmptyString($context['room_name'] ?? null) ?? 'a room';
+            $received = $kind === 'room_ownership_received';
+            $title = $received ? sprintf('You now own “%s”', $roomName) : sprintf('“%s” has a new owner', $roomName);
+            $message = $received
+                ? sprintf('Ownership of “%s” was handed to you. You can now manage the room: its details, its members and their roles.', $roomName)
+                : sprintf('Ownership of “%s” was handed to someone else. You stay in the room as a moderator.', $roomName);
+            $roomId = $context['room_id'] ?? null;
+            $link = is_int($roomId) ? sprintf('/?room_id=%d', $roomId) : null;
         } elseif ($kind === 'guest_welcome') {
             $name = $this->nonEmptyString($context['username'] ?? null);
             $title = $name === null ? 'Welcome!' : sprintf('Welcome, %s!', $name);
