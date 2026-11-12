@@ -72,33 +72,56 @@ final class UsernameChangeConcurrencyTest extends DatabaseTestCase
         self::assertSame(1, (int) $this->pdo->query("SELECT COUNT(*) FROM users WHERE username_canonical = 'fresh.name'")?->fetchColumn());
     }
 
-    public function testARepeatedActionAndAChoiceSerializeOnTheAccountRow(): void
+    public function testAChoiceQueuedFirstWinsAndARepeatedActionThenReplacesTheChosenName(): void
+    {
+        [$choice, $action, $member] = $this->raceChoiceAndRepeatedAction(choiceFirst: true);
+        self::assertSame(200, $choice['status']);
+        self::assertSame(200, $action['status']);
+        $row = $this->pdo->query("SELECT username, username_change_previous_canonical FROM users WHERE id = {$member->id}")?->fetch();
+        self::assertIsArray($row);
+        // The choice won the row first; the second action then replaced the chosen name.
+        self::assertSame([$action['result']['username'], 'kind.name'], array_values($row));
+    }
+
+    public function testARepeatedActionQueuedFirstIsRefusedAndTheChoiceThenWins(): void
+    {
+        [$choice, $action, $member] = $this->raceChoiceAndRepeatedAction(choiceFirst: false);
+        self::assertSame(['status' => 409, 'error_code' => 'username_change_already_required'], $action);
+        self::assertSame(200, $choice['status']);
+        $row = $this->pdo->query("SELECT username, username_change_previous_canonical FROM users WHERE id = {$member->id}")?->fetch();
+        self::assertIsArray($row);
+        self::assertSame(['Kind.Name', null], array_values($row));
+    }
+
+    /**
+     * Both orders are valid; each test pins one so both are covered on every run
+     * and the assertion count does not depend on which worker reached the row first.
+     *
+     * @return array{0:array<string, mixed>, 1:array<string, mixed>, 2:AuthenticatedUser}
+     */
+    private function raceChoiceAndRepeatedAction(bool $choiceFirst): array
     {
         [, $moderator, $member] = $this->people();
         (new UsernameChangeService($this->pdo))->requireChange($moderator, $member->id, 'Offensive', null, '127.0.0.2');
+        $choose = ['action' => 'choose', 'actor_id' => $member->id, 'username' => 'Kind.Name', 'application_name' => 'cc-pair-choose'];
+        $require = ['action' => 'require', 'actor_id' => $moderator->id, 'user_id' => $member->id, 'application_name' => 'cc-pair-require'];
         $this->pdo->beginTransaction();
         $processes = [];
         try {
             $hold = $this->pdo->prepare('SELECT id FROM users WHERE id = :id FOR KEY SHARE');
             $hold->execute(['id' => $member->id]);
-            $processes[] = $this->worker(['action' => 'choose', 'actor_id' => $member->id, 'username' => 'Kind.Name', 'application_name' => 'cc-pair-0']);
-            $processes[] = $this->worker(['action' => 'require', 'actor_id' => $moderator->id, 'user_id' => $member->id, 'application_name' => 'cc-pair-1']);
+            // Queue the two in a fixed order: the first is observably waiting before the second starts.
+            $processes[] = $this->worker($choiceFirst ? $choose : $require);
+            $this->waitForLockWaiters('cc-pair-%', 1);
+            $processes[] = $this->worker($choiceFirst ? $require : $choose);
             $this->waitForLockWaiters('cc-pair-%', 2);
             $this->pdo->commit();
-            [$choice, $action] = $this->outcomes($processes);
+            [$first, $second] = $this->outcomes($processes);
         } finally {
             $this->cleanUp($processes);
         }
-        self::assertSame(200, $choice['status']);
-        $row = $this->pdo->query("SELECT username, username_change_previous_canonical FROM users WHERE id = {$member->id}")?->fetch();
-        self::assertIsArray($row);
-        if ($action['status'] === 200) {
-            // The choice won the row first; the second action then replaced the chosen name.
-            self::assertSame([$action['result']['username'], 'kind.name'], array_values($row));
-        } else {
-            self::assertSame(['status' => 409, 'error_code' => 'username_change_already_required'], $action);
-            self::assertSame(['Kind.Name', null], array_values($row));
-        }
+
+        return $choiceFirst ? [$first, $second, $member] : [$second, $first, $member];
     }
 
     public function testAPlainResolveQueuedFirstClosesTheCaseAndTheActionRollsBack(): void
