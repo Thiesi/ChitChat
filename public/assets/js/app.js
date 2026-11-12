@@ -1574,6 +1574,9 @@ function countUnread(message) {
   if (!message || message.sender_id === state.user?.id || isIgnored(message.sender_id)) return;
   const room = state.rooms.find((candidate) => candidate.id === message.room_id);
   if (!room || !room.member_role) return;
+  // Already read: joining replays the room's recent events, which start before the
+  // read position the join set (#268).
+  if (Number.isInteger(room.last_read_message_id) && message.id <= room.last_read_message_id) return;
   if (room.id === state.currentRoom?.id) {
     if (document.visibilityState === 'visible' && isNearBottom()) return;
   }
