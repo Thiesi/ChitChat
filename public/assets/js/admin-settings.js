@@ -22,6 +22,8 @@ window.addEventListener('DOMContentLoaded', () => {
     'event-retention',
     'login-retention',
     'deleted-room-grace',
+    'username-reservation-field',
+    'username-reservation',
     'settings-updated',
     'save-settings',
     'toast-region',
@@ -92,6 +94,11 @@ function renderSettings(settings) {
   elements['event-retention'].value = String(settings.realtime_event_retention_hours);
   elements['login-retention'].value = String(settings.login_attempt_retention_days);
   elements['deleted-room-grace'].value = String(settings.deleted_room_grace_days ?? 30);
+  // Required username changes (#164): shown when the server has the setting.
+  const reservation = Number.isInteger(settings.username_reservation_days);
+  elements['username-reservation-field'].hidden = !reservation;
+  elements['username-reservation'].required = reservation;
+  elements['username-reservation'].value = reservation ? String(settings.username_reservation_days) : '';
   elements['settings-updated'].textContent = `Last changed ${formatDateTime(settings.updated_at)}.`;
 }
 
@@ -111,6 +118,10 @@ async function saveSettings(event) {
     login_attempt_retention_days: numberValue('login-retention'),
     deleted_room_grace_days: numberValue('deleted-room-grace'),
   };
+  // Optional on the API: sent only when the server offers it (an older one would refuse an unknown field).
+  if (Number.isInteger(currentSettings?.username_reservation_days)) {
+    payload.username_reservation_days = numberValue('username-reservation');
+  }
 
   if (currentSettings?.guest_access_enabled && !payload.guest_access_enabled && !window.confirm(
     'Switching guest access off ends every guest visit at once. Save?',

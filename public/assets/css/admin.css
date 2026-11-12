@@ -361,6 +361,8 @@
 /* Sign-in decoration (#242): a small preview of the sign-in page's lockup with
    the chosen drawings around it (auth.css draws them). */
 .decoration-settings[hidden] { display: none; }
+/* Username reservation (#164) appears once the server offers it. */
+#username-reservation-field[hidden] { display: none; }
 .decoration-preview {
   position: relative;
   isolation: isolate;

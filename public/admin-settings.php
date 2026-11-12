@@ -119,6 +119,10 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
         <label>Deleted rooms restorable for days <span class="optional-label">then removed permanently; 0 keeps them until restored</span>
           <input id="deleted-room-grace" type="number" min="0" max="3650" required>
         </label>
+        <!-- #164: how long a name a moderator removed stays unavailable. -->
+        <label id="username-reservation-field" hidden>Username reservation in days <span class="optional-label">How long a name a moderator removed stays unavailable after the person chooses a new one. 0 releases it at once. It’s always held while a change is pending.</span>
+          <input id="username-reservation" type="number" min="0" max="3650" step="1">
+        </label>
       </section>
 
       <section class="admin-card form-stack">
