@@ -56,6 +56,10 @@ or other-user state are included. Existing `web_push.enabled` and
 The independent top-level `attachments` policy is documented in
 [upload policy discovery](attachments.md#upload-policy-discovery), when present.
 
+## Sign-in decoration
+
+`sign_in_decoration` is `null` (none), `"winter"`, `"spring"` or `"celebration"`: the seasonal decoration a Super-Administrator chose for the signed-out sign-in screen ([system settings](system-settings.md#sign-in-decoration)). It is present in every payload, signed out and signed in. Clients render nothing for `null` and for values they do not recognise, so later options are additive; on older servers a missing field means no decoration.
+
 ## Revision-review privacy disclosure
 
 `privacy.message_revisions` retains its existing fields but corrects
