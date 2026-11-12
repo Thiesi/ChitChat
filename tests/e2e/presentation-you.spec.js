@@ -158,6 +158,10 @@ for (const [address, section] of [
 test('a modified click on a section opens it in a new tab at its address', async ({ page }) => {
   await fixture(page);
   await open(page);
+  // The new tab gets an inert page (#288): unmocked, it would load the real
+  // page against the real server (no session, a redirect, a live event stream)
+  // and could stall the run. The original page never requests this address.
+  await page.context().route((url) => url.pathname === '/account.php', (route) => route.fulfill({ contentType: 'text/html', body: '<!doctype html><title>New tab</title>' }));
   const opened = page.context().waitForEvent('page');
   await sectionLink(page, 'Alerts').click({ modifiers: ['ControlOrMeta'] });
   const tab = await opened;
