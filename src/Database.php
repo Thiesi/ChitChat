@@ -9,7 +9,16 @@ use InvalidArgumentException;
 
 final class Database
 {
-    public static function connect(Config $config, ?int $connectTimeoutSeconds = null): PDO
+    /**
+     * Web requests end a session left idle inside a transaction after this long (#286), so no
+     * ChitChat web session can hold back settled stream positions. Only idle time inside an
+     * open transaction counts, never a running statement. CLI tools (migrations, the push
+     * dispatcher, backups, maintenance) keep the server's setting.
+     */
+    public const WEB_IDLE_IN_TRANSACTION_TIMEOUT_MS = 60_000;
+
+    /** @param ?bool $web apply the web session settings; by default when not running from the CLI */
+    public static function connect(Config $config, ?int $connectTimeoutSeconds = null, ?bool $web = null): PDO
     {
         $dsn = sprintf(
             'pgsql:host=%s;port=%d;dbname=%s;sslmode=%s',
@@ -26,7 +35,7 @@ final class Database
             $dsn .= ';connect_timeout=' . $connectTimeoutSeconds;
         }
 
-        return new PDO(
+        $pdo = new PDO(
             $dsn,
             $config->databaseUser,
             $config->databasePassword,
@@ -36,5 +45,11 @@ final class Database
                 PDO::ATTR_EMULATE_PREPARES => false,
             ],
         );
+        // A SET rather than a DSN `options=`, which would replace an operator's PGOPTIONS.
+        if ($web ?? PHP_SAPI !== 'cli') {
+            $pdo->exec('SET idle_in_transaction_session_timeout = ' . self::WEB_IDLE_IN_TRANSACTION_TIMEOUT_MS);
+        }
+
+        return $pdo;
     }
 }

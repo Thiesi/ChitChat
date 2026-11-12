@@ -7,6 +7,7 @@ use ChitChat\Auth\UserRepository;
 use ChitChat\Database;
 use ChitChat\Http\ApiException;
 use ChitChat\Http\Request;
+use ChitChat\Observability\RateLimitedLog;
 use ChitChat\Observability\SseConnectionTracker;
 use ChitChat\Realtime\SseEncoder;
 use ChitChat\Realtime\SseBatchGuard;
@@ -68,8 +69,13 @@ try {
     flush();
 
     $cursor = new StreamCursor($pdo);
-    $settled = $settledMode ? new SettledStreamCursor($pdo, $afterId) : null;
-    $holderWarned = false;
+    $warnings = RateLimitedLog::forInstance($config);
+    $settled = $settledMode
+        ? new SettledStreamCursor($pdo, $afterId, null, SettledStreamCursor::STALE_AFTER,
+            static function (string $kind, string $message) use ($warnings): void {
+                $warnings->warn($kind, $message);
+            })
+        : null;
     $batchGuard = new SseBatchGuard($pdo);
     // The settled-horizon check (#281) runs at most this often per connection.
     $lastSkipCheck = 0.0;
@@ -97,12 +103,6 @@ try {
             $poll = $settled->poll($actor, 100, $mayCheck);
             $resumeIds = $poll['ids'];
             $position = $poll['settled'];
-            $holder = $settled->blockingHolderStart();
-            if (!$holderWarned && $holder !== null && $holder !== PHP_INT_MIN && microtime(true) * 1_000_000 - $holder > 30_000_000) {
-                // Settling waits for it; nothing is skipped. idle_in_transaction_session_timeout bounds it.
-                error_log(sprintf('ChitChat realtime: a transaction writing realtime_events has been open for %d s; settled stream positions wait for it.', (int) ((microtime(true) * 1_000_000 - $holder) / 1_000_000)));
-                $holderWarned = true;
-            }
         } else {
             $mayCheck = microtime(true) - $lastSkipCheck >= 10.0;
             $poll = $cursor->poll($actor, $afterId, 100, $mayCheck);
@@ -151,7 +151,11 @@ try {
             $lastHeartbeat = $now;
         }
 
-        usleep(500_000);
+        // A settled stream resuming far behind (a reconnect after a stall) sends its backlog
+        // without pausing, so it reaches live events and can settle within this connection.
+        if ($settled === null || count($batch) < 100) {
+            usleep(500_000);
+        }
     }
 } catch (ApiException $exception) {
     if (!headers_sent()) {

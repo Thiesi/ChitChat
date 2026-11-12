@@ -8,6 +8,7 @@ use ChitChat\Auth\AuthenticatedUser;
 use ChitChat\Auth\AuthService;
 use ChitChat\Database;
 use ChitChat\Realtime\RealtimeEvent;
+use ChitChat\Realtime\SettledHorizon;
 use ChitChat\Realtime\SettledStreamCursor;
 use ChitChat\Realtime\StreamCursor;
 use ChitChat\Room\RoomService;
@@ -139,6 +140,8 @@ final class StreamCursorConcurrencyTest extends DatabaseTestCase
         $sampled = $this->sequenceValue();
         $blocked = $cursor->poll($this->member, 100, true);
         self::assertLessThan($firstId, $blocked['settled']);
+        // The newer publisher must begin more than the clock margin after that sample.
+        usleep(SettledHorizon::CLOCK_MARGIN + 200_000);
 
         $first->commit();
         $second = $this->openPublisher();
@@ -203,6 +206,69 @@ final class StreamCursorConcurrencyTest extends DatabaseTestCase
             self::assertFalse($cursor->poll($this->member, 100, true)['checked']);
         }
         self::assertFalse($cursor->hasUnsettled());
+    }
+
+    public function testAStuckWriterIsPassedAfterTheStaleLimitAndReported(): void
+    {
+        $warnings = [];
+        $warn = static function (string $kind, string $message) use (&$warnings): void {
+            $warnings[] = [$kind, $message];
+        };
+        $stuck = $this->openPublisher();
+        $stuckId = $this->publish($stuck);
+        $start = $stuckId - 1;
+        $after = [$this->publish($this->pdo), $this->publish($this->pdo)];
+
+        // Each reconnect starts afresh from the frozen position and resends what is above it.
+        $first = new SettledStreamCursor($this->pdo, $start, null, 2_000_000, $warn);
+        $first->poll($this->member, 100, true);
+        self::assertSame($start, $first->poll($this->member, 100, true)['settled'], 'Frozen below the stuck writer.');
+        $reconnect = new SettledStreamCursor($this->pdo, $first->settled(), null, 2_000_000, $warn);
+        self::assertSame($after, $this->ids($reconnect->poll($this->member, 100, true)['events']), 'A reconnect resends the unsettled events.');
+        self::assertSame([], array_filter($warnings, static fn (array $w): bool => $w[0] === 'realtime-settled-skip'));
+
+        usleep(2_300_000);
+        $late = new SettledStreamCursor($this->pdo, $first->settled(), null, 2_000_000, $warn);
+        $late->poll($this->member, 100, true);
+        $passed = $late->poll($this->member, 100, true);
+        self::assertGreaterThan($stuckId, $passed['settled'], 'Past the stuck writer once it is older than the limit.');
+        self::assertGreaterThanOrEqual(max($after), $passed['settled']);
+        $skips = array_values(array_filter($warnings, static fn (array $w): bool => $w[0] === 'realtime-settled-skip'));
+        self::assertCount(1, $skips);
+        $pid = (int) $stuck->query('SELECT pg_backend_pid()')?->fetchColumn();
+        self::assertStringContainsString("pid {$pid}", $skips[0][1]);
+        self::assertStringContainsString("from {$start} to {$passed['settled']}", $skips[0][1]);
+    }
+
+    public function testAWriterWhoseStartCantBeReadBlocksUntilTheBacklogIsStale(): void
+    {
+        $warnings = [];
+        $warn = static function (string $kind, string $message) use (&$warnings): void {
+            $warnings[] = $kind;
+        };
+        // Another role without pg_read_all_stats: the holder is real, its start unreadable.
+        $horizon = new class ($this->pdo, 'realtime_events') extends SettledHorizon {
+            public function holders(): array
+            {
+                return array_map(static fn (array $holder): array => ['start' => null] + $holder, parent::holders());
+            }
+        };
+        $other = $this->openPublisher();
+        $otherId = $this->publish($other);
+        $start = $otherId - 1;
+        $this->publish($this->pdo);
+
+        $cursor = new SettledStreamCursor($this->pdo, $start, $horizon, 2_000_000, $warn);
+        $cursor->poll($this->member, 100, true);
+        $blocked = $cursor->poll($this->member, 100, true);
+        self::assertSame($start, $blocked['settled']);
+        self::assertSame(PHP_INT_MIN, $cursor->blockingHolderStart());
+        self::assertContains('realtime-settled-unknown', $warnings);
+
+        usleep(2_300_000);
+        $cursor->poll($this->member, 100, true);
+        self::assertGreaterThan($otherId, $cursor->settled(), 'Passed once the oldest event above settled is older than the limit.');
+        self::assertContains('realtime-settled-skip', $warnings);
     }
 
     private function openPublisher(): PDO

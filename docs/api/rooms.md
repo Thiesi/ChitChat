@@ -27,7 +27,11 @@ A message with a lower ID can still commit after the snapshot, though, and that 
 
 **Count a live message unless its ID is at or below `last_read_message_id` or `unread_settled_message_id`, or is in `unread_counted_ids`.** That counts each message once, whatever order the messages commit in. Use it together with the stream's `resume=settled` mode and its de-duplication by event ID (see [`realtime.md`](realtime.md)).
 
-`unread_settled_message_id` is `0` when an older message insert was still open as the counts were taken; the list then holds every counted ID. At the cap, `unread_count` is 100 and the list holds the 100 lowest counted IDs. Live counting stops at 100 too, so the badge stays at "99+" whichever messages arrive. `unread_through_message_id` is unchanged, for clients that rely on it.
+`unread_settled_message_id` is `0` when any message insert was in progress as the counts were taken, which is common on a busy installation. The list then holds every counted ID, so at most `unread_count` IDs per room.
+
+**At 100 the count is saturated.** `unread_count` is 100, the list holds 100 counted IDs, and which unread messages were counted isn't defined. Treat the count as "100 or more" (shown as "99+") and don't add live messages to it until the next list fetch or read.
+
+`unread_through_message_id` is unchanged, for clients that rely on it. `unread_mention_count` has the same late-commit gap and isn't covered yet; a mention committing just after the snapshot is counted only on the next fetch.
 
 Joined rooms also carry `unread_mention_count` (#266): room mentions of the account, explicit or through `@room`/`@here`, that are still unseen. A mention counts while all of these hold:
 - its `mentioned` notification is unread;
