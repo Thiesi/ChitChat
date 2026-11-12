@@ -2,6 +2,7 @@ import { ApiError, apiGet, apiPost } from './api.js';
 import { getPasskey, webAuthnSupported } from './webauthn.js';
 import { withProviderIcon } from './provider-icons.js';
 import { buildTotpForm, describeTotpError } from './totp-common.js';
+import { attachPasswordReveal, revealButton, setRevealed } from './password-reveal.js';
 
 let verificationPromise = null;
 let passwordDialog = null;
@@ -44,6 +45,7 @@ function showPasswordDialog(providers = [], hasPassword = true) {
   const elements = ensurePasswordDialog();
   elements.error.textContent = '';
   elements.password.value = '';
+  setRevealed(elements.reveal, elements.password, false);
   elements.passwordFields.classList.toggle('hidden', !hasPassword);
   elements.submit.classList.toggle('hidden', !hasPassword);
   elements.explanation.textContent = hasPassword
@@ -280,15 +282,22 @@ function ensurePasswordDialog() {
   const explanation = document.createElement('p');
   const passwordFields = document.createElement('div');
   passwordFields.className = 'form-stack';
+  // Show/hide like every password field (S3, #169).
+  const field = document.createElement('div');
+  field.className = 'password-field';
   const label = document.createElement('label');
   label.htmlFor = 'step-up-password';
   label.textContent = 'Current password';
+  const row = document.createElement('div');
+  row.className = 'password-field-row';
   const password = document.createElement('input');
   password.id = 'step-up-password';
   password.type = 'password';
   password.autocomplete = 'current-password';
-  label.append(password);
-  passwordFields.append(label);
+  const reveal = revealButton(password.id);
+  row.append(password, reveal);
+  field.append(label, row);
+  passwordFields.append(field);
   const providers = document.createElement('div');
   providers.className = 'step-up-providers';
   const error = alertNode();
@@ -300,7 +309,8 @@ function ensurePasswordDialog() {
   form.append(title, explanation, passwordFields, providers, error, actions);
   dialog.append(form);
   document.body.append(dialog);
-  passwordDialog = { dialog, form, explanation, passwordFields, password, providers, error, cancel, submit };
+  attachPasswordReveal(reveal, password);
+  passwordDialog = { dialog, form, explanation, passwordFields, password, reveal, providers, error, cancel, submit };
   return passwordDialog;
 }
 

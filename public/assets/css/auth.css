@@ -1,0 +1,319 @@
+/* S3 (#169): onboarding and authentication in Lantern. The signed-out pages
+   (sign in, register, reset, MFA, restore, step-up completion) keep their own
+   centred layout, outside the S2 shell. The installation's lockup is the
+   headline (#227, web only); the art is drawn from Lantern shapes only, with
+   one honey glow behind the mark; the seasonal decoration (#242) sits behind
+   the lockup and never on the mark itself. Colours come from tokens.css. */
+
+.auth-shell {
+  display: grid;
+  min-height: 100vh;
+  min-height: 100dvh;
+  grid-template-rows: 1fr auto;
+  gap: 2rem;
+  padding: clamp(1.25rem, 5vw, 4rem);
+  place-items: center;
+  background: var(--ground);
+}
+
+.auth-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 28rem);
+  align-items: center;
+  gap: clamp(2rem, 7vw, 7rem);
+  width: min(100%, 72rem);
+}
+
+/* ---- The intro: lockup, art, decoration ---- */
+
+.auth-intro {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  justify-items: center;
+  gap: 2rem;
+  min-width: 0;
+  padding: 1.5rem 1rem;
+  text-align: center;
+}
+
+.lockup {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* In the intro the lockup leaves the outer columns to the seasonal decoration. */
+.auth-intro .lockup { max-width: 76%; }
+
+.lockup-mark {
+  position: relative;
+  display: block;
+  flex: none;
+}
+
+/* The one honey glow: behind the mark, never baked into it. */
+.lockup-mark::before {
+  position: absolute;
+  z-index: -1;
+  inset: -55%;
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--presence) 34%, transparent) 0%, transparent 68%);
+  content: "";
+}
+
+.lockup-mark img {
+  display: block;
+  width: 6rem;
+  height: 6rem;
+  border-radius: 22%;
+}
+
+.lockup-text {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.lockup-name {
+  margin: 0;
+  font-family: var(--display-font);
+  font-size: clamp(2.2rem, 4.5vw, 3.4rem);
+  font-weight: 800;
+  line-height: 1.04;
+  letter-spacing: var(--display-tracking);
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+
+.lockup-sub {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+
+/* Horizontal: the mark beside the name (narrow screens, Restore, step-up). */
+.lockup-horizontal {
+  flex-direction: row;
+  gap: 0.85rem;
+  text-align: start;
+}
+
+.lockup-horizontal .lockup-mark img { width: 3rem; height: 3rem; }
+.lockup-horizontal .lockup-name { font-size: clamp(1.6rem, 6vw, 2.1rem); }
+.lockup-horizontal .lockup-mark::before { inset: -45%; }
+
+.auth-art {
+  display: block;
+  width: min(100%, 24rem);
+}
+
+.auth-band-art { display: none; }
+
+.art-lantern,
+.art-pebble { stroke: none; }
+.art-h0 { fill: var(--hue-0); }
+.art-h1 { fill: var(--hue-1); }
+.art-h2 { fill: var(--hue-2); }
+.art-h3 { fill: var(--hue-3); }
+.art-h4 { fill: var(--hue-4); }
+.art-h5 { fill: var(--hue-5); }
+.art-h6 { fill: var(--hue-6); }
+.art-h7 { fill: var(--hue-7); }
+.art-bubble { fill: var(--raised); stroke: var(--line); stroke-width: 2; }
+.art-chit { fill: var(--signature); }
+.art-lines { fill: none; stroke: var(--text-muted); stroke-width: 6; stroke-linecap: round; }
+
+/* Seasonal decoration (sign-in-season.js): static drawings around the
+   lockup, behind it, out of the way of the name and the card. */
+.auth-season {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  pointer-events: none;
+}
+
+.auth-season[hidden] { display: none; }
+.auth-season svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.season-flake { fill: none; stroke: var(--text-muted); stroke-width: 1.6; stroke-linecap: round; }
+.season-petal { fill: var(--hue-6); }
+.season-centre { fill: var(--presence); }
+.season-slip-0 { fill: var(--hue-0); }
+.season-slip-1 { fill: var(--hue-1); }
+.season-slip-2 { fill: var(--hue-3); }
+.season-slip-3 { fill: var(--hue-5); }
+.season-slip-4 { fill: var(--signature); }
+
+@media (forced-colors: active) {
+  .auth-season,
+  .lockup-mark::before { display: none; }
+}
+
+@media print {
+  .auth-season,
+  .auth-art,
+  .auth-band-art,
+  .lockup-mark::before { display: none; }
+}
+
+/* ---- The card ---- */
+
+.auth-card {
+  width: min(100%, 30rem);
+  padding: clamp(1.5rem, 3vw, 2.5rem);
+  border: 1px solid var(--line);
+  border-radius: 1.75rem;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.auth-greeting {
+  margin: 0 0 1.25rem;
+  font-family: var(--display-font);
+  font-size: 1.6rem;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: var(--display-tracking);
+}
+
+/* Reset, recovery key and MFA have their own headings. */
+.auth-card[data-mode] > .auth-greeting,
+.auth-card:has(#mfa-login-panel:not(.hidden)) > .auth-greeting { display: none; }
+
+.auth-lead {
+  margin: -0.5rem 0 1.25rem;
+  color: var(--text-muted);
+}
+
+/* The server's lockdown message and "signed out" lines: one strip each. */
+.auth-strip {
+  margin: 0 0 1rem;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid color-mix(in srgb, var(--unsure-line) 55%, var(--line));
+  border-radius: 0.8rem;
+  background: color-mix(in srgb, var(--unsure-line) 12%, var(--surface));
+  color: var(--text);
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+
+/* Sign in / Register: a segmented control (auth-tabs.js keeps the keys). */
+.auth-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.25rem;
+  margin-bottom: 1.5rem;
+  padding: 0.3rem;
+  border-radius: 999px;
+  background: var(--ground);
+}
+
+.auth-tabs button {
+  min-height: 2.75rem;
+  padding: 0.6rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text);
+}
+
+.auth-tabs button[aria-selected="true"] {
+  border-color: var(--field-line);
+  background: var(--surface);
+  box-shadow: 0 2px 5px var(--shadow-soft);
+  color: var(--signature-text);
+  font-weight: 700;
+}
+
+/* 16px fields, so phones don't zoom in on focus. */
+.auth-card :is(input:not([type="checkbox"]), textarea, select) {
+  min-height: 2.9rem;
+  font-size: 1rem;
+}
+
+/* Pill buttons; one primary per step. */
+.auth-card :is(.primary-button, .secondary-button, .provider-button) {
+  min-height: 2.9rem;
+  border-radius: 999px;
+}
+
+.auth-card .password-toggle { border-radius: 999px; }
+
+/* Restore, "Back to sign in": quiet links, still easy to hit. */
+.quiet-action {
+  justify-self: center;
+  display: inline-block;
+  min-height: 1.5rem;
+  margin-top: 0.5rem;
+  padding: 0.35rem 0.5rem;
+  color: var(--text-muted);
+  font-size: 0.92rem;
+  text-align: center;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.quiet-action:hover { color: var(--text); }
+.auth-card > .quiet-action { display: block; width: fit-content; margin-inline: auto; }
+
+.guest-entry .guest-entry-lead { font-weight: 600; }
+
+/* The rules box's reason, inline instead of the browser's bubble (rules.js). */
+.field-error {
+  margin: 0.35rem 0 0;
+  color: var(--error);
+  font-size: 0.9rem;
+}
+
+/* Restore and step-up completion: lockup above a single card. */
+.auth-shell-single {
+  grid-template-rows: 1fr auto auto 1fr;
+  gap: 1.25rem;
+}
+
+.auth-shell-single > .lockup { grid-row: 2; max-width: min(100%, 30rem); }
+.auth-shell-single > .auth-card { grid-row: 3; }
+.auth-shell-single > .powered-by { grid-row: 4; align-self: end; }
+
+/* ---- Narrower than a desktop: the intro is a band above the card ---- */
+
+@media (max-width: 63.99rem) {
+  .auth-layout {
+    grid-template-columns: minmax(0, 30rem);
+    justify-content: center;
+    gap: 1rem;
+  }
+
+  .auth-intro { padding: 1rem 0.5rem; gap: 0; }
+  .auth-intro .lockup {
+    flex-direction: row;
+    gap: 0.85rem;
+    text-align: start;
+  }
+
+  .auth-intro .lockup-mark img { width: 3rem; height: 3rem; }
+  .auth-intro .lockup-name { font-size: clamp(1.6rem, 6vw, 2.1rem); }
+  .auth-intro .lockup-mark::before { inset: -45%; }
+  .auth-art { display: none; }
+
+  .auth-band-art {
+    position: absolute;
+    z-index: -1;
+    inset-block-end: 0.25rem;
+    inset-inline-end: 0;
+    display: block;
+    width: 3.5rem;
+  }
+
+  /* A season brings its own drawings to the band. */
+  .auth-intro:has(.auth-season:not([hidden])) .auth-band-art { display: none; }
+}
+
+@media (max-width: 34rem) {
+  .auth-shell { gap: 1rem; padding: 1rem; }
+  .auth-card { padding: 1.35rem; border-radius: 1.25rem; }
+  .auth-greeting { font-size: 1.4rem; }
+}

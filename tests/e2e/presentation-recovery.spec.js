@@ -181,7 +181,7 @@ test('an account with a second factor confirms it before anything changes, or ca
   await expect(panel.getByRole('heading', { name: 'One more step' })).toBeVisible();
   await expect(panel).toContainText('Your password changes after this.');
   await panel.getByRole('button', { name: 'Start over' }).click();
-  expect(requests.some((entry) => entry.path === 'password-reset/cancel.php')).toBe(true);
+  await expect.poll(() => requests.some((entry) => entry.path === 'password-reset/cancel.php')).toBe(true);
   expect(requests.some((entry) => entry.path === 'logout.php')).toBe(false);
   await expect(page.getByRole('region', { name: 'Set a new password' })).toBeVisible();
   await expect(page.locator('#password-reset-status')).toHaveText('Nothing was changed.');
