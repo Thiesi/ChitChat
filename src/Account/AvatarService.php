@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace ChitChat\Account;
 
 use ChitChat\Audit\AuditLogger;
+use ChitChat\Auth\AccountLocks;
 use ChitChat\Auth\AuthenticatedUser;
 use ChitChat\Config;
 use ChitChat\Http\ApiException;
@@ -180,6 +181,11 @@ SQL);
 
         $this->pdo->beginTransaction();
         try {
+            if (!$self) {
+                // Clearing avatar_key is a key change (it is UNIQUE), and the audit row takes the
+                // moderator's FK KEY SHARE: lock both rows in ID order first, like any staff key change (#262).
+                (new AccountLocks($this->pdo))->forKeyChange($actor->id, $userId);
+            }
             $previous = $this->lockAvatarKey($userId);
             if ($previous === null) {
                 throw new ApiException(404, 'avatar_not_found', 'There is no profile picture to remove.');
@@ -398,8 +404,9 @@ SQL);
 
     private function lockAvatarKey(int $userId): ?string
     {
-        // avatar_key is not a key: NO KEY UPDATE serializes avatar writes with each other and
-        // with renames, but never blocks another staff action's FK KEY SHARE on this row (#248).
+        // NO KEY UPDATE serializes avatar writes with each other and with renames. avatar_key is UNIQUE,
+        // so the UPDATE that follows is still a key change at FOR UPDATE strength: a staff action on
+        // another account must lock through AccountLocks::forKeyChange before this (#262).
         $statement = $this->pdo->prepare('SELECT avatar_key FROM users WHERE id = :id FOR NO KEY UPDATE');
         if ($statement === false) {
             throw new RuntimeException('Unable to prepare avatar lock.');
