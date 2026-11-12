@@ -29,7 +29,7 @@ Use any screen reader and browser you actually use. The [accessibility statement
 4. Open a message's actions with Enter or Shift+F10. Reply, react and copy from the keyboard. Escape should return to the message, then to the message box.
 5. In the message box, type `@` and `/`. Check that the suggestions are announced and can be chosen without a pointer, and that Enter sends while Shift+Enter starts a new line.
 6. Have the second account send messages. Check that new messages are announced once each without moving focus, that bursts are summarised, and that a background tab gets one "while you were away" line on return.
-7. Open Direct. Check that the privacy notice is encountered, conversations and unread state are understandable, and incoming messages don't move focus.
+7. Open Direct. Check that the privacy notice is encountered, conversations and unread state are understandable, and incoming messages don't move focus. On a phone-width window, open "More actions" in the conversation header: it should be announced as expanded or collapsed, and Escape should close it and return focus to it.
 8. Search from a room and from Direct. The field, scope and results should be labelled, and choosing a result should open the exact message.
 9. Report a person and a message. As a moderator, open the moderation queue, a case and its resolution controls.
 10. Open You (account, notifications and push, appearance) and, as the Super-Administrator, Administration and Operational settings. Dialogs should announce their title, keep focus inside while open, close with Escape or Cancel, and return focus to the control that opened them.

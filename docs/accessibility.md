@@ -21,6 +21,7 @@ We do not claim conformance with any WCAG level. The automated checks below use 
 - **The message box:** Enter sends, Shift+Enter starts a new line. While the @-mention or /command suggestions are open, ↑ / ↓ choose, Enter or Tab accepts, and Escape closes them.
 - **The emoji picker** is navigated with the arrow keys, Home and End; Escape closes it.
 - **Menus and panels:** Escape closes the profile card menu, the members panel on phones, and the overlaid list on tablet-sized screens.
+- **Direct conversations on phones:** Report and Block sit behind a "More actions" button that is announced as expanded or collapsed. Opening it moves focus to the first action; Escape closes it with focus back on the button.
 - **Lists and conversations:** on tablet-sized screens, everything under the overlaid room or conversation list is inert while it's open, and Escape closes it with focus back on its toggle. On phones, choosing a room or conversation moves focus to its title, and going back returns focus to the item you came from.
 - **Signing in:** every password field has a show/hide toggle ("Show password" / "Hide password", announced as pressed or not). A shown password is hidden again when the form is submitted. A missing tick on the community-rules checkbox is explained next to it, not in the browser's popup.
 - **Choosing a new username** (when a moderator requires one): errors are shown next to the field and tied to it, so screen readers read them with the field.
@@ -36,6 +37,7 @@ We do not claim conformance with any WCAG level. The automated checks below use 
   - Your own messages, edits, reactions, typing and presence changes are not announced; they're read when you reach the message.
   - Loading older history says "Loading older messages…" and then how many arrived.
 - Opening a room or conversation with unread messages announces its name and the number of new messages.
+- Navigation tabs with unread items are read with their visible name first, for example "Activity, 3 unread", so voice-control users can say what they see.
 - A "signed out" line on the sign-in screen, for example after signing out on another device, is also announced.
 
 ### Colour, contrast and motion
