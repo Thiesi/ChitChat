@@ -56,6 +56,19 @@ final class RoomOwnershipConcurrencyTest extends DatabaseTestCase
         self::assertSame([$target->id], $this->owners($roomId));
     }
 
+    public function testAMemberRemovalQueuedAfterATransferCannotRemoveTheNewOwner(): void
+    {
+        [$owner, $admin, $target, $roomId] = $this->room();
+        [$transfer, $removal] = $this->race(
+            "SELECT 1 FROM room_members WHERE room_id = {$roomId} AND user_id = {$target->id} FOR NO KEY UPDATE",
+            ['action' => 'transfer', 'actor_id' => $owner->id, 'room_id' => $roomId, 'target_user_id' => $target->id],
+            ['action' => 'remove_member', 'actor_id' => $admin->id, 'room_id' => $roomId, 'target_user_id' => $target->id],
+        );
+        self::assertSame(200, $transfer['status']);
+        self::assertSame(['status' => 409, 'error_code' => 'owner_membership_immutable'], $removal);
+        self::assertSame([$target->id], $this->owners($roomId));
+    }
+
     public function testTwoTransfersSerializeAndTheOwnerQueuedSecondIsRefused(): void
     {
         [$owner, $admin, $target, $roomId] = $this->room();
@@ -67,12 +80,12 @@ final class RoomOwnershipConcurrencyTest extends DatabaseTestCase
             ['action' => 'transfer', 'actor_id' => $owner->id, 'room_id' => $roomId, 'target_user_id' => $other->id],
         );
         self::assertSame(200, $byAdmin['status']);
-        self::assertSame(['status' => 403, 'error_code' => 'forbidden'], $byOwner, 'The owner lost the room while queued.');
+        self::assertSame(['status' => 409, 'error_code' => 'ownership_changed'], $byOwner, 'The owner lost the room while queued.');
         self::assertSame([$target->id], $this->owners($roomId));
         self::assertSame('moderator', $this->role($roomId, $owner->id));
     }
 
-    public function testTwoAdministratorTransfersBothApplyInQueueOrder(): void
+    public function testASecondAdministratorTransferQueuedBehindTheFirstIsRefusedAsChanged(): void
     {
         [, $admin, $target, $roomId] = $this->room();
         $auth = new AuthService($this->pdo, $this->config);
@@ -86,9 +99,9 @@ final class RoomOwnershipConcurrencyTest extends DatabaseTestCase
             ['action' => 'transfer', 'actor_id' => $secondAdmin->id, 'room_id' => $roomId, 'target_user_id' => $other->id],
         );
         self::assertSame(200, $first['status']);
-        self::assertSame(200, $second['status']);
-        self::assertSame([$other->id], $this->owners($roomId));
-        self::assertSame('moderator', $this->role($roomId, $target->id));
+        self::assertSame(['status' => 409, 'error_code' => 'ownership_changed'], $second, 'Decided on an owner that changed while queued.');
+        self::assertSame([$target->id], $this->owners($roomId));
+        self::assertSame('member', $this->role($roomId, $other->id));
     }
 
     /** @return array{0:AuthenticatedUser, 1:AuthenticatedUser, 2:AuthenticatedUser, 3:int} owner, admin, target member, room */

@@ -235,11 +235,11 @@ Global Moderators and room moderators can't transfer.
 
 **The new owner** must be a member of the room with an active, registered account that isn't banned. An administrator may also name **themselves** for a room they aren't in, such as an invite-only room whose owner is gone. Their membership is created as part of the transfer, any invitation they had is consumed, and the room's minimum age still applies to them (`403 birth_date_required` / `minimum_age_not_met`).
 
-**The previous owner** becomes a moderator, or a member if their account is closing or closed. They can then leave like anyone.
+**The previous owner** becomes a moderator, or a member if their account is closing or closed. They can then leave like anyone. Replacing an owner whose account is active needs a global role at least as high as theirs (an Administrator's room can't be taken by a Chat Admin); an owner whose account is closing or closed can be replaced by any role that may transfer.
 
 **What's recorded and who's told:**
 - The transfer is audited as `room.ownership_transferred` with `from_user_id`, `to_user_id` and `joined`.
-- The new owner gets a `room_ownership_received` notification.
+- The new owner gets a `room_ownership_received` notification (in-app only, never pushed).
 - The previous owner gets `room_ownership_removed`, unless they made the change themselves or their account isn't active.
 - Both get a room-list update.
 
@@ -247,12 +247,13 @@ Returns `{"room": {…}}` as the actor now sees it.
 
 | Status | Code | When |
 | --- | --- | --- |
-| 403 | `forbidden` | Not allowed to manage this room, including an owner whose room was handed on meanwhile |
+| 403 | `forbidden` | Not allowed to manage this room, including an owner whose room was handed on meanwhile, an existing room the account can't see (as for `role.php` and `update.php`), or replacing an active owner whose global role is higher than the actor's |
 | 403 | `step_up_required` | No active privileged step-up |
-| 404 | `room_not_found` | Unknown, invisible or deleted room |
+| 404 | `room_not_found` | Unknown or deleted room |
 | 404 | `membership_not_found` | The target isn't a member, and this isn't an administrator's own takeover |
 | 409 | `already_owner` | The target already owns the room |
 | 409 | `transfer_target_not_eligible` | A guest, closing, closed or banned account |
+| 409 | `ownership_changed` | The owner or the membership changed while the transfer was in progress; reload and try again |
 
 A room has at most one owner. The database enforces this (migration 0058), and the owner row is never changed by `role.php`, `leave.php` or a member removal, even when they race a transfer.
 

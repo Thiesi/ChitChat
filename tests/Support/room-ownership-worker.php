@@ -25,6 +25,10 @@ try {
             $rooms->setRole($actor, $roomId, (int) $input['target_user_id'], (string) $input['role'], '127.0.0.62');
             return ['role' => (string) $input['role']];
         })(),
+        'remove_member' => (static function () use ($pdo, $actor, $roomId, $input): array {
+            (new ChitChat\Admin\RoomAdminService($pdo))->removeMember($actor, $roomId, (int) $input['target_user_id'], '127.0.0.63');
+            return ['removed' => true];
+        })(),
         default => throw new RuntimeException('Unknown action.'),
     };
     fwrite(STDOUT, json_encode(['status' => 200, 'result' => $result], JSON_THROW_ON_ERROR));

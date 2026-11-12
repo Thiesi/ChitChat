@@ -90,6 +90,61 @@ final class RoomOwnershipTransferTest extends DatabaseTestCase
         self::assertSame([$owner->id], $this->owners($roomId), 'Nothing changed.');
     }
 
+    public function testGuestAndClosedTargetsAreRefusedAndOnlyAdministratorsTakeOverAsNonMembers(): void
+    {
+        [$owner, $roomId] = $this->ownedRoom();
+        $this->pdo->exec("UPDATE rooms SET guest_access = 'write' WHERE id = {$roomId}");
+        $this->pdo->exec('UPDATE system_settings SET guest_access_enabled = TRUE WHERE id = 1');
+        $guest = (new \ChitChat\Auth\GuestService($this->pdo))->start('10.0.0.1');
+        $this->rooms->join($guest, $roomId, '10.0.0.1');
+        $closed = $this->member('ClosedMember', $roomId);
+        $this->close($closed);
+        foreach ([$guest->id, $closed->id] as $target) {
+            $this->assertRefused(409, 'transfer_target_not_eligible', fn () => $this->rooms->transferOwnership($owner, $roomId, $target, '127.0.0.9'));
+        }
+        // A Global Moderator manages no rooms, so it can't take one over as a non-member either.
+        $global = $this->staff('GlobalModerator', 'global_moderator');
+        $this->assertRefused(403, 'forbidden', fn () => $this->rooms->transferOwnership($global, $roomId, $global->id, '127.0.0.9'));
+        self::assertSame([$owner->id], $this->owners($roomId));
+    }
+
+    public function testReplacingAnActiveOwnerNeedsAtLeastTheirGlobalRank(): void
+    {
+        [$owner, $roomId] = $this->ownedRoom();
+        $this->pdo->exec("INSERT INTO user_roles (user_id, role) VALUES ({$owner->id}, 'admin')");
+        $member = $this->member('NewOwner', $roomId);
+        $chatAdmin = $this->staff('ChatAdmin', 'chat_admin');
+        $this->assertRefused(403, 'forbidden', fn () => $this->rooms->transferOwnership($chatAdmin, $roomId, $member->id, '127.0.0.9'));
+
+        // An equal rank may; ownership isn't a sanction.
+        $this->rooms->transferOwnership($this->staff('OtherAdmin', 'admin'), $roomId, $member->id, '127.0.0.9');
+        self::assertSame([$member->id], $this->owners($roomId));
+    }
+
+    public function testAnInactiveOwnerCanBeReplacedByAnyTransferringRole(): void
+    {
+        [$owner, $roomId] = $this->ownedRoom();
+        $this->pdo->exec("INSERT INTO user_roles (user_id, role) VALUES ({$owner->id}, 'admin')");
+        $member = $this->member('NewOwner', $roomId);
+        $this->close($owner);
+
+        $this->rooms->transferOwnership($this->staff('ChatAdmin', 'chat_admin'), $roomId, $member->id, '127.0.0.9');
+        self::assertSame([$member->id], $this->owners($roomId));
+    }
+
+    public function testOwnershipNoticesAreInAppOnly(): void
+    {
+        [$owner, $roomId] = $this->ownedRoom();
+        $member = $this->member('NewOwner', $roomId);
+        $this->rooms->transferOwnership($this->staff('ChatAdmin', 'chat_admin'), $roomId, $member->id, '127.0.0.9');
+
+        self::assertSame(2, (int) $this->scalar("SELECT COUNT(*) FROM account_notifications WHERE kind LIKE 'room_ownership_%'"));
+        self::assertSame(0, (int) $this->scalar("SELECT COUNT(*) FROM account_notifications WHERE kind LIKE 'room_ownership_%' AND push_dispatched_at IS NULL"),
+            'Marked dispatched, so push neither wakes nor sends for them.');
+        $pushed = (new \ChitChat\WebPush\PushDeliveryQueue($this->pdo))->materialize(10, new \DateTimeImmutable(), static fn (): ?string => null);
+        self::assertSame(0, (int) $this->scalar("SELECT COUNT(*) FROM push_dispatch_sources s JOIN account_notifications n ON n.id = s.notification_id WHERE n.kind LIKE 'room_ownership_%'"), json_encode($pushed, JSON_THROW_ON_ERROR));
+    }
+
     public function testAClosedOwnersRoomIsTakenOverAndTheOldOwnerBecomesAMember(): void
     {
         [$owner, $roomId] = $this->ownedRoom();

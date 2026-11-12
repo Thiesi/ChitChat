@@ -422,12 +422,15 @@ SQL);
      * and for the current owner. The new owner must be an active, unbanned, registered member;
      * an administrator may also take over a room they are not in (their membership is created
      * here, under the room's minimum age). The previous owner becomes moderator, or member if
-     * their account is closing or closed. Step-up is checked by the endpoint.
+     * their account is closing or closed. Replacing an active owner needs a global rank at least
+     * as high as theirs. Step-up is checked by the endpoint.
      *
-     * Locks, in order: the target's account FOR KEY SHARE (no users-row FOR UPDATE, see ADR
-     * 0007), the room FOR NO KEY UPDATE, then the owner's and the target's memberships in user
-     * order. The one-owner index (0058) makes a second owner impossible; leave, setRole and
-     * removeMember refuse the owner row in the same statement as their write.
+     * Locks, in order (ADR 0007: accounts first, in ID order): the target's account FOR NO KEY
+     * UPDATE (a ban or closure waits) and the previous owner's FOR KEY SHARE, then the room FOR
+     * NO KEY UPDATE (name and minimum age are read from that row), then both memberships in
+     * user order, re-verifying the owner read before the locks. The one-owner index (0058) makes
+     * a second owner impossible; leave, setRole and removeMember refuse the owner row in the same
+     * statement as their write.
      */
     public function transferOwnership(
         AuthenticatedUser $actor,
@@ -444,7 +447,18 @@ SQL);
 
         $this->pdo->beginTransaction();
         try {
-            $target = $this->lockedRow(<<<'SQL'
+            $ownerRow = $this->lockedRow(
+                "SELECT user_id FROM room_members WHERE room_id = :room_id AND role = 'owner'",
+                ['room_id' => $roomId],
+            );
+            $expectedOwner = $ownerRow === null ? null : (int) $ownerRow['user_id'];
+
+            $accounts = [];
+            $accountIds = array_values(array_unique(array_filter([$targetUserId, $expectedOwner], static fn (?int $id): bool => $id !== null)));
+            sort($accountIds);
+            foreach ($accountIds as $accountId) {
+                $accounts[$accountId] = $this->lockedRow(
+                    $accountId === $targetUserId ? <<<'SQL'
 SELECT u.account_state, u.account_kind,
        EXISTS (
            SELECT 1 FROM user_bans b
@@ -453,10 +467,14 @@ SELECT u.account_state, u.account_kind,
        ) AS banned
 FROM users u
 WHERE u.id = :id
-FOR KEY SHARE OF u
-SQL, ['id' => $targetUserId]);
+FOR NO KEY UPDATE OF u
+SQL : 'SELECT account_state, account_kind, false AS banned FROM users WHERE id = :id FOR KEY SHARE',
+                    ['id' => $accountId],
+                );
+            }
+
             $locked = $this->lockedRow(
-                'SELECT id, deleted_at FROM rooms WHERE id = :id FOR NO KEY UPDATE',
+                'SELECT name, minimum_age, deleted_at FROM rooms WHERE id = :id FOR NO KEY UPDATE',
                 ['id' => $roomId],
             );
             if ($locked === null || $locked['deleted_at'] !== null) {
@@ -485,6 +503,9 @@ SQL);
                     $targetRole = (string) $row['role'];
                 }
             }
+            if ($previousOwner !== $expectedOwner) {
+                throw new ApiException(409, 'ownership_changed', 'The room changed hands meanwhile. Reload and try again.');
+            }
 
             // Re-check under the locks: an owner whose room was handed on meanwhile may no longer transfer it.
             if (!RoomAuthorization::canManageAnyRoom($actor) && $previousOwner !== $actor->id) {
@@ -496,6 +517,7 @@ SQL);
             if ($targetRole === null && !$takeover) {
                 throw new ApiException(404, 'membership_not_found', 'Target user is not a room member.');
             }
+            $target = $accounts[$targetUserId] ?? null;
             if (
                 $target === null
                 || (string) $target['account_kind'] !== 'member'
@@ -504,17 +526,21 @@ SQL);
             ) {
                 throw new ApiException(409, 'transfer_target_not_eligible', 'Only an active, registered account in good standing can own a room.');
             }
+            $previousActive = $previousOwner !== null
+                && (string) ($accounts[$previousOwner]['account_state'] ?? '') === 'active';
+            if (
+                $previousActive
+                && $previousOwner !== $actor->id
+                && ModerationRank::globalRankOf($actor) < $this->globalRank((int) $previousOwner)
+            ) {
+                throw new ApiException(403, 'forbidden', 'You cannot take a room away from an owner with a higher role than yours.');
+            }
             if ($targetRole === null) {
-                // An administrator taking over a room they are not in: the room's age rule still applies.
-                $this->requireMinimumAge($actor, $room);
+                // An administrator taking over a room they are not in: the room's age rule, as locked, still applies.
+                $this->requireAgeFor($actor, (int) $locked['minimum_age']);
             }
 
-            $previousActive = false;
             if ($previousOwner !== null) {
-                $previousActive = $this->lockedRow(
-                    "SELECT 1 AS active FROM users WHERE id = :id AND account_state = 'active'",
-                    ['id' => $previousOwner],
-                ) !== null;
                 $demote = $this->pdo->prepare(
                     "UPDATE room_members SET role = :role WHERE room_id = :room_id AND user_id = :user_id AND role = 'owner'",
                 );
@@ -540,7 +566,15 @@ SQL);
             if ($promote === false) {
                 throw new RuntimeException('Unable to prepare the new owner.');
             }
-            $promote->execute(['room_id' => $roomId, 'user_id' => $targetUserId]);
+            try {
+                $promote->execute(['room_id' => $roomId, 'user_id' => $targetUserId]);
+            } catch (PDOException $exception) {
+                if ($exception->getCode() === '23505') {
+                    // The administrator joined in another request meanwhile.
+                    throw new ApiException(409, 'ownership_changed', 'The room changed meanwhile. Reload and try again.');
+                }
+                throw $exception;
+            }
             if ($targetRole === null) {
                 $invitation = $this->pdo->prepare('DELETE FROM room_invitations WHERE room_id = :room_id AND user_id = :user_id');
                 if ($invitation === false) {
@@ -559,7 +593,7 @@ SQL);
                 ['from_user_id' => $previousOwner, 'to_user_id' => $targetUserId, 'joined' => $targetRole === null],
                 $ipAddress,
             );
-            $context = json_encode(['room_id' => $room->id, 'room_name' => $room->name], JSON_THROW_ON_ERROR);
+            $context = json_encode(['room_id' => $roomId, 'room_name' => (string) $locked['name']], JSON_THROW_ON_ERROR);
             if ($targetUserId !== $actor->id) {
                 $this->notify($targetUserId, 'room_ownership_received', $context);
             }
@@ -577,6 +611,32 @@ SQL);
         }
 
         return $this->requireRoom($actor, $roomId);
+    }
+
+    private function globalRank(int $userId): int
+    {
+        $row = $this->lockedRow(<<<'SQL'
+SELECT COALESCE(MAX(CASE role
+    WHEN 'super_admin' THEN 5 WHEN 'admin' THEN 4 WHEN 'chat_admin' THEN 3 WHEN 'global_moderator' THEN 3
+    ELSE 0 END), 0) AS rank
+FROM user_roles WHERE user_id = :id
+SQL, ['id' => $userId]);
+
+        return $row === null ? 0 : (int) $row['rank'];
+    }
+
+    private function requireAgeFor(AuthenticatedUser $actor, int $minimumAge): void
+    {
+        if ($minimumAge === 0) {
+            return;
+        }
+        $birthDate = $this->rooms->birthDateForUser($actor->id);
+        if ($birthDate === null) {
+            throw new ApiException(403, 'birth_date_required', 'A birth date is required to join this room.');
+        }
+        if ((new DateTimeImmutable($birthDate))->diff(new DateTimeImmutable('today'))->y < $minimumAge) {
+            throw new ApiException(403, 'minimum_age_not_met', 'You do not meet this room’s minimum age.');
+        }
     }
 
     /**
@@ -598,7 +658,8 @@ SQL);
     private function notify(int $userId, string $kind, string $context): void
     {
         $statement = $this->pdo->prepare(
-            'INSERT INTO account_notifications (user_id, kind, context_json) VALUES (:user_id, :kind, CAST(:context AS jsonb))',
+            // In-app only (#273): marked dispatched so push neither wakes nor sends for it.
+            'INSERT INTO account_notifications (user_id, kind, context_json, push_dispatched_at) VALUES (:user_id, :kind, CAST(:context AS jsonb), NOW())',
         );
         if ($statement === false) {
             throw new RuntimeException('Unable to prepare a room ownership notice.');
