@@ -1,8 +1,11 @@
 // Live additions to a room's unread badge (#268, #279). The room list's unread_count is a
 // server snapshot; live room_message events add to it. A message the snapshot already
 // covers (at or below unread_through_message_id), or one already read (at or below
-// last_read_message_id), must not be counted again. The watermark moves with every
-// counted message, so a repeated event can't count twice either.
+// last_read_message_id), must not be counted again.
+//
+// Only the server moves those marks. Live counts don't: two senders' messages can reach
+// the stream out of id order (message ids and event ids come from separate sequences),
+// and moving the mark to a counted id would then skip the earlier message.
 
 const UNREAD_CAP = 100;
 
@@ -13,6 +16,5 @@ export function countLiveMessage(room, messageId) {
     if (Number.isInteger(covered) && messageId <= covered) return false;
   }
   room.unread_count = Math.min(UNREAD_CAP, (room.unread_count ?? 0) + 1);
-  room.unread_through_message_id = messageId;
   return true;
 }

@@ -9,10 +9,17 @@ test('a message the list snapshot already counted is not counted again by its st
   const room = { id: 1, unread_count: 1, last_read_message_id: 40, unread_through_message_id: 41 };
   assert.equal(countLiveMessage(room, 41), false);
   assert.equal(room.unread_count, 1);
-  // A message after the snapshot counts once, and a repeat of its event doesn't.
+  // A message after the snapshot counts.
   assert.equal(countLiveMessage(room, 42), true);
-  assert.equal(countLiveMessage(room, 42), false);
   assert.equal(room.unread_count, 2);
+});
+
+test('messages arriving out of id order all count (live counts never move the marks)', () => {
+  const room = { id: 1, unread_count: 0, last_read_message_id: 40, unread_through_message_id: 40 };
+  assert.equal(countLiveMessage(room, 43), true);
+  assert.equal(countLiveMessage(room, 42), true, 'A concurrent sender's earlier message published later still counts.');
+  assert.equal(room.unread_count, 2);
+  assert.equal(room.unread_through_message_id, 40);
 });
 
 test('a message at or below the read position never counts (a join replays the past)', () => {
