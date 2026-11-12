@@ -2,6 +2,7 @@ import { ApiError, apiGet, apiPost, setCsrfToken } from './api.js';
 import { announce, announceIncoming, markKnown, resetAnnouncements } from './announcer.js';
 import { controlItem, dayItem, dayKey, moreButton, newMessagesItem, reactButton, reconcile, runPositions, signatureOf } from './transcript.js';
 import { identityHueIndex } from './identity-hue.js';
+import { lantern, renderRoomList as drawRoomList, unreadRoomMentions } from './room-list.js';
 import { attachTranscriptKeys } from './transcript-keys.js';
 import { createPresenceClient } from './presence.js';
 import { renderMessageBody, buildReplyPreview, buildReactionBar } from './message-content.js';
@@ -51,7 +52,13 @@ const state = {
   pings: [],
   // Whether the sign-in page offers "Look around as a guest".
   guestAccess: false,
+  // Unread room mentions from the notification list (navigation.js fetches it for the Activity badge).
+  mentions: [],
+  // Phones: whether "Find rooms" has opened Other rooms.
+  othersOpen: false,
 };
+
+const phoneWidth = window.matchMedia('(max-width: 47.99rem)');
 
 const elements = {};
 let presence = null;
@@ -64,6 +71,14 @@ let typingSignal = null;
 window.addEventListener('DOMContentLoaded', () => {
   bindElements();
   bindEvents();
+  // navigation.js reads the notification list for the Activity badge and passes the unread mentions on.
+  window.addEventListener('chitchat:notifications', (event) => {
+    state.mentions = unreadRoomMentions(event.detail?.notifications);
+    if (!state.user) return;
+    renderRoomList();
+    if (document.visibilityState === 'visible') void readCurrentRoomMentions();
+  });
+  phoneWidth.addEventListener('change', () => { if (state.user) renderRoomList(); });
   presence = createPresenceClient({
     getCurrentRoom: () => state.currentRoom,
     getCurrentUserId: () => state.user?.id ?? null,
@@ -530,103 +545,57 @@ async function refreshRoomList() {
   renderRoomHeader();
 }
 
-function roomFlag(text, variant = '') {
-  const flag = document.createElement('span');
-  flag.className = variant ? `room-flag ${variant}` : 'room-flag';
-  flag.textContent = text;
-  return flag;
-}
-
-function roomLock(visibility) {
-  const lock = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  lock.setAttribute('class', 'room-lock');
-  lock.setAttribute('viewBox', '0 0 24 24');
-  lock.setAttribute('role', 'img');
-  lock.setAttribute('aria-label', visibility === 'private' ? 'Private' : 'Unlisted');
-  lock.setAttribute('fill', 'none');
-  lock.setAttribute('stroke', 'currentColor');
-  lock.setAttribute('stroke-width', '2.2');
-  lock.setAttribute('stroke-linecap', 'round');
-  lock.setAttribute('stroke-linejoin', 'round');
-  const shapes = visibility === 'private'
-    ? [['rect', { x: '4', y: '11', width: '16', height: '10', rx: '2' }], ['path', { d: 'M8 11V7a4 4 0 0 1 8 0v4' }]]
-    : [['path', { d: 'M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z' }], ['line', { x1: '3', y1: '3', x2: '21', y2: '21' }]];
-  for (const [tag, attributes] of shapes) {
-    const shape = document.createElementNS('http://www.w3.org/2000/svg', tag);
-    for (const [key, value] of Object.entries(attributes)) shape.setAttribute(key, value);
-    lock.append(shape);
-  }
-  return lock;
-}
-
 function chooseInitialRoom() {
   return state.rooms.find((room) => room.member_role !== null) ?? state.rooms[0] ?? null;
 }
 
 function renderRoomList() {
-  elements['room-list'].replaceChildren();
-
-  if (state.rooms.length === 0) {
-    const message = document.createElement('p');
-    message.className = 'room-meta';
-    message.textContent = canCreateRooms(state.user)
-      ? 'No rooms yet. Create the first one.'
-      : 'No rooms are available yet.';
-    elements['room-list'].append(message);
-    return;
-  }
-
-  for (const room of state.rooms) {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'room-button';
-    button.classList.toggle('active', state.currentRoom?.id === room.id);
-    button.dataset.roomId = String(room.id);
-
-    if (state.currentRoom?.id === room.id) {
-      button.setAttribute('aria-current', 'true');
-    }
-
-    const name = document.createElement('span');
-    name.className = 'room-name';
-    // The room's lantern (S2c): its "#" on a squircle in the room's identity hue.
-    name.append(lantern(room), ` ${room.name}`);
-    button.append(name);
-
-    const unread = state.currentRoom?.id === room.id ? 0 : (room.unread_count ?? 0);
-    button.classList.toggle('unread', unread > 0);
-    if (unread > 0) {
-      const count = document.createElement('span');
-      count.className = 'unread-count';
-      count.textContent = unread >= 100 ? '99+' : String(unread);
-      const label = document.createElement('span');
-      label.className = 'visually-hidden';
-      label.textContent = ' unread';
-      count.append(label);
-      button.append(count);
-    }
-
-    // Only what changes how the room can be used: invitations, age limits, privacy.
-    if (room.invited && !room.member_role) {
-      button.append(roomFlag('invited', 'invited'));
-    }
-    if (room.minimum_age > 0) {
-      button.append(roomFlag(`${room.minimum_age}+`));
-    }
-    if (room.visibility !== 'public') {
-      button.append(roomLock(room.visibility));
-    }
-    if (guestReadOnly(room)) {
-      button.append(roomFlag('read only'));
-    }
-
-    button.addEventListener('click', (event) => {
+  drawRoomList(elements['room-list'], {
+    rooms: state.rooms,
+    currentRoomId: state.currentRoom?.id ?? null,
+    // The open room's mentions are being read; they don't call from the list.
+    mentions: state.mentions.filter((mention) => mention.roomId !== state.currentRoom?.id),
+    canCreate: canCreateRooms(state.user),
+    compact: phoneWidth.matches,
+    othersOpen: state.othersOpen,
+    readOnly: guestReadOnly,
+    onOpen: (room, event, link) => {
       // panes.js: close the tablet overlay, or push the conversation on phones.
       // A scripted click (a deep link) opens it without moving focus.
-      window.dispatchEvent(new CustomEvent('chitchat:room-chosen', { detail: { opener: button, user: event.isTrusted } }));
+      window.dispatchEvent(new CustomEvent('chitchat:room-chosen', { detail: { opener: link, user: event.isTrusted } }));
       selectRoom(room);
-    });
-    elements['room-list'].append(button);
+    },
+    onJoin: (room, button) => { void joinRoom(room, button); },
+    onOpenMention: (mention) => { void openMention(mention); },
+    onToggleOthers: (open) => {
+      state.othersOpen = open;
+      renderRoomList();
+      if (open) elements['room-list'].querySelector('#room-group-others .room-button')?.focus();
+    },
+  });
+}
+
+/** The pinned mention's Open: marked read, then the exact message (the deep link already handles it). */
+async function openMention(mention) {
+  try {
+    await apiPost('/api/v1/account/notifications/read.php', { ids: [mention.id] });
+  } catch {
+    // The link still opens; the mention stays unread until it's marked.
+  }
+  window.location.assign(mention.link);
+}
+
+/** Mentions in the room being read are read too: its "@" and the card go. */
+async function readCurrentRoomMentions() {
+  const roomId = state.currentRoom?.id;
+  const ids = state.mentions.filter((mention) => mention.roomId === roomId).map((mention) => mention.id);
+  if (!roomId || ids.length === 0 || !state.currentRoom.member_role) return;
+  state.mentions = state.mentions.filter((mention) => mention.roomId !== roomId);
+  try {
+    await apiPost('/api/v1/account/notifications/read.php', { ids });
+    window.dispatchEvent(new CustomEvent('chitchat:notifications-changed'));
+  } catch {
+    // The next refresh brings them back; nothing is lost.
   }
 }
 
@@ -684,6 +653,7 @@ async function selectRoom(chosen) {
   if (unread > 0) announce(`${room.name}. ${unread} new ${unread === 1 ? 'message' : 'messages'}.`);
   updateJumpButton();
   scheduleMarkRead();
+  void readCurrentRoomMentions();
   void loadRoomMembers(room);
 }
 
@@ -860,16 +830,6 @@ function renderMuteNotice(room, mute) {
   }
 }
 
-/** A room's "#" drawn as its lantern; the text stays "# name" for every reader. */
-function lantern(room) {
-  const hash = document.createElement('span');
-  hash.className = 'room-hash lantern';
-  const hue = identityHueIndex(room.id);
-  if (hue !== null) hash.dataset.hue = String(hue);
-  hash.textContent = '#';
-  return hash;
-}
-
 /** A room opened by the page (created, joined): panes.js closes the overlay or pushes the conversation. */
 function announceRoomOpened(roomId) {
   const opener = elements['room-list'].querySelector(`[data-room-id="${roomId}"]`);
@@ -893,15 +853,14 @@ function renderNoRoom() {
 }
 
 async function joinCurrentRoom() {
-  if (!state.currentRoom) {
-    return;
-  }
+  if (state.currentRoom) await joinRoom(state.currentRoom, elements['join-button']);
+}
 
-  elements['join-button'].disabled = true;
+/** Joins a room (the header's Join, or Join on an Other rooms row or invitation) and opens it. */
+async function joinRoom(room, button) {
+  button.disabled = true;
   try {
-    const response = await apiPost('/api/v1/rooms/join.php', {
-      room_id: state.currentRoom.id,
-    });
+    const response = await apiPost('/api/v1/rooms/join.php', { room_id: room.id });
     replaceRoom(response.room);
     await selectRoom(response.room);
     announceRoomOpened(response.room.id);
@@ -909,7 +868,7 @@ async function joinCurrentRoom() {
   } catch (error) {
     handleApiFailure(error);
   } finally {
-    elements['join-button'].disabled = false;
+    if (button.isConnected) button.disabled = false;
   }
 }
 
@@ -1618,6 +1577,8 @@ function startEventStream() {
     const own = state.user?.id;
     if (message && message.sender_id !== own && !isIgnored(message.sender_id) && message.mentions?.some((mention) => mention.user_id === own)) {
       alertUser('mention', `${message.username ?? 'Someone'} mentioned you`);
+      // The list's "@" and the mention card come from the notification list.
+      window.dispatchEvent(new CustomEvent('chitchat:notifications-changed'));
     }
   });
 

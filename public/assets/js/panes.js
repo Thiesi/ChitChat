@@ -26,6 +26,8 @@
 const tablet = window.matchMedia('(min-width: 48rem) and (max-width: 63.99rem)');
 const phone = window.matchMedia('(max-width: 47.99rem)');
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])';
+// The open conversation's row: aria-current="page" on room and Direct links (S4a, S4b).
+const CURRENT = '[aria-current]:not([aria-current="false"])';
 
 window.addEventListener('DOMContentLoaded', () => {
   const frame = document.querySelector('[data-panes]');
@@ -63,7 +65,7 @@ window.addEventListener('DOMContentLoaded', () => {
     setInert(open);
     if (tablet.matches) toggle.setAttribute('aria-expanded', String(open));
     if (open) {
-      (list.querySelector('[aria-current="true"]') ?? list.querySelector(FOCUSABLE))?.focus();
+      (list.querySelector(CURRENT) ?? list.querySelector(FOCUSABLE))?.focus();
     } else if (restoreFocus) {
       toggle.focus();
     }
@@ -87,7 +89,7 @@ window.addEventListener('DOMContentLoaded', () => {
     frame.dataset.stack = 'list';
     pushed = false;
     if (!restoreFocus) return;
-    const target = opener?.isConnected ? opener : (list.querySelector('[aria-current="true"]') ?? list.querySelector(FOCUSABLE));
+    const target = opener?.isConnected ? opener : (list.querySelector(CURRENT) ?? list.querySelector(FOCUSABLE));
     target?.focus();
   }
 
@@ -125,7 +127,7 @@ window.addEventListener('DOMContentLoaded', () => {
     // Narrowing a wider window keeps you in the conversation you were reading,
     // unless the list was open over it (a rotated tablet) or nothing is open.
     const wasListOpen = isOverlayOpen();
-    const current = list.querySelector('[aria-current="true"]');
+    const current = list.querySelector(CURRENT);
     frame.dataset.stack = current && !wasListOpen ? 'conversation' : 'list';
     pushed = false;
     applyMode();

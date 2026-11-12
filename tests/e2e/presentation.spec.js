@@ -86,6 +86,13 @@ for (const theme of ['dark', 'light']) {
     await page.setViewportSize({ width: 1440, height: 1000 });
     const errors = [];
     page.on('pageerror', (error) => errors.push(error.message));
+    // Room message-mutations requests still open. A navigation cancels them, and
+    // WebKit reports a cancelled fetch as a page error, so the test leaves the
+    // Rooms page only once none is in flight.
+    const pendingMutations = new Set();
+    const isMutations = (request) => request.url().includes('/api/v1/rooms/message-mutations.php');
+    page.on('request', (request) => { if (isMutations(request)) pendingMutations.add(request); });
+    for (const settled of ['requestfinished', 'requestfailed']) page.on(settled, (request) => pendingMutations.delete(request));
     await fixture(page, false);
     await page.goto('/');
     await expect(page.locator('#auth-shell')).toBeVisible();
@@ -119,7 +126,16 @@ for (const theme of ['dark', 'light']) {
     await expect(page.getByRole('navigation', { name: 'Rooms' })).toBeVisible();
     await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'You', exact: true })).toBeVisible();
     await noOverflow(page);
-    await page.getByRole('navigation', { name: 'Rooms' }).locator('.room-button').first().click();
+    // Since S4a the first row is another room (name order when no room has
+    // activity), so this click really switches rooms. Wait for that room's
+    // message-mutations answer: a later navigation would cancel it, and WebKit
+    // reports a cancelled fetch as a page error.
+    const firstRoom = page.getByRole('navigation', { name: 'Rooms' }).locator('.room-button').first();
+    const switchedTo = await firstRoom.getAttribute('data-room-id');
+    const mutations = page.waitForResponse((response) => response.url().includes('/api/v1/rooms/message-mutations.php')
+      && new URL(response.url()).searchParams.get('room_id') === switchedTo);
+    await firstRoom.click();
+    await mutations;
     await expect(page.locator('#composer-input')).toBeInViewport();
     await page.locator('#composer-input').fill('A little hello.');
     await page.locator('#emoji-button').click();
@@ -133,6 +149,9 @@ for (const theme of ['dark', 'light']) {
     await page.screenshot({ path: testInfo.outputPath(`chat-mobile-${theme}.png`) });
 
     await page.setViewportSize({ width: 1440, height: 1000 });
+    // Widening re-renders the Rooms list; since #270 that no longer refetches
+    // the room's message state, so nothing should be left open here.
+    await expect.poll(() => pendingMutations.size).toBe(0);
     await page.goto('/messages.php');
     await expect(page.locator('.dm-message')).toHaveCount(3);
     await expect(page.locator('#dm-composer')).toBeVisible();

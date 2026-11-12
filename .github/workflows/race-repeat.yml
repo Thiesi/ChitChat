@@ -1,0 +1,119 @@
+name: Race Repeat
+
+# Repeats the multi-process database race tests many times (#271). An
+# interleaving bug can pass a single run: #262's deadlock fired in about 3 of
+# 30 runs and passed CI and full local suites many times before. This is a
+# nightly signal, not a pull-request gate; it runs on a pull request only when
+# this workflow itself changes, with fewer iterations, to prove the YAML.
+on:
+  schedule:
+    - cron: '41 2 * * *'
+  workflow_dispatch:
+    inputs:
+      iterations:
+        description: Runs per test class
+        required: false
+        default: '25'
+  pull_request:
+    paths:
+      - .github/workflows/race-repeat.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  repeat:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        # Every test that races separate worker processes against held locks.
+        # A new *ConcurrencyTest or *RaceTest must be added here (the guard step below fails otherwise).
+        test:
+          - AccountRestoreConcurrencyTest
+          - LoginSessionConcurrencyTest
+          - LoginSessionSseTest
+          - NativeAuthConcurrencyTest
+          - NativeAuthExchangeRaceTest
+          - NativeAuthGuardConcurrencyTest
+          - TotpConcurrencyTest
+          - UsernameChangeConcurrencyTest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: chitchat_test
+          POSTGRES_USER: chitchat
+          POSTGRES_PASSWORD: chitchat
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U chitchat -d chitchat_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      APP_ENV: test
+      APP_DEBUG: 1
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_NAME: chitchat_test
+      DB_USER: chitchat
+      DB_PASSWORD: chitchat
+      DB_SSLMODE: disable
+      ITERATIONS: ${{ github.event_name == 'pull_request' && '3' || inputs.iterations || '25' }}
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Every race test class is in the matrix
+        run: |
+          missing=0
+          for file in tests/Integration/*ConcurrencyTest.php tests/Integration/*RaceTest.php; do
+            name="$(basename "$file" .php)"
+            if ! grep -qx "          - ${name}" .github/workflows/race-repeat.yml; then
+              echo "::error::${name} is not repeated by race-repeat.yml"
+              missing=1
+            fi
+          done
+          exit "$missing"
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: fileinfo, gd, mbstring, pcntl, pdo_pgsql
+          coverage: none
+          tools: composer:v2
+
+      - run: composer install --no-interaction --prefer-dist
+      - run: composer migrate
+
+      - name: Run ${{ matrix.test }} ${{ env.ITERATIONS }} times
+        run: |
+          failures=0
+          for i in $(seq 1 "$ITERATIONS"); do
+            if ! vendor/bin/phpunit "tests/Integration/${{ matrix.test }}.php" --fail-on-empty-test-suite --no-progress > "run-${i}.txt" 2>&1; then
+              failures=$((failures + 1))
+              echo "::error::${{ matrix.test }} failed on run ${i} of ${ITERATIONS}"
+              grep -E '40P01|deadlock|Failed asserting|Error:' "run-${i}.txt" | head -5 || true
+              cp "run-${i}.txt" "failed-run-${i}.txt"
+            fi
+          done
+          echo "${{ matrix.test }}: ${failures} failed of ${ITERATIONS}" | tee -a "$GITHUB_STEP_SUMMARY"
+          test "$failures" -eq 0
+
+      - name: Upload failed runs
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: race-repeat-${{ matrix.test }}
+          path: failed-run-*.txt
+          if-no-files-found: ignore
+          retention-days: 14
