@@ -86,6 +86,13 @@ for (const theme of ['dark', 'light']) {
     await page.setViewportSize({ width: 1440, height: 1000 });
     const errors = [];
     page.on('pageerror', (error) => errors.push(error.message));
+    // Room message-mutations requests still open. A navigation cancels them, and
+    // WebKit reports a cancelled fetch as a page error, so the test leaves the
+    // Rooms page only once none is in flight.
+    const pendingMutations = new Set();
+    const isMutations = (request) => request.url().includes('/api/v1/rooms/message-mutations.php');
+    page.on('request', (request) => { if (isMutations(request)) pendingMutations.add(request); });
+    for (const settled of ['requestfinished', 'requestfailed']) page.on(settled, (request) => pendingMutations.delete(request));
     await fixture(page, false);
     await page.goto('/');
     await expect(page.locator('#auth-shell')).toBeVisible();
@@ -142,6 +149,11 @@ for (const theme of ['dark', 'light']) {
     await page.screenshot({ path: testInfo.outputPath(`chat-mobile-${theme}.png`) });
 
     await page.setViewportSize({ width: 1440, height: 1000 });
+    // Widening re-renders the Rooms list (no phone layout any more), and
+    // room-message-mutations.js refreshes on any change to it, after a 40 ms
+    // debounce. Give that a moment to start, then wait for it to finish.
+    await page.waitForTimeout(150);
+    await expect.poll(() => pendingMutations.size).toBe(0);
     await page.goto('/messages.php');
     await expect(page.locator('.dm-message')).toHaveCount(3);
     await expect(page.locator('#dm-composer')).toBeVisible();
