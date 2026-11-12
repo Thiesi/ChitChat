@@ -290,6 +290,21 @@ test('#270: re-rendering the list for the same room does not refetch its message
   await expect(page.locator('#room-title')).toHaveText('# Garden');
 });
 
+test('#270 follow-up: rooms_changed (a role change) refreshes the open room’s Edit and Delete', async ({ page }) => {
+  const requests = [];
+  page.on('request', (request) => { if (request.url().includes('/api/v1/rooms/message-mutations.php')) requests.push(request.url()); });
+  await fixture(page, { notifications: [] });
+  await open(page);
+  await expect(page.locator('#message-list .message')).toHaveCount(2);
+  await page.waitForTimeout(300);
+  const before = requests.length;
+  // What realtime-bridge.js re-dispatches when the stream says rooms_changed.
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('chitchat:realtime', {
+    detail: { type: 'rooms_changed', event: new MessageEvent('rooms_changed', { data: '{}' }) },
+  })));
+  await expect.poll(() => requests.length).toBe(before + 1);
+});
+
 for (const [scheme, theme] of [['lantern', 'light'], ['lantern', 'dark'], ['dusk', 'dark']]) {
   test(`${scheme} ${theme}: the list with every state passes axe at 1280 and 360, and reflows at 320`, async ({ page }) => {
     await page.addInitScript(([chosenScheme, chosenTheme]) => {
