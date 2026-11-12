@@ -233,3 +233,78 @@ test('in a person case, requiring a new username closes the case', async ({ page
   await expect.poll(() => requests.find((entry) => entry.path === 'moderation/require-username-change.php')?.body)
     .toEqual({ user_id: 2, reason: REASON, case_id: 42 });
 });
+
+// ---- The chooser (/choose-username.php) ----
+
+async function chooser(page, { user = gated, reply = null } = {}) {
+  const requests = await fixture(page, { session: () => user, overrides: reply ? { 'account/username.php': reply } : {} });
+  await page.goto('/choose-username.php');
+  return requests;
+}
+
+test('the chooser: the onboarding card, the reason, the name meanwhile, one field', async ({ page }) => {
+  await chooser(page);
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('ChitChat');
+  await expect(page.getByRole('heading', { level: 2 })).toHaveText('Choose a new username');
+  await expect(page.locator('#choose-username-reason')).toHaveText('The moderator’s reason: Slur in the name.');
+  await expect(page.locator('#choose-username-current')).toContainText('member-k7q2xm');
+  const field = page.getByRole('textbox', { name: /New username/ });
+  await expect(field).toBeFocused();
+  await expect(field).toHaveCSS('font-size', '16px');
+  await expect(field).toHaveAttribute('autocomplete', 'username');
+  await expect(page).toHaveTitle(/^Choose a new username · /);
+  await axe(page, 'chooser');
+});
+
+test('the chooser explains each refusal inline, and a chosen name goes back to the conversation', async ({ page }) => {
+  let attempts = 0;
+  const requests = await chooser(page, { reply: () => {
+    attempts += 1;
+    if (attempts === 1) return { status: 409, json: { error: { code: 'username_taken', message: 'Taken.' } } };
+    if (attempts === 2) return { status: 429, json: { error: { code: 'rate_limited', message: 'Slow down.', retry_after_seconds: 30 } } };
+    return { user: { ...member, username: 'JamieB' } };
+  } });
+  const field = page.getByRole('textbox', { name: /New username/ });
+  const error = page.locator('#choose-username-error');
+  // Checked before sending: no request for a name the rules refuse.
+  await field.fill('x');
+  await page.getByRole('button', { name: 'Use this name' }).click();
+  await expect(error).toHaveText('Use 3–32 letters, digits, dots, underscores or hyphens, starting with a letter or digit.');
+  await expect(field).toHaveAttribute('aria-invalid', 'true');
+  await expect(field).toHaveAccessibleDescription(/Use 3–32 letters/);
+  expect(requests.some((entry) => entry.path === 'account/username.php')).toBe(false);
+  await axe(page, 'chooser with an error');
+
+  await field.fill('Rowan');
+  await page.getByRole('button', { name: 'Use this name' }).click();
+  await expect(error).toHaveText('That name isn’t available. Try another.');
+  await field.fill('Rowan2');
+  await expect(error).toBeHidden();
+  await page.getByRole('button', { name: 'Use this name' }).click();
+  await expect(error).toHaveText('Too many tries for now. Wait a little, then try again.');
+  await field.fill('JamieB');
+  await page.getByRole('button', { name: 'Use this name' }).click();
+  await expect(page).toHaveURL(/\/$/);
+  expect(requests.filter((entry) => entry.path === 'account/username.php').at(-1).body).toEqual({ username: 'JamieB' });
+});
+
+test('the chooser tells an account with nothing to change, and sends signed-out people to the start', async ({ page }) => {
+  await chooser(page, { user: member });
+  await expect(page.getByRole('heading', { level: 2 })).toHaveText('Your username is fine');
+  await expect(page.locator('#choose-username-done-text')).toHaveText('Nothing to change: your username is Jamie.');
+  await expect(page.locator('#choose-username-form')).toBeHidden();
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
+  await chooser(page, { user: null });
+  await expect(page).toHaveURL(/\/$/);
+});
+
+for (const width of [1280, 360]) {
+  test(`the chooser in dark at ${width}px passes axe and fits`, async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('chitchat-theme', 'dark'));
+    await page.setViewportSize({ width, height: 800 });
+    await chooser(page);
+    await expect(page.getByRole('textbox', { name: /New username/ })).toBeVisible();
+    await axe(page, `${width} dark`);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  });
+}
