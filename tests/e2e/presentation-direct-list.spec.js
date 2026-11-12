@@ -110,6 +110,10 @@ test('a plain click or Enter switches in the page; a modified click is the brows
   expect(await page.evaluate(() => window.__stayed)).toBe(true);
   await expect(page).toHaveURL(/\/messages\.php$/);
 
+  // The new tab gets an inert page (#288): unmocked, it would load the real
+  // page against the real server (no session, a redirect, a live event stream)
+  // and could stall the run. The original page never requests this address.
+  await page.context().route((url) => url.pathname === '/messages.php' && url.search === '?with=3', (route) => route.fulfill({ contentType: 'text/html', body: '<!doctype html><title>New tab</title>' }));
   const opened = page.context().waitForEvent('page');
   await row(page, 'Sam').click({ modifiers: ['ControlOrMeta'] });
   const tab = await opened;
