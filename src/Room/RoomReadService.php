@@ -28,10 +28,14 @@ final class RoomReadService
      * Every joined room: messages after the read position, and unread room mentions after it.
      *
      * A mention counts while its notification is unread, its message is after the read
-     * position (0 before the first read) and not deleted, and its sender is not ignored now.
+     * position (0 for a membership without one) and not deleted, and its sender is not ignored now.
      * Reading the room clears the count without marking the notification read (#266).
      *
-     * @return array<int, array{unread_count:int, last_read_message_id:?int, unread_mention_count:int}> keyed by room ID
+     * `unread_through_message_id` is the room's newest message when the counts were taken: a
+     * client adding live messages to unread_count skips any at or below it, which this
+     * snapshot already covers (#279).
+     *
+     * @return array<int, array{unread_count:int, last_read_message_id:?int, unread_mention_count:int, unread_through_message_id:int}> keyed by room ID
      */
     public function forUser(int $userId): array
     {
@@ -74,7 +78,8 @@ SELECT rm.room_id,
                  )
                LIMIT :mention_cap
            ) mentions
-       ) AS unread_mention_count
+       ) AS unread_mention_count,
+       COALESCE((SELECT MAX(newest.id) FROM room_messages newest WHERE newest.room_id = rm.room_id), 0) AS unread_through_message_id
 FROM room_members rm
 LEFT JOIN room_reads rr ON rr.room_id = rm.room_id AND rr.user_id = rm.user_id
 WHERE rm.user_id = :user_id
@@ -90,11 +95,36 @@ SQL);
                     'unread_count' => (int) $row['unread_count'],
                     'last_read_message_id' => $row['last_read_message_id'] === null ? null : (int) $row['last_read_message_id'],
                     'unread_mention_count' => (int) $row['unread_mention_count'],
+                    'unread_through_message_id' => (int) $row['unread_through_message_id'],
                 ];
             }
         }
 
         return $reads;
+    }
+
+    /**
+     * Starts a new membership's read position at the room's newest message (0 for an
+     * empty room), inside the caller's membership transaction, so only later messages
+     * count as unread (#268). A row left from an earlier membership only moves forward:
+     * time away from the room is not unread. A message committing concurrently with the
+     * join may land on either side of the snapshot, as with any position markRead sets.
+     */
+    public function startAt(int $userId, int $roomId): void
+    {
+        $statement = $this->pdo->prepare(<<<'SQL'
+INSERT INTO room_reads (user_id, room_id, last_read_message_id, updated_at)
+SELECT CAST(:user_id AS bigint), CAST(:room_id AS bigint), COALESCE(MAX(id), 0), NOW()
+FROM room_messages
+WHERE room_id = :message_room_id
+ON CONFLICT (user_id, room_id) DO UPDATE
+SET last_read_message_id = GREATEST(room_reads.last_read_message_id, EXCLUDED.last_read_message_id),
+    updated_at = NOW()
+SQL);
+        if ($statement === false) {
+            throw new RuntimeException('Unable to prepare the starting read position.');
+        }
+        $statement->execute(['user_id' => $userId, 'room_id' => $roomId, 'message_room_id' => $roomId]);
     }
 
     /**

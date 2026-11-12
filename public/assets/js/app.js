@@ -4,6 +4,7 @@ import { controlItem, dayItem, dayKey, moreButton, newMessagesItem, reactButton,
 import { identityHueIndex } from './identity-hue.js';
 import { lantern, renderRoomList as drawRoomList, unreadRoomMentions } from './room-list.js';
 import { attachTranscriptKeys } from './transcript-keys.js';
+import { countLiveMessage } from './unread-count.js';
 import { createPresenceClient } from './presence.js';
 import { renderMessageBody, buildReplyPreview, buildReactionBar } from './message-content.js';
 import { attachMentionAutocomplete } from './mention-autocomplete.js';
@@ -1536,7 +1537,8 @@ function countUnread(message) {
   if (room.id === state.currentRoom?.id) {
     if (document.visibilityState === 'visible' && isNearBottom()) return;
   }
-  room.unread_count = Math.min(100, (room.unread_count ?? 0) + 1);
+  // Skips messages already read or already in the list's snapshot (#268, #279).
+  if (!countLiveMessage(room, message.id)) return;
   if (room.id !== state.currentRoom?.id) renderRoomList();
 }
 

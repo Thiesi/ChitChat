@@ -39,8 +39,8 @@ final class RoomUnreadMentionTest extends DatabaseTestCase
         (new DirectMessageService($this->pdo))->send($admin, $member->id, 'A private @Member');
         self::assertSame(4, $this->scalar("SELECT COUNT(*) FROM account_notifications WHERE user_id = {$member->id} AND kind = 'mentioned'"));
 
-        // Never read yet: unread_count stays 0 until the first read, but unseen mentions already show.
-        self::assertSame(0, $this->listed($member, $lounge->id)['unread_count']);
+        // Not read yet: both counts start at the join (#268).
+        self::assertSame(3, $this->listed($member, $lounge->id)['unread_count']);
         self::assertSame(2, $this->listed($member, $lounge->id)['unread_mention_count'], 'Explicit and @room mentions count.');
         self::assertSame(1, $this->listed($member, $garden->id)['unread_mention_count'], "Only the room's own mentions count.");
         self::assertSame(0, $this->listed($member, $elsewhere->id)['unread_mention_count'], 'A room the account has not joined reports 0.');
