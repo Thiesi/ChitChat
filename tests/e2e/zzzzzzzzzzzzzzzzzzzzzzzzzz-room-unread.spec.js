@@ -50,8 +50,12 @@ test('unread messages show in the room list and behind a divider until read', as
     const room = memberPage.locator('.room-button', { hasText: roomName });
     await openRoom(memberPage, roomName);
     const joined = memberPage.waitForResponse((response) => response.url().includes('/api/v1/rooms/join.php'));
+    // The join's own rooms_changed event refreshes the list; let it land before anything is
+    // posted, so its snapshot can't already include a message the stream then counts again.
+    const refreshed = memberPage.waitForResponse((response) => response.url().includes('/api/v1/rooms/list.php'));
     await memberPage.locator('#join-button').click();
     expect((await joined).ok()).toBe(true);
+    expect((await refreshed).ok()).toBe(true);
     await expect(memberPage.locator('#composer-input')).toBeVisible();
     const elsewhere = await memberPage.locator('.room-button').filter({ hasNotText: roomName }).first().locator('.room-name').textContent();
     await openRoom(memberPage, elsewhere.replace(/^#\s*/u, '').trim());
