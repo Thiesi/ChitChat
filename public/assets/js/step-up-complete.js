@@ -5,6 +5,9 @@ const parameters = new URLSearchParams(window.location.search);
 const error = parameters.get('sign_in_error');
 const confirmed = parameters.get('confirmed') === '1';
 
+// The heading follows the outcome, so it never says "confirming" over an error.
+const heading = document.getElementById('step-up-complete-title');
+if (heading) heading.textContent = confirmed ? 'Confirmed' : 'Not confirmed';
 document.getElementById('step-up-complete-status').textContent = confirmed
   ? 'Confirmed.'
   : 'The confirmation did not complete.';

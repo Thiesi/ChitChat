@@ -261,6 +261,13 @@
 
 .guest-entry .guest-entry-lead { font-weight: 600; }
 
+/* The rules box's reason, inline instead of the browser's bubble (rules.js). */
+.field-error {
+  margin: 0.35rem 0 0;
+  color: var(--error);
+  font-size: 0.9rem;
+}
+
 /* Restore and step-up completion: lockup above a single card. */
 .auth-shell-single {
   grid-template-rows: 1fr auto auto 1fr;

@@ -24,7 +24,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <main class="auth-shell auth-shell-single">
     <?= \ChitChat\View\Lockup::html($config, 'step-up-complete-brand', horizontal: true) ?>
     <section class="auth-card" aria-labelledby="step-up-complete-title">
-      <h2 id="step-up-complete-title" class="auth-greeting">Confirming it’s you</h2>
+      <h2 id="step-up-complete-title" class="auth-greeting">Confirming with your provider</h2>
       <p id="step-up-complete-status" role="status" aria-live="polite">Confirming…</p>
       <p id="step-up-complete-error" class="error-text" role="alert"></p>
       <p>You can close this window and return to <?= $appName ?>.</p>

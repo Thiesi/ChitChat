@@ -299,3 +299,86 @@ for (const [theme, scheme, season] of [['light', 'lantern', null], ['dark', 'lan
     }
   });
 }
+
+// ---- Review of #246 ----
+
+const REVOKED = 'You were signed out from another device. Sign in again.';
+const GENERIC = 'Your session has ended. Please sign in again.';
+const rooms = [{ id: 1, name: 'The living room', key: 'room-0', visibility: 'public', member_role: 'member', minimum_age: 0, inactivity_timeout_seconds: 0, info_line: '', unread_count: 0 }];
+
+async function signedInWithStream(page, onMessages) {
+  await page.addInitScript(() => {
+    class FakeEventSource extends EventTarget {
+      constructor(url) {
+        super();
+        this.url = url;
+        this.readyState = 1;
+        (window.__sources ??= []).push(this);
+        window.setTimeout(() => this.dispatchEvent(new Event('open')), 0);
+      }
+
+      close() { this.readyState = 2; }
+    }
+    window.EventSource = FakeEventSource;
+    window.__emitRaw = (type, data) => {
+      for (const source of window.__sources ?? []) source.dispatchEvent(new MessageEvent(type, { data: JSON.stringify(data) }));
+    };
+  });
+  let signedIn = true;
+  await fixture(page, { overrides: {
+    'session.php': () => ({ user: signedIn ? member : null, csrf_token: 'fixture', registration_enabled: true, sign_in_providers: [] }),
+    'rooms/list.php': { rooms },
+    'logout.php': () => { signedIn = false; return {}; },
+  } });
+  await page.route('**/api/v1/rooms/messages.php?**', onMessages);
+  return { signOut: () => { signedIn = false; } };
+}
+
+const generic401 = { status: 401, json: { error: { code: 'authentication_required', message: 'Sign in.' } } };
+
+test('#205: a plain 401 arriving after "signed out from another device" never replaces that line', async ({ page }) => {
+  let release;
+  const held = new Promise((resolve) => { release = resolve; });
+  const session = await signedInWithStream(page, async (route) => { await held; await route.fulfill(generic401); });
+  await page.goto('/');
+  await expect(page.locator('#chat-shell')).toBeVisible();
+  session.signOut();
+  await page.evaluate(() => window.__emitRaw('forced_logout', { reason: 'session_revoked' }));
+  await expect(page.locator('#auth-notice')).toHaveText(REVOKED);
+  // The request that was in flight comes back as a plain 401 afterwards.
+  release();
+  await page.waitForTimeout(300);
+  await expect(page.locator('#auth-notice')).toHaveText(REVOKED);
+  // Spoken, not only shown: the strip was filled with the shell.
+  await expect(page.locator('#announcer')).toHaveText(REVOKED);
+});
+
+test('#205: "signed out from another device" replaces an earlier generic line', async ({ page }) => {
+  const session = await signedInWithStream(page, (route) => route.fulfill(generic401));
+  await page.goto('/');
+  await expect(page.locator('#auth-notice')).toHaveText(GENERIC);
+  session.signOut();
+  await page.evaluate(() => window.__emitRaw('forced_logout', { reason: 'session_revoked' }));
+  await expect(page.locator('#auth-notice')).toHaveText(REVOKED);
+  await expect(page.locator('#announcer')).toHaveText(REVOKED);
+});
+
+test('the card is not named by a heading that is hidden in reset or MFA', async ({ page }) => {
+  await fixture(page);
+  await open(page, '/?reset=1');
+  await expect(page.getByRole('region', { name: 'Set a new password' })).toBeVisible();
+  await expect(page.locator('.auth-card')).not.toHaveAttribute('aria-labelledby', /.*/);
+});
+
+test('step-up completion shows the lockup, and its heading follows the outcome', async ({ page }) => {
+  // The page closes itself when done; keep it open to look at it.
+  await page.addInitScript(() => { window.close = () => {}; });
+  await page.goto('/step-up-complete.php?confirmed=1');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('ChitChat');
+  await expect(page.locator('.lockup.lockup-horizontal')).toBeVisible();
+  await expect(page.getByRole('heading', { level: 2 })).toHaveText('Confirmed');
+  await page.goto('/step-up-complete.php?sign_in_error=The%20provider%20refused.');
+  await expect(page.getByRole('heading', { level: 2 })).toHaveText('Not confirmed');
+  await expect(page.locator('#step-up-complete-error')).toHaveText('The provider refused.');
+  await axe(page, 'step-up completion, failed');
+});

@@ -65,7 +65,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
           <circle class="art-chit" cx="54" cy="10" r="5"/>
         </svg>
       </header>
-      <section class="auth-card" aria-labelledby="auth-greeting">
+      <section class="auth-card">
         <h2 id="auth-greeting" class="auth-greeting">Welcome back</h2>
         <p id="auth-notice" class="auth-strip hidden" role="status"></p>
         <p id="auth-lockdown" class="lockdown-notice auth-strip hidden" role="status"><strong>Maintenance.</strong> <span data-lockdown-text></span></p>
@@ -127,9 +127,10 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
           <div id="register-agreement" class="register-agreement hidden">
             <div id="register-rules-field" class="hidden">
               <label class="checkbox-label">
-                <input id="register-rules-accept" name="accept_rules" type="checkbox">
+                <input id="register-rules-accept" name="accept_rules" type="checkbox" aria-describedby="register-rules-error">
                 <span>I agree to the community rules of <?= $appName ?>.</span>
               </label>
+              <p id="register-rules-error" class="field-error hidden" role="alert"></p>
             </div>
             <p class="register-agreement-links">
               <a id="register-rules-link" class="hidden" href="#" target="_blank" rel="noopener">Read the community rules<span class="visually-hidden"> (opens in a new tab)</span></a><span id="register-links-separator" class="hidden" aria-hidden="true"> · </span><a id="register-privacy-link" class="hidden" href="#" target="_blank" rel="noopener">How your data is handled<span class="visually-hidden"> (opens in a new tab)</span></a>
