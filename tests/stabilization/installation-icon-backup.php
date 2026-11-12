@@ -27,6 +27,8 @@ if (($argv[1] ?? '') === 'seed') {
         dirname(__DIR__,2).'/public/assets/app-icons/icon-512.png'),'#14111C','127.0.0.1');
     $service->update($actor,null,'#FBF7F1','127.0.0.1');
     $service->choosePreset($actor, 'initial', '127.0.0.1');
+    // The sign-in decoration lives on the same settings singleton (#242).
+    $pdo->exec("UPDATE system_settings SET sign_in_decoration = 'winter' WHERE id = 1");
     $expected = ['current'=>$repository->currentRevision(), 'selection'=>$repository->selection(),
         'actor_id'=>$actor->id, 'generations'=>[]];
     foreach ($pdo->query('SELECT revision FROM installation_icons ORDER BY revision')->fetchAll(PDO::FETCH_COLUMN) as $revision) {
@@ -41,7 +43,8 @@ if (($argv[1] ?? '') === 'seed') {
     $expected = json_decode((string)file_get_contents($expectedPath),true,32,JSON_THROW_ON_ERROR);
     if ($repository->currentRevision() !== $expected['current']
         || $repository->selection() !== $expected['selection']
-        || (int)$pdo->query('SELECT count(*) FROM installation_icons')->fetchColumn() !== 2) {
+        || (int)$pdo->query('SELECT count(*) FROM installation_icons')->fetchColumn() !== 2
+        || $pdo->query('SELECT sign_in_decoration FROM system_settings WHERE id = 1')->fetchColumn() !== 'winter') {
         throw new RuntimeException('Restored icon pointer/generation retention differs.');
     }
     foreach ($expected['generations'] as $revision=>$hashes) {
