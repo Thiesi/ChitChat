@@ -132,6 +132,8 @@ SQL
             JOIN rooms room ON room.id = rm.room_id
             WHERE rm.room_id = e.room_id
               AND rm.user_id = :member_user_id
+              -- Nothing from before this membership: a join must not replay the room's past (#276).
+              AND rm.joined_at <= e.created_at
               -- A guest hears a room only while it lets guests in.
               AND (member.account_kind = 'member' OR room.guest_access <> 'none')
         )
@@ -178,7 +180,8 @@ SQL);
             }
         }
 
-        return $events;
+        // A message changed since its event was published is served as it is now (#276).
+        return (new StaleMessageEvents($this->pdo))->refresh($actor->id, $events);
     }
 
     /** @param array<string, mixed> $row */
