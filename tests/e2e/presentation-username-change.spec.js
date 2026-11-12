@@ -229,7 +229,7 @@ test('in a person case, requiring a new username closes the case', async ({ page
   // The case action does both, so the plain choice isn't offered (hidden and disabled, for Safari).
   const plain = page.locator('#moderation-resolution-code option[value="username_change_required"]');
   await expect(page.getByRole('button', { name: 'Require a new username…' })).toBeVisible();
-  await expect(plain).toBeDisabled();
+  await expect(plain).toHaveJSProperty('disabled', true);
   await expect(plain).toHaveJSProperty('hidden', true);
   await page.getByRole('button', { name: 'Require a new username…' }).click();
   await page.getByRole('dialog', { name: /Require Rowan/ }).getByRole('button', { name: 'Replace the name' }).click();
@@ -326,7 +326,8 @@ test('a second case about a name already replaced can be closed as "new username
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto('/moderation.php');
   const plain = page.locator('#moderation-resolution-code option[value="username_change_required"]');
-  await expect(plain).toBeEnabled();
+  await expect(plain).toHaveJSProperty('disabled', false);
+  await expect(plain).toHaveJSProperty('hidden', false);
   await expect(page.getByRole('button', { name: 'Require a new username…' })).toHaveCount(0);
   await page.locator('#moderation-resolution-code').selectOption('username_change_required');
   await page.locator('#moderation-resolution-form').getByRole('button', { name: /Resolve/ }).click();
