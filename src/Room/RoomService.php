@@ -658,7 +658,9 @@ SQL, ['id' => $userId]);
     private function notify(int $userId, string $kind, string $context): void
     {
         $statement = $this->pdo->prepare(
-            // In-app only (#273): marked dispatched so push neither wakes nor sends for it.
+            // push_dispatched_at = NOW() here means "never push" for these kinds (#273): they are
+            // in-app only by design. The push wake-up trigger and the materializer both skip rows
+            // that already have it. Don't remove it to "fix" missing pushes.
             'INSERT INTO account_notifications (user_id, kind, context_json, push_dispatched_at) VALUES (:user_id, :kind, CAST(:context AS jsonb), NOW())',
         );
         if ($statement === false) {
