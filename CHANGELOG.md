@@ -6,6 +6,8 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ## [Unreleased]
 
+- Let administrators and room owners transfer a room's ownership with `POST /api/v1/rooms/transfer-ownership.php` (#273), so a room whose owner left or closed their account can be handed on inside ChitChat. An administrator can also take over an invite-only room they aren't in. Requires step-up; audited; both owners are told. A room can now have only one owner, enforced by the database. Apply migration 0058, which first checks for rooms with two owners and stops, naming them, if it finds any (nothing is changed). Operators can run this read-only check beforehand: `SELECT room_id, COUNT(*) FROM room_members WHERE role = 'owner' GROUP BY room_id HAVING COUNT(*) > 1;` (it must return no rows).
+
 - Add `unread_mention_count` to each joined room in `GET /api/v1/rooms/list.php` (#266): unread room mentions after the account's read position, from senders it doesn't ignore, capped at 100. Reading the room clears it without marking the notification read. This replaces deriving the room list's "@" from the newest notifications, which missed older ones. Additive to API v1. Apply migration 0056, a partial index on unread room-mention notifications.
 
 - Fix a deadlock between a moderator removing someone's profile picture and that account requiring a new username for the moderator (#262). `avatar_key` is unique, so clearing it is a key change; the removal now locks through the same actor/target ID order as other staff key changes. No migration.

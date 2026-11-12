@@ -201,15 +201,19 @@ SQL);
             }
             $presence->execute(['room_id' => $roomId, 'user_id' => $targetUserId]);
 
+            // Never the owner row, checked in the same statement as the delete (#273).
             $membership = $this->pdo->prepare(
-                'DELETE FROM room_members WHERE room_id = :room_id AND user_id = :user_id',
+                "DELETE FROM room_members WHERE room_id = :room_id AND user_id = :user_id AND role <> 'owner'",
             );
             if ($membership === false) {
                 throw new RuntimeException('Unable to prepare room membership removal.');
             }
             $membership->execute(['room_id' => $roomId, 'user_id' => $targetUserId]);
             if ($membership->rowCount() !== 1) {
-                throw new RuntimeException('Room membership removal did not affect one row.');
+                if ($this->rooms->membershipRole($roomId, $targetUserId) === 'owner') {
+                    throw new ApiException(409, 'owner_membership_immutable', 'The room owner cannot be removed.');
+                }
+                throw new ApiException(404, 'membership_not_found', 'Target user is not a room member.');
             }
 
             $this->audit->log(

@@ -43,8 +43,13 @@ final class RoomAuthorization
 
     public static function canManage(AuthenticatedUser $actor, Room $room): bool
     {
-        return self::hasAnyRole($actor, ['super_admin', 'admin', 'chat_admin'])
-            || $room->memberRole === 'owner';
+        return self::canManageAnyRoom($actor) || $room->memberRole === 'owner';
+    }
+
+    /** The global roles that manage every room (rename, delete, set roles, transfer ownership). */
+    public static function canManageAnyRoom(AuthenticatedUser $actor): bool
+    {
+        return self::hasAnyRole($actor, ['super_admin', 'admin', 'chat_admin']);
     }
 
     public static function canModerate(AuthenticatedUser $actor, Room $room): bool
