@@ -6,6 +6,8 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ## [Unreleased]
 
+- Stop the event stream rescanning old events on every poll (#281). A connection resuming from an old cursor, or a fresh one, now moves past retained events it can't see once no event is still being published, and remembers that position across reconnects with a bare `id:` line. With 200,000 such events, polls after the first drop from about 0.7 s to under 2 ms. Replayed messages also carry the sender's current name after a moderator replaced it. No migration.
+
 - Fix a privacy leak in the event stream (#276). Retained events were replayed with the message text as it was sent, so a member who joined a room later, or reconnected after being offline, could receive text that had since been deleted (including by a moderator) or edited, also inside a reply's quote and in direct messages. Room events now start at the account's current membership, and replayed message events are served from the message's current state. No migration; no API shape change.
 
 - Add `unread_mention_count` to each joined room in `GET /api/v1/rooms/list.php` (#266): unread room mentions after the account's read position, from senders it doesn't ignore, capped at 100. Reading the room clears it without marking the notification read. This replaces deriving the room list's "@" from the newest notifications, which missed older ones. Additive to API v1. Apply migration 0056, a partial index on unread room-mention notifications.

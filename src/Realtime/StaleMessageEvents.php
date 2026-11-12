@@ -44,8 +44,8 @@ final class StaleMessageEvents
                 $directEvents[] = $event->id;
             }
         }
-        $staleRoom = $roomEvents === [] ? [] : $this->stale($roomEvents, 'room_messages');
-        $staleDirect = $directEvents === [] ? [] : $this->stale($directEvents, 'direct_messages');
+        $staleRoom = $roomEvents === [] ? [] : $this->stale($roomEvents, 'room_messages', 'sender_id', "e.payload->'message'->>'username'");
+        $staleDirect = $directEvents === [] ? [] : $this->stale($directEvents, 'direct_messages', 'sender_user_id', "e.payload->'message'->'sender'->>'username'");
         if ($staleRoom === [] && $staleDirect === []) {
             return $events;
         }
@@ -75,18 +75,25 @@ final class StaleMessageEvents
      * @param list<int> $eventIds
      * @return array<int, bool>
      */
-    private function stale(array $eventIds, string $table): array
+    private function stale(array $eventIds, string $table, string $senderColumn, string $payloadSender): array
     {
         $statement = $this->pdo->prepare(<<<SQL
 SELECT e.id, (m.id IS NOT NULL) AS present
 FROM realtime_events e
 LEFT JOIN {$table} m ON m.id = (e.payload->'message'->>'id')::bigint
 LEFT JOIN {$table} quoted ON quoted.id = m.reply_to_message_id
+LEFT JOIN users sender ON sender.id = m.{$senderColumn}
+LEFT JOIN users quoted_sender ON quoted_sender.id = quoted.{$senderColumn}
 WHERE e.id = ANY(CAST(:ids AS bigint[]))
   AND (
       m.id IS NULL
       OR (m.reply_to_message_id IS NOT NULL AND quoted.id IS NULL)
       OR GREATEST(m.deleted_at, m.edited_at, quoted.deleted_at, quoted.edited_at) > e.created_at
+      -- A sender renamed since, e.g. a moderator-replaced name (#164, #281), in the message or its quote.
+      OR (sender.id IS NOT NULL AND sender.username IS DISTINCT FROM {$payloadSender})
+      OR (quoted_sender.id IS NOT NULL
+          AND e.payload->'message'->'reply_to'->'message'->'sender' IS NOT NULL
+          AND quoted_sender.username IS DISTINCT FROM (e.payload->'message'->'reply_to'->'message'->'sender'->>'username'))
   )
 SQL);
         if ($statement === false) {
