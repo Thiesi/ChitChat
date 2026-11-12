@@ -2,6 +2,12 @@ import { ApiError, apiGet, apiPost, setCsrfToken } from './api.js';
 import { applicationName } from './application-name.js';
 import { nameButton } from './name-menu.js';
 import { formatDateTime } from './datetime.js';
+import { identityHueIndex } from './identity-hue.js';
+import { initials } from './avatar.js';
+import { listTime } from './room-list.js';
+import { queryTerms, renderHighlighted } from './search-highlight.js';
+
+const SCOPES = ['all', 'rooms', 'direct'];
 
 const state = {
   query: '',
@@ -42,6 +48,17 @@ function bindElements() {
 function bindEvents() {
   elements['message-search-form'].addEventListener('submit', submitSearch);
   elements['message-search-more'].addEventListener('click', loadMore);
+  // A scope chip re-runs the last search in the new scope.
+  elements['message-search-scope'].addEventListener('change', () => {
+    if (state.query) void runSearch({ replace: true });
+    else updateAddress(selectedScope());
+  });
+}
+
+/** The checked scope chip. */
+function selectedScope() {
+  const checked = elements['message-search-scope'].querySelector('input[name="scope"]:checked');
+  return SCOPES.includes(checked?.value) ? checked.value : 'all';
 }
 
 async function bootstrap() {
@@ -57,7 +74,9 @@ async function bootstrap() {
   elements['message-search-shell'].classList.remove('hidden');
 
   const scope = new URLSearchParams(window.location.search).get('scope') ?? 'all';
-  elements['message-search-scope'].value = ['all', 'rooms', 'direct'].includes(scope) ? scope : 'all';
+  const chosen = SCOPES.includes(scope) ? scope : 'all';
+  const chip = elements['message-search-scope'].querySelector(`input[value="${chosen}"]`);
+  if (chip) chip.checked = true;
   elements['message-search-query'].focus();
 }
 
@@ -75,7 +94,7 @@ async function loadMore() {
 async function runSearch({ replace, offset = 0 }) {
   if (state.loading) return;
   const query = elements['message-search-query'].value.trim();
-  const scope = elements['message-search-scope'].value;
+  const scope = selectedScope();
   if (query.length < 2) {
     elements['message-search-query'].focus();
     return;
@@ -103,15 +122,18 @@ async function runSearch({ replace, offset = 0 }) {
       updateAddress(scope);
     }
 
+    const terms = queryTerms(state.query);
     for (const result of results) {
-      elements['message-search-results'].append(buildResult(result));
+      elements['message-search-results'].append(buildResult(result, terms));
     }
     state.resultCount += results.length;
     state.nextOffset = Number.isInteger(response.next_offset) ? response.next_offset : null;
     elements['message-search-more'].classList.toggle('hidden', !response.has_more);
 
     if (state.resultCount === 0) {
-      elements['message-search-status'].textContent = 'No visible messages matched your search.';
+      // The door is always open: say what to try next.
+      const elsewhere = state.scope === 'all' ? 'Try fewer or different words.' : 'Try fewer words, or search All.';
+      elements['message-search-status'].textContent = `Nothing matches “${state.query}”. ${elsewhere}`;
     } else if (response.has_more) {
       elements['message-search-status'].textContent = `${state.resultCount} results shown. More results are available.`;
     } else {
@@ -126,10 +148,38 @@ async function runSearch({ replace, offset = 0 }) {
   }
 }
 
-function buildResult(result) {
+/** A room's lantern or a person's pebble, in their identity hue (S4d). Decorative. */
+function resultMark(result) {
+  const mark = document.createElement('span');
+  mark.setAttribute('aria-hidden', 'true');
+  if (result.kind === 'room' && result.room) {
+    mark.className = 'search-mark lantern';
+    mark.textContent = '#';
+    const hue = identityHueIndex(result.room.id);
+    if (hue !== null) mark.dataset.hue = String(hue);
+  } else if (result.kind === 'direct' && result.peer) {
+    mark.className = 'search-mark pebble';
+    mark.textContent = initials(result.peer.username);
+    const hue = identityHueIndex(result.peer.id);
+    if (hue !== null) mark.dataset.hue = String(hue);
+  } else {
+    mark.className = 'search-mark';
+  }
+  return mark;
+}
+
+let resultSequence = 0;
+
+/**
+ * A result row (S4d): the lantern or pebble, the place as the link (it opens
+ * the exact message), the time; then the excerpt with the matching words in
+ * <mark>, and who wrote it. The excerpt and the sender line describe the link.
+ */
+function buildResult(result, terms) {
   const item = document.createElement('li');
   const article = document.createElement('article');
   article.className = 'message-search-result';
+  const id = ++resultSequence;
 
   const header = document.createElement('header');
   const heading = document.createElement('h3');
@@ -157,17 +207,22 @@ function buildResult(result) {
   }
   heading.append(link);
 
-  const context = document.createElement('span');
-  context.className = 'message-search-context';
-  context.textContent = result.kind === 'direct' ? 'Direct message' : 'Room message';
-  header.append(heading, context);
+  const time = document.createElement('time');
+  time.className = 'message-search-time';
+  time.dateTime = typeof result.created_at === 'string' ? result.created_at : '';
+  time.textContent = listTime(result.created_at);
+  time.title = formatDateTime(result.created_at);
+  header.append(heading, time);
 
   const excerpt = document.createElement('p');
   excerpt.className = 'message-search-excerpt';
-  excerpt.textContent = typeof result.excerpt === 'string' ? result.excerpt : '';
+  excerpt.id = `search-excerpt-${id}`;
+  // Text nodes and <mark> elements only: the excerpt is never parsed as HTML.
+  renderHighlighted(excerpt, typeof result.excerpt === 'string' ? result.excerpt : '', terms);
 
   const meta = document.createElement('p');
   meta.className = 'message-search-meta';
+  meta.id = `search-meta-${id}`;
   const edited = result.edited_at ? ' · edited' : '';
   if (result.kind === 'direct' && result.outgoing) {
     meta.append('You');
@@ -176,9 +231,13 @@ function buildResult(result) {
   } else {
     meta.append('System');
   }
-  meta.append(` · ${formatDateTime(result.created_at)}${edited}`);
+  meta.append(` · ${result.kind === 'direct' ? 'Direct message' : 'Room message'}${edited}`);
+  link.setAttribute('aria-describedby', `${excerpt.id} ${meta.id}`);
 
-  article.append(header, excerpt, meta);
+  const body = document.createElement('div');
+  body.className = 'message-search-body';
+  body.append(header, excerpt, meta);
+  article.append(resultMark(result), body);
   item.append(article);
   return item;
 }
