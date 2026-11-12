@@ -149,10 +149,8 @@ for (const theme of ['dark', 'light']) {
     await page.screenshot({ path: testInfo.outputPath(`chat-mobile-${theme}.png`) });
 
     await page.setViewportSize({ width: 1440, height: 1000 });
-    // Widening re-renders the Rooms list (no phone layout any more), and
-    // room-message-mutations.js refreshes on any change to it, after a 40 ms
-    // debounce. Give that a moment to start, then wait for it to finish.
-    await page.waitForTimeout(150);
+    // Widening re-renders the Rooms list; since #270 that no longer refetches
+    // the room's message state, so nothing should be left open here.
     await expect.poll(() => pendingMutations.size).toBe(0);
     await page.goto('/messages.php');
     await expect(page.locator('.dm-message')).toHaveCount(3);

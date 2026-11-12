@@ -1,0 +1,108 @@
+/* The Activity feed (S4c, #170; behaviour in privacy-notifications.js and
+   activity.js). Day headings like the transcript; each item has its kind's
+   mark on the left: "@" in honey, a bell, a pebble in the person's hue, a
+   shield in Dusk (hue 5, the same in every scheme), a muted lantern, or an
+   info sign. Unread items carry a dot. Uses only existing tokens. */
+
+.privacy-notification-list { gap: 1.25rem; }
+
+.activity-day { display: grid; gap: 0.6rem; }
+
+.activity-day-heading {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.activity-items { display: grid; gap: 0.5rem; margin: 0; padding: 0; list-style: none; }
+
+/* An item: the mark, then the words and actions. */
+.privacy-notification.activity-item {
+  position: relative;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 0.85rem;
+  padding: 0.85rem 1rem;
+}
+
+.activity-body { display: grid; gap: 0.35rem; min-width: 0; }
+
+.activity-kind {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 650;
+}
+
+.activity-lead { margin: 0; font-weight: 650; line-height: 1.4; overflow-wrap: anywhere; }
+.privacy-notification-unread .activity-lead { font-weight: 800; }
+
+.activity-message { margin: 0; color: var(--text-muted); }
+
+.activity-body .privacy-notification-actions { justify-content: flex-start; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.25rem; }
+
+/* Unread: a dot in the signature colour, replacing the old thick edge. */
+.privacy-notification-unread.activity-item { border-inline-start: 1px solid var(--line); }
+.privacy-notification-unread.activity-item::after {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+  background: var(--signature-text);
+  content: "";
+}
+/* Room for the dot on every item, so times line up whether read or not. */
+.activity-item .privacy-notification-header { padding-inline-end: 1.1rem; }
+
+/* ---- Marks ---- */
+
+.activity-icon {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.activity-icon svg { width: 1.1rem; height: 1.1rem; }
+
+.activity-icon-mention { background: var(--presence); color: var(--hue-ink); }
+.activity-icon-shield { background: var(--hue-5); color: var(--hue-ink); }
+.activity-icon-lantern { border-radius: 0.75rem; background: var(--surface); color: var(--text-muted); }
+.activity-icon-bell { color: var(--signature-text); }
+
+.activity-icon-pebble[data-hue="0"] { background: var(--hue-0); color: var(--hue-ink); }
+.activity-icon-pebble[data-hue="1"] { background: var(--hue-1); color: var(--hue-ink); }
+.activity-icon-pebble[data-hue="2"] { background: var(--hue-2); color: var(--hue-ink); }
+.activity-icon-pebble[data-hue="3"] { background: var(--hue-3); color: var(--hue-ink); }
+.activity-icon-pebble[data-hue="4"] { background: var(--hue-4); color: var(--hue-ink); }
+.activity-icon-pebble[data-hue="5"] { background: var(--hue-5); color: var(--hue-ink); }
+.activity-icon-pebble[data-hue="6"] { background: var(--hue-6); color: var(--hue-ink); }
+.activity-icon-pebble[data-hue="7"] { background: var(--hue-7); color: var(--hue-ink); }
+
+/* ---- Empty: the door is always open ---- */
+
+.activity-empty:not(.hidden) { display: grid; justify-items: start; gap: 0.6rem; }
+.activity-empty p { margin: 0; font-weight: 650; }
+
+@media (max-width: 40rem) {
+  .privacy-notification.activity-item { gap: 0.65rem; padding: 0.75rem; }
+  .activity-icon { width: 2rem; height: 2rem; }
+  .activity-body .privacy-notification-header { flex-direction: row; align-items: baseline; justify-content: space-between; }
+}
+
+@media (forced-colors: active) {
+  .activity-icon { border: 1px solid CanvasText; }
+  .privacy-notification-unread.activity-item::after { background: Highlight; forced-color-adjust: none; }
+}

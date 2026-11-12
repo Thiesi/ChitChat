@@ -16,11 +16,13 @@ Super-Administrators, Administrators, Chat Admins, and Global Moderators may vie
 
 Returns rooms visible in the user's room list. Global room moderators receive all active rooms.
 
-For rooms the account has joined, each entry also carries `unread_count` (messages from others, not deleted, after the read position; counting stops at 100, shown as "99+") and `last_read_message_id` (`null` until the account first reads there). Other rooms report `0` and `null`.
+For rooms the account has joined, each entry also carries `unread_count` (messages from others, not deleted, after the read position; counting stops at 100, shown as "99+") and `last_read_message_id`, which starts at the room's newest message when the account joins or creates the room, so only later messages count (#268). Clients should still accept `null` for a joined room. Other rooms report `0` and `null`.
+
+Joined rooms also carry `unread_through_message_id`: the room's newest message when the counts were taken (`null` for other rooms). A client that adds live `room_message` events to `unread_count` must skip any message with an ID at or below it, because the snapshot already counted it (#279). Otherwise a list fetched while messages arrive counts them twice.
 
 Joined rooms also carry `unread_mention_count` (#266): room mentions of the account, explicit or through `@room`/`@here`, that are still unseen. A mention counts while all of these hold:
 - its `mentioned` notification is unread;
-- its message is after the read position (every message counts before the first read);
+- its message is after the read position;
 - the message isn't deleted;
 - the account doesn't ignore its sender.
 
@@ -178,6 +180,8 @@ Lists deleted rooms the account could restore, newest deletion first: every dele
 ```
 
 Private rooms require an invitation unless the user has a global moderation role. If the room has a minimum age, the account must have a birth date and meet the requirement. Joining consumes any invitation.
+
+The response is `{"room": …}` with the room's details plus the read fields the room list carries: `unread_count`, `last_read_message_id` (the room's newest message at the join, #268), `unread_mention_count` and `unread_through_message_id`. A client can replace its list entry with it without fetching the list again.
 
 ### `POST /api/v1/rooms/leave.php`
 

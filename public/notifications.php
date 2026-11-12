@@ -22,6 +22,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <link rel="stylesheet" href="/assets/css/accessibility.css">
   <link rel="stylesheet" href="/assets/css/account.css">
   <link rel="stylesheet" href="/assets/css/privacy-notifications.css">
+  <link rel="stylesheet" href="/assets/css/activity.css">
   <link rel="stylesheet" href="/assets/css/shell.css">
 </head>
 <body>
@@ -54,7 +55,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
 
       <p id="privacy-notifications-status" class="account-muted" role="status" aria-live="polite"></p>
       <ol id="privacy-notifications-list" class="privacy-notification-list" aria-label="Notifications"></ol>
-      <p id="privacy-notifications-empty" class="account-muted hidden">No notifications have been recorded for this account.</p>
+      <div id="privacy-notifications-empty" class="activity-empty hidden"><p>You’re all caught up.</p><a class="secondary-button" href="/">Back to Rooms</a></div>
 
       <div class="account-action-row">
         <button id="privacy-notifications-more" class="secondary-button hidden" type="button">Load older notifications</button>

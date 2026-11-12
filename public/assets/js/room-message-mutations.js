@@ -21,12 +21,14 @@ window.addEventListener('DOMContentLoaded', () => {
   elements = { messageList, roomList, toastRegion, chatShell, currentUser };
 
   new MutationObserver(queueEnhancement).observe(messageList, { childList: true, subtree: true });
+  // The room list only matters when the open room changes (#270): a re-render
+  // of the same room (a new unread count, a phone-to-desktop resize) changes
+  // nothing about its messages, which the message-list observer covers.
   new MutationObserver(() => {
     const roomId = currentRoomId();
-    if (roomId !== lastRoomId) {
-      lastRoomId = roomId;
-      generation += 1;
-    }
+    if (roomId === lastRoomId) return;
+    lastRoomId = roomId;
+    generation += 1;
     queueEnhancement();
   }).observe(roomList, {
     childList: true,
@@ -47,6 +49,11 @@ window.addEventListener('chitchat:realtime', (event) => {
     queueEnhancement();
   }
   if (type === 'message_deleted' && envelope?.payload?.room_id === currentRoomId()) {
+    queueEnhancement();
+  }
+  // Since #270 a re-render of the same room no longer refetches; a role change
+  // (made moderator, say) arrives as rooms_changed and refreshes Edit and Delete.
+  if (type === 'rooms_changed' && currentRoomId() !== null) {
     queueEnhancement();
   }
 });

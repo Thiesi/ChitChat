@@ -37,7 +37,9 @@ We do not claim conformance with any WCAG level. The automated checks below use 
   - Your own messages, edits, reactions, typing and presence changes are not announced; they're read when you reach the message.
   - Loading older history says "Loading older messages…" and then how many arrived.
 - Opening a room or conversation with unread messages announces its name and the number of new messages.
-- **Room rows are links,** each read as one name with what's waiting in it, for example "Garden, 3 unread, mentions you, 2 here now". The open room is marked as the current page. Ctrl- or Cmd-click opens a room in a new tab. Rooms you haven't joined, and invitations, have their own "Join" button next to the link.
+- **Room and conversation rows are links,** each read as one name with what's waiting in it, for example "Garden, 3 unread, mentions you, 2 here now" or "Sam, 3 unread". A room's info line or a conversation's last message, and the time, follow as the description. A conversation you can't write in says so instead of its last message ("blocked", "unavailable" or "account closed"). The open one is marked as the current page, and Ctrl- or Cmd-click opens it in a new tab. Rooms you haven't joined, and invitations, have their own "Join" button next to the link.
+- **Activity** is grouped under day headings (Today, Yesterday, the weekday, then the date), each day a list of its own. Unread items start with "Unread:", and every action ("View message", "Mark as read") is described by its item's words, so it's clear which one it acts on. Marking an item read keeps focus on it.
+- **Search results:** each result's link names the room or conversation and opens the exact message. The excerpt and the sender follow as its description, and the words you searched for are marked in the excerpt. The scope (All, Rooms, Direct) is a radio group, so the arrow keys move between the choices.
 - Navigation tabs with unread items are read with their visible name first, for example "Activity, 3 unread", so voice-control users can say what they see.
 - A "signed out" line on the sign-in screen, for example after signing out on another device, is also announced.
 
