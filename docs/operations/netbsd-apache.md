@@ -56,7 +56,7 @@ Because the master is shared with other sites, "stopping ChitChat" means taking 
 
 ### Installation icons
 
-Use the **Installation icon** setting beside the installation name. ChitChat stores normalized renditions in the database; ordinary backups include them. GD with PNG/WebP is needed for uploads, and memory_limit >= 256M is recommended for large inputs. No Alias, writable docroot or new host rule is needed. /favicon.ico uses the existing FallbackResource dispatch before any session starts. See [the API and operations contract](../api/installation-icon.md).
+Use the **Installation icon** setting beside the installation name. ChitChat stores normalized renditions in the database; ordinary backups include them. GD with PNG and WebP is needed for uploads and presets, and FreeType for the preset that shows the installation name's initial (pkgsrc's `php83-gd` is normally built with FreeType; confirm with `php -r 'var_export(gd_info());'` as the instance user). Without FreeType that one preset is unavailable and the setting explains why; it isn't a fault. `memory_limit >= 256M` is recommended for large inputs. No Alias, writable docroot or new host rule is needed. /favicon.ico uses the existing FallbackResource dispatch before any session starts. See [the API and operations contract](../api/installation-icon.md).
 
 Legacy note: older releases required per-URL Alias overrides for Lantern assets. Remove those mappings when adopting this setting, including any /favicon.ico Alias, or the web server will continue serving the legacy files. Browsers and installed apps can retain previously cached icons.
 
@@ -93,6 +93,18 @@ Rotate the listener's log with **copy-then-truncate**, for example `/etc/copytru
 ### pcntl only for the listener
 
 The listener needs `pcntl` for graceful SIGTERM handling. Installing `php83-pcntl` adds `php.d/pcntl.ini`, which enables it for **every** PHP SAPI, PHP-FPM included, at the next reload. Comment that line out; the supervisor loads the extension only for the listener with `php -d extension=pcntl.so`.
+
+## Authenticator-app (TOTP) keys
+
+Authenticator-app codes need an encryption key for the stored secrets; without one, enrollment simply isn't offered. The recommended source is a server key ring in the instance's `.env`:
+
+1. As the instance user, in a private terminal: `php bin/totp-key generate`. It prints the `TOTP_ENCRYPTION_KEYS` and `TOTP_ACTIVE_KEY_ID` lines and touches nothing else. The output is a secret: keep it out of shell history, tickets and logs.
+2. Add both lines to `.env` following [Editing `.env` as root](#accounts): write into the existing file so it stays `APPUSER:APPUSER` and mode `0600`.
+3. Reload the shared FPM master (`service php_fpm83 reload`). PHP-FPM workers keep environment values they have already read, so a reload is what makes every worker use the new key.
+
+No cron entry, rc.d script or Apache change is needed. [`totp.md`](totp.md) covers the warned database-key alternative, rotation and escrow; back the key ring up with the instance's secrets, because codes can't be verified without it.
+
+Settings such as the sign-in decoration and the username reservation period are operated in the admin interface and need no host steps.
 
 ## Backups
 

@@ -91,7 +91,7 @@ The application currently provides:
 - published-release archive installation, first-class backup/restore and forward-upgrade rehearsal;
 - real Nginx/PHP-FPM validation of authenticated, unbuffered SSE delivery.
 
-Horizontal scaling and optional external identity (OpenID Connect) integration were considered and intentionally left out of the final release — see the [roadmap](docs/roadmap.md) for why each was deferred rather than pursued. Release-specific manual assistive-technology sign-off remains, as it always has, a per-installation operator responsibility rather than something automated CI can certify once for every deployment.
+Horizontal scaling and optional external identity (OpenID Connect) integration were considered and intentionally left out of the final release — see the [roadmap](docs/roadmap.md) for why each was deferred rather than pursued. Accessibility is verified with automated checks; there is no manual assistive-technology release gate. Operators who need a formal sign-off for their installation arrange their own, and the optional [assistive-technology checklist](docs/operations/accessibility-review.md) can help.
 
 ## Installation and operation
 

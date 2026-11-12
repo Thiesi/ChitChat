@@ -46,7 +46,7 @@ Pinned Chromium also validates:
 - selected controls, primary actions, and focus indicators under forced-colors emulation;
 - negligible animation and transition durations under `prefers-reduced-motion: reduce`.
 
-Emulation cannot prove behavior with real browser zoom, Windows contrast themes, NVDA, or VoiceOver. Follow [`accessibility-review.md`](accessibility-review.md) for the required manual procedure and honest result recording.
+Emulation cannot prove behavior with real browser zoom, Windows contrast themes, NVDA, or VoiceOver. The project does not test manually with assistive technology (see the [accessibility statement](../accessibility.md)); [`accessibility-review.md`](accessibility-review.md) is an optional checklist for people who do, and reports go through the Accessibility problem issue form.
 
 ## Targeted visual regression
 

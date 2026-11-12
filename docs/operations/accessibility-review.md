@@ -1,111 +1,74 @@
-# Manual accessibility review
+# Optional assistive-technology checklist
 
-Automated checks are a regression layer, not a substitute for using ChitChat with assistive technology. Run this review before a stable release that materially changes navigation, forms, dialogs, realtime status, message rendering, account controls, or administration.
+This is an **optional** checklist for people who use ChitChat with assistive technology, for volunteers, and for operators who want their own evidence for an installation. It is **not a release gate**: the project's own verification is automated (axe, keyboard and accessibility-tree checks in three browser engines; see the [accessibility statement](../accessibility.md)), and ChitChat makes no claim of manual screen-reader validation.
 
-Record the operating-system version, browser version, assistive-technology version, ChitChat commit, viewport or zoom setting, tester, date, and result for every run. Do not close a failure as “tool noise” without documenting the exact control, spoken or visual behavior, and rationale.
+If you run any part of this and find a problem, please report it with the [Accessibility problem](https://github.com/Thiesi/ChitChat/issues/new?template=accessibility.yml) form. Partial runs are welcome: one journey in one screen reader is already useful.
+
+For each run, it helps to note the operating system, browser, assistive technology and their versions, the ChitChat version, the zoom level or window size, the date and what happened. Please don't include personal data from real chats.
 
 ## Test installation
 
-Use a disposable installation with:
+Use a disposable installation, never a production account, with:
 
 - one Super-Administrator and one ordinary member;
-- at least one public room containing normal, `/me`, edited, deleted, attachment, reply, `@mention`, and reacted-to messages;
-- one direct-message conversation with an attachment and unread message;
-- at least one privacy notification and one submitted moderation report awaiting review;
+- at least one public room containing normal, `/me`, edited, deleted, attachment, reply, `@mention` and reacted-to messages;
+- one direct-message conversation with an attachment and an unread message;
+- at least one notification and one moderation report awaiting review;
 - a search term that returns results in both room and direct-message scope;
-- administrative revision review enabled;
-- passkeys enabled when the platform supports them;
-- a VAPID keypair configured so the Web Push subscribe/preferences controls render.
+- passkeys enabled when the platform supports them, and a VAPID keypair so the push controls render.
 
-Never perform account closure, password reset, role changes, or destructive moderation against a production account during accessibility review.
+Never perform account closure, password reset, role changes or destructive moderation against a production account.
 
-## NVDA on Windows
+## Screen reader journey (NVDA, JAWS or Narrator on Windows; VoiceOver on macOS or iOS; TalkBack on Android)
 
-Run the journey with current NVDA and both Firefox and Chromium-based Edge or Chrome.
+Use any screen reader and browser you actually use. The [accessibility statement](../accessibility.md) describes what you should hear and which keys apply.
 
-1. Open the signed-out page in browse mode. Confirm that the document title, one level-one heading, tab list, selected tab, username, password, and submit control are announced meaningfully.
-2. Operate the Sign in and Register tabs with Left Arrow and Right Arrow. Confirm selection and the newly displayed panel are announced and focus remains on the active tab.
-3. Submit an invalid login. Confirm the error is announced once without moving focus unpredictably.
-4. Sign in and navigate by landmarks and headings. Confirm the rooms-and-conversations region, room list, current room heading, message region, composer, top-bar buttons (members, search, notifications, account menu), and the account menu's controls have understandable names. At phone width, confirm the drawer, members sheet, and account menu open, close with Escape, and return focus to their button.
-5. Enter a room. Confirm connection status and newly received messages are announced without repeatedly reading the entire message history.
-6. Navigate several messages in browse mode. Confirm author, time, edited/deleted state, message text, attachment name, metadata, reaction bar, and download control are understandable without relying on visual position.
-7. Send a multiline message and operate the attachment picker entirely from the keyboard.
-8. Reply to a message and add a reaction from the keyboard. Confirm the reply banner, quoted preview, and reaction picker are announced and operable. Type `@` in the composer and confirm the mention autocomplete list is announced and a suggestion can be chosen without a pointer.
-9. Open Direct messages. Confirm the privacy disclosure is encountered before or alongside the messaging interface, conversation controls are named, unread state is understandable, and incoming messages do not cause a focus jump.
-10. Open message search from a room and from Direct messages. Confirm the search field, scope control, and result list are labeled, and that activating a result deep-links to and highlights the exact message.
-11. Report a message and, as a moderator, open the moderation queue. Confirm the report form, case list, case detail, and resolution controls are named and that queue-state changes are announced.
-12. Open Account and Notifications, including the Web Push subscribe/preferences controls. Confirm headings, details/summary controls, checkboxes, status messages, notification read state, and destructive-action wording are announced correctly.
-13. As the Super-Administrator, open Administration, privileged step-up, room creation, direct-message inspection, and revision review. Confirm dialogs announce their title, initial focus is sensible, focus remains contained while open, Escape or Cancel closes them, and focus returns to the invoking control.
+1. On the signed-out page, check that the page title, heading, Sign in and Register tabs, fields, the password show/hide toggle and the submit button are announced meaningfully. Submit an invalid sign-in and check that the error is announced once, without focus jumping.
+2. Sign in. Navigate by landmarks and headings: the navigation (Rooms, Direct, Activity, You), the room or conversation list, the conversation heading, the message list and the message box should all have understandable names. Try the skip link.
+3. Open a room. Tab to the conversation and move between messages with the arrow keys, Home and End. Each message should be read as one sentence (author, text, date and time, and any reply, file, edit or reactions) without re-reading the whole history.
+4. Open a message's actions with Enter or Shift+F10. Reply, react and copy from the keyboard. Escape should return to the message, then to the message box.
+5. In the message box, type `@` and `/`. Check that the suggestions are announced and can be chosen without a pointer, and that Enter sends while Shift+Enter starts a new line.
+6. Have the second account send messages. Check that new messages are announced once each without moving focus, that bursts are summarised, and that a background tab gets one "while you were away" line on return.
+7. Open Direct. Check that the privacy notice is encountered, conversations and unread state are understandable, and incoming messages don't move focus.
+8. Search from a room and from Direct. The field, scope and results should be labelled, and choosing a result should open the exact message.
+9. Report a person and a message. As a moderator, open the moderation queue, a case and its resolution controls.
+10. Open You (account, notifications and push, appearance) and, as the Super-Administrator, Administration and Operational settings. Dialogs should announce their title, keep focus inside while open, close with Escape or Cancel, and return focus to the control that opened them.
 
-Repeat important form and dialog steps with NVDA focus mode where applicable.
-
-## VoiceOver on macOS
-
-Run the equivalent journey with current VoiceOver and Safari.
-
-1. Enable Quick Nav and traverse headings, landmarks, links, form controls, and tables or lists.
-2. Confirm the authentication tabs expose tab, selected, and panel relationships and can be operated with VoiceOver keyboard commands.
-3. Sign in and navigate the chat shell by landmarks and headings before interacting with room and composer controls.
-4. Confirm realtime status and new-message announcements are useful but do not continuously interrupt navigation.
-5. Exercise room messages, attachments, direct messages, Account, Notifications, and the administrative dialogs described in the NVDA journey.
-6. Verify that rotor lists contain meaningful headings, links, form controls, and landmarks without duplicate or empty names.
-7. Confirm focus returns to the invoking element after every modal dialog closes.
-
-Document browser-specific differences separately. A success in Safari does not waive a reproducible NVDA/Firefox or NVDA/Chromium failure, and vice versa.
+Browser differences matter: a success in one browser doesn't rule out a failure in another, so note the combination.
 
 ## Keyboard-only journey
 
-Run without a screen reader and without using a pointer.
+Without a screen reader and without a pointer:
 
-- Reach every visible interactive control in a logical order.
-- Confirm the focus indicator remains visible against every background and is not clipped.
-- Operate authentication tabs, room selection, message actions, reaction picker, mention autocomplete, attachment controls, message search, moderation queue and report forms, details elements, notification controls, and administration navigation.
-- Confirm Enter and Space activate controls according to their native semantics.
-- Confirm dialogs do not leak focus to the page behind them and return focus when closed.
-- Confirm no keyboard trap exists in chat history, horizontally scrollable room lists, dialogs, or code/recovery displays.
-- Confirm destructive controls are not activated by an unexpected default Enter key press.
+- reach every visible control in a logical order, with a visible focus indicator that isn't clipped;
+- operate the sign-in tabs, navigation, lists, message actions, suggestions, emoji picker, attachments, search, reports, moderation, You and Administration;
+- check that dialogs don't leak focus behind them and return focus when closed;
+- check that there's no keyboard trap, and that destructive actions aren't triggered by an unexpected Enter.
 
 ## Zoom and reflow
 
-Use browser zoom rather than operating-system display scaling for these checks.
+Use browser zoom, not operating-system display scaling.
 
-1. At 200% zoom on a 1280 CSS-pixel-wide desktop viewport, exercise authentication, chat, message search, the moderation queue, direct messages, Account, Notifications, and Administration.
-2. At 400% zoom or an effective width near 320 CSS pixels, exercise authentication, Account, Notifications, and at least one message composer.
-3. Confirm text is not clipped, controls remain reachable, status and error messages wrap, dialogs fit within the viewport, and document-level two-dimensional scrolling is not required.
-4. Purpose-built horizontally scrollable controls, such as the compact mobile room list, may scroll in one direction when their purpose remains clear and all items are keyboard reachable.
+1. At 200% zoom on a 1280-pixel-wide window, use sign-in, chat, search, moderation, Direct, You and Administration.
+2. At 400% zoom (about 320 CSS pixels wide), use sign-in, You and at least one message box.
+3. Check that text isn't clipped, controls stay reachable, messages wrap, dialogs fit, and the page doesn't need two-dimensional scrolling. Below 320 CSS pixels the room title and message box are a [known gap](../accessibility.md#colour-contrast-and-motion).
 
-The automated reflow test covers deterministic document-level overflow at 640 and 320 CSS pixels. It does not replace real browser zoom because browser chrome, platform font metrics, and user settings differ.
+The automated tests check document-level overflow at fixed widths. Real zoom also involves browser chrome, platform fonts and user settings, which is why this is worth a look.
 
-## Windows contrast themes and forced colors
+## Contrast themes and forced colours
 
-With a Windows contrast theme active:
-
-- confirm text and controls remain visible without author colors;
-- confirm selected authentication tabs and active rooms remain distinguishable;
-- confirm primary and destructive buttons retain visible boundaries and understandable labels;
-- confirm focus indicators remain visible;
-- confirm connected/error status is not conveyed by color alone;
-- confirm disabled controls remain distinguishable from enabled controls.
-
-Playwright forced-colors emulation is a regression check for CSS behavior, not a substitute for a real Windows contrast theme.
+With a Windows Contrast theme (or another forced-colours mode) active, check that text and controls stay visible, the selected tab and current room stay distinguishable, buttons keep visible boundaries, focus stays visible, status isn't shown by colour alone, and disabled controls look disabled. The automated forced-colours check is CSS emulation in Chromium, not a real contrast theme.
 
 ## Reduced motion
 
-Enable the operating system's reduced-motion preference and confirm:
+With the operating system's reduced-motion preference on, check that opening pages and dialogs doesn't add decorative movement, that nothing depends on an animation finishing, and that incoming messages and status changes don't scroll the view on their own.
 
-- opening pages and dialogs does not introduce decorative movement;
-- focus and content changes remain understandable without animation;
-- no information depends on animation completing;
-- realtime message insertion and status changes do not cause viewport movement unrelated to the user's action.
+## Recording results
 
-The stylesheet clamps animation and transition durations under `prefers-reduced-motion: reduce`; manual review must still check script-driven scrolling and focus movement.
+If you want to keep results, one row per environment and journey works well:
 
-## Result record
-
-Use one row per environment and journey:
-
-| Commit | Date | OS | Browser | Assistive technology | Journey | Result | Findings / issue links |
+| ChitChat version | Date | OS | Browser | Assistive technology | Journey | Result | Findings / issue links |
 |---|---|---|---|---|---|---|---|
-| `<sha>` | `YYYY-MM-DD` |  |  |  |  | Pass / Fail / Blocked |  |
+| | `YYYY-MM-DD` | | | | | Pass / Fail / Blocked | |
 
-A stable release should not claim manual NVDA or VoiceOver validation unless completed rows identify the tested versions and any accepted limitations. Preserve failed findings in issues even when a release is intentionally blocked or deferred.
+Please file failures as issues with the Accessibility problem form, so they reach the maintainers.
