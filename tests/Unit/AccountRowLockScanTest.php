@@ -32,14 +32,31 @@ final class AccountRowLockScanTest extends TestCase
         'key-changing UPDATE users' => [
             'src/Account/AccountClosureService.php' => 1,
             'src/Account/UsernameChangeService.php' => 2,
+            // avatar_key (#262): upload and self-removal change only the actor's own row; a moderator's
+            // removal locks through AccountLocks::forKeyChange; clearForClosure runs inside closure
+            // finalization, which already tombstones the row and has no staff actor.
+            'src/Account/AvatarService.php' => 3,
         ],
     ];
 
-    private const PATTERNS = [
-        'users row FOR UPDATE' => '/FROM\s+users\b[^;]{0,600}?(?<!NO KEY )FOR\s+UPDATE\b(?!\s+SKIP)/s',
-        'FOR UPDATE OF users alias' => '/FOR\s+UPDATE\s+OF\s+[\w\s,]*\bu\b/',
-        'key-changing UPDATE users' => '/UPDATE\s+users\b(?:\s+u)?\s+SET\b(?:(?!\bWHERE\b).){0,800}?(?:\busername_canonical\s*=|\bSET\s+id\s*=|,\s*id\s*=)/s',
-    ];
+    /**
+     * Columns of a non-partial, non-expression unique index (the primary key included) on users.
+     * PostgreSQL treats an UPDATE of any of them as a key update at FOR UPDATE strength.
+     * AccountKeyColumnsTest checks this list against pg_index, so a new UNIQUE column fails there.
+     */
+    public const KEY_COLUMNS = ['id', 'username_canonical', 'avatar_key'];
+
+    /** @return array<string, string> */
+    private static function patterns(): array
+    {
+        return [
+            'users row FOR UPDATE' => '/FROM\s+users\b[^;]{0,600}?(?<!NO KEY )FOR\s+UPDATE\b(?!\s+SKIP)/s',
+            'FOR UPDATE OF users alias' => '/FOR\s+UPDATE\s+OF\s+[\w\s,]*\bu\b/',
+            // A key column as the first assignment after SET, or after a comma before WHERE.
+            'key-changing UPDATE users' => '/UPDATE\s+users\b(?:\s+u)?\s+SET\s+(?:(?:(?!\bWHERE\b).){0,800}?,\s*)?(?:'
+                . implode('|', self::KEY_COLUMNS) . ')\s*=/s',
+        ];
+    }
 
     public function testStrongAccountRowLocksAreOnlyTheReviewedSites(): void
     {
@@ -52,7 +69,7 @@ final class AccountRowLockScanTest extends TestCase
             }
             $source = (string) file_get_contents($file->getPathname());
             $relative = str_replace('\\', '/', substr($file->getPathname(), strlen($root) + 1));
-            foreach (self::PATTERNS as $name => $pattern) {
+            foreach (self::patterns() as $name => $pattern) {
                 $count = preg_match_all($pattern, $source);
                 self::assertNotFalse($count, $name);
                 if ($count > 0) {
@@ -74,13 +91,29 @@ final class AccountRowLockScanTest extends TestCase
     public function testThePatternsRecogniseTheShapesTheyGuard(): void
     {
         $samples = [
-            'users row FOR UPDATE' => ["SELECT avatar_key FROM users WHERE id = :id FOR UPDATE", "SELECT avatar_key FROM users WHERE id = :id FOR NO KEY UPDATE"],
-            'FOR UPDATE OF users alias' => ["FROM account_closures ac JOIN users u ON u.id = ac.user_id FOR UPDATE OF ac, u", "FOR UPDATE OF ac"],
-            'key-changing UPDATE users' => ["UPDATE users SET username = :u, username_canonical = :c WHERE id = :id", "UPDATE users SET avatar_key = NULL, updated_at = NOW() WHERE id = :id"],
+            'users row FOR UPDATE' => [["SELECT avatar_key FROM users WHERE id = :id FOR UPDATE"], ["SELECT avatar_key FROM users WHERE id = :id FOR NO KEY UPDATE"]],
+            'FOR UPDATE OF users alias' => [["FROM account_closures ac JOIN users u ON u.id = ac.user_id FOR UPDATE OF ac, u"], ["FOR UPDATE OF ac"]],
+            'key-changing UPDATE users' => [
+                [
+                    "UPDATE users SET username = :u, username_canonical = :c WHERE id = :id",
+                    "UPDATE users SET avatar_key = NULL, updated_at = NOW() WHERE id = :id",
+                    "UPDATE users SET avatar_updated_at = NOW(),\n    avatar_key = :key WHERE id = :id",
+                    "UPDATE users u SET id = :new WHERE id = :old",
+                ],
+                [
+                    "UPDATE users SET avatar_updated_at = NOW(), updated_at = NOW() WHERE id = :id",
+                    "UPDATE users SET share_typing = NOT share_typing WHERE id = :id AND avatar_key = :key",
+                ],
+            ],
         ];
+        $patterns = self::patterns();
         foreach ($samples as $name => [$matching, $harmless]) {
-            self::assertSame(1, preg_match(self::PATTERNS[$name], $matching), $name . ' must match: ' . $matching);
-            self::assertSame(0, preg_match(self::PATTERNS[$name], $harmless), $name . ' must not match: ' . $harmless);
+            foreach ($matching as $sample) {
+                self::assertSame(1, preg_match($patterns[$name], $sample), $name . ' must match: ' . $sample);
+            }
+            foreach ($harmless as $sample) {
+                self::assertSame(0, preg_match($patterns[$name], $sample), $name . ' must not match: ' . $sample);
+            }
         }
     }
 }
