@@ -112,6 +112,8 @@ test('a row says what waits in it, from data only: unread, "@", here now with th
   await open(page);
   await expect(row(page, 'Garden')).toHaveAccessibleName('Garden, 3 unread, mentions you, 2 here now');
   await expect(row(page, 'Garden').locator('.room-sub')).toHaveText('2 here now · Seeds and soil.');
+  // The sub-line and time are the row's description, read after its name (S4b).
+  await expect(row(page, 'Garden')).toHaveAccessibleDescription(/^2 here now · Seeds and soil\. Yesterday$/);
   await expect(row(page, 'Garden').locator('.lantern')).toHaveClass(/glow/);
   await expect(row(page, 'Garden').locator('.room-time')).toHaveText('Yesterday');
   await expect(row(page, 'Garden').locator('.mention-badge')).toHaveText('@');
@@ -269,6 +271,23 @@ test('a guest sees read only in the row and its name', async ({ page }) => {
   await expect(row(page, 'News')).toHaveAccessibleName('News, read only');
   await expect(row(page, 'News')).toContainText('read only');
   await expect(row(page, 'Lounge')).toHaveAccessibleName('Lounge');
+});
+
+test('#270: re-rendering the list for the same room does not refetch its message state', async ({ page }) => {
+  const requests = [];
+  page.on('request', (request) => { if (request.url().includes('/api/v1/rooms/message-mutations.php')) requests.push(request.url()); });
+  await fixture(page, { notifications: [] });
+  await open(page);
+  await expect(page.locator('#message-list .message')).toHaveCount(2);
+  await page.waitForTimeout(300);
+  const before = requests.length;
+  // Phones and back: Find rooms comes and goes, the list re-renders, the room is the same.
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.setViewportSize({ width: 1280, height: 860 });
+  await page.waitForTimeout(300);
+  expect(requests.length).toBe(before);
+  await row(page, 'Garden').click();
+  await expect(page.locator('#room-title')).toHaveText('# Garden');
 });
 
 for (const [scheme, theme] of [['lantern', 'light'], ['lantern', 'dark'], ['dusk', 'dark']]) {

@@ -1,0 +1,56 @@
+/* The Direct list (S4b, #170; behaviour in conversation-list.js). Rows are
+   links in a list, laid out like the Rooms list: the pebble across two lines,
+   the name over the last message, the time over the unread count. Uses only
+   existing tokens. */
+
+.conversation-rows { display: grid; gap: 0.1rem; margin: 0; padding: 0; list-style: none; }
+
+.dm-shell .conversation-button {
+  display: grid;
+  grid-template-areas: "mark name meta" "mark preview meta";
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 0.7rem;
+  row-gap: 0.05rem;
+  min-height: 3.5rem;
+  padding: 0.45rem 0.6rem;
+  text-decoration: none;
+}
+
+.dm-shell .conversation-button .pebble { grid-area: mark; }
+
+.dm-shell .conversation-button .conversation-name { grid-area: name; align-self: end; font-weight: 650; }
+.conversation-button.unread .conversation-name { font-weight: 800; }
+
+.dm-shell .conversation-button .conversation-preview { grid-area: preview; align-self: start; }
+.conversation-button.unread .conversation-preview { color: var(--text); }
+
+.conversation-meta {
+  grid-area: meta;
+  display: grid;
+  justify-items: end;
+  align-content: center;
+  gap: 0.25rem;
+}
+
+.conversation-time { color: var(--text-muted); font-size: 0.72rem; font-weight: 500; white-space: nowrap; }
+.conversation-button.unread .conversation-time { color: var(--text); font-weight: 700; }
+
+/* Blocked, Unavailable, Account closed: a quiet line instead of the last message. */
+.conversation-button .conversation-state,
+.conversation-button.unread .conversation-state { color: var(--text-muted); font-style: italic; }
+
+/* Over 99 the count goes quiet, as on the Rooms list. */
+.unread-badge.quiet { border: 1px solid var(--line); background: var(--raised); color: var(--text); }
+
+.conversation-empty { display: grid; justify-items: start; gap: 0.6rem; padding: 0.25rem 0.6rem; }
+.conversation-empty p { margin: 0; }
+
+@media (max-width: 22rem) {
+  .dm-shell .conversation-button { column-gap: 0.5rem; padding-inline: 0.45rem; }
+  .dm-shell .conversation-button .pebble { width: 2.1rem; height: 2.1rem; }
+}
+
+@media (forced-colors: active) {
+  .unread-badge.quiet { border: 1px solid CanvasText; }
+}

@@ -21,12 +21,14 @@ window.addEventListener('DOMContentLoaded', () => {
   elements = { messageList, roomList, toastRegion, chatShell, currentUser };
 
   new MutationObserver(queueEnhancement).observe(messageList, { childList: true, subtree: true });
+  // The room list only matters when the open room changes (#270): a re-render
+  // of the same room (a new unread count, a phone-to-desktop resize) changes
+  // nothing about its messages, which the message-list observer covers.
   new MutationObserver(() => {
     const roomId = currentRoomId();
-    if (roomId !== lastRoomId) {
-      lastRoomId = roomId;
-      generation += 1;
-    }
+    if (roomId === lastRoomId) return;
+    lastRoomId = roomId;
+    generation += 1;
     queueEnhancement();
   }).observe(roomList, {
     childList: true,

@@ -18,7 +18,13 @@ window.addEventListener('DOMContentLoaded', () => {
   elements = { messageList, conversationList, toastRegion, messagesShell };
 
   new MutationObserver(queueEnhancement).observe(messageList, { childList: true, subtree: true });
+  // As for rooms (#270): only a change of the open conversation matters here;
+  // re-renders of the same one are covered by the message-list observer.
+  let lastPeerId = null;
   new MutationObserver(() => {
+    const peerId = conversationList.querySelector('.conversation-button.active')?.dataset.userId ?? null;
+    if (peerId === lastPeerId) return;
+    lastPeerId = peerId;
     generation += 1;
     queueEnhancement();
   }).observe(conversationList, {
