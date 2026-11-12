@@ -14,9 +14,10 @@ const room = {
   member_role: 'member', minimum_age: 0, inactivity_timeout_seconds: 0, info_line: 'Everyday talk.', guest_access: 'read_write',
 };
 const notifications = [
-  { id: 31, kind: 'ping', title: 'Rowan pinged you', message: 'In The living room: “Saturday?”', link: '/?room=1&message=7', read: false, created_at: '2026-10-04T10:05:00Z' },
-  { id: 30, kind: 'mention', title: 'Priya mentioned you', message: 'In The living room.', link: '/?room=1&message=5', read: false, created_at: '2026-10-04T09:58:00Z' },
-  { id: 29, kind: 'privacy', title: 'Your message was removed by a moderator', message: 'A moderator removed one of your messages.', read: true, created_at: '2026-10-03T18:00:00Z' },
+  // Real kinds since S4c, which picks the mark and the action label by kind.
+  { id: 31, kind: 'mentioned', title: 'You were mentioned', message: 'Rowan mentioned you in “The living room”.', link: '/?room=1&message=7', read: false, created_at: '2026-10-04T10:05:00Z' },
+  { id: 30, kind: 'pinged', title: 'Priya pinged you', message: 'Priya pinged you in “The living room”.', link: '/?room=1&message=5', read: false, created_at: '2026-10-04T09:58:00Z' },
+  { id: 29, kind: 'moderator_message_deleted', title: 'Your message was removed by a moderator', message: 'A moderator removed one of your messages.', read: true, created_at: '2026-10-03T18:00:00Z' },
 ];
 const WCAG = ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'];
 
@@ -78,7 +79,8 @@ test('Activity: opening an unread item marks it read on the way; one or all can 
   await expect(page.getByRole('heading', { level: 1, name: 'Activity' })).toBeVisible();
   // Alert settings moved to You.
   await expect(page.locator('#push-heading')).toHaveCount(0);
-  const items = page.locator('#privacy-notifications-list > li');
+  // S4c: the feed's items sit inside day groups.
+  const items = page.locator('#privacy-notifications-list .privacy-notification');
   await expect(items).toHaveCount(3);
   await expect(items.nth(0).getByRole('button', { name: 'Mark as read' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Mark all as read' })).toBeEnabled();
@@ -172,7 +174,7 @@ for (const theme of ['light', 'dark']) {
       await page.screenshot({ path: testInfo.outputPath(`you-${theme}-${width}.png`), fullPage: true });
 
       await page.goto('/notifications.php');
-      await expect(page.locator('#privacy-notifications-list > li')).toHaveCount(3);
+      await expect(page.locator('#privacy-notifications-list .privacy-notification')).toHaveCount(3);
       const activity = await new AxeBuilder({ page }).include('#privacy-notifications-shell').withTags(WCAG).analyze();
       expect(activity.violations, `Activity ${width}`).toEqual([]);
       await page.screenshot({ path: testInfo.outputPath(`activity-${theme}-${width}.png`), fullPage: true });

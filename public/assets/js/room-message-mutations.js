@@ -51,6 +51,11 @@ window.addEventListener('chitchat:realtime', (event) => {
   if (type === 'message_deleted' && envelope?.payload?.room_id === currentRoomId()) {
     queueEnhancement();
   }
+  // Since #270 a re-render of the same room no longer refetches; a role change
+  // (made moderator, say) arrives as rooms_changed and refreshes Edit and Delete.
+  if (type === 'rooms_changed' && currentRoomId() !== null) {
+    queueEnhancement();
+  }
 });
 
 window.addEventListener('chitchat:message-reported', (event) => {
