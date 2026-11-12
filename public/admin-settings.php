@@ -24,6 +24,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <link rel="stylesheet" href="/assets/css/admin-icon.css">
   <link rel="stylesheet" href="/assets/css/totp.css">
   <link rel="stylesheet" href="/assets/css/shell.css">
+  <link rel="stylesheet" href="/assets/css/auth.css">
 </head>
 <body>
   <div id="settings-loading" class="app-loading" role="status">Loading operational settings…</div>
@@ -369,6 +370,25 @@ foreach ($policyForms as $kind => $form):
         <button id="save-registration-protection" class="secondary-button" type="submit">Save registration protection</button>
       </section>
     </form>
+
+    <!-- #242: the seasonal decoration on the sign-in page, chosen by hand (no date windows). admin-decoration.js. -->
+    <section id="decoration-settings" class="admin-card form-stack decoration-settings" aria-labelledby="decoration-heading" hidden>
+      <h2 id="decoration-heading">Sign-in decoration</h2>
+      <p class="admin-muted">A seasonal drawing around the name on the sign-in page, for as long as you like. Only on the sign-in page; the icon itself never changes.</p>
+      <label>Decoration
+        <select id="decoration-select"></select>
+      </label>
+      <div class="decoration-preview" aria-hidden="true">
+        <div class="auth-season" data-decoration-layer hidden></div>
+        <span class="lockup lockup-horizontal">
+          <span class="lockup-mark"><img id="decoration-preview-icon" src="<?= htmlspecialchars(\ChitChat\InstallationIcon\IconService::resolve($config)['mark_url'] ?? '/assets/app-icons/icon-192.png', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>" alt="" width="48" height="48"></span>
+          <span class="lockup-name"><?= $appName ?></span>
+        </span>
+      </div>
+      <button id="decoration-save" class="secondary-button" type="button">Save decoration</button>
+      <p id="decoration-status" class="admin-muted" role="status" aria-live="polite"></p>
+      <p id="decoration-error" class="error-text" role="alert"></p>
+    </section>
     </div>
     <?= \ChitChat\View\PoweredBy::html($config) ?>
   </main>
@@ -379,6 +399,7 @@ foreach ($policyForms as $kind => $form):
   <script type="module" src="/assets/js/admin-policies.js"></script>
   <script type="module" src="/assets/js/admin-icon.js"></script>
   <script type="module" src="/assets/js/admin-totp.js"></script>
+  <script type="module" src="/assets/js/admin-decoration.js"></script>
   <script type="module" src="/assets/js/shell.js"></script>
 </body>
 </html>

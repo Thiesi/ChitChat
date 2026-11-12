@@ -357,3 +357,20 @@
     grid-column: auto;
   }
 }
+
+/* Sign-in decoration (#242): a small preview of the sign-in page's lockup with
+   the chosen drawings around it (auth.css draws them). */
+.decoration-preview {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  place-items: center;
+  min-height: 7rem;
+  padding: 1.25rem 3.5rem;
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  background: var(--ground);
+  overflow: hidden;
+}
+.decoration-preview .lockup { max-width: 76%; }
+.decoration-preview .lockup-name { font-size: 1.5rem; }
