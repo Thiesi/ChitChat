@@ -33,7 +33,7 @@ Endpoint::run($config, static function () use ($config): ApiResult {
         ? (new \ChitChat\Auth\MfaService($pdo, $config))->pendingSession(Request::clientIp())
         : null;
     $statement = $pdo->query(<<<'SQL'
-SELECT registration_enabled::int, direct_message_retention_days
+SELECT registration_enabled::int, direct_message_retention_days, sign_in_decoration
 FROM system_settings
 WHERE id = 1
 SQL);
@@ -70,6 +70,8 @@ SQL);
         'pending_sign_up' => $user === null ? (new OidcService($pdo, $config))->pendingSignUp() : null,
         // Whether the sign-in page offers "Look around as a guest".
         'guest_access' => (new GuestService($pdo))->available(),
+        // The sign-in screen's seasonal decoration: null (off), winter, spring or celebration (#242).
+        'sign_in_decoration' => \ChitChat\Admin\SignInDecorationService::toPublic((string) $policy['sign_in_decoration']),
         'registration_enabled' => (int) $policy['registration_enabled'] === 1 && !(new LockdownService($pdo))->status()['enabled'],
         // Public, so the sign-in page can explain a maintenance lockdown.
         'lockdown' => (static function (array $status): array {

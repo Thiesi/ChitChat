@@ -107,7 +107,7 @@ test('a guest looks around, writes only where allowed, and a moderator ends the 
     const confirm = rootPage.getByRole('dialog', { name: /End .*visit\?/ });
     await confirm.getByRole('button', { name: 'End visit' }).click();
     await expect(guestPage.locator('#auth-shell')).toBeVisible({ timeout: 15_000 });
-    await expect(guestPage.locator('.toast', { hasText: 'Your guest visit has ended.' })).toBeVisible();
+    await expect(guestPage.locator('#auth-notice')).toHaveText('Your guest visit has ended.');
 
     // The message stays, under the guest's name.
     await rootPage.reload();

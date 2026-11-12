@@ -9,6 +9,15 @@ on:
 permissions:
   contents: read
 
+# Cancel superseded pull-request runs (#244). Pull requests group per PR number,
+# so a new push cancels the older run. main groups per commit SHA and is never
+# cancelled: release publication verifies these checks on the exact main commit,
+# and a shared per-ref group could drop a queued main run. Scheduled and manual
+# runs fall into a per-SHA or per-ref group and are never cancelled either.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || (github.ref == 'refs/heads/main' && github.sha) || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   backup-rehearsal:
     runs-on: ubuntu-24.04

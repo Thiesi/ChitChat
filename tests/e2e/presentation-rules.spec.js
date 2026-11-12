@@ -116,7 +116,11 @@ for (const theme of ['dark', 'light']) {
     expect(requests.some((entry) => entry.path === 'register.php')).toBe(false);
     expect(await checkbox.evaluate((element) => element.validity.valid)).toBe(false);
 
+    // The reason is inline, tied to the box, and goes once it's ticked (no browser bubble over the button).
+    await expect(page.locator('#register-rules-error')).toHaveText('Please agree to the community rules to create your account.');
+    await expect(checkbox).toHaveAccessibleDescription('Please agree to the community rules to create your account.');
     await checkbox.check();
+    await expect(page.locator('#register-rules-error')).toBeHidden();
     await page.getByRole('button', { name: 'Create account' }).click();
     await expect(page.locator('#chat-shell')).toBeVisible();
     expect(requests.find((entry) => entry.path === 'register.php').body.accepted_rules_version).toBe(3);
@@ -145,8 +149,8 @@ test('guests agree by starting a visit', async ({ page }) => {
   const requests = [];
   await fixture(page, { user: signedOut, requests });
   await page.goto('/');
-  await expect(page.locator('.auth-intro [data-guest-rules]')).toHaveText(/By looking around, you agree to the community rules/);
-  await page.locator('.auth-intro [data-guest-start]').click();
+  await expect(page.locator('.guest-entry [data-guest-rules]')).toHaveText(/By looking around, you agree to the community rules/);
+  await page.locator('.guest-entry [data-guest-start]').click();
   await expect(page.locator('#chat-shell')).toBeVisible();
   expect(requests.find((entry) => entry.path === 'guest/start.php').body.accepted_rules_version).toBe(3);
 });

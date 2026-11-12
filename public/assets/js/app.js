@@ -24,6 +24,7 @@ import { openResetIfRequested, showKeyStepInCard } from './password-reset.js';
 import { issuedKey } from './recovery.js';
 import { renderRecoveryNudge, setRecoveryNudgeUser } from './recovery-nudge.js';
 import { phoneListShowing } from './pane-stack.js';
+import { renderSeason } from './sign-in-season.js';
 
 const registrationChallenge = createRegistrationChallenge();
 const guestChallenge = createRegistrationChallenge('/api/v1/guest/challenge.php');
@@ -214,6 +215,8 @@ async function bootstrap() {
   renderLockdown(session.lockdown);
   renderSignInProviders(session.sign_in_providers);
   renderSignedOutAgreements(session);
+  // The installation's seasonal decoration on the sign-in screen (#242), when one is chosen.
+  renderSeason(session.sign_in_decoration);
   state.guestAccess = session.guest_access === true;
   elements['app-loading'].classList.add('hidden');
 
@@ -263,8 +266,13 @@ async function enterApplication(user) {
   await loadRooms();
 }
 
+const GREETINGS = { login: 'Welcome back', register: 'Make yourself at home' };
+const GUEST_ENDED_NOTICE = 'Your guest visit has ended.';
+
 function showAuthMode(mode) {
   const login = mode === 'login';
+  const greeting = document.getElementById('auth-greeting');
+  if (greeting) greeting.textContent = GREETINGS[login ? 'login' : 'register'];
   elements['login-tab'].setAttribute('aria-selected', String(login));
   elements['register-tab'].setAttribute('aria-selected', String(!login));
   elements['login-form'].classList.toggle('hidden', !login);
@@ -421,8 +429,31 @@ function showSignedOutPage(mode) {
 
 /** Signing out on You (sign-out.js) leaves one line for the sign-in screen. */
 function showSignedOutMessage() {
-  const message = takeSignedOutNotice();
-  if (message) toast(message);
+  showAuthNotice(takeSignedOutNotice());
+}
+
+/**
+ * One line on the sign-in card (S3): signed out, from here or another device
+ * (#205). The server says session_revoked only once; requests still in flight
+ * come back as plain 401s. So a line already showing is replaced only by a
+ * weightier one: another device first, then the end of a guest visit, then
+ * the generic "session has ended". The strip is filled while the shell may
+ * still be hidden, so the line is also spoken through the page announcer.
+ */
+function showAuthNotice(message, { keepWeightier = false } = {}) {
+  const notice = document.getElementById('auth-notice');
+  if (!notice) return;
+  const current = notice.classList.contains('hidden') ? '' : notice.textContent;
+  if (keepWeightier && current && noticeWeight(current) >= noticeWeight(message ?? '')) return;
+  notice.textContent = message ?? '';
+  notice.classList.toggle('hidden', !message);
+  if (message) announce(message);
+}
+
+function noticeWeight(message) {
+  if (message === REVOKED_NOTICE) return 3;
+  if (message === GUEST_ENDED_NOTICE) return 2;
+  return message ? 1 : 0;
 }
 
 /** A guest posts only where the room lets guests write. */
@@ -1882,10 +1913,12 @@ function handleApiFailure(error) {
 function sessionEndedMessage() {
   // A revoked login (#205) has its own line, left by api.js.
   return takeSignedOutNotice()
-    ?? (state.user?.guest ? 'Your guest visit has ended.' : 'Your session has ended. Please sign in again.');
+    ?? (state.user?.guest ? GUEST_ENDED_NOTICE : 'Your session has ended. Please sign in again.');
 }
 
 function forceSignedOut(message) {
+  // Already signed out: a late 401 never replaces a weightier line (#205).
+  const already = state.user === null && !elements['auth-shell'].classList.contains('hidden');
   stopEventStream();
   presence?.stop();
   state.user = null;
@@ -1905,14 +1938,13 @@ function forceSignedOut(message) {
   elements['chat-shell'].classList.add('hidden');
   elements['chat-shell'].classList.remove('guest-mode');
   elements['auth-shell'].classList.remove('hidden');
-  showAuthMode('login');
-  if (message) {
-    toast(message, 'error');
-  }
+  if (!already) showAuthMode('login');
+  showAuthNotice(message, { keepWeightier: true });
   apiGet('/api/v1/session.php')
     .then((session) => {
       setCsrfToken(session.csrf_token);
       renderLockdown(session.lockdown);
+      renderSeason(session.sign_in_decoration);
       state.guestAccess = session.guest_access === true;
       renderGuestEntry();
     })
