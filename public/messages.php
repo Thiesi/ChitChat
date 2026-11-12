@@ -78,7 +78,11 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
           <h2 id="dm-peer-name" class="conversation-title" tabindex="-1">Choose a conversation</h2>
           <p id="dm-peer-status" class="messages-muted">Search for a user or choose an existing conversation.</p>
         </div>
-        <div class="conversation-actions">
+        <!-- Phones: Report and Block behind "More actions", so the header stays one row (dm-more.js). -->
+        <button id="dm-more-toggle" class="header-button dm-more-toggle" type="button" aria-label="More actions" aria-expanded="false" aria-controls="dm-actions" hidden>
+          <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><circle cx="5.5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="18.5" cy="12" r="1.8"/></svg>
+        </button>
+        <div id="dm-actions" class="conversation-actions">
           <button id="dm-report-person" class="secondary-button hidden" type="button">Report</button>
           <button id="dm-block-toggle" class="secondary-button dm-block-toggle hidden" type="button">Block user</button>
         </div>
@@ -145,6 +149,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <script type="module" src="/assets/js/dm-attachments.js"></script>
   <script type="module" src="/assets/js/dm-message-mutations.js"></script>
   <script type="module" src="/assets/js/panes.js"></script>
+  <script type="module" src="/assets/js/dm-more.js"></script>
   <script type="module" src="/assets/js/shell.js"></script>
 </body>
 </html>
