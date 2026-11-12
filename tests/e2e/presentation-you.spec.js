@@ -9,6 +9,9 @@ import { expect, test } from '@playwright/test';
 // card sits in its section. Presentation only: the real page against
 // intercepted APIs.
 const WCAG = ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'];
+// Push is configured so Alerts shows its settings; a registered service worker
+// would answer requests past page.route (WebKit), so none is allowed here.
+test.use({ serviceWorkers: 'block' });
 const member = {
   id: 1, username: 'Jamie', roles: ['user'], session_version: 1, guest: false,
   rules: { accepted_version: 1, accepted_at: '2026-10-01T10:00:00Z', acceptance_required: false },
