@@ -78,7 +78,8 @@ async function fixture(page, { user = member, present = [] } = {}) {
 const list = (page) => page.getByRole('region', { name: 'Rooms' });
 const toggle = (page) => page.locator('#drawer-toggle');
 const bar = (page) => page.getByRole('navigation', { name: 'Main' });
-const roomButton = (page, name) => page.getByRole('navigation', { name: 'Rooms' }).getByRole('button', { name: new RegExp(name) });
+// S4a: room rows are links (they have an address); the class hook stays .room-button.
+const roomButton = (page, name) => page.getByRole('navigation', { name: 'Rooms' }).getByRole('link', { name: new RegExp(`^${name}`) });
 
 async function openRooms(page, width = 1280) {
   await page.setViewportSize({ width, height: 860 });

@@ -55,6 +55,7 @@ function synchronizeSession() {
     badgeTimer = null;
     closeOverlays();
     renderBadge(0);
+    window.dispatchEvent(new CustomEvent('chitchat:notifications', { detail: { notifications: [] } }));
     return;
   }
 
@@ -105,10 +106,16 @@ function closeOverlays() {
 
 // ---- Notifications ----
 
+// One request serves the badge and the Rooms list: the count, and the recent
+// notifications whose unread mentions give rooms their "@" and the mention
+// card (S4a). Notifications carry no message text, so this reveals nothing new.
+const NOTIFICATION_WINDOW = 50;
+
 async function refreshBadge() {
   try {
-    const payload = await apiGet('/api/v1/account/notifications/list.php?limit=1');
+    const payload = await apiGet(`/api/v1/account/notifications/list.php?limit=${NOTIFICATION_WINDOW}`);
     renderBadge(Number.isInteger(payload.unread_count) ? payload.unread_count : 0);
+    window.dispatchEvent(new CustomEvent('chitchat:notifications', { detail: { notifications: Array.isArray(payload.notifications) ? payload.notifications : [] } }));
   } catch (error) {
     handleNotificationError(error);
   }

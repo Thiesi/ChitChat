@@ -37,6 +37,7 @@ We do not claim conformance with any WCAG level. The automated checks below use 
   - Your own messages, edits, reactions, typing and presence changes are not announced; they're read when you reach the message.
   - Loading older history says "Loading older messages…" and then how many arrived.
 - Opening a room or conversation with unread messages announces its name and the number of new messages.
+- **Room rows are links,** each read as one name with what's waiting in it, for example "Garden, 3 unread, mentions you, 2 here now". The open room is marked as the current page. Ctrl- or Cmd-click opens a room in a new tab. Rooms you haven't joined, and invitations, have their own "Join" button next to the link.
 - Navigation tabs with unread items are read with their visible name first, for example "Activity, 3 unread", so voice-control users can say what they see.
 - A "signed out" line on the sign-in screen, for example after signing out on another device, is also announced.
 
