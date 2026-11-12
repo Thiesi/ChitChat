@@ -10,6 +10,7 @@ final readonly class AuthenticatedUser
      * @param list<string> $roles
      * @param array{accepted_version:int,accepted_at:?string,acceptance_required:bool} $rules
      * @param array{exists:bool,created_at:?string}|null $recoveryKey
+     * @param array{required:true,required_at:string,reason:string,sign_in_with_previous_username:true}|null $usernameChange
      */
     public function __construct(
         public int $id,
@@ -23,6 +24,8 @@ final readonly class AuthenticatedUser
         public ?array $recoveryKey = null,
         public int $mfaPolicyGeneration = 1,
         public bool $mfaEnabled = false,
+        // Set while a moderator requires a new username; writes are refused until then (#164).
+        public ?array $usernameChange = null,
     ) {
     }
 
@@ -46,7 +49,7 @@ final readonly class AuthenticatedUser
         ];
     }
 
-    /** @return array{id:int, username:string, roles:list<string>, session_version:int, guest:bool, guest_expires_at:?string, rules:array{accepted_version:int,accepted_at:?string,acceptance_required:bool}, recovery_key:array{exists:bool,created_at:?string}|null} */
+    /** @return array{id:int, username:string, roles:list<string>, session_version:int, guest:bool, guest_expires_at:?string, rules:array{accepted_version:int,accepted_at:?string,acceptance_required:bool}, recovery_key:array{exists:bool,created_at:?string}|null, username_change:array{required:true,required_at:string,reason:string,sign_in_with_previous_username:true}|null} */
     public function toSessionArray(): array
     {
         return [
@@ -56,6 +59,7 @@ final readonly class AuthenticatedUser
             'guest_expires_at' => $this->guestExpiresAt,
             'rules' => $this->rules,
             'recovery_key' => $this->recoveryKey,
+            'username_change' => $this->usernameChange,
         ];
     }
 }

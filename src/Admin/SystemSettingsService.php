@@ -42,6 +42,7 @@ final class SystemSettingsService
         string $ipAddress,
         ?int $deletedRoomGraceDays = null,
         ?bool $guestAccessEnabled = null,
+        ?int $usernameReservationDays = null,
     ): array {
         $this->requireSuperAdministrator($actor);
         $this->validateDays('room_message_retention_days', $roomMessageRetentionDays, true);
@@ -53,6 +54,9 @@ final class SystemSettingsService
         $this->validateRange('login_attempt_retention_days', $loginAttemptRetentionDays, 1, 3650);
         if ($deletedRoomGraceDays !== null) {
             $this->validateDays('deleted_room_grace_days', $deletedRoomGraceDays, true);
+        }
+        if ($usernameReservationDays !== null) {
+            $this->validateDays('username_reservation_days', $usernameReservationDays, true);
         }
 
         $this->pdo->beginTransaction();
@@ -78,6 +82,7 @@ SET registration_enabled = :registration_enabled,
     login_attempt_retention_days = :login_attempt_retention_days,
     deleted_room_grace_days = COALESCE(CAST(:deleted_room_grace_days AS integer), deleted_room_grace_days),
     guest_access_enabled = COALESCE(CAST(:guest_access_enabled AS boolean), guest_access_enabled),
+    username_reservation_days = COALESCE(CAST(:username_reservation_days AS integer), username_reservation_days),
     updated_at = NOW()
 WHERE id = 1
 SQL);
@@ -102,6 +107,11 @@ SQL);
                 ':guest_access_enabled',
                 $guestAccessEnabled,
                 $guestAccessEnabled === null ? PDO::PARAM_NULL : PDO::PARAM_BOOL,
+            );
+            $statement->bindValue(
+                ':username_reservation_days',
+                $usernameReservationDays,
+                $usernameReservationDays === null ? PDO::PARAM_NULL : PDO::PARAM_INT,
             );
             $statement->execute();
             $new = $this->load();
@@ -142,6 +152,7 @@ SELECT registration_enabled::int,
        login_attempt_retention_days,
        deleted_room_grace_days,
        guest_access_enabled::int,
+       username_reservation_days,
        updated_at
 FROM system_settings
 WHERE id = 1
@@ -165,6 +176,8 @@ SQL);
             'login_attempt_retention_days' => (int) $row['login_attempt_retention_days'],
             'deleted_room_grace_days' => (int) $row['deleted_room_grace_days'],
             'guest_access_enabled' => (int) $row['guest_access_enabled'] === 1,
+            // How long a name a moderator removed stays unclaimable after the new name is chosen (#164).
+            'username_reservation_days' => (int) $row['username_reservation_days'],
             'updated_at' => (string) $row['updated_at'],
         ];
     }

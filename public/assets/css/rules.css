@@ -36,12 +36,20 @@
 .chat-shell:has(> .rules-banner:not(.hidden)):has(> :is(.guest-banner, .new-look-note):not(.hidden)) { grid-template-rows: auto auto minmax(0, 1fr); }
 .chat-shell:has(> .rules-banner:not(.hidden)):has(> .lockdown-banner:not(.hidden)):has(> :is(.guest-banner, .new-look-note):not(.hidden)) { grid-template-rows: auto auto auto minmax(0, 1fr); }
 
-.rules-notice { grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 1rem; }
-.rules-notice > div { display: grid; gap: 0.2rem; }
+:is(.rules-notice, .username-notice) { grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 1rem; }
+:is(.rules-notice, .username-notice) > div { display: grid; gap: 0.2rem; }
 .rules-gated #composer-form,
 .rules-gated #dm-composer,
 .rules-gated .composer-help { display: none !important; }
-.conversation-main:has(#dm-composer.hidden) .rules-notice { display: none; }
+.conversation-main:has(#dm-composer.hidden) :is(.rules-notice, .username-notice) { display: none; }
+
+/* A required new username (#164, username-gate.js): the same pause, its own
+   notice. The rules come first: their notice shows alone until agreed. */
+.username-gated #composer-form,
+.username-gated #dm-composer,
+.username-gated .composer-help { display: none !important; }
+.rules-gated [data-username-gate] { display: none !important; }
+.username-notice .username-reason { color: var(--text-muted); overflow-wrap: anywhere; }
 
 /* ---- The dialog ---- */
 .rules-dialog { width: min(40rem, calc(100vw - 2rem)); }

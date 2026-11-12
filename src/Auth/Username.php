@@ -26,4 +26,22 @@ final class Username
     {
         return strtolower(self::display($username));
     }
+
+    /** The neutral name a moderator's "require a new username" assigns (#164); never a new choice. */
+    public static function isPlaceholder(string $username): bool
+    {
+        return preg_match('/\Amember-[a-z2-7]{6}\z/iD', trim($username)) === 1;
+    }
+
+    /** `member-` plus six random lowercase base32 characters, unrelated to the account ID. */
+    public static function placeholder(): string
+    {
+        $alphabet = 'abcdefghijklmnopqrstuvwxyz234567';
+        $suffix = '';
+        for ($index = 0; $index < 6; $index++) {
+            $suffix .= $alphabet[random_int(0, 31)];
+        }
+
+        return 'member-' . $suffix;
+    }
 }

@@ -19,6 +19,7 @@
 - [Message editing and author deletion](message-mutations.md)
 - [Message search](message-search.md)
 - [Moderation reports](moderation-reports.md)
+- [Required username changes](username-change.md)
 - [Message-revision review](message-revision-review.md)
 - [Privacy notifications](privacy-notifications.md)
 - [Web Push subscriptions and preferences](web-push.md)

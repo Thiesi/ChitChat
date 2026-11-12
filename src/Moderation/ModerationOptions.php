@@ -73,6 +73,10 @@ final class ModerationOptions
                 'can_open_administration' => !$targetIsGuest && $viewer->canManageUsers(),
                 'ban' => $ban,
                 'mute' => $mutes->current($targetId, null),
+                // "Require a new username" (#164): the same rank rule as muting everywhere.
+                'can_require_username_change' => $muteEverywhere && !$targetIsGuest && $target !== null
+                    && $target->usernameChange === null,
+                'username_change_required' => $target !== null && $target->usernameChange !== null,
             ];
         }
 

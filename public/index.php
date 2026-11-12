@@ -253,6 +253,10 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
           <div><strong>Agree to the updated community rules to write.</strong><span>You can still read along.</span></div>
           <button class="primary-button" type="button" data-rules-review>Review rules</button>
         </div>
+        <div class="muted-notice username-notice hidden" data-username-gate role="status">
+          <div><strong>Choose a new username to keep writing.</strong><span>A moderator replaced your username. You can still read along.</span><span class="username-reason hidden" data-username-reason></span></div>
+          <a class="primary-button" href="/choose-username.php">Choose a name</a>
+        </div>
         <div id="guest-readonly-notice" class="muted-notice guest-readonly hidden" role="status">
           <div><strong>Guests can read this room.</strong><span>Create an account to join the conversation.</span></div>
           <a class="primary-button" href="/?register=1">Create an account</a>
