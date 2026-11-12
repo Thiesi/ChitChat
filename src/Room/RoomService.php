@@ -128,6 +128,7 @@ SQL);
                 throw new RuntimeException('Unable to prepare room ownership.');
             }
             $memberStatement->execute(['room_id' => $roomId, 'user_id' => $actor->id]);
+            (new RoomReadService($this->pdo))->startAt($actor->id, $roomId);
 
             $this->audit->log(
                 $actor->id,
@@ -187,6 +188,10 @@ SQL);
                 throw new RuntimeException('Unable to prepare room join.');
             }
             $statement->execute(['room_id' => $roomId, 'user_id' => $actor->id]);
+            if ($statement->rowCount() === 1) {
+                // Only a membership created now starts reading here; a repeated join changes nothing.
+                (new RoomReadService($this->pdo))->startAt($actor->id, $roomId);
+            }
 
             $deleteInvitation = $this->pdo->prepare(
                 'DELETE FROM room_invitations WHERE room_id = :room_id AND user_id = :user_id',

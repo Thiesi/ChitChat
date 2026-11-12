@@ -16,11 +16,11 @@ Super-Administrators, Administrators, Chat Admins, and Global Moderators may vie
 
 Returns rooms visible in the user's room list. Global room moderators receive all active rooms.
 
-For rooms the account has joined, each entry also carries `unread_count` (messages from others, not deleted, after the read position; counting stops at 100, shown as "99+") and `last_read_message_id` (`null` until the account first reads there). Other rooms report `0` and `null`.
+For rooms the account has joined, each entry also carries `unread_count` (messages from others, not deleted, after the read position; counting stops at 100, shown as "99+") and `last_read_message_id`, which starts at the room's newest message when the account joins or creates the room, so only later messages count (#268). Clients should still accept `null` for a joined room. Other rooms report `0` and `null`.
 
 Joined rooms also carry `unread_mention_count` (#266): room mentions of the account, explicit or through `@room`/`@here`, that are still unseen. A mention counts while all of these hold:
 - its `mentioned` notification is unread;
-- its message is after the read position (every message counts before the first read);
+- its message is after the read position;
 - the message isn't deleted;
 - the account doesn't ignore its sender.
 
