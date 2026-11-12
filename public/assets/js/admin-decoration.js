@@ -73,9 +73,11 @@ async function save() {
     $('decoration-status').textContent = saved === 'off'
       ? 'Saved. The sign-in page has no decoration.'
       : `Saved. The sign-in page shows the ${(LABELS[saved] ?? saved).split(':')[0].toLowerCase()} decoration from its next load.`;
-  } catch {
-    $('decoration-status').textContent = '';
-    $('decoration-error').textContent = 'That didn’t save. Try again.';
+  } catch (error) {
+    // Cancelling the step-up isn't a failure: the choice simply wasn't saved.
+    const cancelled = error?.code === 'step_up_cancelled';
+    $('decoration-status').textContent = cancelled ? 'Not saved.' : '';
+    $('decoration-error').textContent = cancelled ? '' : 'That didn’t save. Try again.';
   } finally {
     busy = false;
     sync();

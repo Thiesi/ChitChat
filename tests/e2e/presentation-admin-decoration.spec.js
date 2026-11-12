@@ -94,6 +94,17 @@ test('saving asks to confirm it’s you first, then saves', async ({ page }) => 
   expect(requests.filter((entry) => entry.path.includes('sign-in-decoration/update')).map((entry) => entry.body.sign_in_decoration)).toEqual(['celebration', 'celebration']);
 });
 
+test('cancelling the step-up just leaves it unsaved', async ({ page }) => {
+  await fixture(page, { update: () => ({ status: 403, json: { error: { code: 'step_up_required', message: 'Confirm it’s you.' } } }) });
+  await open(page);
+  await select(page).selectOption('winter');
+  await card(page).getByRole('button', { name: 'Save decoration' }).click();
+  await page.getByRole('dialog', { name: 'Confirm this sensitive action' }).getByRole('button', { name: 'Cancel' }).click();
+  await expect(card(page).locator('#decoration-status')).toHaveText('Not saved.');
+  await expect(card(page).locator('#decoration-error')).toHaveText('');
+  await expect(select(page)).toHaveValue('winter');
+});
+
 test('a refused save says so and keeps the choice to try again', async ({ page }) => {
   await fixture(page, { update: () => ({ status: 500, json: { error: { code: 'server_error', message: 'No.' } } }) });
   await open(page);
