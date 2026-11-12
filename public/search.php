@@ -50,14 +50,13 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
         Words or phrase
         <input id="message-search-query" name="query" type="search" minlength="2" maxlength="200" autocomplete="off" required>
       </label>
-      <label>
-        Search in
-        <select id="message-search-scope" name="scope">
-          <option value="all">Rooms and direct messages</option>
-          <option value="rooms">Rooms only</option>
-          <option value="direct">Direct messages only</option>
-        </select>
-      </label>
+      <!-- Scope chips (S4d): today's scope values; changing one re-runs the search. -->
+      <fieldset id="message-search-scope" class="search-scope">
+        <legend>Search in</legend>
+        <label class="search-scope-chip"><input type="radio" name="scope" value="all" checked> All</label>
+        <label class="search-scope-chip"><input type="radio" name="scope" value="rooms"> Rooms</label>
+        <label class="search-scope-chip"><input type="radio" name="scope" value="direct"> Direct</label>
+      </fieldset>
       <button id="message-search-submit" class="primary-button" type="submit">Search</button>
     </form>
 
