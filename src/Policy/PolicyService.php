@@ -152,14 +152,15 @@ SQL);
      * then the actor's account row (#164). FOR KEY SHARE conflicts with the
      * username key update of a moderator's "require a new username" and of
      * choosing the new name, but not with ordinary updates of the actor's row.
-     * A path that will update the actor's own row passes $accountForUpdate, so
-     * it never upgrades a weaker lock while a rename waits.
+     * A path that will update the actor's own row (non-key columns) passes
+     * $accountForNoKeyUpdate, so it never upgrades a weaker lock while a rename
+     * waits; NO KEY UPDATE still serializes with a rename's FOR UPDATE (#248).
      *
      * Returns the actor's username as of this lock. A rename cannot commit
      * until the caller's transaction ends, so names stored or published by
      * the write (mention and ping notices, ping events) are never stale.
      */
-    public function assertMayWrite(AuthenticatedUser $actor, bool $accountForUpdate = false): string
+    public function assertMayWrite(AuthenticatedUser $actor, bool $accountForNoKeyUpdate = false): string
     {
         $rules = $this->lockedRules();
         if ($rules['source'] !== 'none') {
@@ -170,7 +171,7 @@ SQL);
             }
         }
         $account = $this->prepare('SELECT username, (username_change_required_at IS NOT NULL)::int AS pending FROM users WHERE id = :id '
-            . ($accountForUpdate ? 'FOR UPDATE' : 'FOR KEY SHARE'));
+            . ($accountForNoKeyUpdate ? 'FOR NO KEY UPDATE' : 'FOR KEY SHARE'));
         $account->execute(['id' => $actor->id]);
         $row = $account->fetch();
         if (is_array($row) && (int) $row['pending'] === 1) {

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace ChitChat\Account;
 
 use ChitChat\Audit\AuditLogger;
+use ChitChat\Auth\AccountLocks;
 use ChitChat\Auth\AuthenticatedUser;
 use ChitChat\Auth\Username;
 use ChitChat\Auth\UsernameClaims;
@@ -25,15 +26,12 @@ use Throwable;
  * and signing in (also with the removed name, which stays reserved), but every
  * gated write is refused until it chooses a new name here.
  *
- * Lock order: account rows first, in numeric ID order (the target FOR UPDATE,
- * since changing username_canonical is a key update; the acting moderator FOR
- * KEY SHARE, which the audit, case and event rows referencing it need anyway),
- * then the username claim locks, then a moderation case. Locking the actor
- * before the target regardless of IDs would still deadlock two moderators
- * acting on each other; ID order does not. Person reports also lock the
- * account before the case. Other staff actions (for example a moderator
- * removing an avatar) still lock target then actor; that residual cross-path
- * cycle is tracked in #248.
+ * Lock order: account rows first, through AccountLocks::forKeyChange (the
+ * target FOR UPDATE, since changing username_canonical is a key update, and
+ * the acting moderator FOR KEY SHARE, in numeric ID order), then the username
+ * claim locks, then a moderation case. Person reports also lock the account
+ * before the case. Every other staff action locks account rows at most FOR NO
+ * KEY UPDATE, so it never blocks this action's actor lock (#248).
  */
 final class UsernameChangeService
 {
@@ -76,13 +74,8 @@ final class UsernameChangeService
 
         $this->pdo->beginTransaction();
         try {
-            if ($actor->id < $userId) {
-                $this->lockActor($actor->id);
-                $target = $this->lockAccount($userId);
-            } else {
-                $target = $this->lockAccount($userId);
-                $this->lockActor($actor->id);
-            }
+            (new AccountLocks($this->pdo))->forKeyChange($actor->id, $userId);
+            $target = $this->lockAccount($userId);
             if ($target === null || $target['account_state'] === 'closed') {
                 throw new ApiException(404, 'user_not_found', 'User not found.');
             }
@@ -165,6 +158,7 @@ SQL, 'username reservation')->execute(['canonical' => $oldCanonical, 'user_id' =
 
         $this->pdo->beginTransaction();
         try {
+            (new AccountLocks($this->pdo))->forKeyChange($actor->id, $actor->id);
             $current = $this->lockAccount($actor->id);
             if ($current === null || $current['account_state'] !== 'active'
                 || (int) $current['session_version'] !== $actor->sessionVersion) {
@@ -225,11 +219,6 @@ SQL, 'account lock');
         $row = $statement->fetch();
 
         return is_array($row) ? $row : null;
-    }
-
-    private function lockActor(int $actorId): void
-    {
-        $this->statement('SELECT id FROM users WHERE id = :id FOR KEY SHARE', 'actor lock')->execute(['id' => $actorId]);
     }
 
     private function freshPlaceholder(): string
