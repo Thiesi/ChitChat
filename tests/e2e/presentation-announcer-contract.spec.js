@@ -272,3 +272,58 @@ test('script 5: messages that arrive while the tab is hidden are one line on ret
   await settle(page);
   expect(await spoken(page)).toEqual(['2 new messages while you were away.']);
 });
+
+
+// S5b (#171): "Announce new messages" on this device. All is the default
+// (every script above); the other two filter incoming messages only.
+const prefer = (page, value) => page.addInitScript((choice) => window.localStorage.setItem('chitchat.announce', choice), value);
+
+test('only messages to me: a plain message stays silent; a mention and a ping are read', async ({ page }) => {
+  const server = await fixture(page);
+  await prefer(page, 'to-me');
+  const helper = participant(page, server, rowan);
+  await openLivingRoom(page);
+  await helper.send(LIVING_ROOM, 'Anyone around?');
+  await expect(page.locator('#message-list article.message')).toHaveCount(6);
+  await settle(page);
+  expect(await spoken(page)).toEqual([]);
+
+  await helper.send(LIVING_ROOM, '@Jamie could you bring the spare dice?', { mentions: [{ user_id: viewer.id, username: viewer.username }] });
+  await settle(page);
+  expect(await spoken(page)).toEqual(['Mention from Rowan: @Jamie could you bring the spare dice?']);
+
+  await page.evaluate((payload) => window.__emit('ping', { ping: payload }), {
+    id: 7, room_id: LIVING_ROOM, sender: rowan, target: { id: viewer.id, username: viewer.username }, message: 'Dinner?', created_at: new Date(clock += 60_000).toISOString(),
+  });
+  await settle(page);
+  expect(await spoken(page)).toEqual(['Mention from Rowan: @Jamie could you bring the spare dice?', 'Ping from Rowan: Dinner?']);
+});
+
+test('off: nothing incoming is read, also on return to the tab; opening a room still says its count', async ({ page }) => {
+  const server = await fixture(page);
+  await prefer(page, 'off');
+  const helper = participant(page, server, rowan);
+  await openLivingRoom(page);
+  await helper.send(LIVING_ROOM, '@Jamie are you there?', { mentions: [{ user_id: viewer.id, username: viewer.username }] });
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  await helper.send(LIVING_ROOM, 'While you were out');
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  await settle(page);
+  expect(await spoken(page)).toEqual([]);
+
+  // What the viewer does is still spoken.
+  await page.locator('.room-button', { hasText: 'Board games night' }).click();
+  await expect(page.locator('#message-list article.message')).toHaveCount(1);
+  await helper.send(LIVING_ROOM, 'one');
+  await helper.send(LIVING_ROOM, 'two');
+  await page.locator('.room-button', { hasText: 'The living room' }).click();
+  await expect(page.locator('#message-list article.message')).toHaveCount(9);
+  await settle(page);
+  expect(await spoken(page)).toEqual(['The living room. 2 new messages.']);
+});

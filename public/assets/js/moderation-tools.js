@@ -4,6 +4,8 @@
  * may do what; these only ask what to do.
  */
 
+import { actionRow, dialogShell, settle } from './confirm-dialog.js';
+
 let deleteDialog = null;
 
 /**
@@ -44,7 +46,7 @@ export function confirmModeratorDelete({ author, excerpt, roomName }) {
 function ensureDeleteDialog() {
   if (deleteDialog) return deleteDialog;
   const dialog = document.createElement('dialog');
-  dialog.className = 'room-dialog moderation-dialog';
+  dialog.className = 'room-dialog confirm-dialog';
   dialog.setAttribute('aria-labelledby', 'moderator-delete-title');
   const form = document.createElement('form');
   form.className = 'form-stack';
@@ -288,36 +290,6 @@ export function chooseGuestBlock({ name }) {
   }));
 }
 
-/**
- * A plain confirmation, optionally with "Let the room know".
- *
- * @param {{ title: string, text: string, confirmLabel: string, announce: string | null }} options
- * @returns {Promise<{ announce: boolean } | null>}
- */
-export function confirmAction({ title, text, confirmLabel, announce }) {
-  const id = `confirm-${(dialogCount += 1)}`;
-  const { dialog, form } = dialogShell(id, title);
-  const body = document.createElement('p');
-  body.textContent = text;
-  form.append(body);
-  let announceBox = null;
-  if (announce) {
-    const label = document.createElement('label');
-    label.className = 'check-row';
-    announceBox = document.createElement('input');
-    announceBox.type = 'checkbox';
-    label.append(announceBox, `Let the room know: “${announce}” Without your name.`);
-    form.append(label);
-  }
-  form.append(actionRow(confirmLabel));
-  dialog.append(form);
-  document.body.append(dialog);
-  dialog.showModal();
-  form.querySelector('.secondary-button')?.focus();
-
-  return settle(dialog, form, () => ({ announce: Boolean(announceBox?.checked) }));
-}
-
 export const USERNAME_CHANGE_REASON = 'Your username was reported and found to break the community rules.';
 
 /**
@@ -354,52 +326,4 @@ export function chooseUsernameChange({ name }) {
   // Spaces alone aren't a reason (the server trims to 1–500 characters).
   reason.addEventListener('input', () => reason.setCustomValidity(reason.value.trim() ? '' : 'Say why, in a sentence.'));
   return settle(dialog, form, () => ({ reason: reason.value.trim() }));
-}
-
-function dialogShell(id, title) {
-  const dialog = document.createElement('dialog');
-  dialog.className = 'room-dialog moderation-dialog';
-  dialog.setAttribute('aria-labelledby', `${id}-title`);
-  const form = document.createElement('form');
-  form.className = 'form-stack';
-  const heading = document.createElement('h2');
-  heading.id = `${id}-title`;
-  heading.textContent = title;
-  form.append(heading);
-  return { dialog, form };
-}
-
-function actionRow(confirmLabel) {
-  const actions = document.createElement('div');
-  actions.className = 'action-row';
-  const cancel = document.createElement('button');
-  cancel.type = 'button';
-  cancel.className = 'secondary-button';
-  cancel.textContent = 'Cancel';
-  const confirm = document.createElement('button');
-  confirm.type = 'submit';
-  confirm.className = 'danger-button';
-  confirm.textContent = confirmLabel;
-  actions.append(cancel, confirm);
-  return actions;
-}
-
-// Resolves with `result()` on submit, null on Cancel or Escape, and removes the dialog.
-function settle(dialog, form, result) {
-  return new Promise((resolve) => {
-    const finish = (value) => {
-      dialog.close();
-      dialog.remove();
-      resolve(value);
-    };
-    form.addEventListener('submit', (event) => {
-      event.preventDefault();
-      finish(result());
-    });
-    form.querySelector('.secondary-button')?.addEventListener('click', () => finish(null));
-    dialog.addEventListener('cancel', (event) => {
-      event.preventDefault();
-      finish(null);
-    });
-  });
 }

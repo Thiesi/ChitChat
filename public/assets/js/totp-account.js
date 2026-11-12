@@ -4,6 +4,7 @@
 // secret and its otpauth:// URI never leave this page: they are not put in a
 // URL, an attribute or a log, and the setup is gone once the panel closes.
 import { ApiError, apiPost } from './api.js';
+import { confirmAction } from './confirm-dialog.js';
 import { codeInput, describeTotpError as describe } from './totp-common.js';
 import { formatDateTime } from './datetime.js';
 import { withPrivilegedStepUp } from './step-up.js';
@@ -222,7 +223,13 @@ export function createTotpBlock(hooks) {
   }
 
   async function remove() {
-    if (!window.confirm('Remove your authenticator app? Its codes will stop working.')) return;
+    const confirmed = await confirmAction({
+      title: 'Remove your authenticator app?',
+      text: 'Its codes stop working right away.',
+      confirmLabel: 'Remove app',
+      announce: null,
+    });
+    if (!confirmed) return;
     clear();
     setBusy(true);
     try {

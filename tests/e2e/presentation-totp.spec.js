@@ -83,7 +83,7 @@ test('offered: You invites setting up an authenticator app', async ({ page }) =>
   await page.goto('/account.php#security');
   await expect(block(page).getByRole('heading', { name: 'Authenticator app' })).toBeVisible();
   await expect(block(page).getByRole('button', { name: 'Set up an authenticator app' })).toBeVisible();
-  await expect(page.locator('#mfa-summary')).toHaveText('Add a passkey or an authenticator app to require a second step after your password.');
+  await expect(page.locator('#mfa-summary')).toHaveText('Add a passkey or an authenticator app to confirm it’s you after your password.');
 });
 
 test('not offered by the server and not set up: no authenticator block', async ({ page }) => {
@@ -205,8 +205,8 @@ test('set up: replace confirms with the app in the step-up dialog first; remove 
   await expect(block(page)).toContainText('Your current app keeps working until you confirm.');
   await block(page).getByRole('button', { name: 'Cancel' }).click();
 
-  page.once('dialog', (confirm) => confirm.accept());
   await block(page).getByRole('button', { name: 'Remove authenticator app' }).click();
+  await page.getByRole('dialog', { name: 'Remove your authenticator app?' }).getByRole('button', { name: 'Remove app' }).click();
   await expect(block(page).locator('.error-text')).toHaveText('This is your only second step. Add a passkey first, or turn off two-step sign-in below.');
 });
 
@@ -216,8 +216,8 @@ test('removing the app shows why a remaining passkey cannot currently be used', 
     'account/mfa/totp/remove.php': error(409, 'last_mfa_method', reason),
   } });
   await page.goto('/account.php#security');
-  page.once('dialog', (confirm) => confirm.accept());
   await block(page).getByRole('button', { name: 'Remove authenticator app' }).click();
+  await page.getByRole('dialog', { name: 'Remove your authenticator app?' }).getByRole('button', { name: 'Remove app' }).click();
   await expect(block(page).locator('.error-text')).toHaveText(reason);
   await expect(block(page).getByRole('button', { name: 'Remove authenticator app' })).toBeVisible();
 });

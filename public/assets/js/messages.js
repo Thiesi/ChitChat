@@ -690,7 +690,7 @@ function startEventStream() {
     if (state.selectedUser?.id === peer.id && appendMessage(message, true)) {
       // The transcript is not a live region; the announcer speaks new messages once.
       if (message.outgoing) markKnown([`dm:${message.id}`]);
-      else announceIncoming({ key: `dm:${message.id}`, sender: peer.username, body: message.body });
+      else announceIncoming({ key: `dm:${message.id}`, sender: peer.username, body: message.body, direct: true });
     }
     if (state.selectedUser?.id === peer.id) {
       if (!message.outgoing) markRead().catch(console.error);

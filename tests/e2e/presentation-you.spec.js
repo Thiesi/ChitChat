@@ -24,10 +24,18 @@ const mfaOff = {
   totp: { enabled: false, available: true, created_at: null, last_used_at: null },
 };
 
-async function fixture(page, { user = member } = {}) {
+const mfaOn = {
+  ...mfaOff, enabled: true, recovery_codes_remaining: 8, usable_methods: ['webauthn', 'totp', 'recovery_code'],
+  totp: { enabled: true, available: true, created_at: '2026-10-02T10:00:00Z', last_used_at: null },
+  credentials: [{ id: 'cred-1', label: 'Laptop key', algorithm: 'ES256', created_at: '2026-10-01T10:00:00Z', last_used_at: null, backed_up: false }],
+};
+
+async function fixture(page, { user = member, mfa = mfaOff } = {}) {
+  const posts = [];
   await page.route('**/api/v1/**', async (route) => {
     const url = new URL(route.request().url());
     const path = url.pathname.replace('/api/v1/', '');
+    if (route.request().method() === 'POST') posts.push(path);
     if (path === 'avatars/show.php') return route.fulfill({ status: 404, body: '' });
     const responses = {
       'session.php': {
@@ -36,7 +44,10 @@ async function fixture(page, { user = member } = {}) {
         web_push: { enabled: true, vapid_public_key: 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U' },
       },
       'users/profile.php': { profile: { id: user.id, username: user.username, member_since: '2025-03-14T09:00:00Z', has_avatar: false }, avatars_available: true },
-      'account/mfa/status.php': { mfa: mfaOff },
+      'account/mfa/status.php': { mfa },
+      'account/mfa/remove.php': { mfa: { ...mfa, credentials: [] } },
+      'account/mfa/recovery-regenerate.php': { mfa, recovery_codes: ['aaaa-bbbb', 'cccc-dddd'] },
+      'account/mfa/disable.php': {},
       'account/identities/list.php': { providers: [], identities: [], has_password: true },
       'account/sessions/list.php': { sessions: [], maximum_sessions: 50 },
       'push/preferences.php': { preferences: { mentioned_push_enabled: true, pinged_push_enabled: true, direct_message_push_enabled: false, quiet_hours: null }, devices: [] },
@@ -47,6 +58,7 @@ async function fixture(page, { user = member } = {}) {
     };
     await route.fulfill({ json: responses[path] ?? {} });
   });
+  return posts;
 }
 
 const list = (page) => page.getByRole('region', { name: 'You', exact: true });
@@ -94,7 +106,7 @@ test('the list pane: the person, six sections, Sign out last; Profile opens by d
 const PARITY = [
   ['Profile', ['Name', 'Profile picture']],
   ['Alerts', ['What should alert you?', 'Quiet hours', 'This browser', 'Devices with alerts on', 'Sounds on this device']],
-  ['Appearance', ['Theme and colours', 'How dates and times look', 'Typing indicator']],
+  ['Appearance', ['Theme and colours', 'How dates and times look', 'Typing indicator', 'Accessibility']],
   ['Sign-in and security', ['Password and recovery', 'Recovery key', 'Passkeys and recovery codes', 'Where you’re signed in']],
   ['Privacy and data', ['Download your personal data']],
   ['Account', ['Close your account']],
@@ -187,7 +199,75 @@ test('guests: the visit card, Appearance only, and Leave', async ({ page }) => {
   await expect(title(page)).toHaveText('Appearance');
   await expect(page.getByRole('heading', { name: 'Theme and colours' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Typing indicator' })).toBeHidden();
+  // Guests hear announcements too, so the device-only choice is theirs as well.
+  await expect(page.getByRole('radiogroup', { name: 'Announce new messages' })).toBeVisible();
   await expect(list(page).getByRole('button', { name: 'Leave' })).toBeVisible();
+});
+
+// ---- S5b: copy, announcements, styled confirmations ----
+
+test('announce new messages: All, Only messages to me, Off; saved on this device', async ({ page }) => {
+  await fixture(page);
+  await open(page, 1280, '/account.php#appearance');
+  const group = page.getByRole('radiogroup', { name: 'Announce new messages' });
+  await expect(group.getByRole('radio')).toHaveCount(3);
+  await expect(group.getByRole('radio', { name: 'All' })).toBeChecked();
+  const toMe = group.getByRole('radio', { name: 'Only messages to me' });
+  await expect(toMe).toHaveAccessibleDescription('Mentions, pings and direct messages. Saved on this device.');
+  await toMe.check();
+  expect(await page.evaluate(() => localStorage.getItem('chitchat.announce'))).toBe('to-me');
+  await page.reload();
+  await expect(group.getByRole('radio', { name: 'Only messages to me' })).toBeChecked();
+  await group.getByRole('radio', { name: 'Off' }).check();
+  expect(await page.evaluate(() => localStorage.getItem('chitchat.announce'))).toBe('off');
+  // All is the default, so choosing it again leaves nothing stored.
+  await group.getByRole('radio', { name: 'All' }).check();
+  expect(await page.evaluate(() => localStorage.getItem('chitchat.announce'))).toBeNull();
+});
+
+test('settings copy is one line; the rest waits behind a named Learn more', async ({ page }) => {
+  await fixture(page);
+  await open(page, 1280, '/account.php#security');
+  const more = page.locator('#sessions-card details.you-more');
+  await expect(more.locator('summary')).toHaveAccessibleName('Learn more about sign-ins');
+  await expect(more.getByText(/Up to 50 sign-ins/)).toBeHidden();
+  await more.locator('summary').click();
+  await expect(more.getByText(/Up to 50 sign-ins/)).toBeVisible();
+  // Midnight says whose it is.
+  await sectionLink(page, 'Appearance').click();
+  await expect(page.getByRole('radio', { name: 'Midnight, ChitChat web’s own' })).toBeVisible();
+});
+
+test('passkeys and recovery codes ask in a styled dialog, not window.confirm; Cancel changes nothing', async ({ page }) => {
+  const posts = await fixture(page, { mfa: mfaOn });
+  let native = 0;
+  page.on('dialog', (dialog) => { native += 1; void dialog.dismiss(); });
+  await open(page, 1280, '/account.php#security');
+  const card = page.locator('#mfa-heading').locator('xpath=ancestor::section[1]');
+  await expect(card).toContainText('Laptop key');
+
+  for (const [button, name, confirm, path] of [
+    ['Remove', 'Remove the passkey “Laptop key”?', 'Remove passkey', 'account/mfa/remove.php'],
+    ['Generate new recovery codes', 'Generate new recovery codes?', 'Generate new codes', 'account/mfa/recovery-regenerate.php'],
+    ['Disable multi-factor authentication', 'Disable multi-factor authentication?', 'Disable', 'account/mfa/disable.php'],
+  ]) {
+    const opener = card.getByRole('button', { name: button, exact: true });
+    await opener.click();
+    const dialog = page.getByRole('dialog', { name });
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole('button', { name: 'Cancel' })).toBeFocused();
+    await expect(dialog.getByRole('button', { name: confirm, exact: true })).toBeVisible();
+    if (button === 'Remove') await axe(page, 'confirm dialog');
+    await page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
+    await expect(opener).toBeFocused();
+    expect(posts).not.toContain(path);
+  }
+
+  await card.getByRole('button', { name: 'Remove', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Remove the passkey “Laptop key”?' }).getByRole('button', { name: 'Remove passkey' }).click();
+  await expect.poll(() => posts).toContain('account/mfa/remove.php');
+  expect(native).toBe(0);
 });
 
 // ---- Phones ----
