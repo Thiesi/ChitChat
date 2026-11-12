@@ -58,7 +58,7 @@ function buildCard() {
       <span id="mfa-recovery-status" class="account-muted"></span>
     </div>
     <p class="account-muted">Recovery codes stand in for your passkey. Your recovery key, under Password and recovery, resets a forgotten password. Keep them apart.</p>
-    <div class="account-action-row">
+    <div id="mfa-disable-row" class="account-action-row">
       <button id="mfa-disable" class="danger-button" type="button">Disable multi-factor authentication</button>
       <span class="account-muted">Signs you out everywhere else.</span>
     </div>
@@ -76,6 +76,7 @@ function buildCard() {
     regenerate: root.querySelector('#mfa-recovery-regenerate'),
     recoveryStatus: root.querySelector('#mfa-recovery-status'),
     disable: root.querySelector('#mfa-disable'),
+    disableRow: root.querySelector('#mfa-disable-row'),
     error: root.querySelector('#mfa-error'),
   };
   // The authenticator app (#204) is its own block; it reports back new status and first recovery codes.
@@ -113,7 +114,8 @@ function render(nextStatus) {
       : '';
   card.addForm.classList.toggle('hidden', !available || !webAuthnSupported());
   card.regenerate.classList.toggle('hidden', !enabled);
-  card.disable.classList.toggle('hidden', !enabled);
+  // The row's note only makes sense next to its button.
+  card.disableRow.classList.toggle('hidden', !enabled);
   card.disable.disabled = Boolean(status?.required_by_admin_policy);
   card.recoveryStatus.textContent = enabled
     ? `${status.recovery_codes_remaining} unused recovery codes remain.`
