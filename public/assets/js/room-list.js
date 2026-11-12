@@ -235,6 +235,7 @@ function row(room, options, mentionedRooms, { join = false, card = false } = {})
 
   const sub = document.createElement('span');
   sub.className = 'room-sub';
+  sub.id = `room-sub-${room.id}`;
   if (here > 0) {
     const now = document.createElement('span');
     now.className = 'room-row-here';
@@ -252,6 +253,7 @@ function row(room, options, mentionedRooms, { join = false, card = false } = {})
   if (when) {
     const time = document.createElement('time');
     time.className = 'room-time';
+    time.id = `room-time-${room.id}`;
     time.dateTime = room.last_activity_at;
     time.textContent = when;
     meta.append(time);
@@ -281,6 +283,9 @@ function row(room, options, mentionedRooms, { join = false, card = false } = {})
   if (readOnly) badges.append(flag('read only'));
   if (badges.childElementCount > 0) meta.append(badges);
 
+  // The sub-line and the time are the row's description (S4b): read after its name.
+  const described = [sub.textContent ? sub.id : '', when ? `room-time-${room.id}` : ''].filter(Boolean);
+  if (described.length > 0) link.setAttribute('aria-describedby', described.join(' '));
   link.append(mark, name, sub, meta);
   link.addEventListener('click', (event) => {
     if (!isPlainActivation(event)) return;
