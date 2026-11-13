@@ -6,6 +6,7 @@ namespace ChitChat\Admin;
 use ChitChat\Audit\AuditLogger;
 use ChitChat\Auth\AuthenticatedUser;
 use ChitChat\Auth\GuestService;
+use ChitChat\Config;
 use ChitChat\Http\ApiException;
 use PDO;
 use RuntimeException;
@@ -15,7 +16,8 @@ final class SystemSettingsService
 {
     private readonly AuditLogger $audit;
 
-    public function __construct(private readonly PDO $pdo)
+    /** @param ?Config $config for the MAINTENANCE_MAX_AGE_HOURS fallback (26 without one) */
+    public function __construct(private readonly PDO $pdo, private readonly ?Config $config = null)
     {
         $this->audit = new AuditLogger($pdo);
     }
@@ -44,6 +46,8 @@ final class SystemSettingsService
         ?bool $guestAccessEnabled = null,
         ?int $usernameReservationDays = null,
         ?int $backupMaxAgeHours = null,
+        // false leaves it unchanged; null clears the setting so MAINTENANCE_MAX_AGE_HOURS applies again (#312).
+        int|false|null $maintenanceMaxAgeHours = false,
     ): array {
         $this->requireSuperAdministrator($actor);
         $this->validateDays('room_message_retention_days', $roomMessageRetentionDays, true);
@@ -61,6 +65,9 @@ final class SystemSettingsService
         }
         if ($backupMaxAgeHours !== null) {
             $this->validateRange('backup_max_age_hours', $backupMaxAgeHours, 0, 720);
+        }
+        if (is_int($maintenanceMaxAgeHours)) {
+            $this->validateRange('maintenance_max_age_hours', $maintenanceMaxAgeHours, MaintenanceMaxAge::MINIMUM, MaintenanceMaxAge::MAXIMUM);
         }
 
         $this->pdo->beginTransaction();
@@ -88,6 +95,8 @@ SET registration_enabled = :registration_enabled,
     guest_access_enabled = COALESCE(CAST(:guest_access_enabled AS boolean), guest_access_enabled),
     username_reservation_days = COALESCE(CAST(:username_reservation_days AS integer), username_reservation_days),
     backup_max_age_hours = COALESCE(CAST(:backup_max_age_hours AS integer), backup_max_age_hours),
+    maintenance_max_age_hours = CASE WHEN CAST(:maintenance_max_age_keep AS boolean) THEN maintenance_max_age_hours
+        ELSE CAST(:maintenance_max_age_hours AS integer) END,
     updated_at = NOW()
 WHERE id = 1
 SQL);
@@ -122,6 +131,12 @@ SQL);
                 ':backup_max_age_hours',
                 $backupMaxAgeHours,
                 $backupMaxAgeHours === null ? PDO::PARAM_NULL : PDO::PARAM_INT,
+            );
+            $statement->bindValue(':maintenance_max_age_keep', $maintenanceMaxAgeHours === false, PDO::PARAM_BOOL);
+            $statement->bindValue(
+                ':maintenance_max_age_hours',
+                is_int($maintenanceMaxAgeHours) ? $maintenanceMaxAgeHours : null,
+                is_int($maintenanceMaxAgeHours) ? PDO::PARAM_INT : PDO::PARAM_NULL,
             );
             $statement->execute();
             $new = $this->load();
@@ -164,6 +179,7 @@ SELECT registration_enabled::int,
        guest_access_enabled::int,
        username_reservation_days,
        backup_max_age_hours,
+       maintenance_max_age_hours,
        updated_at
 FROM system_settings
 WHERE id = 1
@@ -175,6 +191,10 @@ SQL);
         if (!is_array($row)) {
             throw new RuntimeException('System settings are missing.');
         }
+        $maintenance = MaintenanceMaxAge::resolve(
+            $row['maintenance_max_age_hours'] === null ? null : (int) $row['maintenance_max_age_hours'],
+            $this->config,
+        );
         return [
             'registration_enabled' => (int) $row['registration_enabled'] === 1,
             'mfa_required_for_admin_roles' => (int) $row['mfa_required_for_admin_roles'] === 1,
@@ -191,6 +211,10 @@ SQL);
             'username_reservation_days' => (int) $row['username_reservation_days'],
             // How old the newest successful backup may be before System status calls it overdue; 0 = off (#310).
             'backup_max_age_hours' => (int) $row['backup_max_age_hours'],
+            // The effective maintenance max age, and whether it is the saved setting or the
+            // MAINTENANCE_MAX_AGE_HOURS fallback (#312).
+            'maintenance_max_age_hours' => $maintenance['hours'],
+            'maintenance_max_age_source' => $maintenance['source'],
             'updated_at' => (string) $row['updated_at'],
         ];
     }

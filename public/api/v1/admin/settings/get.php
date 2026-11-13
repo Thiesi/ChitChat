@@ -19,6 +19,6 @@ Endpoint::run($config, static function () use ($config): ApiResult {
     $actor = SessionManager::requireUser(new UserRepository($pdo));
 
     return ApiResult::ok([
-        'settings' => (new SystemSettingsService($pdo))->get($actor),
+        'settings' => (new SystemSettingsService($pdo, $config))->get($actor),
     ]);
 });

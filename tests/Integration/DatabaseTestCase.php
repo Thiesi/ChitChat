@@ -50,6 +50,7 @@ SET registration_enabled = TRUE,
     guest_access_enabled = FALSE,
     username_reservation_days = 365,
     backup_max_age_hours = 26,
+    maintenance_max_age_hours = NULL,
     sign_in_decoration = 'off',
     updated_at = NOW()
 WHERE id = 1
