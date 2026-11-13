@@ -1,6 +1,6 @@
-import { ApiError, apiPost, setCsrfToken } from './api.js';
+import { ApiError, apiPost, isPageLeft, setCsrfToken } from './api.js';
 import { formatDateTime } from './datetime.js';
-import { pageSession } from './page-session.js';
+import { pageSession, retryOnReturn } from './page-session.js';
 
 const elements = {
   loading: document.querySelector('#account-loading'),
@@ -36,6 +36,11 @@ async function initialize() {
     // The You list pane (S5a) appears with the section it opens.
     document.getElementById('you-list')?.classList.remove('hidden');
   } catch (error) {
+    // Left while loading (#270): nothing to say; if the page comes back, load it then.
+    if (isPageLeft(error)) {
+      retryOnReturn(() => void initialize());
+      return;
+    }
     // Signed out (here or elsewhere): the sign-in screen, which says why when it knows (#205).
     if (error instanceof ApiError && error.status === 401) {
       window.location.assign('/');
