@@ -57,6 +57,11 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
         <label class="search-scope-chip"><input type="radio" name="scope" value="rooms"> Rooms</label>
         <label class="search-scope-chip"><input type="radio" name="scope" value="direct"> Direct</label>
       </fieldset>
+      <!-- One room only (#318): stands in for the scope chips until it's cleared. -->
+      <div id="message-search-room" class="search-room-filter" role="group" aria-labelledby="message-search-room-label" hidden>
+        <span id="message-search-room-label" class="search-room-label">Search in</span>
+        <span class="search-room-chip"><span id="message-search-room-name"></span><button id="message-search-room-clear" class="search-room-clear" type="button" aria-label="Search everywhere instead"><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button></span>
+      </div>
       <button id="message-search-submit" class="primary-button" type="submit">Search</button>
     </form>
 

@@ -29,3 +29,22 @@ test('markup in the text stays text', () => {
     { text: '<b>', mark: false }, { text: 'dice', mark: true }, { text: '</b>', mark: false },
   ]);
 });
+
+test('the server’s ranges (UTF-16, relative to the excerpt) split the text as sent', async () => {
+  const { rangeSegments } = await import('../../public/assets/js/search-highlight.js');
+  assert.deepEqual(rangeSegments('bring dice, not paradice.', [{ start: 6, length: 4 }, { start: 16, length: 8 }]), [
+    { text: 'bring ', mark: false }, { text: 'dice', mark: true }, { text: ', not ', mark: false }, { text: 'paradice', mark: true }, { text: '.', mark: false },
+  ]);
+  // An emoji is two UTF-16 units; the offsets count them, as JavaScript does.
+  assert.deepEqual(rangeSegments('🎲 dice', [{ start: 3, length: 4 }]), [{ text: '🎲 ', mark: false }, { text: 'dice', mark: true }]);
+});
+
+test('unusable ranges give null, so the words are matched instead', async () => {
+  const { rangeSegments } = await import('../../public/assets/js/search-highlight.js');
+  assert.equal(rangeSegments('dice', undefined), null);
+  assert.equal(rangeSegments('dice', []), null);
+  assert.equal(rangeSegments('dice', [{ start: 2, length: 9 }]), null);
+  assert.equal(rangeSegments('dice dice', [{ start: 5, length: 4 }, { start: 0, length: 4 }]), null);
+  assert.equal(rangeSegments('dice', [{ start: 0, length: 0 }]), null);
+  assert.equal(rangeSegments('dice', [{ start: '0', length: 4 }]), null);
+});

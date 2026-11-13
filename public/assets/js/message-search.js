@@ -6,6 +6,7 @@ import { identityHueIndex } from './identity-hue.js';
 import { initials } from './avatar.js';
 import { listTime } from './room-list.js';
 import { queryTerms, renderHighlighted } from './search-highlight.js';
+import { ROOM_UNAVAILABLE } from './unavailable.js';
 
 const SCOPES = ['all', 'rooms', 'direct'];
 
@@ -15,6 +16,8 @@ const state = {
   nextOffset: null,
   resultCount: 0,
   loading: false,
+  // One room only (#318): { id, name } from ?room_id=, until the chip is cleared.
+  room: null,
 };
 
 const elements = {};
@@ -38,6 +41,9 @@ function bindElements() {
     'message-search-status',
     'message-search-results',
     'message-search-more',
+    'message-search-room',
+    'message-search-room-name',
+    'message-search-room-clear',
   ]) {
     const element = document.getElementById(id);
     if (!element) throw new Error(`Missing message-search interface element: ${id}`);
@@ -51,8 +57,40 @@ function bindEvents() {
   // A scope chip re-runs the last search in the new scope.
   elements['message-search-scope'].addEventListener('change', () => {
     if (state.query) void runSearch({ replace: true });
-    else updateAddress(selectedScope());
+    else updateAddress();
   });
+  elements['message-search-room-clear'].addEventListener('click', async () => {
+    setRoom(null);
+    // The button goes away with the chip: focus returns to the words, after the search re-runs.
+    if (state.query) await runSearch({ replace: true });
+    elements['message-search-query'].focus();
+  });
+}
+
+/** Shows the room chip in place of the scope chips, or takes it away. */
+function setRoom(room) {
+  state.room = room;
+  elements['message-search-room'].hidden = room === null;
+  elements['message-search-scope'].hidden = room !== null;
+  elements['message-search-room-name'].textContent = room ? `In # ${room.name}` : '';
+  updateAddress();
+}
+
+/** ?room_id=N: the room's name for the chip. A room that's gone says so, and search covers everything. */
+async function loadRoomFilter(roomId) {
+  try {
+    const { room } = await apiGet(`/api/v1/rooms/detail.php?room_id=${encodeURIComponent(roomId)}`);
+    setRoom({ id: roomId, name: typeof room?.name === 'string' ? room.name : 'this room' });
+  } catch (error) {
+    if (isPageLeft(error)) return;
+    setRoom(null);
+    if (error instanceof ApiError && error.code === 'room_not_found') {
+      elements['message-search-error'].textContent = `${ROOM_UNAVAILABLE} Search looks everywhere instead.`;
+      return;
+    }
+    // Couldn't check: keep the filter, the search itself will say if the room is gone.
+    setRoom({ id: roomId, name: 'this room' });
+  }
 }
 
 /** The checked scope chip. */
@@ -73,10 +111,13 @@ async function bootstrap() {
   elements['message-search-loading'].classList.add('hidden');
   elements['message-search-shell'].classList.remove('hidden');
 
-  const scope = new URLSearchParams(window.location.search).get('scope') ?? 'all';
+  const parameters = new URLSearchParams(window.location.search);
+  const scope = parameters.get('scope') ?? 'all';
   const chosen = SCOPES.includes(scope) ? scope : 'all';
   const chip = elements['message-search-scope'].querySelector(`input[value="${chosen}"]`);
   if (chip) chip.checked = true;
+  const roomId = Number(parameters.get('room_id'));
+  if (Number.isInteger(roomId) && roomId > 0) await loadRoomFilter(roomId);
   elements['message-search-query'].focus();
 }
 
@@ -106,12 +147,11 @@ async function runSearch({ replace, offset = 0 }) {
   elements['message-search-status'].textContent = replace ? 'Searching…' : 'Loading more results…';
 
   try {
-    const response = await apiPost('/api/v1/search/messages.php', {
-      query,
-      scope,
-      limit: 25,
-      offset,
-    });
+    // One room: the server takes room_id with the rooms scope (direct can't have one).
+    const room = state.room;
+    const response = await apiPost('/api/v1/search/messages.php', room
+      ? { query, scope: 'rooms', room_id: room.id, limit: 25, offset }
+      : { query, scope, limit: 25, offset });
     const results = Array.isArray(response.results) ? response.results : [];
 
     if (replace) {
@@ -119,7 +159,7 @@ async function runSearch({ replace, offset = 0 }) {
       state.resultCount = 0;
       state.query = query;
       state.scope = scope;
-      updateAddress(scope);
+      updateAddress();
     }
 
     const terms = queryTerms(state.query);
@@ -132,14 +172,25 @@ async function runSearch({ replace, offset = 0 }) {
 
     if (state.resultCount === 0) {
       // The door is always open: say what to try next.
-      const elsewhere = state.scope === 'all' ? 'Try fewer or different words.' : 'Try fewer words, or search All.';
-      elements['message-search-status'].textContent = `Nothing matches “${state.query}”. ${elsewhere}`;
+      if (room) {
+        elements['message-search-status'].textContent = `Nothing in # ${room.name} matches “${state.query}”. Try fewer words, or search everywhere.`;
+      } else {
+        const elsewhere = state.scope === 'all' ? 'Try fewer or different words.' : 'Try fewer words, or search All.';
+        elements['message-search-status'].textContent = `Nothing matches “${state.query}”. ${elsewhere}`;
+      }
     } else if (response.has_more) {
       elements['message-search-status'].textContent = `${state.resultCount} results shown. More results are available.`;
     } else {
       elements['message-search-status'].textContent = `${state.resultCount} ${state.resultCount === 1 ? 'result' : 'results'} shown.`;
     }
   } catch (error) {
+    if (state.room && error instanceof ApiError && error.code === 'room_not_found') {
+      // The room went away, or out of sight (#326): drop the chip and say so.
+      setRoom(null);
+      elements['message-search-error'].textContent = `${ROOM_UNAVAILABLE} Search again to look everywhere.`;
+      elements['message-search-status'].textContent = 'Search could not be completed.';
+      return;
+    }
     showError(error);
     elements['message-search-status'].textContent = 'Search could not be completed.';
   } finally {
@@ -218,7 +269,8 @@ function buildResult(result, terms) {
   excerpt.className = 'message-search-excerpt';
   excerpt.id = `search-excerpt-${id}`;
   // Text nodes and <mark> elements only: the excerpt is never parsed as HTML.
-  renderHighlighted(excerpt, typeof result.excerpt === 'string' ? result.excerpt : '', terms);
+  // The server's own match ranges when it sends them (#318); the query's words otherwise.
+  renderHighlighted(excerpt, typeof result.excerpt === 'string' ? result.excerpt : '', terms, result.excerpt_matches);
 
   const meta = document.createElement('p');
   meta.className = 'message-search-meta';
@@ -242,8 +294,12 @@ function buildResult(result, terms) {
   return item;
 }
 
-function updateAddress(scope) {
-  const suffix = scope === 'all' ? '' : `?scope=${encodeURIComponent(scope)}`;
+/** The address keeps the room or the scope, never the words (they stay out of history and logs). */
+function updateAddress() {
+  const parameters = new URLSearchParams();
+  if (state.room) parameters.set('room_id', String(state.room.id));
+  else if (selectedScope() !== 'all') parameters.set('scope', selectedScope());
+  const suffix = parameters.size > 0 ? `?${parameters.toString()}` : '';
   window.history.replaceState(null, '', `/search.php${suffix}`);
 }
 
@@ -252,6 +308,7 @@ function setBusy(busy) {
   elements['message-search-scope'].disabled = busy;
   elements['message-search-submit'].disabled = busy;
   elements['message-search-more'].disabled = busy;
+  elements['message-search-room-clear'].disabled = busy;
 }
 
 function clearError() {

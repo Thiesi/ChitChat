@@ -68,7 +68,7 @@ test('the chat header has no bell and no account menu; members and search stay',
   await expect(page.getByRole('button', { name: /^Notifications/ })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Account menu' })).toHaveCount(0);
   await expect(page.locator('#members-toggle')).toBeVisible();
-  await expect(page.locator('.room-header').getByRole('link', { name: 'Search messages' })).toBeVisible();
+  await expect(page.locator('.room-header').getByRole('link', { name: /^Search (messages|# )/ })).toBeVisible();
   // The rail's Activity badge still follows the count.
   await expect(nav(page).getByRole('link', { name: 'Activity, 2 unread' })).toBeVisible();
 });

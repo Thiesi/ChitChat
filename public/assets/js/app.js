@@ -784,6 +784,7 @@ function renderRoomHeader() {
   // Presence may already be known (presence.js); keep its glow on the new lantern.
   roomLantern.classList.toggle('glow', document.getElementById('room-here')?.hidden === false);
   elements['room-title'].replaceChildren(roomLantern, ` ${room.name}`);
+  setHeaderSearch(room);
   const details = [];
   if (room.info_line) {
     details.push(room.info_line);
@@ -844,7 +845,18 @@ function announceRoomOpened(roomId) {
   window.dispatchEvent(new CustomEvent('chitchat:room-chosen', { detail: { opener, user: true } }));
 }
 
+/** The conversation header's search button searches this room (#318); the list's searches everything. */
+function setHeaderSearch(room) {
+  const link = document.querySelector('.header-search');
+  if (!link) return;
+  const label = room ? `Search # ${room.name}` : 'Search messages';
+  link.href = room ? `/search.php?room_id=${encodeURIComponent(room.id)}` : '/search.php';
+  link.setAttribute('aria-label', label);
+  link.title = label;
+}
+
 function renderNoRoom() {
+  setHeaderSearch(null);
   elements['room-title'].textContent = 'Choose a room';
   elements['room-info'].textContent = 'Select a room from the list.';
   elements['join-button'].classList.add('hidden');

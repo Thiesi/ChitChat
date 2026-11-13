@@ -26,16 +26,23 @@ const RESULTS = () => [
   },
 ];
 
-async function fixture(page, { results = RESULTS() } = {}) {
+async function fixture(page, { results = RESULTS(), detail = { room: { id: 4, name: 'Garden' } }, searchFailure = null } = {}) {
   await page.clock.setFixedTime(NOW);
   const searches = [];
   await page.route('**/api/v1/**', async (route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname.replace('/api/v1/', '');
     if (path === 'session.php') return route.fulfill({ json: { user: member, csrf_token: 'fixture', registration_enabled: true, sign_in_providers: [] } });
+    if (path === 'rooms/detail.php') {
+      return Number.isInteger(detail?.status) ? route.fulfill({ status: detail.status, json: detail.json }) : route.fulfill({ json: detail });
+    }
     if (path === 'search/messages.php') {
       const body = request.postDataJSON();
       searches.push(body);
+      if (searchFailure) return route.fulfill({ status: searchFailure.status, json: searchFailure.json });
+      if (Number.isInteger(body.room_id)) {
+        return route.fulfill({ json: { results: results.filter((result) => result.room?.id === body.room_id), has_more: false, next_offset: null } });
+      }
       const scoped = results.filter((result) => body.scope === 'all' || (body.scope === 'rooms' ? result.kind === 'room' : result.kind === 'direct'));
       return route.fulfill({ json: { results: scoped, has_more: false, next_offset: null } });
     }
@@ -159,6 +166,89 @@ for (const [scheme, theme] of [['lantern', 'light'], ['lantern', 'dark'], ['dusk
     await axe(page, 'search 1280');
     await page.setViewportSize({ width: 360, height: 800 });
     await axe(page, 'search 360');
+    await page.setViewportSize({ width: 320, height: 700 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  });
+}
+
+// ---- #318: one room only, and the server's own match ranges ----
+
+const ROOM_GONE = { status: 404, json: { error: { code: 'room_not_found', message: 'Room not found.' } } };
+const roomChip = (page) => page.locator('#message-search-room');
+
+test('one room: the chip stands in for the scope chips, searches only that room, and ✕ searches everywhere', async ({ page }) => {
+  const searches = await fixture(page);
+  await open(page, 1280, '/search.php?room_id=4');
+  await expect(roomChip(page)).toBeVisible();
+  await expect(page.getByRole('group', { name: 'Search in' })).toContainText('In # Garden');
+  await expect(page.locator('#message-search-scope')).toBeHidden();
+  await search(page, 'dice');
+  await expect(results(page)).toHaveCount(1);
+  expect(searches.at(-1)).toMatchObject({ query: 'dice', scope: 'rooms', room_id: 4 });
+  expect(new URL(page.url()).search).toBe('?room_id=4');
+
+  await page.getByRole('button', { name: 'Search everywhere instead' }).click();
+  await expect(roomChip(page)).toBeHidden();
+  await expect(scope(page).getByRole('radio')).toHaveCount(3);
+  await expect(results(page)).toHaveCount(2);
+  expect('room_id' in searches.at(-1)).toBe(false);
+  expect(new URL(page.url()).search).toBe('');
+  await expect(page.locator('#message-search-query')).toBeFocused();
+});
+
+test('one room with nothing found says where it looked', async ({ page }) => {
+  await fixture(page, { results: [] });
+  await open(page, 1280, '/search.php?room_id=4');
+  await search(page, 'dice');
+  await expect(page.locator('#message-search-status')).toHaveText('Nothing in # Garden matches “dice”. Try fewer words, or search everywhere.');
+});
+
+test('a room that is gone when the page opens: no chip, and it says so', async ({ page }) => {
+  await fixture(page, { detail: ROOM_GONE });
+  await open(page, 1280, '/search.php?room_id=99');
+  await expect(page.locator('#message-search-error')).toHaveText('This room isn’t available any more. Search looks everywhere instead.');
+  await expect(roomChip(page)).toBeHidden();
+  await expect(scope(page).getByRole('radio')).toHaveCount(3);
+  expect(new URL(page.url()).search).toBe('');
+});
+
+test('a room that goes away before the search: the chip clears and it says so', async ({ page }) => {
+  await fixture(page, { searchFailure: ROOM_GONE });
+  await open(page, 1280, '/search.php?room_id=4');
+  await search(page, 'dice');
+  await expect(page.locator('#message-search-error')).toHaveText('This room isn’t available any more. Search again to look everywhere.');
+  await expect(page.locator('#message-search-error')).not.toContainText('Room not found.');
+  await expect(roomChip(page)).toBeHidden();
+  await expect(scope(page).getByRole('radio')).toHaveCount(3);
+});
+
+test('the server’s match ranges are marked as sent; unusable ones fall back to the words', async ({ page }) => {
+  const [first, second] = RESULTS();
+  // "paradice" is the server's match here (a prefix search, say); the words alone wouldn't mark it.
+  first.excerpt_matches = [{ start: 38, length: 8 }];
+  second.excerpt_matches = [{ start: 500, length: 4 }];
+  await fixture(page, { results: [first, second] });
+  await open(page);
+  await search(page, 'dice');
+  await expect(results(page).nth(0).locator('.message-search-excerpt mark')).toHaveText(['paradice']);
+  await expect(results(page).nth(0).locator('.message-search-excerpt')).toHaveText('Dice night on Friday: bring dice, not paradice.');
+  await expect(results(page).nth(1).locator('.message-search-excerpt mark')).toHaveText(['dice']);
+});
+
+for (const [scheme, theme] of [['lantern', 'light'], ['dusk', 'dark']]) {
+  test(`${scheme} ${theme}: the room chip passes axe at 1280 and 360, and reflows at 320`, async ({ page }) => {
+    await page.addInitScript(([chosenScheme, chosenTheme]) => {
+      localStorage.setItem('chitchat-theme', chosenTheme);
+      localStorage.setItem('chitchat-scheme', chosenScheme);
+    }, [scheme, theme]);
+    await fixture(page, { detail: { room: { id: 4, name: 'A room with a rather long name for a narrow phone' } } });
+    for (const width of [1280, 360]) {
+      await open(page, width, '/search.php?room_id=4');
+      await expect(roomChip(page)).toBeVisible();
+      await search(page, 'dice');
+      await expect(results(page)).toHaveCount(1);
+      await axe(page, `${scheme} ${theme} ${width}`);
+    }
     await page.setViewportSize({ width: 320, height: 700 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   });
