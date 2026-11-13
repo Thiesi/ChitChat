@@ -164,32 +164,28 @@ test('a person you already reported (even on a closed case) shows a neutral note
   await expect(page.locator('#name-menu').getByRole('button', { name: /Report/ })).toHaveCount(0);
 });
 
-test('the card offers no report when the server says no, and refusals are explained', async ({ page }) => {
+test('the card offers no report when the server says no', async ({ page }) => {
   await fixture(page, { profile: { ...peerProfile, can_report: false } });
   await openRowansCard(page);
   await expect(page.locator('#name-menu').getByRole('button', { name: /Report/ })).toHaveCount(0);
-
-  await page.unroute('**/api/v1/**');
-  await fixture(page, { overrides: { 'reports/user.php': { status: 403, json: { error: { code: 'report_not_allowed', message: 'no' } } } } });
-  await openRowansCard(page);
-  await page.locator('#name-menu').getByRole('button', { name: 'Report Rowan' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Report Rowan' });
-  await dialog.getByRole('button', { name: 'Report', exact: true }).click();
-  await expect(dialog.locator('#message-report-error')).toHaveText('You can’t report this person from here.');
-
-  await page.unroute('**/api/v1/**');
-  await fixture(page, { overrides: { 'reports/user.php': { status: 429, json: { error: { code: 'rate_limited', message: 'Too many requests.', retry_after_seconds: 300 } } } } });
-  await openRowansCard(page);
-  await page.locator('#name-menu').getByRole('button', { name: 'Report Rowan' }).click();
-  await page.getByRole('dialog', { name: 'Report Rowan' }).getByRole('button', { name: 'Report', exact: true }).click();
-  await expect(page.locator('#message-report-error')).toHaveText('You’ve sent several reports quickly. Try again in 5 minutes.');
-  await page.unroute('**/api/v1/**');
-  await fixture(page, { overrides: { 'reports/user.php': { status: 409, json: { error: { code: 'report_snapshot_unavailable', message: 'Snapshot unavailable.' } } } } });
-  await openRowansCard(page);
-  await page.locator('#name-menu').getByRole('button', { name: 'Report Rowan' }).click();
-  await page.getByRole('dialog', { name: 'Report Rowan' }).getByRole('button', { name: 'Report', exact: true }).click();
-  await expect(page.locator('#message-report-error')).toHaveText('The report couldn’t be saved just now, so nothing was sent. Try again in a moment.');
 });
+
+// Each refusal on its own page (#304): swapping fixtures and navigating the same page to /
+// again could abort the second load (net::ERR_ABORTED) while the first was still busy.
+for (const [code, status, extra, sentence] of [
+  ['report_not_allowed', 403, {}, 'You can’t report this person from here.'],
+  ['rate_limited', 429, { retry_after_seconds: 300 }, 'You’ve sent several reports quickly. Try again in 5 minutes.'],
+  ['report_snapshot_unavailable', 409, {}, 'The report couldn’t be saved just now, so nothing was sent. Try again in a moment.'],
+]) {
+  test(`a refused report (${code}) is explained in the dialog`, async ({ page }) => {
+    await fixture(page, { overrides: { 'reports/user.php': { status, json: { error: { code, message: 'Refused.', ...extra } } } } });
+    await openRowansCard(page);
+    await page.locator('#name-menu').getByRole('button', { name: 'Report Rowan' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Report Rowan' });
+    await dialog.getByRole('button', { name: 'Report', exact: true }).click();
+    await expect(dialog.locator('#message-report-error')).toHaveText(sentence);
+  });
+}
 
 test('message reports keep their own wording', async ({ page }) => {
   await fixture(page);
