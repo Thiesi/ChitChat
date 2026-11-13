@@ -111,3 +111,15 @@ jobs:
             test-results/
           if-no-files-found: ignore
           retention-days: 7
+      # A test that failed once and passed on retry doesn't fail the job, so the step above
+      # never runs (#315). With trace/video 'retain-on-failure', test-results/ then holds only
+      # those failed first attempts; on a clean run it holds nothing (.last-run.json is a hidden
+      # file, which upload-artifact skips), so nothing is uploaded.
+      - name: Upload traces of attempts that passed on retry
+        if: success()
+        uses: actions/upload-artifact@v7
+        with:
+          name: browser-flaky-traces-webkit
+          path: test-results/
+          if-no-files-found: ignore
+          retention-days: 7
