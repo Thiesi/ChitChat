@@ -1,4 +1,5 @@
 import { ApiError, apiGet, apiPost, isPageLeft, logError, setCsrfToken } from './api.js';
+import { errorText } from './unavailable.js';
 import { announce, announceIncoming, markKnown, resetAnnouncements } from './announcer.js';
 import { controlItem, dayItem, dayKey, moreButton, newMessagesItem, reactButton, reconcile, runPositions, signatureOf } from './transcript.js';
 import { identityHueIndex } from './identity-hue.js';
@@ -1869,6 +1870,8 @@ function showEmptyState(message) {
 }
 
 function toast(message, type = 'info') {
+  // Nothing to say (a request cut short by leaving the page, #270): no empty toast.
+  if (!message) return;
   const item = document.createElement('div');
   item.className = `toast ${type}`;
   item.setAttribute('role', type === 'error' ? 'alert' : 'status');
@@ -1895,7 +1898,8 @@ function formatDuration(seconds) {
 }
 
 function errorMessage(error) {
-  return error instanceof Error ? error.message : 'An unexpected error occurred.';
+  // A room, message or file that's gone or can't be seen says so plainly (#326).
+  return errorText(error, 'An unexpected error occurred.');
 }
 
 function handleApiFailure(error) {

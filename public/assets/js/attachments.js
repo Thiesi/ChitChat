@@ -1,5 +1,6 @@
 import { apiGet, apiUpload, logError } from './api.js';
 import { imageBox } from './image-box.js';
+import { errorText } from './unavailable.js';
 
 const elements = {};
 let enhancementQueued = false;
@@ -238,6 +239,7 @@ function formatBytes(bytes) {
 }
 
 function showToast(message, kind = 'info') {
+  if (!message) return;
   const toast = document.createElement('div');
   toast.className = `toast ${kind}`;
   toast.textContent = message;
@@ -246,7 +248,7 @@ function showToast(message, kind = 'info') {
 }
 
 function errorMessage(error) {
-  return error instanceof Error ? error.message : 'The attachment request failed.';
+  return errorText(error, 'The attachment request failed.');
 }
 
 // The file sits inside the message bubble, before its time (S1c); older markup gets it appended.
