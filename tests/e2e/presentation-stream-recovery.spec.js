@@ -77,7 +77,7 @@ test('a stream answered 503 is opened again from its position and handles each e
     if (path === 'rooms/list.php') listed();
   });
 
-  // Every text the status line shows, in order (it is a polite live region).
+  // Every text the status line shows, in order.
   await page.addInitScript(() => {
     window.__statuses = [];
     document.addEventListener('DOMContentLoaded', () => {
@@ -93,13 +93,11 @@ test('a stream answered 503 is opened again from its position and handles each e
   // The first event counts; the 503 then leaves the page reconnecting until the new stream opens.
   await expect(badge).toHaveText('1 unread');
   await expect.poll(() => streams.length, { timeout: 15_000 }).toBeGreaterThanOrEqual(3);
-  // A mocked response always ends, so the browser then retries by itself ("Reconnecting" again);
-  // what matters is that the new stream opened: "Live" after the 503's "Reconnecting".
-  await expect.poll(async () => {
-    const seen = await page.evaluate(() => window.__statuses);
-    const down = seen.indexOf('Reconnecting');
-    return down >= 0 && seen.indexOf('Live', down) > down;
-  }).toBe(true);
+  // A mocked response always ends, so the browser then retries by itself. Recovery is proved by
+  // the new stream (streams.length) and the events it delivers below; the line only shows it
+  // never flickered, since a drop this short keeps "Live" (the S7 ladder waits three seconds).
+  await expect(page.locator('#connection-status')).toHaveText('Live');
+  expect(await page.evaluate(() => window.__statuses)).toContain('Live');
   const shown = await page.evaluate(() => window.__statuses);
   for (let i = 1; i < shown.length; i += 1) expect(shown[i], 'No status is set twice in a row.').not.toBe(shown[i - 1]);
   expect(streams[0]).toBe('?resume=settled');
@@ -148,7 +146,7 @@ test('a stream whose session has ended is not reopened: the page signs out', asy
 
 // #323: real back/forward-cache restores can't be observed in our automation (the cache is off),
 // so the page transitions are dispatched by hand, with a stand-in EventSource that stays open.
-test('back from the back/forward cache: "Reconnecting" at once, then the stream reopens from its position', async ({ page }) => {
+test('back from the back/forward cache: "Reconnecting…" while the session is checked, then the stream reopens from its position', async ({ page }) => {
   await page.addInitScript(() => {
     class FakeEventSource extends EventTarget {
       constructor(url) {
@@ -203,10 +201,11 @@ test('back from the back/forward cache: "Reconnecting" at once, then the stream 
   await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent('pagehide', { persisted: true })));
   expect(await page.evaluate(() => window.__sources[0].readyState)).toBe(2);
 
-  // Back: "Reconnecting" at once, while the session check is still unanswered.
+  // Back: the line stays quiet for a moment, then says "Reconnecting…" while the session
+  // check is still unanswered (the S7 ladder: three seconds down before it says so).
   holdSession = true;
   await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true })));
-  await expect(status).toHaveText('Reconnecting');
+  await expect(status).toHaveText('Reconnecting…', { timeout: 6_000 });
   expect(await page.evaluate(() => window.__sources.length)).toBe(1);
   releaseSession();
 

@@ -6,7 +6,8 @@ import { identityHueIndex } from './identity-hue.js';
 import { lantern, renderRoomList as drawRoomList, unreadRoomMentions } from './room-list.js';
 import { attachTranscriptKeys } from './transcript-keys.js';
 import { countLiveMessage } from './unread-count.js';
-import { LONG_OUTAGE_NOTICE, keepEventStream, sessionProbe } from './realtime-stream.js';
+import { LONG_OUTAGE_NOTICE, RECOVERED_NOTICE, keepEventStream, sessionProbe } from './realtime-stream.js';
+import { createConnectionStatus } from './connection-status.js';
 import { createPresenceClient } from './presence.js';
 import { renderMessageBody, buildReplyPreview, buildReactionBar } from './message-content.js';
 import { attachMentionAutocomplete } from './mention-autocomplete.js';
@@ -1654,12 +1655,11 @@ function startEventStream() {
     probe: sessionProbe(apiGet),
     onStatus: (status) => {
       if (!state.user) return;
-      if (status === 'connected') updateConnectionStatus('connected', 'Live');
-      else if (status === 'reconnecting') updateConnectionStatus('error', 'Reconnecting');
-      else updateConnectionStatus('connecting', 'Connecting');
+      connectionStatus().set(status);
     },
     onSignedOut: () => forceSignedOut(sessionEndedMessage()),
     onLongOutage: () => announce(LONG_OUTAGE_NOTICE),
+    onRecovered: () => announce(RECOVERED_NOTICE),
   });
 }
 
@@ -1809,7 +1809,7 @@ function announceRoomMessage(message) {
 function stopEventStream() {
   state.stream?.stop();
   state.stream = null;
-  updateConnectionStatus('disconnected', 'Offline');
+  connectionStatus().set('disconnected');
 }
 
 function parseEvent(event) {
@@ -1820,16 +1820,12 @@ function parseEvent(event) {
   }
 }
 
-function updateConnectionStatus(status, label) {
-  if (!elements['connection-status']) {
-    return;
-  }
-  // A polite live region: setting the same text again on every retry could be read out again (#301).
-  if (elements['connection-status'].dataset.state === status && elements['connection-status'].textContent === label) {
-    return;
-  }
-  elements['connection-status'].dataset.state = status;
-  elements['connection-status'].textContent = label;
+// The status line (S7 ladder, connection-status.js): Live is quiet, "Reconnecting…" after
+// three seconds down, "Offline" when the browser has no network.
+let statusLine = null;
+function connectionStatus() {
+  statusLine ??= createConnectionStatus(elements['connection-status'] ?? null);
+  return statusLine;
 }
 
 function openRoomDialog() {

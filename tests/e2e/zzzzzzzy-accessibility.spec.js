@@ -120,8 +120,9 @@ test.describe.serial('ChitChat accessibility checks', () => {
 
   test('keeps search, reporting, and moderation surfaces structurally accessible', async ({ page, browser }) => {
     await loginOrRegister(page);
-    await expect(page.locator('#connection-status')).toHaveAttribute('role', 'status');
-    await expect(page.locator('#connection-status')).toHaveAttribute('aria-live', 'polite');
+    // Not a live region since S7: the announcer says a long outage once instead.
+    await expect(page.locator('#connection-status')).not.toHaveAttribute('aria-live', /./);
+    await expect(page.locator('#connection-status')).not.toHaveAttribute('role', /./);
     await expectAccessibleStructure(page);
 
     const reportButton = page.getByRole('button', { name: 'Report', exact: true }).first();

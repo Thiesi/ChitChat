@@ -34,3 +34,16 @@ test('a failed send or upload says what happened to it, after the reason; nothin
   assert.equal(failedSending(ROOM_UNAVAILABLE, FILE_NOT_SENT), 'This room isn’t available any more. Your file wasn’t sent.');
   assert.equal(failedSending(errorText({ code: 'page_left' }, 'x'), MESSAGE_NOT_SENT), '');
 });
+
+test('no answer while the browser is offline says so; a server answer keeps its own words', () => {
+  const original = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+  Object.defineProperty(globalThis, 'navigator', { value: { onLine: false }, configurable: true });
+  try {
+    assert.equal(errorText(new TypeError('Failed to fetch'), 'x'), 'You’re offline.');
+    assert.equal(errorText(new FakeApiError(403, 'muted', 'You are muted in this room.'), 'x'), 'You are muted in this room.');
+    assert.equal(errorText({ code: 'page_left' }, 'x'), '');
+  } finally {
+    if (original) Object.defineProperty(globalThis, 'navigator', original);
+    else delete globalThis.navigator;
+  }
+});

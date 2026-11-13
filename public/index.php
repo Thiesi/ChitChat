@@ -209,7 +209,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
         <div class="list-pane-title">
           <?= \ChitChat\View\AppShell::brand($config, 'list-pane-brand') ?>
           <h1 id="rooms-heading" class="list-title">Rooms</h1>
-          <span id="connection-status" class="connection-status" data-state="disconnected" role="status" aria-live="polite" aria-atomic="true">Offline</span>
+          <span id="connection-status" class="connection-status" data-state="connecting">Connecting…</span>
         </div>
         <div class="list-pane-actions">
           <a class="header-button list-search member-only" href="/search.php" aria-label="Search messages" title="Search messages"><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></a>

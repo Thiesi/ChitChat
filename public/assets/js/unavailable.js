@@ -18,8 +18,12 @@ const BY_CODE = {
  * The sentence for an error: ours for the "not available" codes, else the server's, else
  * `fallback`. A request cut short by leaving the page (#270, code page_left) says nothing.
  */
+export const OFFLINE_REASON = 'You’re offline.';
+
 export function errorText(error, fallback) {
   if (error?.code === 'page_left') return '';
+  // No answer at all while the browser has no network (S7 ladder): say that, not "Failed to fetch".
+  if (!(error?.status > 0) && globalThis.navigator?.onLine === false) return OFFLINE_REASON;
   const ours = BY_CODE[error?.code];
   if (ours) return ours;
   return error instanceof Error && error.message ? error.message : fallback;
