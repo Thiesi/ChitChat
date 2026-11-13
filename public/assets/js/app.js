@@ -5,6 +5,7 @@ import { identityHueIndex } from './identity-hue.js';
 import { lantern, renderRoomList as drawRoomList, unreadRoomMentions } from './room-list.js';
 import { attachTranscriptKeys } from './transcript-keys.js';
 import { countLiveMessage } from './unread-count.js';
+import { dropResentEvents } from './realtime-seen.js';
 import { createPresenceClient } from './presence.js';
 import { renderMessageBody, buildReplyPreview, buildReactionBar } from './message-content.js';
 import { attachMentionAutocomplete } from './mention-autocomplete.js';
@@ -48,6 +49,7 @@ const state = {
   messageIds: new Set(),
   oldestMessageId: null,
   eventSource: null,
+  settledResume: false,
   replyTo: null,
   roomMembers: [],
   pings: [],
@@ -230,6 +232,7 @@ async function bootstrap() {
   setCsrfToken(session.csrf_token);
   state.ignored = new Set(Array.isArray(session.ignored_user_ids) ? session.ignored_user_ids : []);
   state.shareTyping = session.share_typing !== false;
+  state.settledResume = session.capabilities?.realtime_settled_resume === true;
   renderLockdown(session.lockdown);
   renderSignInProviders(session.sign_in_providers);
   renderSignedOutAgreements(session);
@@ -1556,7 +1559,8 @@ function startEventStream() {
   stopEventStream();
   updateConnectionStatus('connecting', 'Connecting');
 
-  const source = new EventSource('/api/v1/events/stream.php', { withCredentials: true });
+  const source = new EventSource(streamUrl(), { withCredentials: true });
+  if (state.settledResume) dropResentEvents(source);
   state.eventSource = source;
   source.addEventListener('open', () => updateConnectionStatus('connected', 'Live'));
   source.addEventListener('error', () => {
@@ -1702,6 +1706,12 @@ function announceRoomMessage(message) {
     mentionsMe: Boolean(message.mentions?.some((mention) => mention.user_id === state.user?.id)),
     fileName: message.attachment?.name ?? null,
   });
+}
+
+// With ?resume=settled a reconnect never misses an event that commits late, but may resend
+// some; dropResentEvents drops those before any handler runs (#286).
+function streamUrl() {
+  return state.settledResume ? '/api/v1/events/stream.php?resume=settled' : '/api/v1/events/stream.php';
 }
 
 function stopEventStream() {

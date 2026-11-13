@@ -230,6 +230,52 @@ test('script 3: own messages are never spoken', async ({ page }) => {
   expect(await spoken(page)).toEqual([]);
 });
 
+// #286: with resume=settled, a reconnect may resend events above the stored position.
+// The page drops them by data.id before any handler, so nothing is spoken or counted twice.
+test('settled resume: events resent after a reconnect are not spoken again or counted twice', async ({ page }) => {
+  const server = await fixture(page);
+  await page.route('**/api/v1/session.php', (route) => route.fulfill({ json: {
+    user: viewer, csrf_token: 'fixture', registration_enabled: true, sign_in_providers: [],
+    capabilities: { realtime_settled_resume: true },
+  } }));
+  await page.route('**/api/v1/rooms/list.php', (route) => route.fulfill({ json: {
+    rooms: server.rooms.map((room) => ({ ...room, unread_settled_message_id: room.last_read_message_id, unread_counted_ids: [] })),
+  } }));
+  await openLivingRoom(page);
+  expect(await page.evaluate(() => window.__sources.map((source) => new URL(source.url, location.href).search))).toEqual(['?resume=settled']);
+
+  // Each frame as the server sends it: data.id is the event, lastEventId the resume position.
+  const frames = [];
+  const emit = (type, payload, id, position) => page.evaluate(({ type, payload, id, position }) => {
+    for (const source of window.__sources) {
+      if (source.readyState !== 2) source.dispatchEvent(new MessageEvent(type, { data: JSON.stringify({ id, type, payload }), lastEventId: position }));
+    }
+  }, { type, payload, id, position });
+  const send = async (roomId, body, eventId) => {
+    const sent = message(server.nextId++, roomId, rowan, body);
+    server.messages.push(sent);
+    frames.push([{ message: sent }, eventId]);
+    await emit('room_message', { message: sent }, eventId, '1000');
+  };
+
+  await send(LIVING_ROOM, 'Is the record shop open on Sundays?', 1001);
+  await send(BOARD_GAMES, 'I found the expansion.', 1002);
+  await expect(page.locator('#message-list article.message')).toHaveCount(6);
+  const boardGames = page.locator('.room-button', { hasText: 'Board games night' }).locator('.unread-count');
+  await expect(boardGames).toHaveText('1 unread');
+  await settle(page);
+  expect(await spoken(page)).toEqual(['Rowan: Is the record shop open on Sundays?']);
+
+  // The connection drops; EventSource reconnects from position 1000 and both events come again.
+  await page.evaluate(() => window.__sources[0].dispatchEvent(new Event('error')));
+  await page.evaluate(() => window.__sources[0].dispatchEvent(new Event('open')));
+  for (const [payload, eventId] of frames) await emit('room_message', payload, eventId, '1000');
+  await settle(page);
+  expect(await spoken(page)).toEqual(['Rowan: Is the record shop open on Sundays?']);
+  await expect(page.locator('#message-list article.message')).toHaveCount(6);
+  await expect(boardGames).toHaveText('1 unread');
+});
+
 test('script 4: a fast burst is one summary line, not one line per message', async ({ page }) => {
   const server = await fixture(page);
   const helper = participant(page, server, rowan);
