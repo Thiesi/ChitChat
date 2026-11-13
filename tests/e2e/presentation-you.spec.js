@@ -244,6 +244,27 @@ test('the sections start from the answer that shows the page, even if a later se
   await expect(page.locator('#account-shell').getByRole('radiogroup', { name: 'Colour scheme' }).getByRole('radio', { name: 'Dusk' })).toBeVisible();
 });
 
+// The list mustn't move under the pointer while the page fills in: "Member since"
+// arrives after the list shows, and its line appearing (or wrapping) shifted every
+// row, so a click could start on one row and end on the next and do nothing (the
+// Firefox flakes in the theme, preferences and account-closure journeys).
+for (const width of [1280, 900, 360]) {
+  test(`at ${width}px the rows stay put when "Member since" arrives`, async ({ page }) => {
+    await fixture(page);
+    let release;
+    const held = new Promise((resolve) => { release = resolve; });
+    await page.route('**/api/v1/users/profile.php*', async (route) => { await held; await route.fallback(); });
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto('/account.php');
+    const account = sectionLink(page, 'Account');
+    await expect(account).toBeVisible();
+    const before = await account.boundingBox();
+    release();
+    await expect(page.locator('#you-member-since')).toHaveText(/^Member since .*2025$/);
+    expect(await account.boundingBox()).toEqual(before);
+  });
+}
+
 test('a modified click on a section is left to the browser (a new tab at its address)', async ({ page }) => {
   await fixture(page);
   await open(page);

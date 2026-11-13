@@ -42,6 +42,11 @@
 
 .you-person .mini-avatar { flex: none; width: 3rem; height: 3rem; font-size: 0.9rem; }
 .you-person-text { display: grid; gap: 0.1rem; min-width: 0; }
+/* One line, there from the start: the date arrives after the list is shown, and a line
+   appearing (or wrapping to two) moved every row under the pointer, so a click could
+   start on one row and end on the next and do nothing. Guests have no such line. */
+.you-member-since { min-height: 1lh; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; overflow-wrap: normal; }
+body[data-audience="guest"] .you-member-since { display: none; }
 .you-name { margin: 0; font-weight: 700; overflow-wrap: anywhere; }
 
 .you-guest-card { margin: 0 0.75rem 0.5rem; }
