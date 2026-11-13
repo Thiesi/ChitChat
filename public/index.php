@@ -3,8 +3,15 @@
 declare(strict_types=1);
 /** @var ChitChat\Config $config */
 $config = require dirname(__DIR__) . '/bootstrap/app.php';
-if (parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) === '/favicon.ico') {
+$requestPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
+if ($requestPath === '/favicon.ico') {
     \ChitChat\InstallationIcon\IconResponse::respond($config, true);
+}
+// The web server sends every unknown path here (FallbackResource, try_files): only the chat's
+// own address is the chat; anything else is a real 404 (S7), not the chat page with a 200.
+if (!in_array($requestPath, ['/', '/index.php'], true)) {
+    \ChitChat\View\StatusPage::respond(404, \ChitChat\View\StatusPage::applicationName($config));
+    return;
 }
 $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($config), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 ?><!doctype html>

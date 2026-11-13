@@ -15,6 +15,9 @@ if (!is_file($autoload)) {
 
 require $autoload;
 
+// A page that fails shows the status page, not a blank one (S7); APIs and the CLI are untouched.
+\ChitChat\View\PageErrors::install();
+
 Config::loadEnvFile($root . '/.env');
 $config = Config::fromEnvironment();
 SecurityHeaders::send($config);
