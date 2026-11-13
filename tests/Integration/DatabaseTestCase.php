@@ -10,17 +10,19 @@ use PHPUnit\Framework\TestCase;
 
 abstract class DatabaseTestCase extends TestCase
 {
+    /** Tables that keep their rows between tests; setUp resets their contents instead. */
+    public const KEPT_TABLES = ['schema_migrations', 'system_settings', 'policy_documents'];
+
     protected PDO $pdo;
     protected Config $config;
+
+    private static ?string $cleanupSql = null;
 
     protected function setUp(): void
     {
         parent::setUp();
         $this->config = Config::fromEnvironment();
         $this->pdo = Database::connect($this->config);
-        $this->pdo->exec(
-            'TRUNCATE TABLE guest_blocks, oidc_signing_keys, user_identities, account_notifications, maintenance_runs, backup_runs, sse_connections, rate_limit_counters, request_rate_limits, direct_message_attachments, direct_messages, attachments, room_presence, realtime_events, room_messages, room_invitations, room_members, rooms, audit_log, user_bans, login_attempts, account_closures, mfa_recovery_codes, webauthn_credentials, user_roles, users RESTART IDENTITY CASCADE',
-        );
         $this->pdo->exec("UPDATE policy_documents SET source = 'none', markdown = NULL, url = NULL, version = 0, change_summary = NULL, updated_at = NULL");
         $this->pdo->exec(<<<'SQL'
 UPDATE system_settings
@@ -55,8 +57,83 @@ SET registration_enabled = TRUE,
     updated_at = NOW()
 WHERE id = 1
 SQL);
-        $this->pdo->exec('DELETE FROM installation_icons');
-        $this->pdo->exec('DELETE FROM totp_database_key');
+        // After the kept tables are reset: system_settings may point at installation_icons.
+        $this->pdo->exec(self::cleanupSql($this->pdo));
+    }
+
+    /**
+     * Empties every table except KEPT_TABLES and restarts every sequence (#163).
+     *
+     * This replaces `TRUNCATE … RESTART IDENTITY CASCADE`, which costs about a second per test
+     * however few rows there are. A plain DELETE of a test's rows takes milliseconds. Tables are
+     * deleted children first, in an order read once per process from the foreign keys, so a new
+     * table is covered without editing a list. DatabaseCleanupTest guards the result.
+     */
+    protected static function cleanupSql(PDO $pdo): string
+    {
+        if (self::$cleanupSql !== null) {
+            return self::$cleanupSql;
+        }
+
+        $tables = $pdo->query(<<<'SQL'
+SELECT c.relname
+FROM pg_class c
+JOIN pg_namespace n ON n.oid = c.relnamespace
+WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p')
+ORDER BY c.relname
+SQL)->fetchAll(PDO::FETCH_COLUMN);
+        $tables = array_values(array_diff($tables, self::KEPT_TABLES));
+
+        // parent => children that reference it (self-references don't constrain the order).
+        $children = array_fill_keys($tables, []);
+        $foreignKeys = $pdo->query(<<<'SQL'
+SELECT child.relname AS child, parent.relname AS parent
+FROM pg_constraint con
+JOIN pg_class child ON child.oid = con.conrelid
+JOIN pg_class parent ON parent.oid = con.confrelid
+JOIN pg_namespace n ON n.oid = child.relnamespace
+WHERE con.contype = 'f' AND n.nspname = 'public'
+SQL)->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($foreignKeys as $foreignKey) {
+            // A kept table's references are cleared by setUp's reset before the cleanup runs.
+            if ($foreignKey['child'] === $foreignKey['parent'] || !isset($children[$foreignKey['parent']], $children[$foreignKey['child']])) {
+                continue;
+            }
+            $children[$foreignKey['parent']][] = $foreignKey['child'];
+        }
+
+        // Depth-first: a table is deleted only after every table referencing it.
+        $order = [];
+        $state = [];
+        $visit = static function (string $table) use (&$visit, &$order, &$state, $children): void {
+            if (($state[$table] ?? null) === 'done') {
+                return;
+            }
+            if (($state[$table] ?? null) === 'visiting') {
+                throw new \RuntimeException("Test cleanup: foreign keys form a cycle through {$table}.");
+            }
+            $state[$table] = 'visiting';
+            foreach ($children[$table] as $child) {
+                $visit($child);
+            }
+            $state[$table] = 'done';
+            $order[] = $table;
+        };
+        foreach ($tables as $table) {
+            $visit($table);
+        }
+
+        $statements = array_map(static fn (string $table): string => 'DELETE FROM "' . str_replace('"', '""', $table) . '"', $order);
+        // Every public sequence restarts, as RESTART IDENTITY did for the tables' own ones.
+        $statements[] = <<<'SQL'
+SELECT setval(s.seqrelid, s.seqstart, false)
+FROM pg_sequence s
+JOIN pg_class c ON c.oid = s.seqrelid
+JOIN pg_namespace n ON n.oid = c.relnamespace
+WHERE n.nspname = 'public'
+SQL;
+
+        return self::$cleanupSql = "BEGIN;\n" . implode(";\n", $statements) . ";\nCOMMIT";
     }
 
     /**
