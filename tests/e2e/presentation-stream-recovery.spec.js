@@ -145,3 +145,80 @@ test('a stream whose session has ended is not reopened: the page signs out', asy
   await page.waitForTimeout(2500);
   expect(streams).toBe(settled);
 });
+
+// #323: real back/forward-cache restores can't be observed in our automation (the cache is off),
+// so the page transitions are dispatched by hand, with a stand-in EventSource that stays open.
+test('back from the back/forward cache: "Reconnecting" at once, then the stream reopens from its position', async ({ page }) => {
+  await page.addInitScript(() => {
+    class FakeEventSource extends EventTarget {
+      constructor(url) {
+        super();
+        this.url = url;
+        this.readyState = 0;
+        (window.__sources ??= []).push(this);
+        window.setTimeout(() => { this.readyState = 1; this.dispatchEvent(new Event('open')); }, 0);
+      }
+
+      close() { this.readyState = 2; }
+    }
+    window.EventSource = FakeEventSource;
+    window.__frame = (source, type, id, position, payload) => source.dispatchEvent(
+      new MessageEvent(type, { data: JSON.stringify({ id, type, payload }), lastEventId: String(position) }),
+    );
+  });
+  let holdSession = false;
+  let releaseSession;
+  const sessionHeld = new Promise((resolve) => { releaseSession = resolve; });
+  const session = { user: viewer, csrf_token: 'fixture', registration_enabled: true, sign_in_providers: [], capabilities: { realtime_settled_resume: true } };
+  await page.route('**/api/v1/**', async (route) => {
+    const url = new URL(route.request().url());
+    const path = url.pathname.replace('/api/v1/', '');
+    if (path === 'session.php') {
+      if (holdSession) await sessionHeld;
+      return route.fulfill({ json: session });
+    }
+    const roomId = Number(url.searchParams.get('room_id') ?? LIVING_ROOM);
+    const responses = {
+      'rooms/list.php': { rooms: rooms.map((room) => ({ ...room, unread_counted_ids: [] })) },
+      'rooms/messages.php': { messages: history.filter((entry) => entry.room_id === roomId) },
+      'presence/heartbeat.php': { presence: { room_id: roomId, expired: false } },
+      'rooms/read.php': { last_read_message_id: 5 },
+      'account/notifications/list.php': { notifications: [], unread_count: 0 },
+      'direct-messages/conversations.php': { conversations: [] },
+    };
+    if (path === 'avatars/show.php') return route.fulfill({ status: 404, body: '' });
+    return route.fulfill({ json: responses[path] ?? {} });
+  });
+
+  await page.goto('/');
+  await expect(page.locator('#message-list article.message')).toHaveCount(1);
+  const status = page.locator('#connection-status');
+  await expect(status).toHaveText('Live');
+  const badge = page.locator('.room-button', { hasText: 'Board games night' }).locator('.unread-count');
+  const first = message(101, BOARD_GAMES, 'Who has the expansion?');
+  await page.evaluate((sent) => window.__frame(window.__sources[0], 'room_message', 1001, 1000, { message: sent }), first);
+  await expect(badge).toHaveText('1 unread');
+
+  // Into the cache: the stream is closed on purpose.
+  await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent('pagehide', { persisted: true })));
+  expect(await page.evaluate(() => window.__sources[0].readyState)).toBe(2);
+
+  // Back: "Reconnecting" at once, while the session check is still unanswered.
+  holdSession = true;
+  await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true })));
+  await expect(status).toHaveText('Reconnecting');
+  expect(await page.evaluate(() => window.__sources.length)).toBe(1);
+  releaseSession();
+
+  await expect.poll(() => page.evaluate(() => window.__sources.length)).toBe(2);
+  expect(await page.evaluate(() => new URL(window.__sources[1].url, location.href).search)).toBe('?resume=settled&after_id=1000');
+  await expect(status).toHaveText('Live');
+
+  // The resent event is dropped; the next one counts once.
+  const second = message(102, BOARD_GAMES, 'Found it under the sofa.');
+  await page.evaluate(([a, b]) => {
+    window.__frame(window.__sources[1], 'room_message', 1001, 1000, { message: a });
+    window.__frame(window.__sources[1], 'room_message', 1002, 1001, { message: b });
+  }, [first, second]);
+  await expect(badge).toHaveText('2 unread');
+});

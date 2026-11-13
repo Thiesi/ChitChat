@@ -14,11 +14,9 @@ import { pageLifetime } from './page-lifetime.js';
 function showMemberSince(value) {
   if (typeof value !== 'string' || value === '') return;
   const day = formatDateTime(value, { dateStyle: 'long', timeStyle: null });
+  // The list's line is one line, kept from the start (shorter date; Profile has the full one).
   const short = document.getElementById('you-member-since');
-  if (short) {
-    short.textContent = `Member since ${day}`;
-    short.hidden = false;
-  }
+  if (short) short.textContent = `Member since ${formatDateTime(value, { dateStyle: 'medium', timeStyle: null })}`;
   const full = document.getElementById('you-member-since-full');
   if (full) full.textContent = day;
 }

@@ -611,7 +611,12 @@ async function resolveCase(event) {
 
 async function dismissCase() {
   const item = requireCase();
-  if (!window.confirm('Dismiss this case as no violation?')) return;
+  if (!(await confirmAction({
+    title: `Dismiss case #${item.id}?`,
+    text: 'It closes as no violation, with your note if you wrote one.',
+    confirmLabel: 'Dismiss case',
+    announce: null,
+  }))) return;
   await withButton(elements['moderation-dismiss'], async () => {
     const response = await apiPost('/api/v1/moderation/resolve.php', {
       case_id: item.id,

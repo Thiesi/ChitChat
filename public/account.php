@@ -50,7 +50,8 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
         <span id="you-avatar" class="you-avatar" aria-hidden="true"></span>
         <div class="you-person-text">
           <p id="account-identity" class="you-name"></p>
-          <p id="you-member-since" class="list-pane-status" hidden></p>
+          <!-- Its line is kept from the start, so the rows below never move when the date arrives. -->
+          <p id="you-member-since" class="list-pane-status you-member-since"></p>
         </div>
       </div>
       <section id="you-guest-card" class="account-card you-guest-card" aria-labelledby="you-guest-heading" data-guest-visible data-guest-only hidden>

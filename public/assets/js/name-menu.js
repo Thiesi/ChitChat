@@ -5,6 +5,7 @@
 // serves the whole page.
 import { ApiError, apiGet, apiPost } from './api.js';
 import { miniAvatar, refreshPhoto } from './avatar.js';
+import { confirmAction } from './confirm-dialog.js';
 import { formatDateTime } from './datetime.js';
 import { moderationSection } from './moderation-card.js';
 import { REGISTER_URL, guestBadge, isGuestName, markGuestAvatar } from './guest.js';
@@ -223,7 +224,13 @@ function showProfile(label, actions, profile, self) {
     remove.className = 'menu-item danger-item';
     remove.textContent = 'Remove profile picture';
     remove.addEventListener('click', async () => {
-      if (!window.confirm(`Remove ${profile.username}'s profile picture? They will be told, and it is recorded in the audit log.`)) return;
+      // S6c: the queue's own wording for the same action, in the styled dialog.
+      if (!(await confirmAction({
+        title: `Remove ${profile.username}'s profile picture?`,
+        text: 'Their initials show instead. They’re told, and it’s recorded in the audit log.',
+        confirmLabel: 'Remove picture',
+        announce: null,
+      }))) return;
       remove.disabled = true;
       try {
         await apiPost('/api/v1/account/avatar/remove.php', { user_id: profile.id });
