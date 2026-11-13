@@ -50,7 +50,7 @@
 .moderation-kind label { position: relative; flex: 1 1 auto; min-width: 0; display: flex; justify-content: center; align-items: center; min-height: 2.75rem; padding: 0 0.6rem; border-radius: 0.6rem; color: var(--text); font-size: 0.9rem; cursor: pointer; }
 .moderation-kind input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
 .moderation-kind label:has(input:checked) { background: var(--raised); font-weight: 700; box-shadow: inset 0 0 0 1px var(--field-line); }
-.moderation-kind label:has(input:focus-visible) { outline: 2px solid var(--signature-text); outline-offset: 1px; }
+.moderation-kind label:has(input:focus-visible) { outline: 2px solid var(--steward); outline-offset: 1px; }
 
 .person-case-glyph {
   display: inline-block;
@@ -70,7 +70,7 @@
 .person-evidence-picture p { margin: 0; padding: 0.75rem; max-width: 12rem; font-size: 0.9rem; }
 .person-evidence-picture img { display: block; width: 8rem; height: 8rem; object-fit: cover; filter: blur(16px); transform: scale(1.1); }
 .person-evidence-picture.revealed img { filter: none; transform: none; }
-.person-evidence-picture img:focus-visible { outline: 2px solid var(--signature-text); outline-offset: -2px; }
+.person-evidence-picture img:focus-visible { outline: 2px solid var(--steward); outline-offset: -2px; }
 .person-evidence-reveal { position: absolute; }
 .person-evidence-facts { display: grid; grid-template-columns: auto 1fr; gap: 0.3rem 0.9rem; margin: 0; }
 .person-evidence-facts dt { color: var(--text-muted); }
