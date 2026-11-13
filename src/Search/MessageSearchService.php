@@ -27,6 +27,7 @@ final class MessageSearchService
      *     kind:string,
      *     message_id:int,
      *     excerpt:string,
+     *     excerpt_matches:list<array{start:int, length:int}>,
      *     sender:?array{id:int, username:string},
      *     room:?array{id:int, key:string, name:string},
      *     peer:?array{id:int, username:string},
@@ -44,6 +45,7 @@ final class MessageSearchService
         string $scope = 'all',
         int $limit = 25,
         int $offset = 0,
+        ?int $roomId = null,
     ): array {
         $query = preg_replace('/\s+/u', ' ', trim($queryInput));
         if (!is_string($query)) {
@@ -65,11 +67,23 @@ final class MessageSearchService
         if ($offset < 0 || $offset > 5_000) {
             throw new ApiException(400, 'validation_error', 'offset must be between 0 and 5000.');
         }
+        if ($roomId !== null) {
+            if ($roomId < 1) {
+                throw new ApiException(400, 'validation_error', 'room_id must be positive.');
+            }
+            if ($scope === 'direct') {
+                throw new ApiException(400, 'validation_error', 'room_id cannot be combined with scope direct.');
+            }
+            // One room: only its messages, and only if the caller may search it at all (#283).
+            $scope = 'rooms';
+            $this->requireSearchableRoom($actor, $roomId);
+        }
 
         $parts = [];
         $bindings = ['search_query' => $query];
         if ($scope !== 'direct') {
-            $canModerateEveryRoom = RoomAuthorization::canModerateAnyRoom($actor);
+            $visibility = $this->roomVisibility($actor);
+            $roomFilter = $roomId === null ? '' : "\n  AND r.id = CAST(:filter_room_id AS bigint)";
             $parts[] = <<<'SQL'
 SELECT 'room'::text AS kind,
        m.id AS message_id,
@@ -96,23 +110,11 @@ CROSS JOIN search_query
 WHERE m.deleted_at IS NULL
   AND r.deleted_at IS NULL
   AND to_tsvector('simple', m.body) @@ search_query.query
-  AND (
-      CAST(:can_moderate_every_room AS integer) = 1
-      OR r.visibility = 'public'
-      OR membership.user_id IS NOT NULL
-      OR (r.visibility = 'unlisted' AND invitation.user_id IS NOT NULL)
-  )
-  AND (
-      CAST(:can_bypass_minimum_age AS integer) = 1
-      OR r.minimum_age = 0
-      OR COALESCE(CAST(:actor_age AS integer), -1) >= r.minimum_age
-  )
-SQL;
-            $bindings['room_actor_id'] = $actor->id;
-            $bindings['room_invited_actor_id'] = $actor->id;
-            $bindings['can_moderate_every_room'] = $canModerateEveryRoom ? 1 : 0;
-            $bindings['can_bypass_minimum_age'] = $canModerateEveryRoom ? 1 : 0;
-            $bindings['actor_age'] = $this->actorAge($actor);
+SQL . "\n  AND " . $visibility['sql'] . $roomFilter;
+            $bindings += $visibility['bindings'];
+            if ($roomId !== null) {
+                $bindings['filter_room_id'] = $roomId;
+            }
         }
 
         if ($scope !== 'rooms') {
@@ -156,16 +158,28 @@ SQL;
 WITH search_query AS (
     SELECT websearch_to_tsquery('simple', :search_query) AS query
 )
-SELECT *
+-- Matches are marked by PostgreSQL itself, for the excerpt (#283): ts_headline over the whole
+-- body, with sentinels the body can't contain, only for the page that is returned.
+SELECT page.*,
+       ts_headline('simple', translate(page.body, CAST(:sentinels AS text), ''), search_query.query,
+                   CAST(:headline_options AS text)) AS headline,
+       search_query.query::text AS query_text
 FROM (
+    SELECT *
+    FROM (
 %s
-) searchable_messages
-ORDER BY relevance DESC, created_at DESC, kind, message_id DESC
-LIMIT :result_limit
-OFFSET :result_offset
+    ) searchable_messages
+    ORDER BY relevance DESC, created_at DESC, kind, message_id DESC
+    LIMIT :result_limit
+    OFFSET :result_offset
+) page
+CROSS JOIN search_query
+ORDER BY page.relevance DESC, page.created_at DESC, page.kind, page.message_id DESC
 SQL,
             implode("\nUNION ALL\n", $parts),
         );
+        $bindings['sentinels'] = SearchExcerpt::START . SearchExcerpt::STOP;
+        $bindings['headline_options'] = 'HighlightAll=true, StartSel=' . SearchExcerpt::START . ', StopSel=' . SearchExcerpt::STOP;
 
         $statement = $this->pdo->prepare($sql);
         if ($statement === false) {
@@ -202,6 +216,74 @@ SQL,
         ];
     }
 
+    /**
+     * Which rooms the caller may search, as one predicate over `r` (rooms), `membership` and
+     * `invitation` (both LEFT JOINed for the caller): public rooms; private rooms as a member;
+     * unlisted rooms as a member or invitee, so search never reveals one; the minimum age unless
+     * the caller moderates every room. Used for the results and for the room_id check, so the
+     * two can't drift (#283).
+     *
+     * @return array{sql:string, bindings:array<string, int|null>}
+     */
+    private function roomVisibility(AuthenticatedUser $actor): array
+    {
+        $canModerateEveryRoom = RoomAuthorization::canModerateAnyRoom($actor);
+
+        return [
+            'sql' => <<<'SQL'
+(
+      CAST(:can_moderate_every_room AS integer) = 1
+      OR r.visibility = 'public'
+      OR membership.user_id IS NOT NULL
+      OR (r.visibility = 'unlisted' AND invitation.user_id IS NOT NULL)
+  )
+  AND (
+      CAST(:can_bypass_minimum_age AS integer) = 1
+      OR r.minimum_age = 0
+      OR COALESCE(CAST(:actor_age AS integer), -1) >= r.minimum_age
+  )
+SQL,
+            'bindings' => [
+                'room_actor_id' => $actor->id,
+                'room_invited_actor_id' => $actor->id,
+                'can_moderate_every_room' => $canModerateEveryRoom ? 1 : 0,
+                'can_bypass_minimum_age' => $canModerateEveryRoom ? 1 : 0,
+                'actor_age' => $this->actorAge($actor),
+            ],
+        ];
+    }
+
+    /**
+     * A room_id the caller can't search answers exactly like one that doesn't exist: missing,
+     * deleted, private without membership, unlisted without membership or invitation, or under
+     * its minimum age (#283). Search must not confirm that a room exists.
+     */
+    private function requireSearchableRoom(AuthenticatedUser $actor, int $roomId): void
+    {
+        $visibility = $this->roomVisibility($actor);
+        $statement = $this->pdo->prepare(<<<'SQL'
+SELECT 1
+FROM rooms r
+LEFT JOIN room_members membership
+       ON membership.room_id = r.id AND membership.user_id = :room_actor_id
+LEFT JOIN room_invitations invitation
+       ON invitation.room_id = r.id AND invitation.user_id = :room_invited_actor_id
+WHERE r.id = :filter_room_id
+  AND r.deleted_at IS NULL
+  AND
+SQL . ' ' . $visibility['sql']);
+        if ($statement === false) {
+            throw new RuntimeException('Unable to prepare the room search check.');
+        }
+        foreach ($visibility['bindings'] + ['filter_room_id' => $roomId] as $name => $value) {
+            $statement->bindValue(':' . $name, $value, $value === null ? PDO::PARAM_NULL : PDO::PARAM_INT);
+        }
+        $statement->execute();
+        if ($statement->fetchColumn() === false) {
+            throw new ApiException(404, 'room_not_found', 'Room not found.');
+        }
+    }
+
     private function actorAge(AuthenticatedUser $actor): ?int
     {
         $birthDate = $this->rooms->birthDateForUser($actor->id);
@@ -218,6 +300,7 @@ SQL,
      *   kind:string,
      *   message_id:int,
      *   excerpt:string,
+     *   excerpt_matches:list<array{start:int, length:int}>,
      *   sender:?array{id:int, username:string},
      *   room:?array{id:int, key:string, name:string},
      *   peer:?array{id:int, username:string},
@@ -228,19 +311,20 @@ SQL,
      */
     private function hydrate(array $row): array
     {
-        $body = preg_replace('/\s+/u', ' ', trim((string) $row['body']));
-        if (!is_string($body)) {
-            $body = trim((string) $row['body']);
-        }
-        $excerpt = mb_strlen($body, 'UTF-8') > 320
-            ? rtrim(mb_substr($body, 0, 319, 'UTF-8')) . '…'
-            : $body;
+        // A plain-text window around the first match, with offsets instead of markup (#283).
+        $body = SearchExcerpt::clean((string) $row['body']);
+        $marks = SearchExcerpt::marks((string) ($row['headline'] ?? ''), $body);
+        $excerpt = SearchExcerpt::build(
+            $body,
+            $marks === null ? [] : SearchExcerpt::included($body, $marks, TsqueryLexemes::included((string) ($row['query_text'] ?? ''))),
+        );
         $kind = (string) $row['kind'];
 
         return [
             'kind' => $kind,
             'message_id' => (int) $row['message_id'],
-            'excerpt' => $excerpt,
+            'excerpt' => $excerpt['excerpt'],
+            'excerpt_matches' => $excerpt['matches'],
             'sender' => $row['sender_id'] === null ? null : [
                 'id' => (int) $row['sender_id'],
                 'username' => (string) $row['sender_username'],

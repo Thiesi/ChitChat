@@ -31,5 +31,6 @@ Endpoint::run($config, static function () use ($config): ApiResult {
         scope: Request::optionalString($payload, 'scope') ?? 'all',
         limit: Request::optionalInteger($payload, 'limit') ?? 25,
         offset: Request::optionalInteger($payload, 'offset') ?? 0,
+        roomId: Request::optionalInteger($payload, 'room_id'),
     ));
 });
