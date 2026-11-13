@@ -445,7 +445,6 @@ SQL);
         if ($targetUserId < 1) {
             throw new ApiException(400, 'validation_error', 'target_user_id must be positive.');
         }
-        $takeover = $targetUserId === $actor->id && RoomAuthorization::canManageAnyRoom($actor);
 
         $this->pdo->beginTransaction();
         try {
@@ -509,37 +508,30 @@ SQL);
                 throw new ApiException(409, 'ownership_changed', 'The room changed hands meanwhile. Reload and try again.');
             }
 
-            // Re-check under the locks: an owner whose room was handed on meanwhile may no longer transfer it.
-            if (!RoomAuthorization::canManageAnyRoom($actor) && $previousOwner !== $actor->id) {
-                throw new ApiException(403, 'forbidden', 'Only the room owner or an administrator can transfer ownership.');
-            }
-            if ($targetRole === 'owner') {
-                throw new ApiException(409, 'already_owner', 'That member already owns this room.');
-            }
-            if ($targetRole === null && !$takeover) {
-                throw new ApiException(404, 'membership_not_found', 'Target user is not a room member.');
-            }
+            // Re-checked under the locks with the rule the flags use (#302): an owner whose room
+            // was handed on meanwhile may no longer transfer it, and so on.
             $target = $accounts[$targetUserId] ?? null;
-            if (
-                $target === null
-                || (string) $target['account_kind'] !== 'member'
-                || (string) $target['account_state'] !== 'active'
-                || $this->databaseBoolean($target['banned'])
-            ) {
-                throw new ApiException(409, 'transfer_target_not_eligible', 'Only an active, registered account in good standing can own a room.');
-            }
             $previousActive = $previousOwner !== null
                 && (string) ($accounts[$previousOwner]['account_state'] ?? '') === 'active';
-            if (
-                $previousActive
-                && $previousOwner !== $actor->id
-                && ModerationRank::globalRankOf($actor) < $this->globalRank((int) $previousOwner)
-            ) {
-                throw new ApiException(403, 'forbidden', 'You cannot take a room away from an owner with a higher role than yours.');
-            }
-            if ($targetRole === null) {
-                // An administrator taking over a room they are not in: the room's age rule, as locked, still applies.
-                $this->requireAgeFor($actor, (int) $locked['minimum_age']);
+            $refusal = OwnershipTransferRule::refusal(
+                $actor->id,
+                RoomAuthorization::canManageAnyRoom($actor),
+                ModerationRank::globalRankOf($actor),
+                $targetUserId,
+                $targetRole,
+                $target !== null
+                    && (string) $target['account_kind'] === 'member'
+                    && (string) $target['account_state'] === 'active'
+                    && !$this->databaseBoolean($target['banned']),
+                $previousOwner,
+                $previousActive,
+                // The rank only matters for an active owner other than the actor.
+                $previousActive && $previousOwner !== $actor->id ? $this->globalRank((int) $previousOwner) : 0,
+                // The room's age rule, as locked.
+                fn (): ?ApiException => $this->ageRefusal($actor, (int) $locked['minimum_age']),
+            );
+            if ($refusal !== null) {
+                throw $refusal;
             }
 
             if ($previousOwner !== null) {
@@ -627,18 +619,21 @@ SQL, ['id' => $userId]);
         return $row === null ? 0 : (int) $row['rank'];
     }
 
-    private function requireAgeFor(AuthenticatedUser $actor, int $minimumAge): void
+    /** Why the actor can't join a room with this minimum age, or null when they can. Shared with the flags (#302). */
+    public function ageRefusal(AuthenticatedUser $actor, int $minimumAge): ?ApiException
     {
         if ($minimumAge === 0) {
-            return;
+            return null;
         }
         $birthDate = $this->rooms->birthDateForUser($actor->id);
         if ($birthDate === null) {
-            throw new ApiException(403, 'birth_date_required', 'A birth date is required to join this room.');
+            return new ApiException(403, 'birth_date_required', 'A birth date is required to join this room.');
         }
         if ((new DateTimeImmutable($birthDate))->diff(new DateTimeImmutable('today'))->y < $minimumAge) {
-            throw new ApiException(403, 'minimum_age_not_met', 'You do not meet this room’s minimum age.');
+            return new ApiException(403, 'minimum_age_not_met', 'You do not meet this room’s minimum age.');
         }
+
+        return null;
     }
 
     /**

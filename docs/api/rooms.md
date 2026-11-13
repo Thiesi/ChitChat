@@ -270,6 +270,14 @@ Returns `{"room": {…}}` as the actor now sees it.
 
 A room has at most one owner. The database enforces this (migration 0058), and the owner row is never changed by `role.php`, `leave.php` or a member removal, even when they race a transfer.
 
+**Offering the transfer (#302):** clients don't need to repeat these rules. The same rule, in the same order, gives viewer-specific flags:
+- `moderation.room.can_transfer_ownership` on the profile card (`users/profile.php` with `room_id`; see [admin.md](admin.md#what-the-card-offers-get-apiv1usersprofilephpuser_id7room_id42));
+- `can_transfer_ownership` on each member row of `admin/rooms/snapshot.php`, and `can_take_ownership` on its `room`, for an administrator making themselves the owner, also of a room they aren't in. The minimum age is included.
+
+A flag means **allowed now, after step-up**. Step-up is still asked when the transfer is made, and a flag can go stale, so handle the errors above as usual.
+
+**Bans:** flags take a ban into account only for viewers who can already see bans (Super-Administrators and Administrators, in the user directory). For everyone else, including the room's owner and Chat Admins, the flag ignores bans, so it reveals nothing the profile doesn't. A guest, or an account that is closing or closed, is already visible: the profile answers `404 user_not_found` for those. A banned target is then refused with `409 transfer_target_not_eligible` when the transfer is attempted.
+
 ## Messages
 
 ### Message representation
