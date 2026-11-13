@@ -33,6 +33,9 @@ test('Administrator sees shared operational status and metrics remain disabled b
     await expect(page.locator('#sse-connections')).toHaveText(/^[0-9]+$/);
     await expect(page.locator('#maintenance-state')).toHaveText(/^(Current|Overdue)$/);
     await expect(page.locator('#metrics-enabled')).toHaveText('Disabled');
+    // #310: phone alerts and backups, whatever state this server is in.
+    await expect(page.locator('#push-state')).toHaveText(/^(Not set up|Current|Overdue)$/);
+    await expect(page.locator('#backups-state')).toHaveText(/^(Not tracked|Unknown|Failed|Overdue|Current)$/);
 
     const policyTable = page.getByRole('table', { name: 'Rate-limit policies' });
     await expect(policyTable).toBeVisible();
