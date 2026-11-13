@@ -7,6 +7,7 @@ namespace ChitChat\Account;
 use ChitChat\Admin\LockdownService;
 use ChitChat\Audit\AuditLogger;
 use ChitChat\Auth\AuthenticatedUser;
+use ChitChat\Auth\PasswordHasher;
 use ChitChat\Auth\PasswordPolicy;
 use ChitChat\Auth\Username;
 use ChitChat\Auth\UsernameClaims;
@@ -410,7 +411,7 @@ WHERE id = :user_id
 SQL, [
             'username' => 'Closed account #' . $userId,
             'canonical' => sprintf('closed-%d-%s', $userId, bin2hex(random_bytes(4))),
-            'password_hash' => password_hash(bin2hex(random_bytes(32)), PASSWORD_DEFAULT),
+            'password_hash' => PasswordHasher::hash(bin2hex(random_bytes(32))),
             'user_id' => $userId,
         ], 'account tombstoning');
         // A pending required name change ends here: its removed name stays reserved for the configured period.

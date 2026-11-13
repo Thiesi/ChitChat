@@ -126,7 +126,7 @@ SQL);
                 'username' => $username,
                 // The space keeps it apart from every real username.
                 'canonical' => strtolower($username),
-                'password_hash' => password_hash(bin2hex(random_bytes(32)), PASSWORD_DEFAULT),
+                'password_hash' => PasswordHasher::hash(bin2hex(random_bytes(32))),
                 'max_seconds' => self::MAX_SECONDS,
                 'ip_address' => $ipAddress,
             ]);

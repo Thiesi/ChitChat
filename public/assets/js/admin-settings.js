@@ -24,6 +24,13 @@ window.addEventListener('DOMContentLoaded', () => {
     'login-retention',
     'deleted-room-grace',
     'username-reservation-field',
+    'health-checks',
+    'backup-max-age-field',
+    'backup-max-age',
+    'maintenance-max-age-field',
+    'maintenance-max-age',
+    'maintenance-max-age-hint',
+    'maintenance-max-age-default',
     'username-reservation',
     'settings-updated',
     'save-settings',
@@ -53,6 +60,7 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 
   elements['settings-form'].addEventListener('submit', saveSettings);
+  bindHealthChecks();
   elements['registration-protection-form'].addEventListener('submit', saveRegistrationProtection);
   elements['application-name-form'].addEventListener('submit', saveApplicationName);
   elements['lockdown-form'].addEventListener('submit', saveLockdown);
@@ -101,6 +109,36 @@ function renderSettings(settings) {
   elements['username-reservation'].required = reservation;
   elements['username-reservation'].value = reservation ? String(settings.username_reservation_days) : '';
   elements['settings-updated'].textContent = `Last changed ${formatDateTime(settings.updated_at)}.`;
+  renderHealthChecks(settings);
+}
+
+// Health checks (#310, #312), when the server has them. The maintenance age is sent only
+// when the administrator changed it, or null to go back to the server default: posting the
+// loaded value while it comes from MAINTENANCE_MAX_AGE_HOURS would freeze that fallback.
+let maintenanceAgeChange = 'unchanged'; // 'unchanged' | 'set' | 'clear'
+
+function renderHealthChecks(settings) {
+  const backup = Number.isInteger(settings.backup_max_age_hours);
+  const maintenance = Number.isInteger(settings.maintenance_max_age_hours);
+  elements['health-checks'].hidden = !backup && !maintenance;
+  elements['backup-max-age-field'].hidden = !backup;
+  elements['backup-max-age'].required = backup;
+  elements['backup-max-age'].value = backup ? String(settings.backup_max_age_hours) : '';
+  elements['maintenance-max-age-field'].hidden = !maintenance;
+  elements['maintenance-max-age'].value = maintenance ? String(settings.maintenance_max_age_hours) : '';
+  const fromServer = settings.maintenance_max_age_source !== 'setting';
+  elements['maintenance-max-age-hint'].textContent = fromServer ? 'from the server environment, until you change it' : 'set here, instead of the server environment';
+  elements['maintenance-max-age-default'].hidden = fromServer;
+  maintenanceAgeChange = 'unchanged';
+}
+
+function bindHealthChecks() {
+  elements['maintenance-max-age'].addEventListener('input', () => { maintenanceAgeChange = 'set'; });
+  elements['maintenance-max-age-default'].addEventListener('click', () => {
+    maintenanceAgeChange = 'clear';
+    elements['maintenance-max-age'].value = '';
+    elements['maintenance-max-age-hint'].textContent = 'back to the server default when you save';
+  });
 }
 
 async function saveSettings(event) {
@@ -122,6 +160,13 @@ async function saveSettings(event) {
   // Optional on the API: sent only when the server offers it (an older one would refuse an unknown field).
   if (Number.isInteger(currentSettings?.username_reservation_days)) {
     payload.username_reservation_days = numberValue('username-reservation');
+  }
+  if (Number.isInteger(currentSettings?.backup_max_age_hours)) {
+    payload.backup_max_age_hours = numberValue('backup-max-age');
+  }
+  if (maintenanceAgeChange === 'clear') payload.maintenance_max_age_hours = null;
+  else if (maintenanceAgeChange === 'set' && elements['maintenance-max-age'].value !== '') {
+    payload.maintenance_max_age_hours = numberValue('maintenance-max-age');
   }
 
   // S6b: one save, one question. Each consequence that applies is its own line, in the

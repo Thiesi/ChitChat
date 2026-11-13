@@ -91,7 +91,7 @@ SQL . ' ' . UserRepository::SIGN_IN_MATCH . UserRepository::SIGN_IN_ORDER);
                 throw self::failed();
             }
             // Bcrypt work is outside the account/policy lock, but proof is checked again under lock.
-            $passwordHash = password_hash($newPassword, PASSWORD_DEFAULT);
+            $passwordHash = PasswordHasher::hash($newPassword);
             $this->pdo->beginTransaction();
             $this->keys->lockPolicy();
             [$user, $generation, $currentHash] = $this->primary((int) $candidate['id']);

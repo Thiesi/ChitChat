@@ -359,6 +359,8 @@
 .decoration-settings[hidden] { display: none; }
 /* Username reservation (#164) appears once the server offers it. */
 #username-reservation-field[hidden] { display: none; }
+#health-checks[hidden],
+#health-checks [hidden] { display: none; }
 .decoration-preview {
   position: relative;
   isolation: isolate;
