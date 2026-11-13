@@ -105,7 +105,7 @@ test('participants submit exact-message reports and moderators review only submi
     await login(rootPage, root);
     await rootPage.goto('/moderation.php');
     await expect(rootPage.locator('#moderation-shell')).toBeVisible();
-    await expect(rootPage.locator('.moderation-notice')).toContainText('does not grant access to surrounding conversation history');
+    await expect(rootPage.getByRole('region', { name: 'What a report shows' })).toContainText('It never opens the rest of the conversation.');
 
     const directCase = rootPage.locator('.moderation-case-button', {
       hasText: `Direct message · ${author.username}`,
