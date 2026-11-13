@@ -171,3 +171,67 @@ test('acting on a report in the moderation queue closes the case', async ({ brow
     await memberContext.close();
   }
 });
+
+// The transfer needs a fresh sign-in check; a recent one may still be valid.
+async function passStepUp(page, password) {
+  const dialog = page.locator('.step-up-dialog');
+  try {
+    await dialog.waitFor({ state: 'visible', timeout: 3_000 });
+  } catch {
+    return;
+  }
+  await dialog.locator('#step-up-password').fill(password);
+  await dialog.getByRole('button', { name: 'Verify password' }).click();
+  await expect(dialog).toBeHidden();
+}
+
+// #300: the server's offer (#306) and the transfer endpoint (#277), end to end.
+test('a room owner hands the room on from the profile card; the new owner is told', async ({ browser }) => {
+  const rootContext = await browser.newContext({ baseURL });
+  const memberContext = await browser.newContext({ baseURL });
+  const roomName = `Handed ${attemptName('Hall')}`;
+
+  try {
+    const rootPage = await rootContext.newPage();
+    await login(rootPage, root);
+    await rootPage.locator('#new-room-button').click();
+    const roomDialog = rootPage.locator('#room-dialog');
+    await roomDialog.locator('#room-key').fill(attemptName('handed-hall-e2e').toLowerCase());
+    await roomDialog.locator('#room-name').fill(roomName);
+    await roomDialog.getByRole('button', { name: 'Create room' }).click();
+    await expect(rootPage.locator('#room-title')).toHaveText(`# ${roomName}`);
+
+    const memberPage = await memberContext.newPage();
+    await login(memberPage, member);
+    await openRoom(memberPage, roomName);
+    await memberPage.locator('#join-button').click();
+    const hello = attemptText('Happy to look after it');
+    await memberPage.locator('#composer-input').fill(hello);
+    await memberPage.locator('#composer-input').press('Enter');
+
+    // The owner offers the room from the member's card, confirms, and passes the sign-in check.
+    const memberName = () => rootPage.locator('.message', { hasText: hello }).locator('.user-name', { hasText: member.username }).first();
+    await memberName().click();
+    const card = rootPage.locator('#name-menu');
+    await card.getByRole('button', { name: `Make owner of #${roomName}…` }).click();
+    await rootPage.getByRole('dialog', { name: `Make ${member.username} the owner of #${roomName}?` }).getByRole('button', { name: 'Hand over' }).click();
+    await passStepUp(rootPage, root.password);
+    await expect(card).toContainText(`${member.username} owns #${roomName} now.`);
+
+    // The new owner finds it in Activity.
+    await memberPage.goto('/notifications.php');
+    await expect(memberPage.locator('#privacy-notifications-loading')).toBeHidden();
+    await expect(memberPage.locator('#privacy-notifications-shell')).toContainText(`Ownership of “${roomName}” was handed to you.`);
+
+    // The previous owner's card offers nothing more: this person owns the room now.
+    await rootPage.keyboard.press('Escape');
+    await rootPage.reload();
+    await openRoom(rootPage, roomName);
+    await memberName().click();
+    await expect(card).toContainText(member.username);
+    await expect(card.getByRole('button', { name: `Make owner of #${roomName}…` })).toHaveCount(0);
+  } finally {
+    await rootContext.close();
+    await memberContext.close();
+  }
+});
