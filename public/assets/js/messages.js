@@ -19,6 +19,7 @@ import { phoneListShowing } from './pane-stack.js';
 import { renamedUser, renameInMessages } from './renames.js';
 import { renderConversationList as drawConversationList } from './conversation-list.js';
 import { startUsernameGate } from './username-gate.js';
+import { dropResentEvents } from './realtime-seen.js';
 
 let transcriptKeys = null;
 const state = {
@@ -31,6 +32,7 @@ const state = {
   messageIds: new Set(),
   oldestMessageId: null,
   eventSource: null,
+  settledResume: false,
   replyTo: null,
 };
 const elements = {};
@@ -99,6 +101,7 @@ async function bootstrap() {
 
   state.user = session.user;
   state.shareTyping = session.share_typing !== false;
+  state.settledResume = session.capabilities?.realtime_settled_resume === true;
   state.mutedEverywhere = session.muted_everywhere ?? null;
   state.privacy = session.privacy?.direct_messages ?? null;
   elements['messages-identity'].textContent = `Signed in as ${state.user.username}`;
@@ -673,8 +676,15 @@ async function refreshConversationsOnly() {
   renderConversations();
 }
 
+// With ?resume=settled a reconnect never misses an event that commits late, but may resend
+// some; dropResentEvents drops those before any handler runs (#286).
+function streamUrl() {
+  return state.settledResume ? '/api/v1/events/stream.php?resume=settled' : '/api/v1/events/stream.php';
+}
+
 function startEventStream() {
-  const source = new EventSource('/api/v1/events/stream.php', { withCredentials: true });
+  const source = new EventSource(streamUrl(), { withCredentials: true });
+  if (state.settledResume) dropResentEvents(source);
   state.eventSource = source;
   source.addEventListener('direct_message', (event) => {
     const envelope = parseEvent(event);
