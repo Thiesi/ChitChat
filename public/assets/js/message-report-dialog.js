@@ -1,4 +1,5 @@
 // The one report dialog (markup: src/View/ReportDialog.php). It reports a
+import { MESSAGE_UNAVAILABLE } from './unavailable.js';
 // message (room or direct) or a person (#159). A person report tells the
 // reporter exactly what moderators receive, and afterwards offers to ignore
 // or block the person, which is usually what someone wants next.
@@ -274,6 +275,7 @@ function errorMessage(error, reported) {
     if (error.code === SNAPSHOT_UNAVAILABLE) return 'The report couldn’t be saved just now, so nothing was sent. Try again in a moment.';
     if (error.status === 404 && reported.kind === 'person') return 'This account is no longer available.';
     if (error.status === 429) return `You’ve sent several reports quickly. Try again ${waitText(error.retryAfterSeconds)}.`;
+    if (error.code === 'message_not_found') return MESSAGE_UNAVAILABLE;
     return error.message;
   }
   if (error instanceof TypeError) return 'The report couldn’t be sent. Check your connection and try again.';
