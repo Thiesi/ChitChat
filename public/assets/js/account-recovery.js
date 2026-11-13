@@ -3,7 +3,7 @@
 // asks for when the server requires it. The key is shown once, in a dialog.
 import { apiGet } from './api.js';
 import { formatDateTime } from './datetime.js';
-import { confirmAction } from './moderation-tools.js';
+import { confirmAction } from './confirm-dialog.js';
 import { buildKeyStep } from './recovery-key-step.js';
 import { createRecoveryKey, readRecoveryStatus } from './recovery.js';
 

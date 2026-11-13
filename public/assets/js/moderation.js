@@ -1,7 +1,8 @@
 import { ApiError, apiGet, apiPost, setCsrfToken } from './api.js';
 import { nameButton } from './name-menu.js';
 import { formatDateTime } from './datetime.js';
-import { chooseGuestBlock, chooseRestriction, chooseUsernameChange, confirmAction } from './moderation-tools.js';
+import { confirmAction } from './confirm-dialog.js';
+import { chooseGuestBlock, chooseRestriction, chooseUsernameChange } from './moderation-tools.js';
 import { refreshPhoto } from './avatar.js';
 import {
   CATEGORY_LABELS,

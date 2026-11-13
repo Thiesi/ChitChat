@@ -32,7 +32,7 @@ test('account page downloads a step-up-protected scoped JSON export', async ({ p
   await page.getByRole('navigation', { name: 'Settings' }).getByRole('link', { name: 'Privacy and data', exact: true }).click();
 
   await page.getByText('What the export contains').click();
-  await expect(page.getByText('It does not contain password hashes')).toBeVisible();
+  await expect(page.getByText(/Not included: password hashes/)).toBeVisible();
 
   await page.getByRole('button', { name: 'Download JSON export' }).click();
   const dialog = page.getByRole('dialog', { name: 'Confirm this sensitive action' });

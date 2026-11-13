@@ -1,5 +1,6 @@
 import { apiGet, apiPost, setCsrfToken } from './api.js';
 import { applicationName } from './application-name.js';
+import { confirmAction } from './confirm-dialog.js';
 import { withPrivilegedStepUp } from './step-up.js';
 import { createPasskey, webAuthnSupported } from './webauthn.js';
 import { formatDateTime } from './datetime.js';
@@ -57,9 +58,9 @@ function buildCard() {
       <span id="mfa-recovery-status" class="account-muted"></span>
     </div>
     <p class="account-muted">Recovery codes stand in for your passkey. Your recovery key, under Password and recovery, resets a forgotten password. Keep them apart.</p>
-    <div class="account-action-row">
+    <div id="mfa-disable-row" class="account-action-row">
       <button id="mfa-disable" class="danger-button" type="button">Disable multi-factor authentication</button>
-      <span class="account-muted">Disabling MFA invalidates your other sessions.</span>
+      <span class="account-muted">Signs you out everywhere else.</span>
     </div>
     <p id="mfa-error" class="error-text" role="alert"></p>
   `;
@@ -75,6 +76,7 @@ function buildCard() {
     regenerate: root.querySelector('#mfa-recovery-regenerate'),
     recoveryStatus: root.querySelector('#mfa-recovery-status'),
     disable: root.querySelector('#mfa-disable'),
+    disableRow: root.querySelector('#mfa-disable-row'),
     error: root.querySelector('#mfa-error'),
   };
   // The authenticator app (#204) is its own block; it reports back new status and first recovery codes.
@@ -98,21 +100,22 @@ function render(nextStatus) {
   const available = Boolean(status?.available);
   const totpEnabled = Boolean(status?.totp?.enabled);
   card.summary.textContent = enabled
-    ? `Multi-factor authentication is enabled. Your password is followed by ${totpEnabled ? 'a passkey, a code from your authenticator app' : 'a registered passkey'} or a one-time recovery code.`
+    ? `Multi-factor authentication is on. After your password, you confirm with ${totpEnabled ? 'a passkey, a code from your authenticator app' : 'a passkey'} or a recovery code.`
     : totpOffered
-      ? 'Add a passkey or an authenticator app to require a second step after your password.'
-      : 'Add a passkey to require a second factor after your password.';
+      ? 'Add a passkey or an authenticator app to confirm it’s you after your password.'
+      : 'Add a passkey to confirm it’s you after your password.';
   card.policy.textContent = status?.required_by_admin_policy
-    ? 'This account has an administrative role and installation policy requires MFA.'
+    ? 'Your role on this server requires it.'
     : '';
   card.browser.textContent = available && !webAuthnSupported()
-    ? 'This browser or context cannot create passkeys. Recovery codes can still be used after enrollment from another supported browser.'
+    ? 'This browser can’t create passkeys. You can add one from another browser.'
     : !available
-      ? 'The operator has not configured a WebAuthn relying-party ID and origin for this installation.'
+      ? 'Passkeys aren’t set up on this server.'
       : '';
   card.addForm.classList.toggle('hidden', !available || !webAuthnSupported());
   card.regenerate.classList.toggle('hidden', !enabled);
-  card.disable.classList.toggle('hidden', !enabled);
+  // The row's note only makes sense next to its button.
+  card.disableRow.classList.toggle('hidden', !enabled);
   card.disable.disabled = Boolean(status?.required_by_admin_policy);
   card.recoveryStatus.textContent = enabled
     ? `${status.recovery_codes_remaining} unused recovery codes remain.`
@@ -126,7 +129,7 @@ function renderCredentials(credentials) {
   if (credentials.length === 0) {
     const empty = document.createElement('p');
     empty.className = 'account-muted';
-    empty.textContent = 'No passkeys are registered.';
+    empty.textContent = 'No passkeys yet.';
     card.credentials.append(empty);
     return;
   }
@@ -139,8 +142,8 @@ function renderCredentials(credentials) {
     meta.className = 'account-muted';
     const lastUsed = credential.last_used_at ? `Last used ${formatDate(credential.last_used_at)}` : 'Not used yet';
     const backup = credential.backup_eligible
-      ? credential.backup_state ? 'synced passkey' : 'backup eligible'
-      : 'device-bound or unknown backup capability';
+      ? credential.backup_state ? 'synced passkey' : 'can be synced'
+      : 'may be on this device only';
     meta.textContent = `${credential.algorithm} · added ${formatDate(credential.created_at)} · ${lastUsed} · ${backup}`;
     const actions = document.createElement('div');
     actions.className = 'account-action-row';
@@ -155,7 +158,7 @@ function renderCredentials(credentials) {
     remove.textContent = 'Remove';
     // With an authenticator app as well, the last passkey can go (#204).
     remove.disabled = credentials.length <= 1 && !status?.totp?.enabled;
-    remove.title = remove.disabled ? 'Disable MFA to remove the final passkey.' : '';
+    remove.title = remove.disabled ? 'Disable multi-factor authentication to remove your last passkey.' : '';
     remove.addEventListener('click', () => removePasskey(credential));
     actions.append(rename, remove);
     article.append(heading, meta, actions);
@@ -208,7 +211,13 @@ async function renamePasskey(credential) {
 }
 
 async function removePasskey(credential) {
-  if (!window.confirm(`Remove the passkey “${credential.label}”?`)) return;
+  const confirmed = await confirmAction({
+    title: `Remove the passkey “${credential.label}”?`,
+    text: 'You can’t use it to sign in any more. Your other ways to confirm it’s you keep working.',
+    confirmLabel: 'Remove passkey',
+    announce: null,
+  });
+  if (!confirmed) return;
   card.error.textContent = '';
   setBusy(true);
   try {
@@ -224,7 +233,13 @@ async function removePasskey(credential) {
 }
 
 async function regenerateRecoveryCodes() {
-  if (!window.confirm('Generate a new recovery-code set? Every existing unused recovery code will stop working.')) return;
+  const confirmed = await confirmAction({
+    title: 'Generate new recovery codes?',
+    text: 'Your unused codes stop working right away.',
+    confirmLabel: 'Generate new codes',
+    announce: null,
+  });
+  if (!confirmed) return;
   card.error.textContent = '';
   setBusy(true);
   try {
@@ -239,7 +254,13 @@ async function regenerateRecoveryCodes() {
 }
 
 async function disableMfa() {
-  if (!window.confirm('Disable multi-factor authentication and invalidate every other session?')) return;
+  const confirmed = await confirmAction({
+    title: 'Disable multi-factor authentication?',
+    text: 'Your password alone signs you in again, and you’re signed out everywhere else.',
+    confirmLabel: 'Disable',
+    announce: null,
+  });
+  if (!confirmed) return;
   card.error.textContent = '';
   setBusy(true);
   try {

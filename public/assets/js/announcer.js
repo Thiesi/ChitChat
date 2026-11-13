@@ -3,7 +3,10 @@
 // edits, reactions and presence stay silent and are read when a message is
 // reached. New messages from others are spoken once each (de-duplicated by
 // id), bursts are summarised, and nothing is spoken while the tab is hidden;
-// on return one line says how many arrived.
+// on return one line says how many arrived. The device's "Announce new
+// messages" choice (You → Appearance) filters incoming messages only.
+
+import { announcePreference, shouldAnnounce } from './announce-preference.js';
 
 const BODY_LIMIT = 140;
 // A burst is collected until it has been quiet this long, or this long since its first message.
@@ -45,11 +48,12 @@ export function announce(text) {
 /**
  * A new message from someone else in the conversation on screen.
  * @param {{ key: string, sender?: string|null, body?: string|null, mentionsMe?: boolean,
- *           fileName?: string|null, kind?: 'message'|'emote'|'notice'|'ping' }} message
+ *           fileName?: string|null, kind?: 'message'|'emote'|'notice'|'ping', direct?: boolean }} message
  */
 export function announceIncoming(message) {
   if (!message?.key || spoken.has(message.key)) return;
   remember(message.key);
+  if (!shouldAnnounce(message, announcePreference())) return;
   if (document.visibilityState === 'hidden') {
     awayCount += 1;
     return;

@@ -105,7 +105,11 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
           <div class="avatar-settings">
             <span id="avatar-preview" class="mini-avatar avatar-preview" aria-hidden="true"></span>
             <div class="avatar-settings-text">
-              <p>Shown next to your messages, in member lists, and on your profile card instead of your initials. JPEG, PNG, or WebP up to 5 MB; you can choose the crop. The server stores a fresh 256 × 256 copy without any photo metadata, such as location.</p>
+              <p>Shown instead of your initials, next to your messages and on your profile card. JPEG, PNG or WebP, up to 5 MB.</p>
+              <details class="you-more">
+                <summary>Learn more<span class="visually-hidden"> about your picture</span></summary>
+                <p>You choose the crop. The server keeps a fresh 256 × 256 copy without any photo metadata, such as location.</p>
+              </details>
               <div class="account-action-row">
                 <label class="secondary-button file-button" for="avatar-file">Upload a picture</label>
                 <input id="avatar-file" class="visually-hidden" type="file" accept="image/jpeg,image/png,image/webp">
@@ -228,7 +232,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
           <div>
             <h3 id="appearance-heading">Theme and colours</h3>
           </div>
-          <p>Follow your device's light or dark setting, or choose one, and pick a colour scheme. Every scheme has a light and a dark variant. These choices are saved on this device.</p>
+          <p>Every scheme has a light and a dark variant. Saved on this device.</p>
           <label class="theme-select">
             Theme
             <select data-theme-select>
@@ -245,7 +249,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
               <label class="scheme-option" title="Dusk"><input type="radio" name="account-scheme" value="dusk" data-scheme-radio><span class="scheme-swatch" data-swatch="dusk" aria-hidden="true"></span><span class="scheme-name">Dusk</span></label>
               <label class="scheme-option" title="Ember"><input type="radio" name="account-scheme" value="ember" data-scheme-radio><span class="scheme-swatch" data-swatch="ember" aria-hidden="true"></span><span class="scheme-name">Ember</span></label>
               <label class="scheme-option" title="Rosé"><input type="radio" name="account-scheme" value="rose" data-scheme-radio><span class="scheme-swatch" data-swatch="rose" aria-hidden="true"></span><span class="scheme-name">Rosé</span></label>
-              <label class="scheme-option" title="Midnight"><input type="radio" name="account-scheme" value="midnight" data-scheme-radio><span class="scheme-swatch" data-swatch="midnight" aria-hidden="true"></span><span class="scheme-name">Midnight</span></label>
+              <label class="scheme-option" title="Midnight, ChitChat web’s own"><input type="radio" name="account-scheme" value="midnight" data-scheme-radio><span class="scheme-swatch" data-swatch="midnight" aria-hidden="true"></span><span class="scheme-name">Midnight<span class="scheme-note">, ChitChat web’s own</span></span></label>
               <label class="scheme-option" title="High contrast"><input type="radio" name="account-scheme" value="contrast" data-scheme-radio><span class="scheme-swatch" data-swatch="contrast" aria-hidden="true"></span><span class="scheme-name">High contrast</span></label>
             </div>
           </fieldset>
@@ -255,7 +259,11 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
           <div>
             <h3 id="date-time-heading">How dates and times look</h3>
           </div>
-          <p>Automatic follows your browser's language settings. Choosing a region applies its date format wherever you sign in. Times always use this device's time zone.</p>
+          <p>Automatic follows your browser’s language.</p>
+          <details class="you-more">
+            <summary>Learn more<span class="visually-hidden"> about date and time formats</span></summary>
+            <p>A region you choose applies wherever you sign in. Times always use this device’s time zone.</p>
+          </details>
           <form id="date-time-form" class="form-stack">
             <label>
               Format region
@@ -284,12 +292,26 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
           <div>
             <h3 id="typing-heading">Typing indicator</h3>
           </div>
-          <p>“Alex is typing…” above the message box, in rooms and direct messages. It never includes what you type. It works both ways: turned off, others don’t see when you type, and you don’t see when they do.</p>
+          <p>“Alex is typing…”, above the message box. It never shows what you write.</p>
           <label>
             <input id="share-typing" type="checkbox" role="switch" checked>
             Show when I’m typing, and when others are
           </label>
           <p id="share-typing-status" class="account-muted" role="status" aria-live="polite"></p>
+        </section>
+
+        <!-- Screen readers (#166): what the page announces as messages arrive. Device-only; announcer.js reads it. -->
+        <section class="account-card" aria-labelledby="accessibility-heading" data-guest-visible>
+          <div>
+            <h3 id="accessibility-heading">Accessibility</h3>
+          </div>
+          <fieldset id="announce-choice" class="announce-fieldset" role="radiogroup">
+            <legend>Announce new messages</legend>
+            <label class="announce-option"><input type="radio" name="announce" value="all" checked> All</label>
+            <label class="announce-option"><input type="radio" name="announce" value="to-me" aria-describedby="announce-to-me-help"> Only messages to me</label>
+            <label class="announce-option"><input type="radio" name="announce" value="off"> Off</label>
+            <p id="announce-to-me-help" class="account-muted announce-help">Mentions, pings and direct messages. Saved on this device.</p>
+          </fieldset>
         </section>
       </div>
 
@@ -326,7 +348,11 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
           <div>
             <h3 id="sign-in-methods-heading">Sign-in methods</h3>
           </div>
-          <p>Connect Google or Twitch to sign in with it instead of your password. ChitChat only receives an account number from the provider: no email address, name, or picture.</p>
+          <p>Sign in with Google or Twitch instead of your password.</p>
+          <details class="you-more">
+            <summary>Learn more<span class="visually-hidden"> about sign-in methods</span></summary>
+            <p>ChitChat only receives an account number from the provider: no email address, name or picture.</p>
+          </details>
           <ul id="sign-in-method-list" class="sign-in-method-list"></ul>
           <p id="sign-in-methods-status" class="account-muted" role="status" aria-live="polite"></p>
         </section>
@@ -339,7 +365,11 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
           <div>
             <h3 id="sessions-heading" tabindex="-1">Where you’re signed in</h3>
           </div>
-          <p>Browsers and apps where your account is signed in. A sign-in stays listed until it’s signed out, even while that device is off. Up to 50 sign-ins are kept; when there are more, the one used least recently ends.</p>
+          <p>Browsers and apps signed in to your account.</p>
+          <details class="you-more">
+            <summary>Learn more<span class="visually-hidden"> about sign-ins</span></summary>
+            <p>A sign-in stays listed until it’s signed out, even while that device is off. Up to 50 sign-ins are kept; when there are more, the one used least recently ends.</p>
+          </details>
           <ul id="sessions-list" class="sessions-list"></ul>
           <p id="sessions-status" class="account-muted" role="status" aria-live="polite"></p>
           <div class="account-action-row"><button id="sessions-revoke-others" class="secondary-button" type="button" hidden>Sign out everywhere else</button></div>
@@ -362,22 +392,12 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
             <h3 id="personal-data-heading">Download your personal data</h3>
           </div>
 
-          <p>
-            Create a machine-readable JSON snapshot of the account and retained data currently associated with you.
-            Preparing the export requires recent privileged authentication and is recorded in the audit log.
-          </p>
+          <p>A JSON file of your account and the data kept about you. You confirm it’s you first.</p>
 
-          <details class="account-details">
+          <details class="you-more">
             <summary>What the export contains</summary>
-            <p>
-              It includes your profile, role grants, ban history, rooms and memberships, messages you authored,
-              direct messages visible to you, attachment metadata, blocks you created, login history, and actions
-              recorded with you as the actor.
-            </p>
-            <p>
-              It does not contain password hashes, session secrets, attachment file bytes or internal storage keys.
-              It also does not reveal who blocked you or hidden revision history for messages authored by somebody else.
-            </p>
+            <p>Your profile, roles, ban history, rooms and memberships, messages you wrote, direct messages you can see, attachment details (not the files), blocks you made, sign-in history, and actions recorded as yours.</p>
+            <p>Not included: password hashes, session secrets, attachment files, internal storage keys, who blocked you, or earlier versions of other people’s messages. Each export is recorded in the audit log.</p>
           </details>
 
           <div class="account-action-row">
@@ -392,25 +412,15 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
           <div>
             <h3 id="account-closure-heading">Close your account</h3>
           </div>
-          <p>
-            Closure disables sign-in and invalidates every active session immediately. A 14-day cooling-off period then
-            allows explicit restoration with your current username and password. After that deadline, maintenance
-            permanently tombstones your username, password and birth date.
-          </p>
-          <details class="account-details">
-            <summary>What remains after closure</summary>
-            <p>
-              Shared room and direct-message history, message revisions, attachment evidence, room ownership and audit
-              records remain subject to the installation's retention policy. They are attributed to a generic closed-account
-              identity so shared conversations and security evidence are not silently rewritten.
-            </p>
-            <p>
-              Your original username remains reserved during cooling-off and becomes reusable only after finalization.
-            </p>
+          <p>You’re signed out everywhere at once. For 14 days you can restore the account with your username and password.</p>
+          <details class="you-more">
+            <summary>Learn more<span class="visually-hidden"> about closing your account</span></summary>
+            <p>After 14 days, your username, password and birth date are removed for good. Until then, nobody else can take your username.</p>
+            <p>What you shared stays for as long as this server’s retention rules say: room and direct-message history, edits, attachments, rooms you own and audit records. It shows under a closed-account name, so conversations aren’t rewritten.</p>
           </details>
           <label>
             <input id="account-closure-confirm" type="checkbox">
-            I understand that I will be signed out immediately and must restore the account before the deadline.
+            I understand that I’m signed out at once, and must restore the account within 14 days to keep it.
           </label>
           <div class="account-action-row">
             <button id="account-closure-request" class="danger-button" type="button" disabled>Request account closure</button>
