@@ -6,6 +6,20 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ## [Unreleased]
 
+## [3.12.0] - 2026-11-13
+
+A web-client release: phone alerts and backups on System status, a Health checks card in Operational settings, search in the current room, a clearer navigation rail heading, and "wasn't sent" notices. No database migrations, no configuration changes, no API changes, and nobody is signed out. Instances without scheduled `bin/chitchat-backup` runs should set Backup maximum age to 0. See the [`v3.12.0` release notes](docs/releases/v3.12.0.md).
+
+- Show phone alerts (the Web Push queue) and backups on System status, and add Operational settings › Health checks with Backup maximum age (0–720, 0 = off) and Maintenance maximum age (1–720, sent only when changed; "Use the server default" saves `null`) (#310, #312, #336).
+
+- Search one room from the room header (#318, #339): an "In # Room ✕" chip sends `room_id`, ✕ searches everywhere, and a gone or hidden room drops the chip with "This room isn't available any more." Highlights follow the server's `excerpt_matches`, falling back to word matching.
+
+- Separate the rail's icon and name from the buttons with a hairline and a default pointer, and say "Your message wasn't sent." / "Your file wasn't sent." when a send or upload fails, matching CCM (#338).
+
+- Document the Health checks fields for operators and link the settled-resume client contract (#337).
+
+- Hash passwords in one place, unchanged in production (`PASSWORD_DEFAULT`, PHP's default options); only the test suite lowers the cost (#335). Run PHP lint in parallel (`composer lint` → `bin/lint`) and clean the test database with `DELETE` instead of `TRUNCATE` (#332).
+
 ## [3.11.0] - 2026-11-13
 
 A privacy release: room routes no longer reveal private rooms (a contract change for one caller group), clear "no longer available" messages in the web client, and the right notice for guests whose visit ended. No database migrations, no configuration changes, and nobody is signed out. See the [`v3.11.0` release notes](docs/releases/v3.11.0.md).
