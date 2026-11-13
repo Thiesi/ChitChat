@@ -1,5 +1,7 @@
 import { ApiError, apiGet, apiPost, setCsrfToken } from './api.js';
+import { confirmAction } from './confirm-dialog.js';
 import { nameButton } from './name-menu.js';
+import { cancelledCheck, confirmHandOver, confirmTakeOver, transferError, transferOwnership } from './room-transfer.js';
 import { formatDateTime } from './datetime.js';
 
 const GLOBAL_ROLES = ['super_admin', 'admin', 'chat_admin', 'global_moderator'];
@@ -69,6 +71,7 @@ function bindElements() {
     'invitation-search-results',
     'room-invitation-list',
     'room-delete',
+    'take-ownership',
     'deleted-rooms',
     'deleted-room-list',
     'audit-list',
@@ -120,6 +123,7 @@ function bindEvents() {
     field.addEventListener('input', syncNewRoomGuestAccess);
   }
   elements['room-delete'].addEventListener('click', () => withButton(elements['room-delete'], deleteSelectedRoom));
+  elements['take-ownership'].addEventListener('click', () => withButton(elements['take-ownership'], takeOverRoom));
   elements['audit-more'].addEventListener('click', () => loadAudit(false));
   elements['user-dialog-close'].addEventListener('click', () => elements['user-dialog'].close());
   elements['save-global-roles'].addEventListener('click', saveGlobalRoles);
@@ -299,21 +303,31 @@ async function saveGlobalRoles() {
 
 async function kickSelectedUser() {
   const user = requireSelectedUser();
-  if (!window.confirm(`Invalidate all active sessions for ${user.username}?`)) return;
+  if (!(await confirmAction({
+    title: `Sign ${user.username} out everywhere?`,
+    text: `${user.username} is signed out on every device at once and can sign in again right away.`,
+    confirmLabel: 'Sign out',
+    announce: null,
+  }))) return;
   await withButton(elements['kick-user'], async () => {
     await apiPost('/api/v1/admin/kick.php', {
       target_user_id: user.id,
       reason: elements['moderation-reason'].value,
     });
-    toast(`${user.username} was kicked.`);
+    toast(`${user.username} was signed out everywhere.`);
   });
 }
 
 async function banSelectedUser() {
   const user = requireSelectedUser();
-  if (!window.confirm(`Ban ${user.username} and invalidate active sessions?`)) return;
   const localExpiry = elements['ban-expiry'].value;
   const expiresAt = localExpiry ? new Date(localExpiry).toISOString() : null;
+  if (!(await confirmAction({
+    title: `Ban ${user.username}?`,
+    text: `${user.username} is signed out at once and can’t sign in ${expiresAt ? `until ${formatDateTime(expiresAt)}` : 'until the ban is lifted'}.`,
+    confirmLabel: `Ban ${user.username}`,
+    announce: null,
+  }))) return;
   await withButton(elements['ban-user'], async () => {
     await apiPost('/api/v1/admin/ban.php', {
       target_user_id: user.id,
@@ -339,7 +353,13 @@ async function unbanSelectedUser() {
 async function resetSelectedPassword() {
   const user = requireSelectedUser();
   const password = elements['admin-new-password'].value;
-  if (!password || !window.confirm(`Reset ${user.username}'s password and invalidate active sessions?`)) return;
+  if (!password) return;
+  if (!(await confirmAction({
+    title: `Reset ${user.username}’s password?`,
+    text: `The new password works at once, and ${user.username} is signed out everywhere. Tell them the new password another way.`,
+    confirmLabel: 'Reset password',
+    announce: null,
+  }))) return;
   await withButton(elements['reset-user-password'], async () => {
     await apiPost('/api/v1/admin/reset-password.php', {
       target_user_id: user.id,
@@ -439,12 +459,43 @@ function syncNewRoomGuestAccess() {
 async function deleteSelectedRoom() {
   const room = state.roomSnapshot?.room;
   if (!room) return;
-  if (!window.confirm(`Delete # ${room.name}? Members lose access immediately. You can restore it under Deleted rooms until it is removed permanently.`)) {
-    return;
-  }
+  if (!(await confirmAction({
+    title: `Delete #${room.name}?`,
+    text: 'Members lose access at once and are told. You can restore it under Deleted rooms until it is removed permanently.',
+    confirmLabel: 'Delete room',
+    announce: null,
+  }))) return;
   await apiPost('/api/v1/rooms/delete.php', { room_id: room.id });
   toast(`# ${room.name} was deleted.`);
   await reloadRooms();
+}
+
+// #300: hand the room to a member, or (an administrator) take it over. The flags can go stale,
+// so every refusal is explained; a cancelled sign-in check is the person changing their mind.
+async function handOverRoom(member) {
+  const room = state.roomSnapshot?.room;
+  if (!room || !(await confirmHandOver(member.username, room.name))) return;
+  await runTransfer(room, member.id, member.username, `${member.username} owns #${room.name} now.`);
+}
+
+async function takeOverRoom() {
+  const room = state.roomSnapshot?.room;
+  if (!room || !state.user || !(await confirmTakeOver(room.name))) return;
+  await runTransfer(room, state.user.id, state.user.username, `You own #${room.name} now.`);
+}
+
+async function runTransfer(room, userId, name, done) {
+  try {
+    await transferOwnership(room.id, userId);
+  } catch (error) {
+    if (cancelledCheck(error)) return;
+    if (error instanceof ApiError && error.status === 401) throw error;
+    showError(transferError(error, name, room.name));
+    toast(transferError(error, name, room.name), 'error');
+    return;
+  }
+  toast(done);
+  await loadRoomSnapshot(room.id);
 }
 
 async function restoreRoom(room) {
@@ -485,6 +536,8 @@ function renderRoomSnapshot() {
   syncRoomGuestAccess();
   elements['admin-room-timeout'].value = String(room.inactivity_timeout_seconds);
   renderRoomMembers(snapshot.members ?? []);
+  // #300: an administrator can take a room over, for example one whose owner is gone.
+  elements['take-ownership'].classList.toggle('hidden', room.can_take_ownership !== true);
   renderRoomInvitations(snapshot.invitations ?? []);
   elements['invitation-search-results'].replaceChildren();
 }
@@ -508,6 +561,7 @@ function renderRoomMembers(members) {
       const actions = document.createElement('div');
       actions.className = 'admin-row-actions';
       const role = document.createElement('select');
+      role.setAttribute('aria-label', `Room role for ${member.username}`);
       for (const value of ['member', 'moderator']) {
         const option = document.createElement('option');
         option.value = value;
@@ -525,7 +579,12 @@ function renderRoomMembers(members) {
         await loadRoomSnapshot(state.roomSnapshot.room.id);
       });
       const remove = actionButton('Remove', async () => {
-        if (!window.confirm(`Remove ${member.username} from this room?`)) return;
+        if (!(await confirmAction({
+          title: `Remove ${member.username} from #${state.roomSnapshot.room.name}?`,
+          text: `${member.username} leaves the room at once. In a public room they can join again; in a private one they need a new invitation.`,
+          confirmLabel: 'Remove',
+          announce: null,
+        }))) return;
         await apiPost('/api/v1/admin/rooms/remove-member.php', {
           room_id: state.roomSnapshot.room.id,
           target_user_id: member.id,
@@ -533,7 +592,10 @@ function renderRoomMembers(members) {
         toast(`${member.username} was removed from the room.`);
         await loadRoomSnapshot(state.roomSnapshot.room.id);
       }, true);
-      actions.append(role, save, remove);
+      actions.append(role, save);
+      // #300: the server says whether this person can own the room now.
+      if (member.can_transfer_ownership) actions.append(actionButton('Make owner…', () => handOverRoom(member)));
+      actions.append(remove);
       item.append(actions);
     }
     elements['room-member-list'].append(item);

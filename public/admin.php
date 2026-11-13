@@ -20,6 +20,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <link rel="stylesheet" href="/assets/css/components.css">
   <link rel="stylesheet" href="/assets/css/admin.css">
   <link rel="stylesheet" href="/assets/css/shell.css">
+  <link rel="stylesheet" href="/assets/css/stewarding.css">
 </head>
 <body>
   <div id="admin-loading" class="app-loading" role="status">Loading administration…</div>
@@ -52,7 +53,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
       <div class="panel-heading">
         <div>
           <h2>User administration</h2>
-          <p>Roles and account-control actions invalidate active sessions immediately.</p>
+          <p>Changing someone’s roles, signing them out, banning them or resetting their password signs them out everywhere at once.</p>
         </div>
         <form id="user-search-form" class="inline-form">
           <label>
@@ -107,7 +108,11 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
         </form>
 
         <section class="admin-card">
-          <h3>Members</h3>
+          <div class="admin-card-header">
+            <h3>Members</h3>
+            <!-- #300: administrators, when the server offers it (room.can_take_ownership). -->
+            <button id="take-ownership" class="secondary-button hidden" type="button">Take ownership…</button>
+          </div>
           <div id="room-member-list" class="admin-card-list compact"></div>
         </section>
 
@@ -142,7 +147,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
       <div class="panel-heading">
         <div>
           <h2>Audit log</h2>
-          <p>Newest entries appear first. Metadata is shown exactly as recorded by the server.</p>
+          <p>Newest first. Details are shown exactly as the server recorded them.</p>
         </div>
       </div>
       <div id="audit-list" class="audit-list"></div>
@@ -199,7 +204,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
     </form>
   </dialog>
 
-  <dialog id="user-dialog" class="room-dialog admin-user-dialog">
+  <dialog id="user-dialog" class="room-dialog admin-user-dialog" aria-labelledby="user-dialog-title">
     <form id="user-admin-form" class="form-stack" method="dialog">
       <header class="dialog-header">
         <div>
@@ -219,12 +224,12 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
       <button id="save-global-roles" class="primary-button" type="button">Save roles</button>
 
       <hr>
-      <label>Reason <input id="moderation-reason" maxlength="500" placeholder="Optional for kick; recommended for bans"></label>
-      <label>Ban expiry <span class="optional-label">optional ISO date/time</span>
+      <label>Reason <input id="moderation-reason" maxlength="500" placeholder="Optional when signing out; recommended for bans"></label>
+      <label>Ban until <span class="optional-label">optional; empty bans until lifted</span>
         <input id="ban-expiry" type="datetime-local">
       </label>
       <div class="action-row">
-        <button id="kick-user" class="secondary-button" type="button">Kick</button>
+        <button id="kick-user" class="secondary-button" type="button">Sign out everywhere</button>
         <button id="ban-user" class="danger-button" type="button">Ban</button>
         <button id="unban-user" class="secondary-button" type="button">Unban</button>
       </div>
