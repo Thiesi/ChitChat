@@ -36,7 +36,7 @@ const SYSTEM_STATUS = {
   metrics: { enabled: false },
 };
 
-async function fixture(page, { current = settings({ username_reservation_days: 365 }) } = {}) {
+async function fixture(page, { current = settings({ username_reservation_days: 365 }), status = SYSTEM_STATUS } = {}) {
   const requests = [];
   await page.clock.setFixedTime(new Date('2026-11-12T12:00:00Z'));
   await page.route('**/installation-icon.php*', (route) => route.fulfill({ contentType: 'image/png', body: PNG }));
@@ -55,7 +55,7 @@ async function fixture(page, { current = settings({ username_reservation_days: 3
       'admin/settings/get.php': { settings: current },
       'admin/settings/lockdown/get.php': { lockdown: { enabled: false, custom_message: null, since: null } },
       'admin/settings/lockdown/update.php': { lockdown: { enabled: true, custom_message: null, since: '2026-11-12T10:00:00Z', signed_out: 3 } },
-      'admin/system-status.php': { status: SYSTEM_STATUS },
+      'admin/system-status.php': { status },
       'admin/settings/application-name/get.php': { application_name: { default: 'ChitChat', override: null } },
       'admin/settings/registration-protection/get.php': { registration_protection: { overrides: { rate_limit_max_attempts: null, rate_limit_window_seconds: null, min_fill_seconds: null, proof_of_work_bits: null }, defaults: { rate_limit_max_attempts: 5, rate_limit_window_seconds: 3600, min_fill_seconds: 3, proof_of_work_bits: 16 }, effective: { rate_limit_max_attempts: 5, rate_limit_window_seconds: 3600, min_fill_seconds: 3, proof_of_work_bits: 16 } } },
       'admin/policies.php': { policies: { rules: { source: 'none', markdown: '', url: null, version: 0, updated_at: null }, privacy: { source: 'none', markdown: '', url: null, version: 0, updated_at: null }, legal_notice: { url: null } } },
@@ -226,7 +226,11 @@ for (const [scheme, theme] of [['lantern', 'light'], ['lantern', 'dark'], ['dusk
       localStorage.setItem('chitchat-theme', chosenTheme);
       localStorage.setItem('chitchat-scheme', chosenScheme);
     }, [scheme, theme]);
-    await fixture(page);
+    // With the health checks and both new cards showing, in a neutral and a warning state.
+    await fixture(page, {
+      current: health({ maintenance_max_age_source: 'setting' }),
+      status: withHealth(push({ configured: false, status: 'not_configured' }), backups({ status: 'failed', latest_run: run({ outcome: 'failure' }) })),
+    });
     for (const path of ['/admin-settings.php', '/admin-status.php']) {
       for (const width of [1280, 360]) {
         await page.setViewportSize({ width, height: 900 });
@@ -254,4 +258,115 @@ test('baseline: Operational settings at 1280 in Lantern dark', async ({ page, br
   await page.waitForLoadState('networkidle');
   await page.mouse.move(0, 0);
   await expect(page).toHaveScreenshot('admin-settings-desktop.png', { animations: 'disabled', caret: 'hide', fullPage: true, maxDiffPixelRatio: 0.003, threshold: 0.2 });
+});
+
+// ---- #310, #312: phone alerts, backups and the two maximum ages ----
+
+const push = (extra = {}) => ({
+  configured: true, status: 'ok', pending_deliveries: 2, due_deliveries: 0, failed_deliveries: 1,
+  oldest_pending_seconds: 40, oldest_due_seconds: null, last_sent_at: '2026-11-12T11:58:00Z', overdue_after_seconds: 300, overdue: false, ...extra,
+});
+const run = (extra = {}) => ({ started_at: '2026-11-12T03:00:00Z', finished_at: '2026-11-12T03:02:00Z', outcome: 'success', consistency: 'live', size_bytes: 52428800, set_name: 'set-1', error_kind: null, ...extra });
+const backups = (extra = {}) => ({
+  tracking_enabled: true, maximum_age_hours: 26, status: 'ok', latest_run: run(), latest_success: run(), latest_success_age_seconds: 32400, overdue: false, ...extra,
+});
+const withHealth = (pushValue, backupsValue, maintenance = {}) => ({
+  ...SYSTEM_STATUS, push: pushValue, backups: backupsValue, maintenance: { ...SYSTEM_STATUS.maintenance, maximum_age_source: 'environment', ...maintenance },
+});
+
+async function openStatus(page, status) {
+  await fixture(page, { status });
+  await page.goto('/admin-status.php');
+  await expect(page.locator('#status-generated')).toContainText('Measured');
+}
+
+test('System status: phone alerts and backups when all is well, and where the maintenance age comes from', async ({ page }) => {
+  await openStatus(page, withHealth(push(), backups()));
+  await expect(page.locator('#push-state')).toHaveText('Current');
+  await expect(page.locator('#push-pending')).toHaveText('2');
+  await expect(page.locator('#push-failed')).toHaveText('1');
+  await expect(page.locator('#push-note')).toBeHidden();
+  await expect(page.locator('#backups-state')).toHaveText('Current');
+  await expect(page.locator('#backups-latest')).toContainText('Succeeded');
+  await expect(page.locator('#backups-success')).toContainText('9h ago');
+  await expect(page.locator('#backups-max-age')).toHaveText('26 hours');
+  await expect(page.locator('#maintenance-max-age')).toHaveText('26 hours (server default)');
+});
+
+test('System status: push not set up is neutral, with no queue figures', async ({ page }) => {
+  await openStatus(page, withHealth(push({ configured: false, status: 'not_configured' }), backups()));
+  await expect(page.locator('#push-state')).toHaveText('Not set up');
+  await expect(page.locator('#push-state')).toHaveClass(/neutral/);
+  await expect(page.locator('#push-card')).not.toHaveClass(/status-warning-card/);
+  await expect(page.locator('#push-note')).toContainText('That’s fine if you don’t use them.');
+  await expect(page.locator('#push-facts')).toBeHidden();
+});
+
+test('System status: an overdue push says the sender isn’t running', async ({ page }) => {
+  await openStatus(page, withHealth(push({ status: 'overdue', overdue: true, due_deliveries: 3, oldest_due_seconds: 420 }), backups()));
+  await expect(page.locator('#push-state')).toHaveText('Overdue');
+  await expect(page.locator('#push-card')).toHaveClass(/status-warning-card/);
+  await expect(page.locator('#push-note')).toHaveText('An alert that is due has waited more than 5 minutes, so the alert sender isn’t running.');
+  await expect(page.locator('#push-due')).toHaveText('3 (oldest waiting 7m)');
+});
+
+for (const [state, label, note] of [
+  ['unknown', 'Unknown', 'No backup has been recorded.'],
+  ['failed', 'Failed', 'The latest backup run failed.'],
+  ['overdue', 'Overdue', 'The newest successful backup is older than 26 hours.'],
+]) {
+  test(`System status: backups ${state} is a warning that says why`, async ({ page }) => {
+    const latest = state === 'unknown' ? null : run({ outcome: state === 'failed' ? 'failure' : 'success' });
+    await openStatus(page, withHealth(push(), backups({ status: state, overdue: state !== 'failed', latest_run: latest, latest_success: state === 'unknown' ? null : run(), latest_success_age_seconds: state === 'unknown' ? null : 100000 })));
+    await expect(page.locator('#backups-state')).toHaveText(label);
+    await expect(page.locator('#backups-card')).toHaveClass(/status-warning-card/);
+    await expect(page.locator('#backups-note')).toContainText(note);
+  });
+}
+
+test('System status: backup tracking off is neutral; an older server shows neither card', async ({ page }) => {
+  await openStatus(page, withHealth(push(), backups({ tracking_enabled: false, maximum_age_hours: 0, status: 'not_tracked' }), { maximum_age_source: 'setting' }));
+  await expect(page.locator('#backups-state')).toHaveText('Not tracked');
+  await expect(page.locator('#backups-max-age')).toHaveText('Off');
+  await expect(page.locator('#maintenance-max-age')).toHaveText('26 hours (set in Operational settings)');
+  await page.unroute('**/api/v1/**');
+  await openStatus(page, SYSTEM_STATUS);
+  await expect(page.locator('#push-card')).toBeHidden();
+  await expect(page.locator('#backups-card')).toBeHidden();
+});
+
+const health = (extra = {}) => settings({ username_reservation_days: 365, backup_max_age_hours: 26, maintenance_max_age_hours: 26, maintenance_max_age_source: 'environment', ...extra });
+const lastSave = (requests) => requests.filter((entry) => entry.path === 'admin/settings/update.php').at(-1)?.body;
+
+test('Health checks: backup age is saved; the maintenance age from the server default is left alone unless changed', async ({ page }) => {
+  const requests = await fixture(page, { current: health() });
+  await open(page);
+  await expect(page.getByRole('heading', { name: 'Health checks' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Use the server default' })).toBeHidden();
+  await page.getByLabel(/Backup maximum age, in hours/).fill('48');
+  await page.getByRole('button', { name: 'Save operational settings' }).click();
+  await expect.poll(() => lastSave(requests)?.backup_max_age_hours).toBe(48);
+  expect('maintenance_max_age_hours' in lastSave(requests)).toBe(false);
+});
+
+test('Health checks: a changed maintenance age is sent; Use the server default sends null', async ({ page }) => {
+  const requests = await fixture(page, { current: health({ maintenance_max_age_hours: 36, maintenance_max_age_source: 'setting' }) });
+  await open(page);
+  await page.getByLabel(/Maintenance maximum age, in hours/).fill('48');
+  await page.getByRole('button', { name: 'Save operational settings' }).click();
+  await expect.poll(() => lastSave(requests)?.maintenance_max_age_hours).toBe(48);
+  await page.getByRole('button', { name: 'Use the server default' }).click();
+  await page.getByRole('button', { name: 'Save operational settings' }).click();
+  await expect.poll(() => requests.filter((entry) => entry.path === 'admin/settings/update.php').length).toBe(2);
+  expect(lastSave(requests).maintenance_max_age_hours).toBeNull();
+});
+
+test('Health checks: an older server without them shows no card and sends neither', async ({ page }) => {
+  const requests = await fixture(page);
+  await open(page);
+  await expect(page.locator('#health-checks')).toBeHidden();
+  await page.getByRole('button', { name: 'Save operational settings' }).click();
+  await expect.poll(() => lastSave(requests)).toBeTruthy();
+  expect('backup_max_age_hours' in lastSave(requests)).toBe(false);
+  expect('maintenance_max_age_hours' in lastSave(requests)).toBe(false);
 });

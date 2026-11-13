@@ -57,6 +57,34 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
         </dl>
       </section>
 
+      <!-- #310: shown when the server reports them (older servers don't). -->
+      <section id="push-card" class="admin-card status-card" hidden>
+        <div class="status-card-heading">
+          <h2>Phone alerts</h2>
+          <span id="push-state" class="status-badge">Unknown</span>
+        </div>
+        <p id="push-note" class="status-note" hidden></p>
+        <dl id="push-facts">
+          <div><dt>Waiting to send</dt><dd id="push-pending">0</dd></div>
+          <div><dt>Due now</dt><dd id="push-due">0</dd></div>
+          <div><dt>Failed</dt><dd id="push-failed">0</dd></div>
+          <div><dt>Last sent</dt><dd id="push-last-sent">Never</dd></div>
+        </dl>
+      </section>
+
+      <section id="backups-card" class="admin-card status-card" hidden>
+        <div class="status-card-heading">
+          <h2>Backups</h2>
+          <span id="backups-state" class="status-badge">Unknown</span>
+        </div>
+        <p id="backups-note" class="status-note" hidden></p>
+        <dl>
+          <div><dt>Latest run</dt><dd id="backups-latest">Never</dd></div>
+          <div><dt>Latest success</dt><dd id="backups-success">Never</dd></div>
+          <div><dt>Maximum age</dt><dd id="backups-max-age">—</dd></div>
+        </dl>
+      </section>
+
       <section class="admin-card status-card">
         <h2>PostgreSQL</h2>
         <dl>
