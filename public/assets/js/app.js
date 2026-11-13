@@ -6,7 +6,7 @@ import { identityHueIndex } from './identity-hue.js';
 import { lantern, renderRoomList as drawRoomList, unreadRoomMentions } from './room-list.js';
 import { attachTranscriptKeys } from './transcript-keys.js';
 import { countLiveMessage } from './unread-count.js';
-import { LONG_OUTAGE_NOTICE, keepEventStream, sessionProbe } from './realtime-stream.js';
+import { LONG_OUTAGE_NOTICE, RECOVERED_NOTICE, keepEventStream, sessionProbe } from './realtime-stream.js';
 import { createConnectionStatus } from './connection-status.js';
 import { createPresenceClient } from './presence.js';
 import { renderMessageBody, buildReplyPreview, buildReactionBar } from './message-content.js';
@@ -1586,6 +1586,7 @@ function startEventStream() {
     },
     onSignedOut: () => forceSignedOut(sessionEndedMessage()),
     onLongOutage: () => announce(LONG_OUTAGE_NOTICE),
+    onRecovered: () => announce(RECOVERED_NOTICE),
   });
 }
 

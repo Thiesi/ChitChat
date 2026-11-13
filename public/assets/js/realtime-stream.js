@@ -13,7 +13,8 @@
 // - stop() (leaving, signing out) and forced_logout end it for good. The server's own
 //   `event: error` frames end that stream; the check then decides, like any closed stream.
 // - A hidden tab checks at most every 30 s; becoming visible or going online retries now.
-// - onLongOutage runs once per outage, when the wait reaches its 30 s cap.
+// - onLongOutage runs once per outage, when the wait reaches its 30 s cap; onRecovered runs when
+//   a stream opens after that, so whoever heard "Still reconnecting" hears it's back (S7).
 // - Into the back/forward cache (pagehide with persisted) the stream is closed on purpose; on a
 //   restore (pageshow with persisted) onStatus says 'reconnecting' at once (the status line,
 //   connection-status.js, shows it after three seconds, S7), then the session
@@ -26,6 +27,7 @@ const STREAM_URL = '/api/v1/events/stream.php';
 
 /** Said once, politely, when an outage reaches the longest wait. */
 export const LONG_OUTAGE_NOTICE = 'Still reconnecting. New messages will appear once the connection is back.';
+export const RECOVERED_NOTICE = 'Connected again.';
 
 /** A probe for keepEventStream from the page's apiGet: a 401 or no user means signed out. */
 export function sessionProbe(get) {
@@ -68,9 +70,10 @@ const CLOSED = 2;
  * @param {(status: 'connecting'|'connected'|'reconnecting') => void} [options.onStatus]
  * @param {() => void} [options.onSignedOut]
  * @param {() => void} [options.onLongOutage]
+ * @param {() => void} [options.onRecovered] after an outage onLongOutage reported
  * @param {object} [options.env] browser parts, for tests
  */
-export function keepEventStream({ settled, attach, probe, onStatus = () => {}, onSignedOut = () => {}, onLongOutage = () => {}, env = browserEnv() }) {
+export function keepEventStream({ settled, attach, probe, onStatus = () => {}, onSignedOut = () => {}, onLongOutage = () => {}, onRecovered = () => {}, env = browserEnv() }) {
   const seen = new SeenEvents();
   let source = null;
   let timer = null;
@@ -89,8 +92,10 @@ export function keepEventStream({ settled, attach, probe, onStatus = () => {}, o
     current.addEventListener('open', () => {
       if (current !== source || stopped) return;
       attempt = 0;
+      const wasAnnounced = announced;
       announced = false;
       onStatus('connected');
+      if (wasAnnounced) onRecovered();
     });
     current.addEventListener('error', (event) => {
       if (current !== source || stopped) return;
@@ -161,8 +166,9 @@ export function keepEventStream({ settled, attach, probe, onStatus = () => {}, o
     current?.close();
   }
 
-  // Back from the cache: say so at once, never a stale "Live", then check the session and reopen
-  // from the stored position with the same SeenEvents, as after any closure.
+  // Back from the cache: report 'reconnecting' at once (the status line shows it after three
+  // seconds, connection-status.js, S7), then check the session and reopen from the stored
+  // position with the same SeenEvents, as after any closure.
   function resume() {
     if (stopped || !parked) return;
     parked = false;

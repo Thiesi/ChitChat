@@ -20,7 +20,7 @@ import { phoneListShowing } from './pane-stack.js';
 import { renamedUser, renameInMessages } from './renames.js';
 import { renderConversationList as drawConversationList } from './conversation-list.js';
 import { startUsernameGate } from './username-gate.js';
-import { LONG_OUTAGE_NOTICE, keepEventStream, sessionProbe } from './realtime-stream.js';
+import { LONG_OUTAGE_NOTICE, RECOVERED_NOTICE, keepEventStream, sessionProbe } from './realtime-stream.js';
 import { createConnectionStatus } from './connection-status.js';
 
 let transcriptKeys = null;
@@ -692,6 +692,7 @@ function startEventStream() {
     onStatus: (status) => statusLine.set(status),
     onSignedOut: () => window.location.assign('/'),
     onLongOutage: () => announce(LONG_OUTAGE_NOTICE),
+    onRecovered: () => announce(RECOVERED_NOTICE),
   });
 }
 
