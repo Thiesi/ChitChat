@@ -42,6 +42,19 @@ final class StatusPageTest extends TestCase
         self::assertStringContainsString('<h1>You can’t open this page</h1>', StatusPage::render(403));
     }
 
+    public function testAHalfRenderedPageStillInTheBufferIsDropped(): void
+    {
+        // PHPUnit keeps its own buffer; the page's start above it, as output_buffering=4096 would.
+        $base = ob_get_level();
+        ob_start();
+        echo '<!doctype html><main>half a page';
+        ob_start();
+        echo 'and a nested part';
+        PageErrors::discardBufferedOutput($base);
+        self::assertSame($base, ob_get_level());
+        $this->expectOutputString('');
+    }
+
     public function testOnlyABrowserAskingForAPageGetsTheErrorPage(): void
     {
         self::assertTrue(PageErrors::wantsPage(['REQUEST_URI' => '/admin.php', 'HTTP_ACCEPT' => 'text/html,application/xhtml+xml']));

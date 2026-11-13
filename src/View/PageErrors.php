@@ -10,23 +10,38 @@ use Throwable;
  * An uncaught failure while rendering a page (S7, #173) shows the 500 status
  * page instead of a blank one. Only for a browser asking for a page: API
  * requests answer in JSON through Endpoint::run, the command line keeps PHP's
- * own output, and once a page has started sending, nothing is added to it.
- * The failure is still logged.
+ * own output, APP_DEBUG keeps PHP's own trace on screen, and once a page has
+ * started sending, nothing is added to it. The failure is logged in full, as
+ * PHP would have.
  */
 final class PageErrors
 {
-    public static function install(): void
+    public static function install(bool $debug = false): void
     {
-        if (PHP_SAPI === 'cli' || !self::wantsPage($_SERVER)) {
+        if ($debug || PHP_SAPI === 'cli' || !self::wantsPage($_SERVER)) {
             return;
         }
         set_exception_handler(static function (Throwable $error): void {
-            error_log('Uncaught ' . $error::class . ': ' . $error->getMessage() . ' in ' . $error->getFile() . ':' . $error->getLine());
+            // The same line PHP writes, with the trace and any chained exceptions, so existing
+            // log searches keep matching and the call path isn't lost.
+            error_log('PHP Fatal error:  Uncaught ' . $error);
             if (headers_sent()) {
                 return;
             }
+            self::discardBufferedOutput();
             StatusPage::respond(500);
         });
+    }
+
+    /**
+     * A half-rendered page can still sit in PHP's output buffer (output_buffering=4096 in
+     * production) while headers_sent() is false: drop it, or the status page would follow it.
+     */
+    public static function discardBufferedOutput(int $downTo = 0): void
+    {
+        while (ob_get_level() > $downTo) {
+            ob_end_clean();
+        }
     }
 
     /** @param array<string, mixed> $server */
