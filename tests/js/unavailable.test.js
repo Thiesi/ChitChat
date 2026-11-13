@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { FILE_UNAVAILABLE, MESSAGE_UNAVAILABLE, ROOM_UNAVAILABLE, errorText } from '../../public/assets/js/unavailable.js';
+import { FILE_NOT_SENT, FILE_UNAVAILABLE, MESSAGE_NOT_SENT, MESSAGE_UNAVAILABLE, ROOM_UNAVAILABLE, errorText, failedSending } from '../../public/assets/js/unavailable.js';
 
 // #326: a room, message or file that's gone or can't be seen gets one plain sentence.
 
@@ -27,4 +27,10 @@ test('any other error keeps the server’s message, then the fallback', () => {
   assert.equal(errorText(new FakeApiError(403, 'muted', 'You are muted in this room.'), 'x'), 'You are muted in this room.');
   assert.equal(errorText(new FakeApiError(500, 'server_error', ''), 'Fallback.'), 'Fallback.');
   assert.equal(errorText(null, 'Fallback.'), 'Fallback.');
+});
+
+test('a failed send or upload says what happened to it, after the reason; nothing for page_left', () => {
+  assert.equal(failedSending(ROOM_UNAVAILABLE, MESSAGE_NOT_SENT), 'This room isn’t available any more. Your message wasn’t sent.');
+  assert.equal(failedSending(ROOM_UNAVAILABLE, FILE_NOT_SENT), 'This room isn’t available any more. Your file wasn’t sent.');
+  assert.equal(failedSending(errorText({ code: 'page_left' }, 'x'), MESSAGE_NOT_SENT), '');
 });

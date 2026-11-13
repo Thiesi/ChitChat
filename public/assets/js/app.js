@@ -1,5 +1,5 @@
 import { ApiError, apiGet, apiPost, isPageLeft, logError, setCsrfToken } from './api.js';
-import { errorText } from './unavailable.js';
+import { MESSAGE_NOT_SENT, errorText, failedSending } from './unavailable.js';
 import { announce, announceIncoming, markKnown, resetAnnouncements } from './announcer.js';
 import { controlItem, dayItem, dayKey, moreButton, newMessagesItem, reactButton, reconcile, runPositions, signatureOf } from './transcript.js';
 import { identityHueIndex } from './identity-hue.js';
@@ -1378,7 +1378,7 @@ async function submitMessage(event) {
       addPing(response.ping);
     }
   } catch (error) {
-    handleApiFailure(error);
+    handleApiFailure(error, MESSAGE_NOT_SENT);
   } finally {
     elements['send-button'].disabled = false;
     elements['composer-input'].focus();
@@ -1902,14 +1902,15 @@ function errorMessage(error) {
   return errorText(error, 'An unexpected error occurred.');
 }
 
-function handleApiFailure(error) {
+function handleApiFailure(error, then = '') {
   // A request the page aborted on leaving shows nothing (#270).
   if (isPageLeft(error)) return;
   if (error instanceof ApiError && error.status === 401) {
     forceSignedOut(sessionEndedMessage());
     return;
   }
-  toast(errorMessage(error), 'error');
+  // `then`: what happened to what was being sent, e.g. "Your message wasn't sent."
+  toast(then ? failedSending(errorMessage(error), then) : errorMessage(error), 'error');
 }
 
 function sessionEndedMessage() {
