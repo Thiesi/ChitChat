@@ -6,6 +6,14 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ## [Unreleased]
 
+## [3.11.0] - 2026-11-13
+
+A privacy release: room routes no longer reveal private rooms (a contract change for one caller group), clear "no longer available" messages in the web client, and the right notice for guests whose visit ended. No database migrations, no configuration changes, and nobody is signed out. See the [`v3.11.0` release notes](docs/releases/v3.11.0.md).
+
+- Say plainly when a room, message or file is no longer available (#326 client, #331): one sentence each, matching CCM, on send, join, reactions, uploads, edit and delete, and reports, and for links to a room or message that can't be found.
+
+- Tell guests whose visit was ended "Your guest visit has ended." instead of "signed out from another device", whichever order the 401 and `forced_logout` arrive in (#328). Other stored sign-out reasons are kept.
+
 - **Contract change:** room routes no longer confirm that a private room exists (#326). For a private room the caller isn't a member of, isn't invited to and can't moderate globally, every room route now answers exactly like a missing room: `404 room_not_found` instead of `403 room_forbidden`, `membership_required`, `invitation_required`, `presence_membership_required`, `forbidden`, or `409 not_a_member` from `leave`. Routes addressed by a message ID answer `404 message_not_found` (also for a message in a deleted room), and attachment downloads `404 attachment_not_found`, also instead of `410 attachment_deleted`. Restoring a deleted room answers non-managers like a missing deleted room (`404`, instead of `403 forbidden` or a different message), and lifting a mute in a hidden or deleted room answers `404 mute_not_found`. Callers who can see the room (members, invitees, global moderators), and every public or unlisted room, are unchanged. See [Room visibility in errors](docs/api/rooms.md#room-visibility-in-errors-326). No migration.
 
 ## [3.10.0] - 2026-11-13
