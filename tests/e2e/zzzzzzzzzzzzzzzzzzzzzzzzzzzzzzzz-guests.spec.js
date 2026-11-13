@@ -17,17 +17,27 @@ async function login(page, account) {
   await expect(page.locator('#chat-shell')).toBeVisible();
 }
 
+// S6b (#172): saving can first ask one styled question (guest access off, nonzero retention,
+// required MFA), only when one of those applies, as it may when another spec left retention set.
+async function acceptSettingsConfirm(page) {
+  const confirm = page.getByRole('dialog', { name: 'Save operational settings?' });
+  try {
+    await confirm.waitFor({ state: 'visible', timeout: 1_500 });
+  } catch {
+    return;
+  }
+  await confirm.getByRole('button', { name: 'Save settings' }).click();
+}
+
 // Operational settings need privileged step-up; a recent one may still be valid.
 async function setGuestAccess(page, enabled) {
   await page.goto('/admin-settings.php');
   await expect(page.locator('#settings-shell')).toBeVisible();
   await page.locator('#guest-access-enabled').selectOption(enabled ? '1' : '0');
-  // Switching guests off asks first, and so does a nonzero retention policy another spec left behind.
-  const accept = (dialog) => dialog.accept();
-  page.on('dialog', accept);
   // The save may first ask for step-up and then retry, so wait for the one that succeeds.
   const saved = page.waitForResponse((response) => response.url().includes('/api/v1/admin/settings/update.php') && response.ok());
   await page.locator('#save-settings').click();
+  await acceptSettingsConfirm(page);
   const stepUp = page.locator('.step-up-dialog');
   try {
     await stepUp.waitFor({ state: 'visible', timeout: 3_000 });
@@ -38,7 +48,6 @@ async function setGuestAccess(page, enabled) {
     // No step-up prompt was needed.
   }
   await saved;
-  page.off('dialog', accept);
   await page.reload();
   await expect(page.locator('#guest-access-enabled')).toHaveValue(enabled ? '1' : '0');
 }

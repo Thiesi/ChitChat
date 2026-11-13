@@ -187,8 +187,8 @@ test('the safe zone ring shows on request', async ({ page }) => {
 test('reset returns to the ChitChat icon after confirmation', async ({ page }) => {
   await fixture(page, { icon: customIcon });
   await open(page);
-  page.once('dialog', (dialog) => dialog.accept());
   await card(page).getByRole('button', { name: 'Use the ChitChat icon' }).click();
+  await page.getByRole('dialog', { name: 'Use the ChitChat icon again?' }).getByRole('button', { name: 'Use the ChitChat icon' }).click();
   await expect(card(page).locator('#icon-status')).toHaveText('Back to the ChitChat icon.');
   await expect(card(page).locator('#icon-preview-label')).toHaveText('Current icon: the ChitChat icon');
   await expect(card(page).getByRole('button', { name: 'Use the ChitChat icon' })).toBeHidden();
@@ -268,8 +268,8 @@ test('a preview that arrives after Reset never replaces the saved icon', async (
   await card(page).getByLabel('Upload an image').setInputFiles({ name: 'late.png', mimeType: 'image/png', buffer: PNG });
   await expect.poll(() => held.length).toBe(1);
   await expect(card(page).getByRole('button', { name: 'Use this icon' })).toBeDisabled();
-  page.once('dialog', (dialog) => dialog.accept());
   await card(page).getByRole('button', { name: 'Use the ChitChat icon' }).click();
+  await page.getByRole('dialog', { name: 'Use the ChitChat icon again?' }).getByRole('button', { name: 'Use the ChitChat icon' }).click();
   await expect(card(page).locator('#icon-status')).toHaveText('Back to the ChitChat icon.');
   held[0].release();
   await page.waitForTimeout(300);

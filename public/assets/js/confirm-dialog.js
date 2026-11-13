@@ -7,17 +7,28 @@
 let dialogCount = 0;
 
 /**
- * A plain confirmation, optionally with "Let the room know".
+ * A plain confirmation, optionally with "Let the room know". `items` lists
+ * separate consequences, one per line (S6b: one save, several effects).
  *
- * @param {{ title: string, text: string, confirmLabel: string, announce: string | null }} options
+ * @param {{ title: string, text: string, items?: string[], confirmLabel: string, announce: string | null }} options
  * @returns {Promise<{ announce: boolean } | null>}
  */
-export function confirmAction({ title, text, confirmLabel, announce }) {
+export function confirmAction({ title, text, items = [], confirmLabel, announce }) {
   const id = `confirm-${(dialogCount += 1)}`;
   const { dialog, form } = dialogShell(id, title);
   const body = document.createElement('p');
   body.textContent = text;
   form.append(body);
+  if (items.length > 0) {
+    const list = document.createElement('ul');
+    list.className = 'confirm-items';
+    for (const line of items) {
+      const item = document.createElement('li');
+      item.textContent = line;
+      list.append(item);
+    }
+    form.append(list);
+  }
   let announceBox = null;
   if (announce) {
     const label = document.createElement('label');

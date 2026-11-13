@@ -9,6 +9,7 @@
 // They keep their own background, so the background choice steps aside.
 import { ApiError, apiGet, apiUpload, apiPost } from './api.js';
 import { formatDateTime } from './datetime.js';
+import { confirmAction } from './confirm-dialog.js';
 import { withPrivilegedStepUp } from './step-up.js';
 
 const BASE = '/api/v1/admin/settings/application-icon/';
@@ -447,7 +448,12 @@ async function saveBackground() {
 }
 
 async function reset() {
-  if (!window.confirm('Use the ChitChat icon again? Your uploaded icon will be removed.')) return;
+  if (!(await confirmAction({
+    title: 'Use the ChitChat icon again?',
+    text: 'Your uploaded icon will be removed.',
+    confirmLabel: 'Use the ChitChat icon',
+    announce: null,
+  }))) return;
   await mutate(() => withPrivilegedStepUp(() => apiPost(`${BASE}reset.php`, {})), 'Back to the ChitChat icon.');
 }
 

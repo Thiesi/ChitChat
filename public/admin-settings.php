@@ -24,6 +24,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <link rel="stylesheet" href="/assets/css/admin-icon.css">
   <link rel="stylesheet" href="/assets/css/totp.css">
   <link rel="stylesheet" href="/assets/css/shell.css">
+  <link rel="stylesheet" href="/assets/css/stewarding.css">
   <link rel="stylesheet" href="/assets/css/auth.css">
 </head>
 <body>
@@ -39,10 +40,10 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
       </div>
     </header>
 
-    <p class="admin-card warning-text">
-      Retention policies control destructive maintenance. A retention value of <strong>0</strong> means permanent retention.
-      Access-policy changes and destructive-retention changes require recent privileged authentication and are audited.
-    </p>
+    <section class="steward-notice" aria-labelledby="settings-notice-heading">
+      <h2 id="settings-notice-heading">These settings apply to everyone on this server</h2>
+      <p>A retention of <strong>0</strong> keeps data for good; any other number deletes older data when maintenance runs. Changes to access and retention ask for your password again and go in the audit log.</p>
+    </section>
     <p id="settings-error" class="error-text" role="alert"></p>
 
     <form id="lockdown-form" class="settings-grid">
@@ -147,7 +148,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
 
       <section class="admin-card settings-apply" aria-label="Apply policy">
         <p id="settings-updated" class="admin-muted"></p>
-        <button id="save-settings" class="danger-button" type="submit">Save operational settings</button>
+        <button id="save-settings" class="primary-button" type="submit">Save operational settings</button>
       </section>
     </form>
 

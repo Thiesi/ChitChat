@@ -92,6 +92,8 @@ select:focus {
 
 /* The message a moderator is about to act on, quoted in the dialog. */
 .confirm-dialog h2 { margin: 0; }
+/* S6b: a confirmation with several consequences lists each on its own line. */
+.confirm-items { display: grid; gap: 0.4rem; margin: 0; padding-left: 1.2rem; }
 .moderation-quote {
   margin: 0;
   padding: 0.55rem 0.8rem;
