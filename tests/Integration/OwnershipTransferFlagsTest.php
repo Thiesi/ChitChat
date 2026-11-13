@@ -11,6 +11,7 @@ use ChitChat\Auth\GuestService;
 use ChitChat\Auth\UserRepository;
 use ChitChat\Http\ApiException;
 use ChitChat\Moderation\ModerationOptions;
+use ChitChat\Room\ModerationRank;
 use ChitChat\Room\RoomService;
 
 /**
@@ -151,6 +152,19 @@ final class OwnershipTransferFlagsTest extends DatabaseTestCase
         self::assertTrue($offered());
         self::assertArrayNotHasKey($admin->id, $this->snapshotFlags($admin, $roomId), 'Not a member, so no row.');
         self::assertSame(200, $this->outcome($admin, $roomId, $admin->id));
+    }
+
+    public function testTheDatabaseRanksEveryRoleAsThePhpSideDoes(): void
+    {
+        $user = $this->auth->register('Ranked', self::PASSWORD, '127.0.0.6');
+        $case = ModerationRank::globalRankCase('role');
+        foreach (ModerationRank::GLOBAL_RANKS as $role => $rank) {
+            $this->pdo->exec("DELETE FROM user_roles WHERE user_id = {$user->id}");
+            $this->pdo->exec("INSERT INTO user_roles (user_id, role) VALUES ({$user->id}, '{$role}')");
+            $sql = "SELECT COALESCE(MAX({$case}), 0) FROM user_roles WHERE user_id = {$user->id}";
+            self::assertSame($rank, (int) $this->pdo->query($sql)?->fetchColumn(), $role);
+            self::assertSame($rank, ModerationRank::globalRankOf($this->reload($user)), $role);
+        }
     }
 
     private function profileFlag(AuthenticatedUser $viewer, int $roomId, int $targetId): bool

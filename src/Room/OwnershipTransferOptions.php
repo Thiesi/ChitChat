@@ -22,12 +22,6 @@ use RuntimeException;
  */
 final class OwnershipTransferOptions
 {
-    private const GLOBAL_RANK = <<<'SQL'
-(SELECT COALESCE(MAX(CASE r.role
-    WHEN 'super_admin' THEN 5 WHEN 'admin' THEN 4 WHEN 'chat_admin' THEN 3 WHEN 'global_moderator' THEN 3
-    ELSE 0 END), 0) FROM user_roles r WHERE r.user_id = u.id)
-SQL;
-
     public function __construct(private readonly PDO $pdo)
     {
     }
@@ -93,7 +87,8 @@ SQL;
     private function owner(int $roomId): ?array
     {
         $statement = $this->pdo->prepare(
-            "SELECT u.id, u.account_state, " . self::GLOBAL_RANK . " AS rank
+            'SELECT u.id, u.account_state, (SELECT COALESCE(MAX(' . ModerationRank::globalRankCase('r.role') . "), 0)
+                 FROM user_roles r WHERE r.user_id = u.id) AS rank
              FROM room_members rm JOIN users u ON u.id = rm.user_id
              WHERE rm.room_id = :room_id AND rm.role = 'owner'",
         );

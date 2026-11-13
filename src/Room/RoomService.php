@@ -609,12 +609,10 @@ SQL);
 
     private function globalRank(int $userId): int
     {
-        $row = $this->lockedRow(<<<'SQL'
-SELECT COALESCE(MAX(CASE role
-    WHEN 'super_admin' THEN 5 WHEN 'admin' THEN 4 WHEN 'chat_admin' THEN 3 WHEN 'global_moderator' THEN 3
-    ELSE 0 END), 0) AS rank
-FROM user_roles WHERE user_id = :id
-SQL, ['id' => $userId]);
+        $row = $this->lockedRow(
+            'SELECT COALESCE(MAX(' . ModerationRank::globalRankCase('role') . '), 0) AS rank FROM user_roles WHERE user_id = :id',
+            ['id' => $userId],
+        );
 
         return $row === null ? 0 : (int) $row['rank'];
     }
