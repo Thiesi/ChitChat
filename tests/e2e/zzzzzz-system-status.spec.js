@@ -34,7 +34,7 @@ test('Administrator sees shared operational status and metrics remain disabled b
     await expect(page.locator('#maintenance-state')).toHaveText(/^(Current|Overdue)$/);
     await expect(page.locator('#metrics-enabled')).toHaveText('Disabled');
 
-    const policyTable = page.getByRole('table', { name: 'Effective rate-limit policies' });
+    const policyTable = page.getByRole('table', { name: 'Rate-limit policies' });
     await expect(policyTable).toBeVisible();
     const roomSendRow = policyTable.getByRole('row', { name: /^room_send / });
     await expect(roomSendRow).toContainText('30 / 1m');

@@ -5,6 +5,7 @@
 // every secret. The server's own key always wins. No key material is ever
 // shown here or sent by the server.
 import { ApiError, apiGet, apiPost } from './api.js';
+import { confirmAction } from './confirm-dialog.js';
 import { withPrivilegedStepUp } from './step-up.js';
 
 const card = document.getElementById('totp-settings');
@@ -66,7 +67,12 @@ function render(totp) {
 async function change(enable) {
   error.textContent = '';
   status.textContent = '';
-  if (enable && !window.confirm(`Store the authenticator key inside ChitChat?\n\n${warning.textContent}`)) {
+  if (enable && !(await confirmAction({
+    title: 'Store the authenticator key inside ChitChat?',
+    text: warning.textContent,
+    confirmLabel: 'Store the key inside ChitChat',
+    announce: null,
+  }))) {
     toggle.checked = false;
     return;
   }

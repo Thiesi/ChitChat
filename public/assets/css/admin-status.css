@@ -53,6 +53,8 @@
   margin-top: 1rem;
 }
 
+.status-table-wrap:focus-visible { outline: 2px solid var(--steward); outline-offset: 2px; border-radius: 0.5rem; }
+
 .status-table {
   width: 100%;
   border-collapse: collapse;

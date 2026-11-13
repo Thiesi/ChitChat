@@ -363,8 +363,11 @@ test('the key card: turning it on asks first with the backup warning, then saves
   const card = page.locator('#totp-settings');
   await expect(card).toContainText('No key is set up');
   await expect(card.locator('#totp-warning')).toHaveText('Backups then contain both the key and every authenticator secret.');
-  page.once('dialog', (dialog) => { warned = dialog.message(); dialog.accept(); });
-  await card.getByRole('checkbox', { name: 'Store the authenticator key inside ChitChat' }).check();
+  await card.getByRole('checkbox', { name: 'Store the authenticator key inside ChitChat' }).click();
+  // S6b: the styled confirmation carries the warning as its text.
+  const ask = page.getByRole('dialog', { name: 'Store the authenticator key inside ChitChat?' });
+  warned = await ask.textContent();
+  await ask.getByRole('button', { name: 'Store the key inside ChitChat' }).click();
   await expect(card.locator('#totp-status')).toHaveText('The key is now stored inside ChitChat.');
   expect(warned).toContain('Backups then contain both the key');
   expect(state.calls.find((call) => call.path === 'admin/settings/totp/update.php')?.body).toEqual({ database_key_enabled: true });

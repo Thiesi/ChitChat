@@ -22,6 +22,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <link rel="stylesheet" href="/assets/css/admin.css">
   <link rel="stylesheet" href="/assets/css/admin-status.css">
   <link rel="stylesheet" href="/assets/css/shell.css">
+  <link rel="stylesheet" href="/assets/css/stewarding.css">
 </head>
 <body>
   <div id="status-loading" class="app-loading" role="status">Loading system status…</div>
@@ -107,9 +108,10 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
 
       <section class="admin-card status-card status-wide">
         <h2>Rate-limit policies</h2>
-        <p class="admin-muted">Effective deployment policy and aggregate decisions. No account or IP identifiers are retained here.</p>
-        <div class="status-table-wrap">
-          <table class="status-table" aria-label="Effective rate-limit policies">
+        <p class="admin-muted">The limits in effect on this server, and how often each one allowed or refused a request. No account or IP address is kept here.</p>
+        <!-- Scrolls sideways on narrow screens, so keyboard users can reach it too. -->
+        <div class="status-table-wrap" role="region" aria-label="Rate-limit policies table" tabindex="0">
+          <table class="status-table" aria-label="Rate-limit policies">
             <thead>
               <tr>
                 <th scope="col">Policy</th>

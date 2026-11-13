@@ -1,4 +1,5 @@
 import { apiGet, apiPost, setCsrfToken } from './api.js';
+import { confirmAction } from './confirm-dialog.js';
 import { formatDateTime } from './datetime.js';
 
 const elements = {};
@@ -123,31 +124,16 @@ async function saveSettings(event) {
     payload.username_reservation_days = numberValue('username-reservation');
   }
 
-  if (currentSettings?.guest_access_enabled && !payload.guest_access_enabled && !window.confirm(
-    'Switching guest access off ends every guest visit at once. Save?',
-  )) {
-    return;
-  }
-
-  const destructive = [
-    payload.room_message_retention_days,
-    payload.direct_message_retention_days,
-    payload.audit_retention_days,
-    payload.deleted_attachment_retention_days,
-  ].some((value) => value > 0);
-  if (destructive && !window.confirm(
-    'Nonzero retention values permanently delete older data when maintenance runs. Save this policy?',
-  )) {
-    return;
-  }
-
-  if (
-    payload.mfa_required_for_admin_roles
-    && !currentSettings?.mfa_required_for_admin_roles
-    && !window.confirm(
-      'Require passkey-based MFA for every administrative role? Existing administrators must already be enrolled, and future role grants will be refused until the target account enrolls.',
-    )
-  ) {
+  // S6b: one save, one question. Each consequence that applies is its own line, in the
+  // words the three separate confirmations used; none that doesn't apply is shown.
+  const consequences = saveConsequences(currentSettings, payload);
+  if (consequences.length > 0 && !(await confirmAction({
+    title: 'Save operational settings?',
+    text: 'Saving this:',
+    items: consequences,
+    confirmLabel: 'Save settings',
+    announce: null,
+  }))) {
     return;
   }
 
@@ -161,6 +147,25 @@ async function saveSettings(event) {
   } finally {
     setBusy(false);
   }
+}
+
+/** What this save would do that needs saying first, as separate lines. */
+export function saveConsequences(current, payload) {
+  const lines = [];
+  if (current?.guest_access_enabled && !payload.guest_access_enabled) {
+    lines.push('Switching guest access off ends every guest visit at once.');
+  }
+  const destructive = [
+    payload.room_message_retention_days,
+    payload.direct_message_retention_days,
+    payload.audit_retention_days,
+    payload.deleted_attachment_retention_days,
+  ].some((value) => value > 0);
+  if (destructive) lines.push('Nonzero retention values permanently delete older data when maintenance runs.');
+  if (payload.mfa_required_for_admin_roles && !current?.mfa_required_for_admin_roles) {
+    lines.push('Passkey-based MFA becomes required for every administrative role. Existing administrators must already be enrolled, and future role grants will be refused until the target account enrolls.');
+  }
+  return lines;
 }
 
 function renderApplicationName(name) {
@@ -193,7 +198,12 @@ async function saveLockdown(event) {
   elements['settings-error'].textContent = '';
   const enabled = elements['lockdown-enabled'].value === '1';
   const signOut = elements['lockdown-sign-out'].checked;
-  if (signOut && !window.confirm('Sign out everyone except Super-Administrators now? They see your message and cannot sign in again until lockdown ends.')) {
+  if (signOut && !(await confirmAction({
+    title: 'Sign out everyone except Super-Administrators?',
+    text: 'They see your message and can’t sign in again until lockdown ends.',
+    confirmLabel: 'Sign everyone out',
+    announce: null,
+  }))) {
     return;
   }
   const message = elements['lockdown-message'].value.trim();

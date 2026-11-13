@@ -37,6 +37,18 @@ async function selectDirectMessagePeer(page, username) {
   await expect(page.locator('#dm-block-toggle')).toBeVisible();
 }
 
+// S6b (#172): saving can first ask one styled question (guest access off, nonzero retention,
+// required MFA), only when one of those applies, as it may when another spec left retention set.
+async function acceptSettingsConfirm(page) {
+  const confirm = page.getByRole('dialog', { name: 'Save operational settings?' });
+  try {
+    await confirm.waitFor({ state: 'visible', timeout: 1_500 });
+  } catch {
+    return;
+  }
+  await confirm.getByRole('button', { name: 'Save settings' }).click();
+}
+
 async function setRegistrationPolicy(page, enabled, {
   password = null,
   expectPrompt = false,
@@ -50,15 +62,16 @@ async function setRegistrationPolicy(page, enabled, {
   );
   const stepUpDialog = page.locator('.step-up-dialog');
 
-  page.once('dialog', async (dialog) => dialog.accept());
   if (!expectPrompt) {
     const responsePromise = page.waitForResponse(isSuccessfulSettingsResponse);
     await page.locator('#save-settings').click();
+    await acceptSettingsConfirm(page);
     await expect(stepUpDialog).toBeHidden();
     const response = await responsePromise;
     expect(response.ok()).toBeTruthy();
   } else {
     await page.locator('#save-settings').click();
+    await acceptSettingsConfirm(page);
     await expect(stepUpDialog).toBeVisible();
     if (rejectWrongPassword) {
       await stepUpDialog.locator('#step-up-password').fill('Definitely not the current password');
