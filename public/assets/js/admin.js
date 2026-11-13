@@ -1,4 +1,4 @@
-import { ApiError, apiGet, apiPost, setCsrfToken } from './api.js';
+import { ApiError, apiGet, apiPost, isPageLeft, logError, setCsrfToken } from './api.js';
 import { confirmAction } from './confirm-dialog.js';
 import { nameButton } from './name-menu.js';
 import { cancelledCheck, confirmHandOver, confirmTakeOver, transferError, transferOwnership } from './room-transfer.js';
@@ -489,6 +489,7 @@ async function runTransfer(room, userId, name, done) {
     await transferOwnership(room.id, userId);
   } catch (error) {
     if (cancelledCheck(error)) return;
+    if (isPageLeft(error)) return;
     if (error instanceof ApiError && error.status === 401) throw error;
     showError(transferError(error, name, room.name));
     toast(transferError(error, name, room.name), 'error');
@@ -813,6 +814,8 @@ function showError(message) {
 }
 
 function handleFailure(error) {
+  // A request the page aborted on leaving shows nothing (#270).
+  if (isPageLeft(error)) return;
   if (error instanceof ApiError && error.status === 401) {
     window.location.replace('/');
     return;
@@ -823,8 +826,10 @@ function handleFailure(error) {
 }
 
 function handleFatalError(error) {
+  // Nothing to show for a request the page aborted on leaving (#270).
+  if (isPageLeft(error)) return;
   const message = error instanceof Error ? error.message : 'Unable to load administration.';
   elements['admin-loading'].textContent = message;
   elements['admin-loading'].classList.remove('hidden');
-  console.error(error);
+  logError(error);
 }

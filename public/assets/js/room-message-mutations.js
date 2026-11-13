@@ -1,4 +1,4 @@
-import { ApiError, apiGet, apiPost } from './api.js';
+import { ApiError, apiGet, apiPost, isPageLeft } from './api.js';
 import { openMessageReportDialog } from './message-report-dialog.js';
 import { confirmModeratorDelete } from './moderation-tools.js';
 import { renderMessageBody } from './message-content.js';
@@ -255,6 +255,8 @@ function toast(message, kind = 'info') {
 }
 
 function handleFailure(error) {
+  // A request the page aborted on leaving shows nothing (#270).
+  if (isPageLeft(error)) return;
   if (error instanceof ApiError && error.status === 401) {
     window.location.assign('/');
     return;

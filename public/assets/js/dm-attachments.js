@@ -1,4 +1,4 @@
-import { ApiError, apiGet, apiUpload } from './api.js';
+import { ApiError, apiGet, apiUpload, logError } from './api.js';
 import { imageBox } from './image-box.js';
 
 const elements = {};
@@ -120,7 +120,7 @@ function queueEnhancement() {
   window.setTimeout(() => {
     enhancementQueued = false;
     enhanceVisibleMessages().catch((error) => {
-      if (error?.status !== 401 && error?.status !== 403) console.error(error);
+      if (error?.status !== 401 && error?.status !== 403) logError(error);
     });
   }, 40);
 }

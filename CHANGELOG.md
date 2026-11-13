@@ -6,6 +6,8 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ## [Unreleased]
 
+- Leaving a page no longer logs cancelled requests as errors (#270). Requests still in flight are aborted when the page is left, and quietly: no message, toast or console error. A page restored from the back/forward cache works again at once, and controls that were waiting on a request are re-enabled. No server change.
+
 - Message search can be limited to one room, and the excerpt now centres on the first match (#283). `POST /api/v1/search/messages.php` accepts an optional `room_id`; a room the caller can't search answers `404 room_not_found`, like a missing room. **The excerpt window changed:** a message longer than 320 characters now shows up to 320 characters around its first match, with ellipses where it was cut, instead of always its first 320 characters. Results add `excerpt_matches` (start and length of each match in the excerpt, in UTF-16 code units) so clients can highlight without markup. Matching is unchanged (`websearch_to_tsquery('simple', …)`); excluded words are never marked. Additive to API v1; no migration.
 
 - Set the maintenance max age in Operational settings (#312). `maintenance_max_age_hours` (1–720) in `GET`/`POST /api/v1/admin/settings/…` decides when System status and `/metrics.php` report maintenance as overdue. Until a value is saved, `MAINTENANCE_MAX_AGE_HOURS` (default 26) applies as the fallback default, so upgrading changes nothing; saving `null` clears the setting again. The response adds `maintenance_max_age_source` (`setting` or `environment`), and system status adds `maintenance.maximum_age_source`. Apply migration 0060.
