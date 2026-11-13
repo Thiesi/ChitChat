@@ -2,12 +2,12 @@
 // old account menu held lives here now: the picture and name, Sounds next
 // to the alert settings, and Sign out at the end. Guests get a short You:
 // their name, Appearance, an invitation to create an account, and Leave.
-import { apiGet } from './api.js';
 import { attachPhoto, avatarTone, initials } from './avatar.js';
 import { announcePreference, setAnnouncePreference } from './announce-preference.js';
 import { setSoundEnabled, soundEnabled } from './attention.js';
 import { markGuestAvatar } from './guest.js';
 import { signOut } from './sign-out.js';
+import { pageSession } from './page-session.js';
 import { startSections } from './you-sections.js';
 
 const signOutButton = document.getElementById('logout-button');
@@ -36,7 +36,9 @@ void start();
 async function start() {
   let session;
   try {
-    session = await apiGet('/api/v1/session.php');
+    // The same answer that shows the page (account.js), so the sections never stay unstarted
+    // under a list that appeared; a failure is shown there, with Try again.
+    session = await pageSession();
   } catch {
     return;
   }

@@ -208,3 +208,7 @@ body[data-audience="guest"] .account-card:not([data-guest-visible]) { display: n
    something, and the actions row only when there is another sign-in. */
 #sessions-status:empty, #sessions-error:empty { display: none; }
 .account-action-row:has(> #sessions-revoke-others[hidden]) { display: none; }
+
+/* The page couldn't load (no session answer): the reason and Try again, together in the middle. */
+.app-loading.app-loading-failed { align-content: center; justify-items: center; gap: 1rem; padding: 1rem; color: var(--text); text-align: center; }
+.app-loading-failed p { margin: 0; max-width: 32rem; }

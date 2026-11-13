@@ -1,5 +1,6 @@
-import { ApiError, apiGet, apiPost, setCsrfToken } from './api.js';
+import { ApiError, apiPost, setCsrfToken } from './api.js';
 import { formatDateTime } from './datetime.js';
+import { pageSession } from './page-session.js';
 
 const elements = {
   loading: document.querySelector('#account-loading'),
@@ -17,7 +18,7 @@ void initialize();
 
 async function initialize() {
   try {
-    const session = await apiGet('/api/v1/session.php');
+    const session = await pageSession();
     setCsrfToken(session.csrf_token ?? '');
     if (!session.user) {
       window.location.assign('/');
@@ -35,8 +36,27 @@ async function initialize() {
     // The You list pane (S5a) appears with the section it opens.
     document.getElementById('you-list')?.classList.remove('hidden');
   } catch (error) {
-    elements.loading.textContent = error instanceof Error ? error.message : 'Unable to load the account page.';
+    // Signed out (here or elsewhere): the sign-in screen, which says why when it knows (#205).
+    if (error instanceof ApiError && error.status === 401) {
+      window.location.assign('/');
+      return;
+    }
+    // Anything else: say so, with a way to try again, instead of a page that never appears.
+    showLoadFailure(error instanceof Error && error.message ? error.message : 'The page couldn’t be loaded.');
   }
+}
+
+function showLoadFailure(message) {
+  const text = document.createElement('p');
+  text.textContent = `${message} Check your connection and try again.`;
+  const retry = document.createElement('button');
+  retry.type = 'button';
+  retry.className = 'secondary-button';
+  retry.textContent = 'Try again';
+  retry.addEventListener('click', () => window.location.reload());
+  elements.loading.replaceChildren(text, retry);
+  elements.loading.classList.add('app-loading-failed');
+  retry.focus();
 }
 
 async function downloadExport() {
