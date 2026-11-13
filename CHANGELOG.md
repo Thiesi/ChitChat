@@ -6,6 +6,18 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ## [Unreleased]
 
+## [3.10.0] - 2026-11-13
+
+Reliable live updates (settled resume, recovery after an upgrade or Back), room ownership transfer in the web client, the stewardship pages and the rest of You redesigned (Lantern S5b and S6), push and backup health in the System status API and metrics, and search in one room (API). Additive to API v1, with two forward-only database migrations (`0059` and `0060`) and no configuration changes. Nobody is signed out. After upgrading, the System status API reports backups as unknown (and overdue) until `bin/chitchat-backup` next runs; the status card and settings fields for push, backups and the max ages follow in a later release. See the [`v3.10.0` release notes](docs/releases/v3.10.0.md).
+
+- Redesign the stewardship pages (S6, #172): Administration, Operational settings, System status, the Moderation queue, DM inspection and Revision review in the Dusk frame, with staff "Make owner…" and "Take ownership…" (#300), styled confirmations on these pages, one combined confirmation when saving Operational settings, and plain-language sensitive-access notices. DM inspection can be submitted again: choosing the two people used to block the form.
+
+- Finish You (S5b, #171): settings copy, styled confirmations for passkeys, recovery codes and MFA, and "Announce new messages" (All, Only messages to me, Off) saved on the device. One shared session answer for the page, with a visible failure and Try again (#317), and the "Member since" line no longer shifts the section list while it loads (#321).
+
+- Hand a room on from a member's profile card (#300): "Make owner of #room…", shown only when the server's `can_transfer_ownership` allows it, after step-up; Activity shows `room_ownership_received` and `room_ownership_removed`. Profile card actions that ask first keep the card open to show their result.
+
+- Keep traces of browser tests that passed on retry, in CI (#315).
+
 - Reconnect the live event stream after going back to a page from the browser's back/forward cache (#323). The stream is closed when the page enters the cache, and on return the page shows "Reconnecting" at once, checks the session, and reopens the stream from its last position, so nothing is missed or shown twice. No server change.
 
 - Leaving a page no longer logs cancelled requests as errors (#270). Requests still in flight are aborted when the page is left, and quietly: no message, toast or console error. A page restored from the back/forward cache works again at once, and controls that were waiting on a request are re-enabled. No server change.
