@@ -284,8 +284,18 @@ a.secondary-button { display: inline-block; text-decoration: none; text-align: c
   background: var(--text-muted);
 }
 
-.connection-status[data-state="error"]::before {
-  background: var(--error);
+/* The ladder (S7): reconnecting in the presence colour; offline a hollow ring in the unsure
+   colour, so the two differ by shape as well as colour (the tokens match today, #256). */
+.connection-status[data-state="reconnecting"] { color: var(--presence-text); }
+
+.connection-status[data-state="reconnecting"]::before { background: var(--presence-text); }
+
+.connection-status[data-state="offline"] { color: var(--text); }
+
+.connection-status[data-state="offline"]::before {
+  box-sizing: border-box;
+  border: 2px solid var(--unsure-line);
+  background: transparent;
 }
 
 .rooms-heading {

@@ -64,7 +64,7 @@ function harness({ probe = async () => 'ok', hidden = false, settled = true } = 
   FakeSource.made = [];
   const timers = [];
   const statuses = [];
-  const calls = { signedOut: 0, longOutage: 0, probes: 0, handled: [] };
+  const calls = { signedOut: 0, longOutage: 0, recovered: 0, probes: 0, handled: [] };
   let wake = null;
   let pageListeners = null;
   const env = {
@@ -85,6 +85,7 @@ function harness({ probe = async () => 'ok', hidden = false, settled = true } = 
     onStatus: (status) => statuses.push(status),
     onSignedOut: () => { calls.signedOut += 1; },
     onLongOutage: () => { calls.longOutage += 1; },
+    onRecovered: () => { calls.recovered += 1; },
     env,
   });
   const pending = () => timers.filter((timer) => !timer.cleared && !timer.ran);
@@ -228,11 +229,18 @@ test('a failed check keeps backing off; the wait grows to 30 s, said once; open 
   assert.equal(h.calls.longOutage, 1, 'Once per outage.');
   assert.equal(FakeSource.made.length, 1, 'No new stream while the check fails.');
 
+  assert.equal(h.calls.recovered, 0);
+
   answer = 'ok';
   await h.fire();
   FakeSource.made[1].opened();
+  assert.equal(h.calls.recovered, 1, 'An announced outage says it is over (S7).');
   FakeSource.made[1].failedForGood();
   assert.equal(h.pending()[0].delay, 1000, 'Back to the shortest wait.');
+  // A short drop after that was never announced, so its end isn't either.
+  await h.fire();
+  FakeSource.made[2].opened();
+  assert.equal(h.calls.recovered, 1);
 });
 
 test('a 401 from the check signs out and stops', async () => {

@@ -79,4 +79,9 @@ textarea:focus-visible,
   .connection-status[data-state="connected"]::before {
     background: Highlight;
   }
+
+  .connection-status[data-state="offline"]::before {
+    border-color: CanvasText;
+    background: Canvas;
+  }
 }
