@@ -64,11 +64,20 @@ document.addEventListener('click', (event) => {
     }
     return;
   }
+  // A dialog the card opened (a confirmation, the sign-in check) is not "outside":
+  // the card stays, so it can show what happened.
+  if (insideDialog(event.target)) return;
   if (menu && !menu.classList.contains('hidden') && !menu.contains(event.target)) close();
 });
 
+function insideDialog(target) {
+  // The dialog may already be closed (Cancel) or removed by the time the click gets here.
+  return target instanceof Element && (target.closest('dialog') !== null || !target.isConnected);
+}
+
 document.addEventListener('keydown', (event) => {
-  if (event.key === 'Escape' && opener) {
+  // Escape in a dialog closes that dialog, not the card behind it.
+  if (event.key === 'Escape' && opener && !insideDialog(event.target)) {
     const button = currentOpener();
     close();
     button?.focus();

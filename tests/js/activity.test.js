@@ -8,7 +8,7 @@ import { dayKey, dayLabel, directPeerId, kindPresentation } from '../../public/a
 const KINDS = [
   'revision_review', 'moderator_message_deleted', 'admin_password_reset', 'privacy_policy_updated',
   'system_policy_changed', 'direct_message_received', 'mentioned', 'muted', 'username_change_required',
-  'avatar_removed', 'room_deleted', 'room_restored', 'guest_welcome', 'pinged', 'something_new',
+  'avatar_removed', 'room_deleted', 'room_restored', 'room_ownership_received', 'room_ownership_removed', 'guest_welcome', 'pinged', 'something_new',
 ];
 
 test('every kind has a mark, a lead and an action label (or none)', () => {
@@ -30,6 +30,10 @@ test('the addendum’s table: marks and what leads', () => {
   assert.equal(kindPresentation('room_deleted').icon, 'lantern');
   assert.equal(kindPresentation('room_deleted').action, null);
   assert.equal(kindPresentation('room_restored').action, 'Open room');
+  // #300: a room handed to you, or handed on: the server's sentence leads, and its link opens the room.
+  for (const kind of ['room_ownership_received', 'room_ownership_removed']) {
+    assert.deepEqual(kindPresentation(kind), { icon: 'lantern', lead: 'message', action: 'Open room' });
+  }
   assert.equal(kindPresentation('system_policy_changed').icon, 'info');
   assert.equal(kindPresentation('something_new').icon, 'info');
 });
