@@ -28,6 +28,7 @@ import { openResetIfRequested, showKeyStepInCard } from './password-reset.js';
 import { issuedKey } from './recovery.js';
 import { renderRecoveryNudge, setRecoveryNudgeUser } from './recovery-nudge.js';
 import { phoneListShowing } from './pane-stack.js';
+import { confirmAction } from './confirm-dialog.js';
 import { renderSeason } from './sign-in-season.js';
 import { renamedUser, renameInMessages, renameInPings } from './renames.js';
 import { startUsernameGate, stopUsernameGate } from './username-gate.js';
@@ -171,6 +172,7 @@ function bindEvents() {
     registrationChallenge.prepare().catch(() => {});
   });
   elements['join-button'].addEventListener('click', joinCurrentRoom);
+  document.getElementById('room-leave-button')?.addEventListener('click', leaveCurrentRoom);
   elements['composer-form'].addEventListener('submit', submitMessage);
   elements['composer-input'].addEventListener('keydown', (event) => {
     if (event.key === 'Enter' && !event.shiftKey) {
@@ -785,6 +787,7 @@ function renderRoomHeader() {
   roomLantern.classList.toggle('glow', document.getElementById('room-here')?.hidden === false);
   elements['room-title'].replaceChildren(roomLantern, ` ${room.name}`);
   setHeaderSearch(room);
+  renderLeave(room);
   const details = [];
   if (room.info_line) {
     details.push(room.info_line);
@@ -845,6 +848,75 @@ function announceRoomOpened(roomId) {
   window.dispatchEvent(new CustomEvent('chitchat:room-chosen', { detail: { opener, user: true } }));
 }
 
+// ---- Leaving the open room (#299, S7) ----
+
+const ownerCannotLeave = (room) => `You own # ${room.name}, so you can’t leave it yet. Make someone else the owner first: open their name and choose Make owner…`;
+
+/** The panel's Leave button, for members of the open room; the owner sees why they can't. */
+function renderLeave(room) {
+  const box = document.getElementById('room-leave');
+  const button = document.getElementById('room-leave-button');
+  const note = document.getElementById('room-leave-note');
+  if (!box || !button || !note) return;
+  box.hidden = !room || room.member_role === null || room.member_role === undefined;
+  if (box.hidden) return;
+  button.textContent = `Leave # ${room.name}…`;
+  button.dataset.roomId = String(room.id);
+  // The note stays for the room it was written about, and goes when another room opens.
+  if (note.dataset.roomId !== String(room.id)) {
+    note.textContent = '';
+    delete note.dataset.roomId;
+  }
+}
+
+function sayAboutLeaving(room, text) {
+  const note = document.getElementById('room-leave-note');
+  if (!note) return;
+  note.textContent = text;
+  note.dataset.roomId = String(room.id);
+}
+
+async function leaveCurrentRoom() {
+  const room = state.currentRoom;
+  if (!room || room.member_role === null) return;
+  if (room.member_role === 'owner') {
+    sayAboutLeaving(room, ownerCannotLeave(room));
+    return;
+  }
+  const confirmed = await confirmAction({
+    title: `Leave # ${room.name}?`,
+    text: room.visibility === 'public'
+      ? 'You stop getting its messages. You can join again from the room list any time.'
+      : 'You stop getting its messages. Getting back in needs a new invitation.',
+    confirmLabel: 'Leave room',
+    announce: null,
+  });
+  if (!confirmed || state.currentRoom?.id !== room.id) return;
+  const button = document.getElementById('room-leave-button');
+  if (button) button.disabled = true;
+  try {
+    await apiPost('/api/v1/rooms/leave.php', { room_id: room.id });
+    toast(`You left # ${room.name}.`);
+    // Out of the list (or back among the rooms to join), and the next room of yours opens.
+    state.currentRoom = null;
+    await loadRooms();
+  } catch (error) {
+    if (isPageLeft(error)) return;
+    if (error instanceof ApiError && error.code === 'owner_cannot_leave') {
+      sayAboutLeaving(room, ownerCannotLeave(room));
+      // The list catches up with the ownership it didn't know about.
+      scheduleRoomListRefresh();
+    } else if (error instanceof ApiError && error.code === 'not_a_member') {
+      toast(`You’re no longer a member of # ${room.name}.`);
+      scheduleRoomListRefresh();
+    } else {
+      handleApiFailure(error);
+    }
+  } finally {
+    if (button) button.disabled = false;
+  }
+}
+
 /** The conversation header's search button searches this room (#318); the list's searches everything. */
 function setHeaderSearch(room) {
   const link = document.querySelector('.header-search');
@@ -857,6 +929,7 @@ function setHeaderSearch(room) {
 
 function renderNoRoom() {
   setHeaderSearch(null);
+  renderLeave(null);
   elements['room-title'].textContent = 'Choose a room';
   elements['room-info'].textContent = 'Select a room from the list.';
   elements['join-button'].classList.add('hidden');

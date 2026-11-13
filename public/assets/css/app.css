@@ -449,6 +449,26 @@ a.secondary-button { display: inline-block; text-decoration: none; text-align: c
 }
 
 .member-list { display: grid; gap: 0.1rem; margin: 0; padding: 0 0.5rem 1rem; list-style: none; }
+
+/* Leave the room (#299): at the foot of the panel, apart from the people. */
+.room-leave {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: auto;
+  padding: 0.9rem 1.1rem 1.1rem;
+  border-top: 1px solid var(--line);
+}
+
+.room-leave[hidden] { display: none; }
+
+.room-leave-button { justify-self: start; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.room-leave-button:hover,
+.room-leave-button:focus-visible { border-color: var(--error); color: var(--error); }
+
+.room-leave-note { margin: 0; color: var(--text-muted); font-size: 0.85rem; line-height: 1.45; }
+
+.room-leave-note:empty { display: none; }
 .member-list > .room-meta { padding: 0.35rem 0.6rem; }
 
 .member-row {
