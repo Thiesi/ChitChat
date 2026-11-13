@@ -47,7 +47,7 @@ X-CSRF-Token: <session token>
 
 Requires active privileged step-up. Without recent verification the endpoint returns HTTP 403 with `step_up_required`; no setting or audit record is changed. The bundled browser asks for the current password and retries the update once after successful verification.
 
-The request must include every field returned above except `updated_at`; `deleted_room_grace_days`, `guest_access_enabled`, `username_reservation_days`, `backup_max_age_hours` and `maintenance_max_age_hours` are optional and left unchanged when omitted. `maintenance_max_age_hours: null` clears the saved value, so the `MAINTENANCE_MAX_AGE_HOURS` fallback default applies again. `maintenance_max_age_source` is read-only. Switching `guest_access_enabled` off ends every guest session at once:
+The request must include every field returned above except `updated_at`; `deleted_room_grace_days`, `guest_access_enabled`, `username_reservation_days`, `backup_max_age_hours` and `maintenance_max_age_hours` are optional and left unchanged when omitted. `maintenance_max_age_hours: null` clears the saved value, so the `MAINTENANCE_MAX_AGE_HOURS` fallback default applies again. `maintenance_max_age_source` is read-only. **Send `maintenance_max_age_hours` only when the administrator changed it.** Posting back the value you loaded while `maintenance_max_age_source` is `"environment"` would save the fallback as a fixed setting, so later changes to `MAINTENANCE_MAX_AGE_HOURS` would no longer apply. Switching `guest_access_enabled` off ends every guest session at once:
 
 ```json
 {
