@@ -166,6 +166,8 @@ SQL);
     public function join(AuthenticatedUser $actor, int $roomId, string $ipAddress): Room
     {
         $room = $this->requireRoom($actor, $roomId);
+        // A room the caller can't see answers like a missing one (#326).
+        RoomAuthorization::requireVisible($actor, $room);
         if ($room->isMember()) {
             return $room;
         }
@@ -225,6 +227,8 @@ SQL);
     public function leave(AuthenticatedUser $actor, int $roomId, string $ipAddress): void
     {
         $room = $this->requireRoom($actor, $roomId);
+        // A room the caller can't see answers like a missing one (#326).
+        RoomAuthorization::requireVisible($actor, $room);
         if ($room->memberRole === null) {
             throw new ApiException(409, 'not_a_member', 'You are not a member of this room.');
         }

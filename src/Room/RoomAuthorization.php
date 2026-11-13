@@ -70,15 +70,37 @@ final class RoomAuthorization
         }
     }
 
+    /**
+     * A room the caller can't see answers exactly like one that doesn't exist (#326): same
+     * status, code and message, so no route confirms that a private room exists. Routes
+     * addressed by a message or attachment ID pass their own not-found instead. Runs before
+     * every other check that reveals state; the other require* helpers call it first.
+     */
+    public static function requireVisible(
+        AuthenticatedUser $actor,
+        Room $room,
+        string $code = 'room_not_found',
+        string $message = 'Room not found.',
+    ): void {
+        if (!self::canView($actor, $room)) {
+            throw new ApiException(404, $code, $message);
+        }
+    }
+
+    /** For routes addressed by a message ID: an invisible room answers like a missing message. */
+    public static function requireMessageVisible(AuthenticatedUser $actor, Room $room): void
+    {
+        self::requireVisible($actor, $room, 'message_not_found', 'Message not found.');
+    }
+
     public static function requireView(AuthenticatedUser $actor, Room $room): void
     {
-        if (!self::canView($actor, $room)) {
-            throw new ApiException(403, 'room_forbidden', 'You are not allowed to view this room.');
-        }
+        self::requireVisible($actor, $room);
     }
 
     public static function requireHistory(AuthenticatedUser $actor, Room $room): void
     {
+        self::requireVisible($actor, $room);
         if (!self::canReadHistory($actor, $room)) {
             throw new ApiException(403, 'room_forbidden', 'Join the private room before reading its history.');
         }
@@ -86,6 +108,7 @@ final class RoomAuthorization
 
     public static function requirePost(AuthenticatedUser $actor, Room $room): void
     {
+        self::requireVisible($actor, $room);
         if (!$room->isMember()) {
             throw new ApiException(403, 'membership_required', 'Join the room before sending messages.');
         }
@@ -96,6 +119,7 @@ final class RoomAuthorization
 
     public static function requireManage(AuthenticatedUser $actor, Room $room): void
     {
+        self::requireVisible($actor, $room);
         if (!self::canManage($actor, $room)) {
             throw new ApiException(403, 'forbidden', 'You are not allowed to manage this room.');
         }
@@ -103,6 +127,7 @@ final class RoomAuthorization
 
     public static function requireModerate(AuthenticatedUser $actor, Room $room): void
     {
+        self::requireVisible($actor, $room);
         if (!self::canModerate($actor, $room)) {
             throw new ApiException(403, 'forbidden', 'You are not allowed to moderate this room.');
         }

@@ -54,6 +54,8 @@ final class PingService
         if ($room === null) {
             throw new ApiException(404, 'room_not_found', 'Room not found.');
         }
+        // A room the caller can't see answers like a missing one (#326).
+        RoomAuthorization::requireVisible($actor, $room);
         if (!$room->isMember()) {
             throw new ApiException(403, 'membership_required', 'Join the room before sending pings.');
         }

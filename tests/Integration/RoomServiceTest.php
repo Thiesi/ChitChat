@@ -49,7 +49,8 @@ final class RoomServiceTest extends DatabaseTestCase
             $rooms->get($guest, $room->id);
             self::fail('Expected private room metadata to be hidden.');
         } catch (ApiException $exception) {
-            self::assertSame('room_forbidden', $exception->errorCode);
+            // Not invited, not a member: exactly like a missing room (#326).
+            self::assertSame([404, 'room_not_found', 'Room not found.'], [$exception->status, $exception->errorCode, $exception->getMessage()]);
         }
 
         $rooms->invite($admin, $room->id, $guest->id, '127.0.0.1');

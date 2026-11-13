@@ -279,6 +279,8 @@ SQL);
         if ($room === null) {
             throw new ApiException(404, 'room_not_found', 'Room not found.');
         }
+        // A room the caller can't see answers like a missing one (#326).
+        RoomAuthorization::requireVisible($actor, $room);
         if (!$room->isMember() && !RoomAuthorization::canModerateAnyRoom($actor)) {
             throw new ApiException(403, 'presence_membership_required', 'Room membership is required for presence.');
         }
