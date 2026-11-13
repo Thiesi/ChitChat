@@ -7,9 +7,11 @@ use ChitChat\Auth\UserRepository;
 use ChitChat\Database;
 use ChitChat\Http\ApiException;
 use ChitChat\Http\Request;
+use ChitChat\Observability\RateLimitedLog;
 use ChitChat\Observability\SseConnectionTracker;
 use ChitChat\Realtime\SseEncoder;
 use ChitChat\Realtime\SseBatchGuard;
+use ChitChat\Realtime\SettledStreamCursor;
 use ChitChat\Realtime\StreamCursor;
 
 /** @var ChitChat\Config $config */
@@ -37,6 +39,14 @@ try {
         }
     }
 
+    // resume=settled (#286): the SSE id is the settled position, so a late-committing lower
+    // event id is never skipped; a reconnect may resend events, which clients drop by data.id.
+    $resume = Request::optionalQueryString('resume');
+    if ($resume !== null && $resume !== 'settled') {
+        throw new ApiException(400, 'validation_error', 'resume must be "settled".');
+    }
+    $settledMode = $resume === 'settled';
+
     header('Content-Type: text/event-stream; charset=utf-8');
     header('Cache-Control: no-cache, no-store, must-revalidate');
     header('X-Accel-Buffering: no');
@@ -59,6 +69,13 @@ try {
     flush();
 
     $cursor = new StreamCursor($pdo);
+    $warnings = RateLimitedLog::forInstance($config);
+    $settled = $settledMode
+        ? new SettledStreamCursor($pdo, $afterId, null, SettledStreamCursor::STALE_AFTER,
+            static function (string $kind, string $message) use ($warnings): void {
+                $warnings->warn($kind, $message);
+            })
+        : null;
     $batchGuard = new SseBatchGuard($pdo);
     // The settled-horizon check (#281) runs at most this often per connection.
     $lastSkipCheck = 0.0;
@@ -77,8 +94,21 @@ try {
             flush();
             break;
         }
-        $mayCheck = microtime(true) - $lastSkipCheck >= 10.0;
-        $poll = $cursor->poll($actor, $afterId, 100, $mayCheck);
+        if ($settled !== null) {
+            // Settle every second while anything sent is unsettled, and once more before the
+            // connection ends, so the reconnect resends little; otherwise as rarely as #281.
+            $sinceCheck = microtime(true) - $lastSkipCheck;
+            $mayCheck = $sinceCheck >= ($settled->hasUnsettled() ? 1.0 : 10.0)
+                || ($settled->hasUnsettled() && $deadline - microtime(true) < 1.5 && $sinceCheck >= 0.5);
+            $poll = $settled->poll($actor, 100, $mayCheck);
+            $resumeIds = $poll['ids'];
+            $position = $poll['settled'];
+        } else {
+            $mayCheck = microtime(true) - $lastSkipCheck >= 10.0;
+            $poll = $cursor->poll($actor, $afterId, 100, $mayCheck);
+            $resumeIds = null;
+            $position = $poll['cursor'];
+        }
         if ($poll['checked']) {
             $lastSkipCheck = microtime(true);
         }
@@ -90,15 +120,22 @@ try {
             break;
         }
         $batch = $checked['events'];
-        foreach ($batch as $event) {
-            echo SseEncoder::event($event);
-            $afterId = $event->id;
+        $sentId = $afterId;
+        foreach ($batch as $index => $event) {
+            $sentId = $resumeIds === null ? $event->id : $resumeIds[$index];
+            echo SseEncoder::event($event, $resumeIds === null ? null : $sentId);
         }
-        if ($poll['cursor'] > $afterId) {
-            // Past events this account can't see: remember the position across reconnects.
-            $afterId = $poll['cursor'];
+        if ($settled === null) {
+            $afterId = $batch === [] ? $afterId : $sentId;
+        }
+        if ($position > ($settled === null ? $afterId : $sentId)) {
+            // Past events this account can't see, or settled: remember it across reconnects.
+            // A client that ignores this line (OkHttp's reader) only resumes from earlier.
+            $afterId = $position;
             echo SseEncoder::cursor($afterId);
             flush();
+        } elseif ($settled !== null) {
+            $afterId = $position;
         }
 
         $now = microtime(true);
@@ -114,7 +151,11 @@ try {
             $lastHeartbeat = $now;
         }
 
-        usleep(500_000);
+        // A settled stream resuming far behind (a reconnect after a stall) sends its backlog
+        // without pausing, so it reaches live events and can settle within this connection.
+        if ($settled === null || count($batch) < 100) {
+            usleep(500_000);
+        }
     }
 } catch (ApiException $exception) {
     if (!headers_sent()) {

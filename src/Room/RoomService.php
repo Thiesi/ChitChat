@@ -28,7 +28,7 @@ final class RoomService
         $this->roomList = new RoomListSignal(new EventRepository($pdo));
     }
 
-    /** @return list<array{id:int, key:string, name:string, info_line:string, visibility:string, minimum_age:int, inactivity_timeout_seconds:int, created_by:int, member_role:?string, invited:bool, unread_count:int, last_read_message_id:?int, unread_mention_count:int, unread_through_message_id:?int, active_count:?int, last_activity_at:?string}> */
+    /** @return list<array{id:int, key:string, name:string, info_line:string, visibility:string, minimum_age:int, inactivity_timeout_seconds:int, created_by:int, member_role:?string, invited:bool, unread_count:int, last_read_message_id:?int, unread_mention_count:int, unread_through_message_id:?int, unread_settled_message_id:?int, unread_counted_ids:list<int>, active_count:?int, last_activity_at:?string}> */
     public function list(AuthenticatedUser $actor): array
     {
         $includeAll = RoomAuthorization::canModerateAnyRoom($actor);
@@ -42,6 +42,8 @@ final class RoomService
                 'last_read_message_id' => $room->isMember() ? ($reads[$room->id]['last_read_message_id'] ?? null) : null,
                 'unread_mention_count' => $room->isMember() ? ($reads[$room->id]['unread_mention_count'] ?? 0) : 0,
                 'unread_through_message_id' => $room->isMember() ? ($reads[$room->id]['unread_through_message_id'] ?? null) : null,
+                'unread_settled_message_id' => $room->isMember() ? ($reads[$room->id]['unread_settled_message_id'] ?? null) : null,
+                'unread_counted_ids' => $room->isMember() ? ($reads[$room->id]['unread_counted_ids'] ?? []) : [],
                 'active_count' => $room->isMember() ? ($activity[$room->id]['active_count'] ?? null) : null,
                 'last_activity_at' => $room->isMember() ? ($activity[$room->id]['last_activity_at'] ?? null) : null,
                 // Muted everywhere counts in every room.

@@ -9,7 +9,11 @@ use RuntimeException;
 
 final class SseEncoder
 {
-    public static function event(RealtimeEvent $event): string
+    /**
+     * @param ?int $resumeId the SSE id to send instead of the event's own: on a
+     *   `resume=settled` connection, the settled position (#286). The event's id stays in data.
+     */
+    public static function event(RealtimeEvent $event, ?int $resumeId = null): string
     {
         try {
             $data = json_encode($event->toArray(), JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
@@ -19,7 +23,7 @@ final class SseEncoder
 
         return sprintf(
             "id: %d\nevent: %s\ndata: %s\n\n",
-            $event->id,
+            $resumeId ?? $event->id,
             $event->type,
             $data,
         );
