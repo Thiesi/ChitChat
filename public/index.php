@@ -305,6 +305,11 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
       <ul id="presence-list" class="member-list" aria-labelledby="presence-heading"></ul>
       <h3 id="guest-presence-heading" class="guest-heading hidden">Guests</h3>
       <ul id="guest-presence-list" class="member-list hidden" aria-labelledby="guest-presence-heading"></ul>
+      <!-- Leaving the open room (#299, S7): for members; the owner is told the way out instead. -->
+      <div id="room-leave" class="room-leave" hidden>
+        <button id="room-leave-button" class="secondary-button room-leave-button" type="button">Leave room…</button>
+        <p id="room-leave-note" class="room-leave-note" role="status"></p>
+      </div>
     </aside>
   </div>
   <?= \ChitChat\View\AppShell::close() ?>
