@@ -10,6 +10,8 @@
 //
 // This runs before the page's own handlers, alongside the announcer's `spoken` check, which
 // is left as it is. Messages are also applied idempotently by message id as a backstop.
+// Only addEventListener is guarded: handlers set as source.onmessage or on<type> would
+// bypass it, so don't use them on a settled stream.
 
 export const SEEN_CAP = 1000;
 

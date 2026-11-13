@@ -8,7 +8,8 @@ import { openRoom } from './support/rooms.js';
 // Playwright can't cut a response that is already streaming, so the journey uses the
 // server's own end of each stream (after 25 s) and holds the browser's reconnect while
 // another account writes: the member is offline for that time. (It doesn't abort the
-// reconnect: Firefox then closes the EventSource for good instead of retrying.)
+// reconnect: Firefox closes an EventSource for good after a route.abort, though it does
+// retry after a real outage.)
 //
 // Chromium adds Last-Event-ID below the layer Playwright routes, so the header is only
 // asserted in browsers that show it to the route.
