@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { openYouSection } from './support/you.js';
 import { attemptName, attemptSuffix } from './support/attempt.js';
 import { startMockOidc } from './support/mock-oidc.js';
 
@@ -49,7 +50,7 @@ test('a member connects Google and then signs in with it instead of a password',
   await expect(google).toContainText('Connected');
 
   // The Google picture is fetched only on request, and still goes through the crop step (Profile).
-  await page.getByRole('navigation', { name: 'Settings' }).getByRole('link', { name: 'Profile', exact: true }).click();
+  await openYouSection(page, 'Profile');
   await page.getByRole('button', { name: 'Use my Google picture' }).click();
   const crop = page.locator('#avatar-crop-dialog');
   await expect(crop).toBeVisible();
@@ -124,7 +125,7 @@ test('someone new signs up with Google, confirms and restores through it, then a
   // S5a: the password is under Sign-in and security, closure under Account.
   await page.goto('/account.php#security');
   await expect(page.locator('#password-submit')).toHaveText('Set a password');
-  await page.getByRole('navigation', { name: 'Settings' }).getByRole('link', { name: 'Account', exact: true }).click();
+  await openYouSection(page, 'Account');
   await page.getByLabel(/I understand that I’m signed out at once/).check();
   await page.getByRole('button', { name: 'Request account closure' }).click();
   await confirmWithGoogle(page);

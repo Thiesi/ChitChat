@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { openYouSection } from './support/you.js';
 
 const member = {
   username: 'MemberE2E',
@@ -29,7 +30,7 @@ test('account page downloads a step-up-protected scoped JSON export', async ({ p
   await expect(page.getByRole('heading', { name: 'You', exact: true, level: 1 })).toBeVisible();
   await expect(page.locator('#account-identity')).toContainText(member.username);
   // S5a: the export is under Privacy and data.
-  await page.getByRole('navigation', { name: 'Settings' }).getByRole('link', { name: 'Privacy and data', exact: true }).click();
+  await openYouSection(page, 'Privacy and data');
 
   await page.getByText('What the export contains').click();
   await expect(page.getByText(/Not included: password hashes/)).toBeVisible();
