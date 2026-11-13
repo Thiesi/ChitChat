@@ -22,6 +22,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <link rel="stylesheet" href="/assets/css/admin.css">
   <link rel="stylesheet" href="/assets/css/message-revision-review.css">
   <link rel="stylesheet" href="/assets/css/shell.css">
+  <link rel="stylesheet" href="/assets/css/stewarding.css">
 </head>
 <body>
   <div id="revision-review-loading" class="app-loading" role="status">Loading revision-review controls…</div>
@@ -36,10 +37,10 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
       </div>
     </header>
 
-    <section class="revision-review-warning" aria-labelledby="revision-review-warning-heading">
-      <h2 id="revision-review-warning-heading">Restricted historical-content access</h2>
-      <p>This workflow is separate from direct-message inspection and requires recent current-password verification. Each successful review separately records your identity, IP address, exact message kind and ID, stated reason, and returned revision IDs. Passwords and historical bodies are not copied into audit metadata.</p>
-      <p><?= $appName ?> does not notify message participants when a review occurs. Operators are responsible for disclosing this capability in their privacy and moderation policy.</p>
+    <section class="steward-notice" aria-labelledby="revision-review-warning-heading">
+      <h2 id="revision-review-warning-heading">This shows earlier versions of a message, which its participants can’t see</h2>
+      <p>You confirm your password first. Every review goes in the audit log: who you are, your IP address, the message, your reason, and which versions were shown. Earlier text and your password are never copied into the log.</p>
+      <p><?= $appName ?> doesn’t tell the participants, so say in your privacy policy that reviews can happen.</p>
     </section>
 
     <p id="revision-review-error" class="error-text" role="alert"></p>
