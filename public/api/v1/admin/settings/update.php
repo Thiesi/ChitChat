@@ -33,7 +33,12 @@ Endpoint::run($config, static function () use ($config): ApiResult {
         );
     }
 
-    $settings = (new SystemSettingsService($pdo))->update(
+    $maintenanceMaxAge = false;
+    if (array_key_exists('maintenance_max_age_hours', $payload)) {
+        // null clears the setting: MAINTENANCE_MAX_AGE_HOURS applies again (#312).
+        $maintenanceMaxAge = $payload['maintenance_max_age_hours'] === null ? null : Request::integer($payload, 'maintenance_max_age_hours');
+    }
+    $settings = (new SystemSettingsService($pdo, $config))->update(
         actor: $actor,
         registrationEnabled: Request::boolean($payload, 'registration_enabled'),
         mfaRequiredForAdminRoles: $requireMfa,
@@ -49,6 +54,7 @@ Endpoint::run($config, static function () use ($config): ApiResult {
         guestAccessEnabled: array_key_exists('guest_access_enabled', $payload) ? Request::boolean($payload, 'guest_access_enabled') : null,
         usernameReservationDays: Request::optionalInteger($payload, 'username_reservation_days'),
         backupMaxAgeHours: Request::optionalInteger($payload, 'backup_max_age_hours'),
+        maintenanceMaxAgeHours: $maintenanceMaxAge,
     );
 
     return ApiResult::ok(['settings' => $settings]);

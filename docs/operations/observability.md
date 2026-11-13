@@ -17,7 +17,7 @@ Administrators and Super-Administrators can open `/admin-status.php` from the ad
 - effective named rate-limit maxima and windows;
 - aggregate allowed/rejected rate-limit decisions and last-decision timestamps by fixed policy name;
 - the latest maintenance invocation and the latest successful destructive cleanup;
-- whether destructive maintenance is overdue according to `MAINTENANCE_MAX_AGE_HOURS`;
+- whether destructive maintenance is overdue according to the maintenance max age;
 - the Web Push delivery queue and whether a due push is overdue (see [Push queue health](#push-queue-health));
 - the latest recorded backup run, the latest successful one, and whether backups are overdue (see [Backup freshness](#backup-freshness)).
 
@@ -45,7 +45,7 @@ Every invocation through `composer maintenance`, `composer maintenance:dry-run`,
 
 The operational ledger is separate from `audit_log`. Successful destructive cleanup still writes `maintenance.cleanup` to the audit log. Maintenance removes operational run rows older than 400 days.
 
-`MAINTENANCE_MAX_AGE_HOURS` defaults to `26`. The status page and metrics mark maintenance overdue when no successful destructive run exists within that window. Dry runs do not satisfy the destructive-maintenance freshness check.
+The maintenance max age is set in Operational settings (`maintenance_max_age_hours`, 1–720). Until a value is saved there, or after it is cleared, `MAINTENANCE_MAX_AGE_HOURS` (default `26`) is the fallback default (#312). `maintenance.maximum_age_hours` in the status snapshot is the effective value, and `maintenance.maximum_age_source` says which one applies: `setting` or `environment`. The status page and metrics mark maintenance overdue when no successful destructive run exists within that window. Dry runs do not satisfy the destructive-maintenance freshness check.
 
 ## Push queue health
 

@@ -28,12 +28,14 @@ Response:
     "guest_access_enabled": false,
     "username_reservation_days": 365,
     "backup_max_age_hours": 26,
+    "maintenance_max_age_hours": 26,
+    "maintenance_max_age_source": "environment",
     "updated_at": "2026-07-17 00:00:00+00"
   }
 }
 ```
 
-A retention value of `0` means permanent retention. The grace and operational-ledger values must be positive. `deleted_room_grace_days` is how long a deleted room stays restorable before maintenance removes it permanently; `0` keeps deleted rooms until they are restored. `guest_access_enabled` lets visitors look around without an account, in rooms that allow guests (see [Guest access](guest-access.md)). `username_reservation_days` (0–3650) is how long a username a moderator removed stays unclaimable after the account chose its new one; it is always held while the change is pending, and `0` releases it as soon as the new name is chosen (see [Required username changes](username-change.md)). `backup_max_age_hours` (0–720, default 26) is how old the newest recorded successful backup may be before System status and `/metrics.php` report backups as overdue; `0` turns backup tracking off (see [Backup freshness](../operations/observability.md#backup-freshness)).
+A retention value of `0` means permanent retention. The grace and operational-ledger values must be positive. `deleted_room_grace_days` is how long a deleted room stays restorable before maintenance removes it permanently; `0` keeps deleted rooms until they are restored. `guest_access_enabled` lets visitors look around without an account, in rooms that allow guests (see [Guest access](guest-access.md)). `username_reservation_days` (0–3650) is how long a username a moderator removed stays unclaimable after the account chose its new one; it is always held while the change is pending, and `0` releases it as soon as the new name is chosen (see [Required username changes](username-change.md)). `backup_max_age_hours` (0–720, default 26) is how old the newest recorded successful backup may be before System status and `/metrics.php` report backups as overdue; `0` turns backup tracking off (see [Backup freshness](../operations/observability.md#backup-freshness)). `maintenance_max_age_hours` (1–720) is how old the newest successful destructive maintenance run may be before it is reported as overdue (#312). The response gives the effective value, with `maintenance_max_age_source`: `"setting"` once a value has been saved here, or `"environment"` while the `MAINTENANCE_MAX_AGE_HOURS` fallback default (26 when unset) applies.
 
 ## Update settings
 
@@ -45,7 +47,7 @@ X-CSRF-Token: <session token>
 
 Requires active privileged step-up. Without recent verification the endpoint returns HTTP 403 with `step_up_required`; no setting or audit record is changed. The bundled browser asks for the current password and retries the update once after successful verification.
 
-The request must include every field returned above except `updated_at`; `deleted_room_grace_days`, `guest_access_enabled`, `username_reservation_days` and `backup_max_age_hours` are optional and left unchanged when omitted. Switching `guest_access_enabled` off ends every guest session at once:
+The request must include every field returned above except `updated_at`; `deleted_room_grace_days`, `guest_access_enabled`, `username_reservation_days`, `backup_max_age_hours` and `maintenance_max_age_hours` are optional and left unchanged when omitted. `maintenance_max_age_hours: null` clears the saved value, so the `MAINTENANCE_MAX_AGE_HOURS` fallback default applies again. `maintenance_max_age_source` is read-only. Switching `guest_access_enabled` off ends every guest session at once:
 
 ```json
 {

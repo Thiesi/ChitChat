@@ -105,7 +105,7 @@ On NetBSD with cron and rc.d, use the per-instance [`deploy/netbsd/crontab.examp
 
 Do not run cleanup from multiple hosts. A database advisory lock prevents concurrent cleanup, but attachment storage must also be local to or consistently mounted on the host that performs cleanup.
 
-`MAINTENANCE_MAX_AGE_HOURS` controls when the Administrator status page and Prometheus metrics consider destructive maintenance overdue. It defaults to 26 hours, allowing a daily job modest scheduling delay.
+The maintenance max age controls when the Administrator status page and Prometheus metrics consider destructive maintenance overdue. Set it in Operational settings (`maintenance_max_age_hours`, 1–720). Until a value is saved there, or after it is cleared, `MAINTENANCE_MAX_AGE_HOURS` is the fallback default (26 hours, allowing a daily job modest scheduling delay). The saved setting supersedes it.
 
 ## Retention settings
 

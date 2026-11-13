@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace ChitChat\Observability;
 
 use ChitChat\Admin\ApplicationNameService;
+use ChitChat\Admin\MaintenanceMaxAge;
 use ChitChat\Admin\RegistrationProtectionService;
 use ChitChat\Auth\AuthenticatedUser;
 use ChitChat\Backup\BackupRunRepository;
@@ -105,8 +106,10 @@ SQL),
         $latestRun = $this->maintenanceRuns->latest();
         $latestSuccess = $this->maintenanceRuns->latestSuccessfulDestructive();
         $successAgeSeconds = $this->ageSeconds($latestSuccess['finished_at'] ?? null);
+        // The Operational setting, or MAINTENANCE_MAX_AGE_HOURS until one is saved (#312).
+        $maintenanceMaxAge = MaintenanceMaxAge::read($this->pdo, $this->config);
         $maintenanceOverdue = $successAgeSeconds === null
-            || $successAgeSeconds > $this->config->maintenanceMaxAgeHours * 3600;
+            || $successAgeSeconds > $maintenanceMaxAge['hours'] * 3600;
 
         return [
             'application' => [
@@ -147,7 +150,8 @@ SQL),
                 'latest_run' => $latestRun,
                 'latest_successful_destructive_run' => $latestSuccess,
                 'latest_success_age_seconds' => $successAgeSeconds,
-                'maximum_age_hours' => $this->config->maintenanceMaxAgeHours,
+                'maximum_age_hours' => $maintenanceMaxAge['hours'],
+                'maximum_age_source' => $maintenanceMaxAge['source'],
                 'overdue' => $maintenanceOverdue,
             ],
             'push' => $this->push(),
