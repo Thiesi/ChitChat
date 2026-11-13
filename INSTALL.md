@@ -271,7 +271,7 @@ composer maintenance
 
 The command also removes expired presence and SSE leases, old realtime events and throttle ledgers, signed-in session records retired more than seven days ago, expired username reservations, deleted attachment files, and opaque orphan files older than their grace period. `docs/operations/maintenance.md` lists every step and result field. Every invocation is recorded with mode, status, duration, and result or failure information. A destructive run with attachment-file failures is recorded as a warning and does not count as a fresh clean success.
 
-The overdue state on `/admin-status.php` and in Prometheus metrics uses the maintenance max age in Operational settings (`maintenance_max_age_hours`, 1–720). Until a value is saved there, `MAINTENANCE_MAX_AGE_HOURS` (default 26) is the fallback default. Schedule maintenance as the same operating-system account that owns attachment storage. Ready-to-adapt files are provided for systemd (`deploy/systemd/`) and for cron with rc.d on NetBSD (`deploy/netbsd/crontab.example`, described in `docs/operations/netbsd-apache.md`). See `docs/operations/maintenance.md`.
+The overdue state on `/admin-status.php` and in Prometheus metrics uses the maintenance maximum age: Operational settings › Health checks › **Maintenance maximum age, in hours** (`maintenance_max_age_hours`, 1–720). Until a value is saved there, `MAINTENANCE_MAX_AGE_HOURS` (default 26) applies, and **Use the server default** returns to it. Schedule maintenance as the same operating-system account that owns attachment storage. Ready-to-adapt files are provided for systemd (`deploy/systemd/`) and for cron with rc.d on NetBSD (`deploy/netbsd/crontab.example`, described in `docs/operations/netbsd-apache.md`). See `docs/operations/maintenance.md`.
 
 Message revisions reference their canonical room or direct message with `ON DELETE CASCADE`. Soft deletion retains revisions; hard deletion by configured message retention removes the canonical message and revision chain together.
 
@@ -284,6 +284,8 @@ Prometheus output is disabled while `METRICS_BEARER_TOKEN` is empty. To enable i
 ```text
 Authorization: Bearer <token>
 ```
+
+System status also shows phone alerts (the Web Push queue) and backups. Backups are tracked from `bin/chitchat-backup` runs and count as overdue after Operational settings › Health checks › **Backup maximum age, in hours** (`backup_max_age_hours`, 0–720, default 26). Set it a little above your backup interval. **On an instance without scheduled `chitchat-backup` runs**, such as a test or staging instance, or one backed up by host snapshots, set it to `0`: otherwise System status and `chitchat_backup_overdue` report backups overdue. See [`docs/operations/backup-restore.md`](docs/operations/backup-restore.md#backup-freshness-in-chitchat).
 
 Protect `/metrics.php` with HTTPS and reverse-proxy or network restrictions in addition to the application bearer token. See `docs/operations/observability.md` for the metric list, scrape configuration, privacy boundary, and alert suggestions.
 

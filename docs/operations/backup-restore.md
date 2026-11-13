@@ -171,10 +171,10 @@ The tool deliberately does not delete old sets. Apply a retention policy only af
 
 ### Backup freshness in ChitChat
 
-Each run of `bin/chitchat-backup` is recorded for System status and `/metrics.php` after the dump, best-effort (#310). The page shows the latest run, the latest success, and **overdue** against `backup_max_age_hours` in Operational settings (default 26 hours, `0` = off). Recording never changes the backup: if the database can't be written, the backup still succeeds with the same exit code and output, prints `Warning: backup run not recorded (…)` on stderr, and the status shows **unknown**. See [Backup freshness](observability.md#backup-freshness).
+Each run of `bin/chitchat-backup` is recorded for System status and `/metrics.php` after the dump, best-effort (#310). The **Backups** card shows the latest run, the latest success, and **Overdue** against Operational settings › Health checks › **Backup maximum age, in hours** (`backup_max_age_hours`, default 26 hours; `0` turns tracking off and the card shows **Not tracked**). Recording never changes the backup: if the database can't be written, the backup still succeeds with the same exit code and output, prints `Warning: backup run not recorded (…)` on stderr, and the status shows **unknown**. See [Backup freshness](observability.md#backup-freshness).
 
 - **A separate backup role:** if backups run as a database role with read access only, grant it `INSERT, DELETE ON backup_runs` and `USAGE ON SEQUENCE backup_runs_id_seq` to have runs recorded. Without them, backups keep working and the status stays unknown.
-- **Other backup tools:** only `bin/chitchat-backup` records runs. Backups taken another way leave the status unknown; set `backup_max_age_hours` to `0` if you don't use it.
+- **Other backup tools:** only `bin/chitchat-backup` records runs. Backups taken another way leave the status unknown. If you don't use it, or the instance has no scheduled backups at all (a test or staging instance), set the backup maximum age to `0`.
 - **Match the schedule:** set the maximum age a little above your backup interval, for example 26 hours for a daily backup.
 
 ## Recovery drill
