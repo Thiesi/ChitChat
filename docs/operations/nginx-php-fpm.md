@@ -55,6 +55,8 @@ Provide ChitChat's environment through a protected service environment file, sys
 
 The SSE endpoint closes after approximately 25 seconds and reconnects. A deployment with 20 concurrently connected browser tabs therefore needs room for those 20 temporary SSE workers **in addition to** normal requests. Tune from measured concurrency rather than copying the example value blindly.
 
+For a stream opened with `resume=settled`, two optional PostgreSQL role settings help: `idle_in_transaction_session_timeout` for roles other than the web sessions, and `pg_read_all_stats` when other database roles write events. See [`INSTALL.md`, Server-Sent Events](../../INSTALL.md#server-sent-events).
+
 ## Nginx server
 
 ```nginx

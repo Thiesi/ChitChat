@@ -45,7 +45,7 @@ Every invocation through `composer maintenance`, `composer maintenance:dry-run`,
 
 The operational ledger is separate from `audit_log`. Successful destructive cleanup still writes `maintenance.cleanup` to the audit log. Maintenance removes operational run rows older than 400 days.
 
-The maintenance max age is set in Operational settings (`maintenance_max_age_hours`, 1–720). Until a value is saved there, or after it is cleared, `MAINTENANCE_MAX_AGE_HOURS` (default `26`) is the fallback default (#312). `maintenance.maximum_age_hours` in the status snapshot is the effective value, and `maintenance.maximum_age_source` says which one applies: `setting` or `environment`. The status page and metrics mark maintenance overdue when no successful destructive run exists within that window. Dry runs do not satisfy the destructive-maintenance freshness check.
+The maintenance max age is set in Operational settings › Health checks › **Maintenance maximum age, in hours** (`maintenance_max_age_hours`, 1–720). Until a value is saved there, or after **Use the server default** clears it, `MAINTENANCE_MAX_AGE_HOURS` (default `26`) is the fallback default (#312). `maintenance.maximum_age_hours` in the status snapshot is the effective value, and `maintenance.maximum_age_source` says which one applies: `setting` or `environment`. The status page and metrics mark maintenance overdue when no successful destructive run exists within that window. Dry runs do not satisfy the destructive-maintenance freshness check.
 
 ## Push queue health
 
@@ -69,7 +69,7 @@ The maintenance max age is set in Operational settings (`maintenance_max_age_hou
 
 `backups` in the status snapshot reports:
 
-- `tracking_enabled` and `maximum_age_hours`: from `backup_max_age_hours` in Operational settings (0–720, default 26). `0` turns tracking off.
+- `tracking_enabled` and `maximum_age_hours`: from `backup_max_age_hours`, set in Operational settings › Health checks › **Backup maximum age, in hours** (0–720, default 26). `0` turns tracking off.
 - `latest_run` and `latest_success`: the most recent recorded run and the most recent successful one.
 - `latest_success_age_seconds`.
 - `overdue`: tracking is on and no recorded successful run exists within the maximum age.
