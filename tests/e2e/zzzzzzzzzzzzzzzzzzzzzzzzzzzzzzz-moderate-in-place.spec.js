@@ -108,9 +108,11 @@ test('a room owner mutes someone from the profile card and the room is told', as
     await expect(memberPage.locator('#muted-notice')).toContainText('Cool down, please');
     await expect(memberPage.locator('#composer-form')).toBeHidden();
 
-    // Lifting it from the same card brings the message box back at once.
-    await rootPage.locator('.message', { hasText: hello }).locator('.user-name', { hasText: member.username }).first().click();
-    await rootPage.getByRole('button', { name: `Lift mute in #${roomName}` }).click();
+    // The card stayed open through the dialog (#300) and shows the new state; lifting
+    // the mute from it brings the message box back at once.
+    const card = rootPage.locator('#name-menu');
+    await expect(card).toContainText(`${member.username} is muted in #${roomName}.`);
+    await card.getByRole('button', { name: `Lift mute in #${roomName}` }).click();
     await expect(memberPage.locator('#composer-form')).toBeVisible();
     await expect(memberPage.locator('#muted-notice')).toBeHidden();
   } finally {

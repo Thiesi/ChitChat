@@ -1,10 +1,11 @@
 // The Moderation part of the profile card: only what the viewer may do to
 // this person, in the room the card was opened in and everywhere. The
 // server worked out the options (users/profile.php) and checks every action.
-import { apiPost } from './api.js';
+import { ApiError, apiPost } from './api.js';
 import { formatDateTime } from './datetime.js';
 import { confirmAction } from './confirm-dialog.js';
 import { chooseGuestBlock, chooseRestriction, chooseUsernameChange } from './moderation-tools.js';
+import { withPrivilegedStepUp } from './step-up.js';
 
 /**
  * @param {{ id: number, username: string, moderation: null | { room: null | object, everywhere: null | object, guest?: null | object } }} profile
@@ -72,6 +73,29 @@ export function moderationSection(profile, { refresh, report }) {
         await run(button, () => apiPost('/api/v1/admin/rooms/remove-member.php', {
           room_id: room.id, target_user_id: profile.id, announce: choice.announce,
         }), `${name} was removed from #${room.name}.`);
+      }));
+    }
+    // #300: hand the room on (#273). The server says whether this person can own it now,
+    // and the transfer asks for a fresh sign-in check.
+    if (room.can_transfer_ownership) {
+      group.append(item(`Make owner of #${room.name}…`, true, async (button) => {
+        const choice = await confirmAction({
+          title: `Make ${name} the owner of #${room.name}?`,
+          text: `${name} can then change the room’s details, members and roles. The current owner stays in the room as a moderator.`,
+          confirmLabel: 'Hand over',
+          announce: null,
+        });
+        if (!choice) return;
+        button.disabled = true;
+        try {
+          await withPrivilegedStepUp(() => apiPost('/api/v1/rooms/transfer-ownership.php', { room_id: room.id, target_user_id: profile.id }));
+          report(`${name} owns #${room.name} now.`, true);
+          refresh();
+        } catch (error) {
+          button.disabled = false;
+          if (error instanceof ApiError && error.code === 'step_up_cancelled') return;
+          report(transferError(error, name, room.name), false);
+        }
       }));
     }
     section.append(document.createElement('hr'), group);
@@ -213,4 +237,16 @@ function status(text) {
 
 function until(expiresAt) {
   return expiresAt ? `until ${formatDateTime(expiresAt)}` : 'until lifted';
+}
+
+/** What a refused transfer means, in plain words; the server's text for anything else. */
+export function transferError(error, name, roomName) {
+  switch (error?.code) {
+    case 'transfer_target_not_eligible': return `${name} can’t own this room right now (guests, closing or banned accounts can’t).`;
+    case 'already_owner': return `${name} already owns #${roomName}.`;
+    case 'ownership_changed': return `#${roomName} changed meanwhile. Reload and try again.`;
+    case 'membership_not_found': return `${name} isn’t in #${roomName} any more.`;
+    case 'forbidden': return `You can’t hand #${roomName} on.`;
+    default: return error instanceof Error && error.message ? error.message : 'That did not work.';
+  }
 }
