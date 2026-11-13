@@ -1,4 +1,4 @@
-import { ApiError, apiGet, apiPost, setCsrfToken } from './api.js';
+import { ApiError, apiGet, apiPost, isPageLeft, setCsrfToken } from './api.js';
 import { formatDateTime } from './datetime.js';
 
 const state = {
@@ -229,6 +229,8 @@ function toast(message, kind = 'info') {
 function clearError() { elements['inspection-error'].textContent = ''; }
 function setError(message) { elements['inspection-error'].textContent = message; }
 function handleApiFailure(error) {
+  // A request the page aborted on leaving shows nothing (#270).
+  if (isPageLeft(error)) return;
   if (error instanceof ApiError && error.status === 401) {
     window.location.assign('/');
     return;

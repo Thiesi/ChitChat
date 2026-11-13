@@ -21,6 +21,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <link rel="stylesheet" href="/assets/css/components.css">
   <link rel="stylesheet" href="/assets/css/messages.css">
   <link rel="stylesheet" href="/assets/css/shell.css">
+  <link rel="stylesheet" href="/assets/css/stewarding.css">
 </head>
 <body>
   <div id="inspection-loading" class="app-loading" role="status">Loading inspection controls…</div>
@@ -35,9 +36,9 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
       </div>
     </header>
 
-    <section class="inspection-warning" aria-labelledby="inspection-warning-heading">
-      <h2 id="inspection-warning-heading">Sensitive administrative access</h2>
-      <p>Opening content requires recent current-password verification. Every inspection, including each older-history page, separately records your identity, IP address, stated reason, selected users, cursor and returned message range. Passwords and message bodies are not copied into audit metadata.</p>
+    <section class="steward-notice" aria-labelledby="inspection-warning-heading">
+      <h2 id="inspection-warning-heading">This opens a private conversation between two people</h2>
+      <p>You confirm your password first. Every page you open goes in the audit log: who you are, your IP address, your reason, the two people, and which messages were shown. Message text and your password are never copied into the log.</p>
     </section>
 
     <p id="inspection-error" class="error-text" role="alert"></p>
@@ -46,7 +47,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
       <section>
         <label>
           User A
-          <input id="inspection-user-a-search" type="search" minlength="2" maxlength="32" placeholder="Username prefix" required>
+          <input id="inspection-user-a-search" type="search" minlength="2" maxlength="32" placeholder="Username prefix">
         </label>
         <button id="inspection-user-a-search-button" class="secondary-button" type="button">Search</button>
         <div id="inspection-user-a-results" class="inspection-user-results"></div>
@@ -56,7 +57,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
       <section>
         <label>
           User B
-          <input id="inspection-user-b-search" type="search" minlength="2" maxlength="32" placeholder="Username prefix" required>
+          <input id="inspection-user-b-search" type="search" minlength="2" maxlength="32" placeholder="Username prefix">
         </label>
         <button id="inspection-user-b-search-button" class="secondary-button" type="button">Search</button>
         <div id="inspection-user-b-results" class="inspection-user-results"></div>

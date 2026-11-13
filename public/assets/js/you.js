@@ -7,7 +7,8 @@ import { announcePreference, setAnnouncePreference } from './announce-preference
 import { setSoundEnabled, soundEnabled } from './attention.js';
 import { markGuestAvatar } from './guest.js';
 import { signOut } from './sign-out.js';
-import { pageSession } from './page-session.js';
+import { isPageLeft } from './api.js';
+import { pageSession, retryOnReturn } from './page-session.js';
 import { startSections } from './you-sections.js';
 
 const signOutButton = document.getElementById('logout-button');
@@ -39,7 +40,9 @@ async function start() {
     // The same answer that shows the page (account.js), so the sections never stay unstarted
     // under a list that appeared; a failure is shown there, with Try again.
     session = await pageSession();
-  } catch {
+  } catch (error) {
+    // Left while loading (#270): start the sections when the page comes back.
+    if (isPageLeft(error)) retryOnReturn(() => void start());
     return;
   }
   const user = session?.user;

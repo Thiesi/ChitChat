@@ -32,6 +32,10 @@ body:has(> .app-frame[data-tab="stewarding"]) :is(button, a, summary):focus-visi
 
 body:has(> .app-frame[data-tab="stewarding"]) :is(input[type="checkbox"], input[type="radio"]) { accent-color: var(--steward); }
 
+/* Shared with the Direct page's stylesheet (DM inspection keeps messages.css): only here they're steward. */
+body:has(> .app-frame[data-tab="stewarding"]) .messages-eyebrow { color: var(--steward); }
+body:has(> .app-frame[data-tab="stewarding"]) .inspection-user-button:hover { border-color: var(--steward); }
+
 /* The sensitive-access notice: prominent, in the steward accent rather than the error colour. */
 .steward-notice {
   display: grid;

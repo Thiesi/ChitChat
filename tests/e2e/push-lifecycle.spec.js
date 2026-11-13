@@ -33,8 +33,9 @@ async function fixture(page, { pending = false, initialUser = user, allowIdentit
       register: async () => registration, getRegistration: async () => registration,
     } });
   }, { endpoint, unsubscribeFails });
-  // api.js imports signed-out-notice.js (#205: the revoked-login line), so the fixture serves it too.
-  const files = new Set(['push-state.js', 'push-lifecycle.js', 'api.js', 'datetime.js', 'signed-out-notice.js']);
+  // api.js imports signed-out-notice.js (#205: the revoked-login line) and page-lifetime.js
+  // (#270: requests abort when the page is left), so the fixture serves them too.
+  const files = new Set(['push-state.js', 'push-lifecycle.js', 'api.js', 'datetime.js', 'signed-out-notice.js', 'page-lifetime.js']);
   await page.route('http://localhost/**', async (route) => {
     const url = new URL(route.request().url());
     if (['/fixture', '/rules.php', '/privacy.php'].includes(url.pathname)) return route.fulfill({

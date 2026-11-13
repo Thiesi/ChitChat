@@ -7,7 +7,7 @@
 // Ready-made icons (#226) come from the server's catalog: choosing one previews
 // it the same way (a JSON dry run), and "Use this icon" saves exactly that one.
 // They keep their own background, so the background choice steps aside.
-import { ApiError, apiGet, apiUpload, apiPost } from './api.js';
+import { ApiError, apiGet, apiPost, apiUpload, isPageLeft } from './api.js';
 import { formatDateTime } from './datetime.js';
 import { confirmAction } from './confirm-dialog.js';
 import { withPrivilegedStepUp } from './step-up.js';
@@ -507,10 +507,14 @@ async function mutate(operation, success) {
 }
 
 function showError(error) {
+  // A request the page aborted on leaving shows nothing (#270).
+  if (isPageLeft(error)) return;
   $('icon-error').textContent = errorText(error);
 }
 
 export function errorText(error) {
+  // A request the page aborted on leaving clears the line rather than showing a fallback (#270).
+  if (isPageLeft(error)) return '';
   if (!(error instanceof ApiError)) return 'That didn’t work. Check your connection and try again.';
   const tooMany = () => {
     const minutes = error.retryAfterSeconds ? Math.max(1, Math.ceil(error.retryAfterSeconds / 60)) : null;

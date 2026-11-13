@@ -1,4 +1,4 @@
-import { ApiError, apiGet, apiPost, setCsrfToken } from './api.js';
+import { ApiError, apiGet, apiPost, isPageLeft, logError, setCsrfToken } from './api.js';
 import { announce, announceIncoming, markKnown, resetAnnouncements } from './announcer.js';
 import { controlItem, dayItem, dayKey, moreButton, newMessagesItem, reactButton, reconcile, runPositions, signatureOf } from './transcript.js';
 import { identityHueIndex } from './identity-hue.js';
@@ -1893,6 +1893,8 @@ function errorMessage(error) {
 }
 
 function handleApiFailure(error) {
+  // A request the page aborted on leaving shows nothing (#270).
+  if (isPageLeft(error)) return;
   if (error instanceof ApiError && error.status === 401) {
     forceSignedOut(sessionEndedMessage());
     return;
@@ -2021,9 +2023,11 @@ function renderLockdown(lockdown) {
 }
 
 function handleFatalError(error) {
+  // Nothing to show for a request the page aborted on leaving (#270).
+  if (isPageLeft(error)) return;
   elements['app-loading'].textContent = errorMessage(error);
   elements['app-loading'].classList.remove('hidden');
-  console.error(error);
+  logError(error);
 }
 
 function formatPageDateTime(value) {

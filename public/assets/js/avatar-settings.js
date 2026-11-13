@@ -5,6 +5,7 @@ import { ApiError, apiGet, apiPost, apiUpload } from './api.js';
 import { attachPhoto, avatarTone, initials, refreshPhoto } from './avatar.js';
 import { withProviderIcon } from './provider-icons.js';
 import { formatDateTime } from './datetime.js';
+import { pageLifetime } from './page-lifetime.js';
 
 /**
  * "Member since" on You (S5a): from the profile this card already loads, so
@@ -263,7 +264,7 @@ window.addEventListener('DOMContentLoaded', async () => {
       return;
     }
     try {
-      const response = await fetch('/api/v1/account/avatar/imported.php', { credentials: 'same-origin' });
+      const response = await fetch('/api/v1/account/avatar/imported.php', { credentials: 'same-origin', signal: pageLifetime().signal() });
       if (!response.ok) throw new Error('The fetched picture has expired. Please fetch it again.');
       const blob = await response.blob();
       openCrop(new File([blob], 'picture', { type: blob.type }));

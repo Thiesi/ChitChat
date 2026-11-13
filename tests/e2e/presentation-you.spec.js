@@ -265,6 +265,29 @@ for (const width of [1280, 900, 360]) {
   });
 }
 
+test('left while loading and back from the back/forward cache: no error, and the page loads (#270)', async ({ page }) => {
+  await fixture(page);
+  let asked = 0;
+  // The first session request never answers (the page is left while it waits); later ones do.
+  await page.route('**/api/v1/session.php', async (route) => {
+    asked += 1;
+    if (asked === 1) return;
+    await route.fallback();
+  });
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto('/account.php');
+  await expect.poll(() => asked).toBe(1);
+  const transition = (name) => page.evaluate((type) => window.dispatchEvent(new PageTransitionEvent(type, { persisted: true })), name);
+  await transition('pagehide');
+  await page.waitForTimeout(300);
+  await expect(page.locator('#account-loading')).toHaveText('Loading account…');
+  await expect(page.getByRole('button', { name: 'Try again' })).toHaveCount(0);
+  await transition('pageshow');
+  await expect(list(page)).toBeVisible();
+  await sectionLink(page, 'Appearance').click();
+  await expect(title(page)).toHaveText('Appearance');
+});
+
 test('a modified click on a section is left to the browser (a new tab at its address)', async ({ page }) => {
   await fixture(page);
   await open(page);
