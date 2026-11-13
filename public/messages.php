@@ -48,6 +48,8 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
           <?= \ChitChat\View\AppShell::brand($config, 'list-pane-brand') ?>
           <h1 id="dm-list-title" class="list-title">Direct</h1>
           <p id="messages-identity" class="list-pane-status"></p>
+          <!-- The same status line as Rooms (#309, S7): quiet when live, not a live region. -->
+          <span id="dm-connection-status" class="connection-status" data-state="connecting">Connecting…</span>
         </div>
         <div class="list-pane-actions">
           <a class="header-button list-search" href="/search.php?scope=direct" aria-label="Search messages" title="Search messages"><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></a>

@@ -15,7 +15,8 @@
 // - A hidden tab checks at most every 30 s; becoming visible or going online retries now.
 // - onLongOutage runs once per outage, when the wait reaches its 30 s cap.
 // - Into the back/forward cache (pagehide with persisted) the stream is closed on purpose; on a
-//   restore (pageshow with persisted) the status says "Reconnecting" at once, then the session
+//   restore (pageshow with persisted) onStatus says 'reconnecting' at once (the status line,
+//   connection-status.js, shows it after three seconds, S7), then the session
 //   is checked and the stream reopened from its position (#323). Real restores can't be observed
 //   in our test automation, which runs with the cache off, so this is defensive by design.
 

@@ -13,7 +13,7 @@ import { openPersonReportDialog } from './message-report-dialog.js';
 import { canReport } from './person-reports.js';
 import { startRulesGate } from './rules.js';
 import { REVOKED_NOTICE, rememberSignedOutNotice } from './signed-out-notice.js';
-import { MESSAGE_NOT_SENT, failedSending } from './unavailable.js';
+import { MESSAGE_NOT_SENT, errorText, failedSending } from './unavailable.js';
 import { initials } from './avatar.js';
 import { identityHueIndex } from './identity-hue.js';
 import { phoneListShowing } from './pane-stack.js';
@@ -21,6 +21,7 @@ import { renamedUser, renameInMessages } from './renames.js';
 import { renderConversationList as drawConversationList } from './conversation-list.js';
 import { startUsernameGate } from './username-gate.js';
 import { LONG_OUTAGE_NOTICE, keepEventStream, sessionProbe } from './realtime-stream.js';
+import { createConnectionStatus } from './connection-status.js';
 
 let transcriptKeys = null;
 const state = {
@@ -679,13 +680,16 @@ async function refreshConversationsOnly() {
 
 // The stream stays open across reconnects and upgrades (#301): realtime-stream.js recreates
 // it when the browser gives up, from the last position, and drops resent events (#286).
-// This page has no status line; a long outage is said once.
+// The status line follows it (#309, S7 ladder); a long outage is also said once.
+let statusLine = null;
 function startEventStream() {
   state.stream?.stop();
+  statusLine ??= createConnectionStatus(document.getElementById('dm-connection-status'));
   state.stream = keepEventStream({
     settled: state.settledResume,
     attach: attachStreamListeners,
     probe: sessionProbe(apiGet),
+    onStatus: (status) => statusLine.set(status),
     onSignedOut: () => window.location.assign('/'),
     onLongOutage: () => announce(LONG_OUTAGE_NOTICE),
   });
@@ -780,7 +784,7 @@ function handleApiFailure(error, then = '') {
     window.location.assign('/');
     return;
   }
-  const reason = error instanceof Error && error.message ? error.message : 'The request failed.';
+  const reason = errorText(error, 'The request failed.');
   // `then`: what happened to what was being sent, e.g. "Your message wasn't sent."
   elements['messages-error'].textContent = then ? failedSending(reason, then) : reason;
 }
