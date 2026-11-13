@@ -6,7 +6,9 @@ namespace ChitChat\Observability;
 use ChitChat\Admin\ApplicationNameService;
 use ChitChat\Admin\RegistrationProtectionService;
 use ChitChat\Auth\AuthenticatedUser;
+use ChitChat\Backup\BackupRunRepository;
 use ChitChat\Config;
+use ChitChat\WebPush\PushDeliveryQueue;
 use ChitChat\Http\ApiException;
 use DateTimeImmutable;
 use PDO;
@@ -14,6 +16,9 @@ use RuntimeException;
 
 final class SystemStatusService
 {
+    /** A due push waiting longer than this means no dispatcher is working (#310). */
+    public const PUSH_OVERDUE_AFTER_SECONDS = 300;
+
     private readonly MaintenanceRunRepository $maintenanceRuns;
 
     public function __construct(
@@ -145,11 +150,86 @@ SQL),
                 'maximum_age_hours' => $this->config->maintenanceMaxAgeHours,
                 'overdue' => $maintenanceOverdue,
             ],
+            'push' => $this->push(),
+            'backups' => $this->backups(),
             'metrics' => [
                 'enabled' => $this->config->metricsBearerToken !== '',
             ],
             'generated_at' => (new DateTimeImmutable())->format(DATE_ATOM),
         ];
+    }
+
+    /**
+     * Push queue health (#310). "Overdue" means a delivery that is already due has waited longer
+     * than PUSH_OVERDUE_AFTER_SECONDS: the cron sweep runs every minute and the listener every
+     * 15 s, so neither is working. A stopped dispatcher with nothing due loses nothing and only
+     * shows once something is due. Push not configured is neutral, never an error.
+     *
+     * @return array<string, mixed>
+     */
+    private function push(): array
+    {
+        $configured = $this->config->webPushEnabled();
+        $queue = new PushDeliveryQueue($this->pdo);
+        $now = new DateTimeImmutable();
+        $health = $queue->health($now);
+        $freshness = $queue->freshness($now);
+        $overdue = $configured
+            && $freshness['oldest_due_seconds'] !== null
+            && $freshness['oldest_due_seconds'] > self::PUSH_OVERDUE_AFTER_SECONDS;
+
+        return [
+            'configured' => $configured,
+            'status' => !$configured ? 'not_configured' : ($overdue ? 'overdue' : 'ok'),
+            'pending_deliveries' => $health['pending_deliveries'] ?? 0,
+            'due_deliveries' => $health['due_deliveries'] ?? 0,
+            'failed_deliveries' => $health['failed_deliveries'] ?? 0,
+            'oldest_pending_seconds' => $health['oldest_pending_seconds'] ?? 0,
+            'oldest_due_seconds' => $freshness['oldest_due_seconds'],
+            'last_sent_at' => $freshness['last_sent_at'],
+            'overdue_after_seconds' => self::PUSH_OVERDUE_AFTER_SECONDS,
+            'overdue' => $overdue,
+        ];
+    }
+
+    /**
+     * Backup freshness (#310), from the runs bin/chitchat-backup recorded. A run it couldn't
+     * record (a read-only or broken database) is missing, so the status is "unknown", never "ok";
+     * while tracking is on, that also counts as overdue.
+     *
+     * @return array<string, mixed>
+     */
+    private function backups(): array
+    {
+        $runs = new BackupRunRepository($this->pdo);
+        $maximumAgeHours = $runs->maximumAgeHours();
+        $tracking = $maximumAgeHours > 0;
+        $latest = $runs->latest();
+        $success = $runs->latestSuccess();
+        $successAge = $this->ageSeconds($success['finished_at'] ?? null);
+        $overdue = $tracking && ($successAge === null || $successAge > $maximumAgeHours * 3600);
+
+        return [
+            'tracking_enabled' => $tracking,
+            'maximum_age_hours' => $maximumAgeHours,
+            'status' => self::backupStatus($tracking, $latest, $overdue),
+            'latest_run' => $latest,
+            'latest_success' => $success,
+            'latest_success_age_seconds' => $successAge,
+            'overdue' => $overdue,
+        ];
+    }
+
+    /** @param ?array<string, mixed> $latest */
+    public static function backupStatus(bool $tracking, ?array $latest, bool $overdue): string
+    {
+        return match (true) {
+            !$tracking => 'not_tracked',
+            $latest === null => 'unknown',
+            $latest['outcome'] !== 'success' => 'failed',
+            $overdue => 'overdue',
+            default => 'ok',
+        };
     }
 
     /** @return array<string, mixed> */

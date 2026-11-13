@@ -88,6 +88,8 @@ What the supervisor does:
 
 Restart the listener after every code deploy (after `composer migrate`) and after any `.env` or VAPID change: `service APPUSER_push restart`.
 
+System status shows push as **overdue** when a due delivery has waited over 5 minutes, which means both the listener and the cron sweep have stopped. Nothing shows while nothing is due ([Push queue health](observability.md#push-queue-health)).
+
 Rotate the listener's log with **copy-then-truncate**, for example `/etc/copytruncate.conf`. Rename-based rotation such as newsyslog's default leaves the long-running process writing to the renamed file.
 
 ### pcntl only for the listener
@@ -108,7 +110,7 @@ Settings such as the sign-in decoration and the username reservation period are 
 
 ## Backups
 
-[`backup-restore.md`](backup-restore.md) applies, with the commands run as the instance user. On NetBSD, `chitchat-backup` calls `tar`, which resolves to the base system's **bsdtar** (libarchive), not GNU tar. Creating and verifying backups work with it, and the manifest records its version. **Restoring with bsdtar hasn't been rehearsed yet**, so run a restore drill to a new database name and directory before relying on it. `chitchat-verify-backup` takes `--backup DIR`.
+[`backup-restore.md`](backup-restore.md) applies, with the commands run as the instance user. System status shows each instance's latest recorded backup and whether it is overdue ([Backup freshness](observability.md#backup-freshness)); the crontab line needs no change, and a run that couldn't be recorded leaves a warning in `backup.log` (the existing `2>&1`). Set `backup_max_age_hours` in Operational settings to suit each instance's schedule. On NetBSD, `chitchat-backup` calls `tar`, which resolves to the base system's **bsdtar** (libarchive), not GNU tar. Creating and verifying backups work with it, and the manifest records its version. **Restoring with bsdtar hasn't been rehearsed yet**, so run a restore drill to a new database name and directory before relying on it. `chitchat-verify-backup` takes `--backup DIR`.
 
 ## Upgrading
 

@@ -65,4 +65,47 @@ final class PrometheusEncoderTest extends TestCase
         self::assertStringContainsString('chitchat_maintenance_last_run_duration_seconds 0.25', $output);
         self::assertStringEndsWith("\n", $output);
     }
+
+    public function testPushAndBackupHealthAreEncoded(): void
+    {
+        $output = PrometheusEncoder::encode([
+            'push' => [
+                'configured' => true, 'pending_deliveries' => 4, 'due_deliveries' => 2, 'failed_deliveries' => 1,
+                'oldest_pending_seconds' => 900, 'oldest_due_seconds' => 420, 'overdue' => true,
+                'last_sent_at' => '2026-11-13T05:00:00+00:00',
+            ],
+            'backups' => [
+                'tracking_enabled' => true, 'overdue' => false,
+                'latest_run' => ['outcome' => 'failure', 'finished_at' => '2026-11-13T03:00:00+00:00'],
+                'latest_success' => ['outcome' => 'success', 'finished_at' => '2026-11-12T02:46:00+00:00'],
+            ],
+        ]);
+
+        foreach ([
+            'chitchat_push_configured 1',
+            'chitchat_push_deliveries{state="pending"} 4',
+            'chitchat_push_deliveries{state="due"} 2',
+            'chitchat_push_deliveries{state="failed"} 1',
+            'chitchat_push_oldest_due_seconds 420',
+            'chitchat_push_oldest_pending_seconds 900',
+            'chitchat_push_overdue 1',
+            'chitchat_push_last_sent_timestamp_seconds 1794546000',
+            'chitchat_backup_tracking_enabled 1',
+            'chitchat_backup_overdue 0',
+            'chitchat_backup_last_run_success 0',
+            'chitchat_backup_last_run_timestamp_seconds 1794538800',
+            'chitchat_backup_last_success_timestamp_seconds 1794451560',
+        ] as $line) {
+            self::assertStringContainsString($line . "\n", $output);
+        }
+    }
+
+    public function testMissingPushAndBackupDataIsZero(): void
+    {
+        $output = PrometheusEncoder::encode(['push' => ['configured' => false, 'oldest_due_seconds' => null], 'backups' => ['latest_run' => null]]);
+        foreach (['chitchat_push_configured 0', 'chitchat_push_oldest_due_seconds 0', 'chitchat_push_last_sent_timestamp_seconds 0',
+            'chitchat_backup_last_run_success 0', 'chitchat_backup_last_success_timestamp_seconds 0'] as $line) {
+            self::assertStringContainsString($line . "\n", $output);
+        }
+    }
 }

@@ -169,6 +169,14 @@ The example performs a live daily backup. For offline consistency, add site-spec
 
 The tool deliberately does not delete old sets. Apply a retention policy only after newer sets have been verified and copied to the required failure domain. Alert on timer or service failures and on the age of the newest verified off-host copy.
 
+### Backup freshness in ChitChat
+
+Each run of `bin/chitchat-backup` is recorded for System status and `/metrics.php` after the dump, best-effort (#310). The page shows the latest run, the latest success, and **overdue** against `backup_max_age_hours` in Operational settings (default 26 hours, `0` = off). Recording never changes the backup: if the database can't be written, the backup still succeeds with the same exit code and output, prints `Warning: backup run not recorded (…)` on stderr, and the status shows **unknown**. See [Backup freshness](observability.md#backup-freshness).
+
+- **A separate backup role:** if backups run as a database role with read access only, grant it `INSERT, DELETE ON backup_runs` and `USAGE ON SEQUENCE backup_runs_id_seq` to have runs recorded. Without them, backups keep working and the status stays unknown.
+- **Other backup tools:** only `bin/chitchat-backup` records runs. Backups taken another way leave the status unknown; set `backup_max_age_hours` to `0` if you don't use it.
+- **Match the schedule:** set the maximum age a little above your backup interval, for example 26 hours for a daily backup.
+
 ## Recovery drill
 
 A useful periodic drill records:
