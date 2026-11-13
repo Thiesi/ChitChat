@@ -200,6 +200,40 @@ test('a section chosen while the page is still loading opens once it has loaded'
   await expect(page.getByRole('heading', { name: 'Theme and colours' })).toBeVisible();
 });
 
+// The page's one session answer decides what shows: the list and the sections succeed
+// or fail together, and a failure is said, with Try again (a stuck hidden section
+// flaked theme:31 and preferences:25 on Firefox).
+const busy = { status: 503, json: { error: { code: 'unavailable', message: 'The server is busy.' } } };
+
+test('if the page can’t load its session, it says so with Try again, and Try again loads it', async ({ page }) => {
+  await fixture(page);
+  let fail = true;
+  await page.route('**/api/v1/session.php', (route) => (fail ? route.fulfill(busy) : route.fallback()));
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto('/account.php#appearance');
+  const loading = page.locator('#account-loading');
+  await expect(loading).toContainText('Check your connection and try again.');
+  await expect(loading.getByRole('button', { name: 'Try again' })).toBeFocused();
+  await expect(page.locator('#account-shell')).toBeHidden();
+  await axe(page, 'load failure');
+  fail = false;
+  await loading.getByRole('button', { name: 'Try again' }).click();
+  await expect(title(page)).toHaveText('Appearance');
+  await expect(page.getByRole('heading', { name: 'Theme and colours' })).toBeVisible();
+});
+
+test('the sections start from the answer that shows the page, even if a later session request fails', async ({ page }) => {
+  await fixture(page);
+  let answered = 0;
+  await page.route('**/api/v1/session.php', (route) => (++answered === 1 ? route.fallback() : route.fulfill(busy)));
+  // you.js arrives late, as on a busy machine, so it asks after the first answer came back.
+  await page.route('**/assets/js/you.js', async (route) => { await new Promise((resolve) => setTimeout(resolve, 800)); await route.fallback(); });
+  await open(page);
+  await sectionLink(page, 'Appearance').click();
+  await expect(title(page)).toHaveText('Appearance');
+  await expect(page.locator('#account-shell').getByRole('radiogroup', { name: 'Colour scheme' }).getByRole('radio', { name: 'Dusk' })).toBeVisible();
+});
+
 test('a modified click on a section is left to the browser (a new tab at its address)', async ({ page }) => {
   await fixture(page);
   await open(page);
