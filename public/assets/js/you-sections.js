@@ -108,8 +108,11 @@ export function startSections({ guest }) {
     if (legacy !== key) document.getElementById(legacy)?.scrollIntoView({ block: 'start' });
   });
 
-  const legacy = safeDecode(OPENED.hash.slice(1));
-  const asked = sectionForAddress(OPENED, findSection);
+  // A section link followed before this ran (the session was still loading) only
+  // changed the hash, with no listener to hear it; that newer hash wins.
+  const start = { hash: window.location.hash || OPENED.hash, search: OPENED.search };
+  const legacy = safeDecode(start.hash.slice(1));
+  const asked = sectionForAddress(start, findSection);
   // With no address, the first section shows on wide screens (phones show the list) and the address stays clean.
   choose(asked ?? available[0], { address: asked !== null });
   // An old heading anchor keeps pointing at its card.

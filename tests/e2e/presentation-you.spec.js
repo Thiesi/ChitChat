@@ -185,6 +185,21 @@ for (const [address, section] of [
   });
 }
 
+test('a section chosen while the page is still loading opens once it has loaded', async ({ page }) => {
+  await fixture(page);
+  // Hold the session back, as a slow server would; the links are already there.
+  let release;
+  const held = new Promise((resolve) => { release = resolve; });
+  await page.route('**/api/v1/session.php', async (route) => { await held; await route.fallback(); });
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto('/account.php');
+  await page.locator('.you-section-link[data-section="appearance"]').dispatchEvent('click');
+  await expect(page).toHaveURL(/#appearance$/);
+  release();
+  await expect(title(page)).toHaveText('Appearance');
+  await expect(page.getByRole('heading', { name: 'Theme and colours' })).toBeVisible();
+});
+
 test('a modified click on a section is left to the browser (a new tab at its address)', async ({ page }) => {
   await fixture(page);
   await open(page);
