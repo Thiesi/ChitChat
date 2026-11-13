@@ -12,7 +12,7 @@ A web-client release: phone alerts and backups on System status, a Health checks
 
 - Show phone alerts (the Web Push queue) and backups on System status, and add Operational settings › Health checks with Backup maximum age (0–720, 0 = off) and Maintenance maximum age (1–720, sent only when changed; "Use the server default" saves `null`) (#310, #312, #336).
 
-- Search one room from the room header (#318, #339): an "In # Room ✕" chip sends `room_id`, ✕ searches everywhere, and a gone or hidden room drops the chip with "This room isn't available any more." Highlights follow the server's `excerpt_matches`, falling back to word matching.
+- Search one room from the room header on wider screens (#318, #339): an "In # Room ✕" chip sends `room_id`, ✕ searches everywhere, and a gone or hidden room drops the chip with "This room isn't available any more." Highlights follow the server's `excerpt_matches`, falling back to word matching.
 
 - Separate the rail's icon and name from the buttons with a hairline and a default pointer, and say "Your message wasn't sent." / "Your file wasn't sent." when a send or upload fails, matching CCM (#338).
 
