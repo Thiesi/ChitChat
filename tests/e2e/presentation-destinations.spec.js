@@ -150,12 +150,14 @@ test('guests get a short You: their name, appearance, an invitation, and Leave',
   const calls = await fixture(page, { user: guest });
   await page.goto('/account.php');
   await expect(page.locator('#account-identity')).toHaveText('Visiting as Guest 4821');
-  // S5a: the invitation in the list pane, Appearance's theme card in the main pane.
+  // S5a: the invitation in the list pane, Appearance's theme card in the main pane;
+  // S5b: and the device-only Accessibility card (guests hear announcements too).
   const visible = page.locator('#you-frame .account-card:visible');
-  await expect(visible).toHaveCount(2);
+  await expect(visible).toHaveCount(3);
   await expect(page.getByRole('heading', { name: 'Want to stay?' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Create an account' })).toHaveAttribute('href', '/?register=1');
   await expect(page.getByRole('heading', { name: 'Theme and colours' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Accessibility' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Sign out' })).toHaveCount(0);
   await page.getByRole('button', { name: 'Leave' }).click();
   await expect(page).toHaveURL(/\/$/);

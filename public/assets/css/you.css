@@ -118,6 +118,20 @@
   background: var(--presence-wash);
 }
 
+/* S5b: settings copy is one line; the rest waits behind "Learn more". */
+.you-more summary { width: fit-content; color: var(--signature-text); font-weight: 600; cursor: pointer; }
+.you-more p { margin: 0.5rem 0 0; color: var(--text-muted); line-height: 1.55; }
+
+/* Accessibility: "Announce new messages", three choices. */
+.announce-fieldset { display: flex; flex-wrap: wrap; gap: 0.5rem 1.25rem; min-width: 0; margin: 0; padding: 0; border: 0; }
+.announce-fieldset legend { margin-bottom: 0.6rem; padding: 0; font-weight: 600; }
+.announce-option { display: inline-flex; align-items: center; gap: 0.5rem; min-height: 2.75rem; }
+.announce-option input { width: 1.15rem; height: 1.15rem; margin: 0; accent-color: var(--signature); }
+/* The hint describes "Only messages to me" and closes the group. */
+.announce-help { flex-basis: 100%; margin: 0; }
+
+.scheme-note { color: var(--text-muted); font-weight: 400; }
+
 /* ---- Tablets: a narrower list, still beside the section ---- */
 
 @media (min-width: 48rem) and (max-width: 63.99rem) {

@@ -125,7 +125,7 @@ test('someone new signs up with Google, confirms and restores through it, then a
   await page.goto('/account.php#security');
   await expect(page.locator('#password-submit')).toHaveText('Set a password');
   await page.getByRole('navigation', { name: 'Settings' }).getByRole('link', { name: 'Account', exact: true }).click();
-  await page.getByLabel(/I understand that I will be signed out immediately/).check();
+  await page.getByLabel(/I understand that I’m signed out at once/).check();
   await page.getByRole('button', { name: 'Request account closure' }).click();
   await confirmWithGoogle(page);
   await expect(page.locator('#account-closure-status')).toContainText('Closure requested.');

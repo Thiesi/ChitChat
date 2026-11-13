@@ -1,0 +1,85 @@
+/*
+ * The styled confirmation dialog every page uses instead of window.confirm,
+ * and the parts the moderation dialogs are built from: a titled dialog, the
+ * Cancel and confirm row, and settling to a result or null.
+ */
+
+let dialogCount = 0;
+
+/**
+ * A plain confirmation, optionally with "Let the room know".
+ *
+ * @param {{ title: string, text: string, confirmLabel: string, announce: string | null }} options
+ * @returns {Promise<{ announce: boolean } | null>}
+ */
+export function confirmAction({ title, text, confirmLabel, announce }) {
+  const id = `confirm-${(dialogCount += 1)}`;
+  const { dialog, form } = dialogShell(id, title);
+  const body = document.createElement('p');
+  body.textContent = text;
+  form.append(body);
+  let announceBox = null;
+  if (announce) {
+    const label = document.createElement('label');
+    label.className = 'check-row';
+    announceBox = document.createElement('input');
+    announceBox.type = 'checkbox';
+    label.append(announceBox, `Let the room know: “${announce}” Without your name.`);
+    form.append(label);
+  }
+  form.append(actionRow(confirmLabel));
+  dialog.append(form);
+  document.body.append(dialog);
+  dialog.showModal();
+  form.querySelector('.secondary-button')?.focus();
+
+  return settle(dialog, form, () => ({ announce: Boolean(announceBox?.checked) }));
+}
+
+export function dialogShell(id, title) {
+  const dialog = document.createElement('dialog');
+  dialog.className = 'room-dialog confirm-dialog';
+  dialog.setAttribute('aria-labelledby', `${id}-title`);
+  const form = document.createElement('form');
+  form.className = 'form-stack';
+  const heading = document.createElement('h2');
+  heading.id = `${id}-title`;
+  heading.textContent = title;
+  form.append(heading);
+  return { dialog, form };
+}
+
+export function actionRow(confirmLabel) {
+  const actions = document.createElement('div');
+  actions.className = 'action-row';
+  const cancel = document.createElement('button');
+  cancel.type = 'button';
+  cancel.className = 'secondary-button';
+  cancel.textContent = 'Cancel';
+  const confirm = document.createElement('button');
+  confirm.type = 'submit';
+  confirm.className = 'danger-button';
+  confirm.textContent = confirmLabel;
+  actions.append(cancel, confirm);
+  return actions;
+}
+
+// Resolves with `result()` on submit, null on Cancel or Escape, and removes the dialog.
+export function settle(dialog, form, result) {
+  return new Promise((resolve) => {
+    const finish = (value) => {
+      dialog.close();
+      dialog.remove();
+      resolve(value);
+    };
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      finish(result());
+    });
+    form.querySelector('.secondary-button')?.addEventListener('click', () => finish(null));
+    dialog.addEventListener('cancel', (event) => {
+      event.preventDefault();
+      finish(null);
+    });
+  });
+}

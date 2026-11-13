@@ -118,7 +118,7 @@ test.describe('Passkey multi-factor authentication', () => {
       expect(recoveryCode).toMatch(/^[A-F0-9]{4}(?:-[A-F0-9]{4}){5}$/u);
       await recoveryDialog.getByRole('button', { name: 'I saved them' }).click();
 
-      await expect(page.locator('#mfa-summary')).toContainText('Multi-factor authentication is enabled');
+      await expect(page.locator('#mfa-summary')).toContainText('Multi-factor authentication is on');
       await expect(page.locator('.account-credential')).toContainText('Chromium virtual authenticator');
       await expect(page.locator('#mfa-recovery-status')).toContainText('10 unused recovery codes remain');
 

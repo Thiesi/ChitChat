@@ -3,7 +3,8 @@
 // server worked out the options (users/profile.php) and checks every action.
 import { apiPost } from './api.js';
 import { formatDateTime } from './datetime.js';
-import { chooseGuestBlock, chooseRestriction, chooseUsernameChange, confirmAction } from './moderation-tools.js';
+import { confirmAction } from './confirm-dialog.js';
+import { chooseGuestBlock, chooseRestriction, chooseUsernameChange } from './moderation-tools.js';
 
 /**
  * @param {{ id: number, username: string, moderation: null | { room: null | object, everywhere: null | object, guest?: null | object } }} profile

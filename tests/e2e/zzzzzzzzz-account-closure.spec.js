@@ -43,7 +43,7 @@ async function closeAndRestore(page, onClosureRequested) {
   // S5a: closing the account is under Account.
   await page.getByRole('navigation', { name: 'Settings' }).getByRole('link', { name: 'Account', exact: true }).click();
 
-  await page.getByLabel(/I understand that I will be signed out immediately/).check();
+  await page.getByLabel(/I understand that I’m signed out at once/).check();
   await page.getByRole('button', { name: 'Request account closure' }).click();
 
   const dialog = page.getByRole('dialog', { name: 'Confirm this sensitive action' });

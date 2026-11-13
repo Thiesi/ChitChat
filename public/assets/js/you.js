@@ -4,6 +4,7 @@
 // their name, Appearance, an invitation to create an account, and Leave.
 import { apiGet } from './api.js';
 import { attachPhoto, avatarTone, initials } from './avatar.js';
+import { announcePreference, setAnnouncePreference } from './announce-preference.js';
 import { setSoundEnabled, soundEnabled } from './attention.js';
 import { markGuestAvatar } from './guest.js';
 import { signOut } from './sign-out.js';
@@ -16,6 +17,13 @@ let guest = false;
 for (const toggle of document.querySelectorAll('input[data-sound]')) {
   toggle.checked = soundEnabled(toggle.dataset.sound);
   toggle.addEventListener('change', () => setSoundEnabled(toggle.dataset.sound, toggle.checked));
+}
+
+// Accessibility: "Announce new messages", saved on this device.
+const announceChoice = announcePreference();
+for (const radio of document.querySelectorAll('input[name="announce"]')) {
+  radio.checked = radio.value === announceChoice;
+  radio.addEventListener('change', () => { if (radio.checked) setAnnouncePreference(radio.value); });
 }
 
 signOutButton?.addEventListener('click', async () => {
