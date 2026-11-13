@@ -75,6 +75,8 @@ final class AttachmentService
         if ($room === null) {
             throw new ApiException(404, 'room_not_found', 'Room not found.');
         }
+        // A room the caller can't see answers like a missing one (#326).
+        RoomAuthorization::requireVisible($actor, $room);
         if (!$room->isMember()) {
             throw new ApiException(403, 'membership_required', 'Join the room before uploading attachments.');
         }
@@ -306,14 +308,17 @@ SQL);
         if (!is_array($row)) {
             throw new ApiException(404, 'attachment_not_found', 'Attachment not found.');
         }
-        if ($row['deleted_at'] !== null || $row['message_deleted_at'] !== null) {
-            throw new ApiException(410, 'attachment_deleted', 'This attachment is no longer available.');
-        }
 
         $roomId = (int) $row['room_id'];
         $room = $this->rooms->findForUser($roomId, $actor->id);
         if ($room === null) {
             throw new ApiException(404, 'attachment_not_found', 'Attachment not found.');
+        }
+        // A room the caller can't see answers like a missing attachment, and before the deleted
+        // check, so a 410 never confirms a file exists in a private room (#326).
+        RoomAuthorization::requireVisible($actor, $room, 'attachment_not_found', 'Attachment not found.');
+        if ($row['deleted_at'] !== null || $row['message_deleted_at'] !== null) {
+            throw new ApiException(410, 'attachment_deleted', 'This attachment is no longer available.');
         }
         RoomAuthorization::requireHistory($actor, $room);
         (new RoomEligibility($this->rooms))->requireMinimumAge($actor, $room);

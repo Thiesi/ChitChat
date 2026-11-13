@@ -85,7 +85,8 @@ final class AttachmentImageHttpTest extends DatabaseTestCase
             self::assertSame('private, no-store', $original['headers']['cache-control']);
             self::assertArrayNotHasKey('etag', $original['headers']);
             self::assertSame(401, $this->request('anonymous', $path, null, ['If-None-Match' => '*'])['status']);
-            self::assertSame(403, $this->request('member', $path, null, ['If-None-Match' => $etag])['status']);
+            // Not in the private room: answered like a missing attachment, even with a valid ETag (#326).
+            self::assertSame(404, $this->request('member', $path, null, ['If-None-Match' => $etag])['status']);
             self::assertSame(400, $this->request('root', $path . 'x')['status']);
             self::assertSame(400, $this->request('root', '/api/v1/attachments/download.php?id=' . $attachment['id'] . '&variant[]=preview')['status']);
             $metadataReply = $this->request('root', '/api/v1/attachments/metadata.php?room_id=' . $room->id . '&message_ids=' . $message['id']);

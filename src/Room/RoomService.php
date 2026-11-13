@@ -17,6 +17,8 @@ use Throwable;
 
 final class RoomService
 {
+    private const NO_DELETED_ROOM = 'No deleted room with that ID is waiting to be removed.';
+
     private readonly RoomRepository $rooms;
     private readonly AuditLogger $audit;
     private readonly RoomListSignal $roomList;
@@ -166,6 +168,8 @@ SQL);
     public function join(AuthenticatedUser $actor, int $roomId, string $ipAddress): Room
     {
         $room = $this->requireRoom($actor, $roomId);
+        // A room the caller can't see answers like a missing one (#326).
+        RoomAuthorization::requireVisible($actor, $room);
         if ($room->isMember()) {
             return $room;
         }
@@ -225,6 +229,8 @@ SQL);
     public function leave(AuthenticatedUser $actor, int $roomId, string $ipAddress): void
     {
         $room = $this->requireRoom($actor, $roomId);
+        // A room the caller can't see answers like a missing one (#326).
+        RoomAuthorization::requireVisible($actor, $room);
         if ($room->memberRole === null) {
             throw new ApiException(409, 'not_a_member', 'You are not a member of this room.');
         }
@@ -702,7 +708,11 @@ SQL);
     public function restore(AuthenticatedUser $actor, int $roomId, string $ipAddress): Room
     {
         $room = $this->requireDeletedRoom($actor, $roomId);
-        RoomAuthorization::requireManage($actor, $room);
+        // A deleted room is gone for anyone who can't manage it: answer exactly like a missing one,
+        // same message, so restore never confirms that a room existed (#326).
+        if (!RoomAuthorization::canManage($actor, $room)) {
+            throw new ApiException(404, 'room_not_found', self::NO_DELETED_ROOM);
+        }
 
         $this->pdo->beginTransaction();
         try {
@@ -807,7 +817,7 @@ SQL);
 
         $room = $this->rooms->findDeletedForUser($roomId, $actor->id);
         if ($room === null) {
-            throw new ApiException(404, 'room_not_found', 'No deleted room with that ID is waiting to be removed.');
+            throw new ApiException(404, 'room_not_found', self::NO_DELETED_ROOM);
         }
 
         return $room;

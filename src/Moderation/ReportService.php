@@ -79,6 +79,8 @@ SQL;
         if ($room === null) {
             throw new ApiException(404, 'message_not_found', 'Message not found.');
         }
+        // Addressed by message ID: a room the caller can't see answers like a missing message (#326).
+        RoomAuthorization::requireMessageVisible($actor, $room);
         RoomAuthorization::requireHistory($actor, $room);
         (new RoomEligibility($this->rooms))->requireMinimumAge($actor, $room);
         $this->requireReportable($actor, $message, 'room');

@@ -10,6 +10,27 @@ All endpoints require an authenticated session. Every POST request also requires
 
 Super-Administrators, Administrators, Chat Admins, and Global Moderators may view and moderate every room. Only Super-Administrators, Administrators, and Chat Admins may create rooms. A room owner may manage their own room.
 
+### Room visibility in errors (#326)
+
+**A room the caller can't see answers exactly like a room that doesn't exist**, with the same status, code and message, so no route confirms that a private room exists. "Can't see" means a `private` room without membership or an invitation, for a caller without a global room-moderation role. Public and unlisted rooms are visible to every signed-in caller, so nothing changes for them; an unlisted room stays readable and joinable by ID or invitation.
+
+- **Routes addressed by a room ID** answer `404 room_not_found` ("Room not found."). That covers details, history, mutation and attachment metadata, member search, pings, sending, uploads, join, leave, presence, management, broadcasts and room mutes.
+- **Routes addressed by a message ID** (react, unreact, edit, delete, delete own, report) answer `404 message_not_found` ("Message not found."), as for a missing message.
+- **`attachments/download.php`** answers `404 attachment_not_found` ("Attachment not found."), as for a missing attachment. This includes a deleted attachment: the `410 attachment_deleted` is only given to callers who can see the room.
+- **Message-ID routes on a message in a deleted room,** or in a room closed to a guest, also answer `404 message_not_found`.
+- **`rooms/restore.php`:** anyone who can't manage the deleted room gets exactly the answer for a missing deleted room: `404 room_not_found`, "No deleted room with that ID is waiting to be removed." That includes former members of a deleted public room.
+- **`moderation/unmute.php`:** a mute in a room the caller can't see, or in a deleted room, answers `404 mute_not_found` ("That mute has already ended."), as for a missing mute.
+- **Visibility is checked before anything else that depends on state:** membership, authorship, rank, minimum age, `not_a_member`, `message_already_deleted`, `attachment_deleted`. Input validation, which doesn't depend on any state, still comes first.
+
+The `403` answers remain for callers who **can** see the room but may not do something:
+- an invited non-member reading history: `403 room_forbidden`;
+- posting or uploading without membership: `403 membership_required`;
+- a member managing without being the owner: `403 forbidden`;
+- a visible room above the caller's minimum age: `403 minimum_age_not_met`;
+- a muted member: `403 muted`.
+
+Someone who was removed from a private room, or left it, is a non-member without an invitation, so they get the 404 too. Before #326, these routes answered such callers with `403 room_forbidden`, `membership_required`, `invitation_required`, `presence_membership_required` or `forbidden`, and `leave` with `409 not_a_member`.
+
 ## Room discovery
 
 ### `GET /api/v1/rooms/list.php`

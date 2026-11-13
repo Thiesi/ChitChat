@@ -121,6 +121,44 @@ final class AttachmentServiceTest extends DatabaseTestCase
         );
     }
 
+    public function testAnInvisiblePrivateRoomHidesUploadsAndDeletedAttachmentsToo(): void
+    {
+        $auth = new AuthService($this->pdo, $this->config);
+        $root = $auth->register('Root', 'a very secure password', '127.0.0.1');
+        $outsider = $auth->register('Outsider', 'another secure password', '127.0.0.2');
+        $room = (new RoomService($this->pdo))->create($root, 'private-room', 'Private Room', '', 'private', 0, 0, '127.0.0.1');
+        $storage = $this->temporaryDirectory();
+        $service = new AttachmentService($this->pdo, $this->configWithStorage($storage));
+        $message = $service->upload($root, $room->id, IncomingFile::forTesting('private.txt', $this->temporaryFile('private')), '', '127.0.0.1');
+
+        // Uploading into it answers like a missing room (#326).
+        foreach ([$room->id, 999_999] as $roomId) {
+            try {
+                $service->upload($outsider, $roomId, IncomingFile::forTesting('x.txt', $this->temporaryFile('x')), '', '127.0.0.2');
+                self::fail('Uploaded into a room the caller cannot see.');
+            } catch (ApiException $exception) {
+                self::assertSame([404, 'room_not_found', 'Room not found.'], [$exception->status, $exception->errorCode, $exception->getMessage()]);
+            }
+        }
+
+        // A deleted attachment there answers 404 like a missing one, never 410, which would confirm it.
+        $attachmentId = (int) $message['attachment']['id'];
+        $this->pdo->exec("UPDATE attachments SET deleted_at = NOW() WHERE id = {$attachmentId}");
+        try {
+            $service->authorizeDownload($outsider, $attachmentId);
+            self::fail('A deleted attachment in an invisible room was described.');
+        } catch (ApiException $exception) {
+            self::assertSame([404, 'attachment_not_found', 'Attachment not found.'], [$exception->status, $exception->errorCode, $exception->getMessage()]);
+        }
+        // The owner, who can see the room, still learns it was deleted.
+        try {
+            $service->authorizeDownload($root, $attachmentId);
+            self::fail('A deleted attachment was served.');
+        } catch (ApiException $exception) {
+            self::assertSame([410, 'attachment_deleted'], [$exception->status, $exception->errorCode]);
+        }
+    }
+
     public function testPrivateAttachmentDownloadRequiresHistoryAuthorization(): void
     {
         $auth = new AuthService($this->pdo, $this->config);
@@ -145,12 +183,29 @@ final class AttachmentServiceTest extends DatabaseTestCase
             '127.0.0.1',
         );
 
-        $this->expectException(ApiException::class);
-        $this->expectExceptionMessage('Join the private room');
-        (new AttachmentService($this->pdo, $this->configWithStorage($storage)))->authorizeDownload(
-            $outsider,
-            (int) $message['attachment']['id'],
-        );
+        $service = new AttachmentService($this->pdo, $this->configWithStorage($storage));
+        $attachmentId = (int) $message['attachment']['id'];
+
+        // An invitee can see the room, so history authorization still answers 403.
+        $invitee = $auth->register('Invitee', 'yet another secure password', '127.0.0.3');
+        (new RoomService($this->pdo))->invite($root, $room->id, $invitee->id, '127.0.0.1');
+        try {
+            $service->authorizeDownload($invitee, $attachmentId);
+            self::fail('An invitee downloaded before joining.');
+        } catch (ApiException $exception) {
+            self::assertSame([403, 'room_forbidden'], [$exception->status, $exception->errorCode]);
+            self::assertStringContainsString('Join the private room', $exception->getMessage());
+        }
+
+        // An outsider can't see the room: exactly like an attachment that doesn't exist (#326).
+        foreach ([$attachmentId, 999_999] as $id) {
+            try {
+                $service->authorizeDownload($outsider, $id);
+                self::fail("Attachment {$id} was downloaded.");
+            } catch (ApiException $exception) {
+                self::assertSame([404, 'attachment_not_found', 'Attachment not found.'], [$exception->status, $exception->errorCode, $exception->getMessage()]);
+            }
+        }
     }
 
     public function testDisallowedAndOversizedFilesAreRejectedBeforePersistence(): void

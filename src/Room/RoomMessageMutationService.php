@@ -313,7 +313,13 @@ SQL);
 
     private function requireMutableRoom(AuthenticatedUser $actor, int $roomId): Room
     {
-        $room = $this->requireRoom($actor, $roomId);
+        $room = $roomId < 1 ? null : $this->rooms->findForUser($roomId, $actor->id);
+        if ($room === null) {
+            throw new ApiException(404, 'message_not_found', 'Message not found.');
+        }
+        // Only edit and delete-own use this, both addressed by message ID: a room the caller can't
+        // see answers like a missing message, before the author check (#326).
+        RoomAuthorization::requireMessageVisible($actor, $room);
         if (!$room->isMember()) {
             throw new ApiException(403, 'membership_required', 'Join the room before changing messages.');
         }

@@ -143,7 +143,15 @@ SQL);
         if ($roomId === null) {
             $this->requireMayMuteEverywhere($actor, $targetId);
         } else {
-            $this->requireMayMuteInRoom($actor, $roomId, $targetId);
+            try {
+                $this->requireMayMuteInRoom($actor, $roomId, $targetId);
+            } catch (ApiException $exception) {
+                // A deleted room, or one the caller can't see, answers like a mute that ended (#326).
+                if ($exception->errorCode === 'room_not_found') {
+                    throw new ApiException(404, 'mute_not_found', 'That mute has already ended.');
+                }
+                throw $exception;
+            }
         }
 
         $update = $this->pdo->prepare('UPDATE user_mutes SET lifted_at = NOW(), lifted_by = :actor WHERE id = :id AND lifted_at IS NULL');
@@ -273,6 +281,8 @@ SQL);
         if ($room === null) {
             throw new ApiException(404, 'room_not_found', 'Room not found.');
         }
+        // A room the caller can't see answers like a missing one (#326).
+        RoomAuthorization::requireVisible($actor, $room);
         if (!$this->canMuteInRoom($actor, $room, $targetId)) {
             throw new ApiException(403, 'forbidden', 'You cannot mute this person in this room.');
         }

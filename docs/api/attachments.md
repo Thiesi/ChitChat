@@ -132,7 +132,8 @@ Important errors include:
 - `attachment_empty`;
 - `attachment_type_unknown`;
 - `attachment_type_not_allowed`;
-- `membership_required`;
+- `membership_required` (for a room the caller can see but hasn't joined);
+- `room_not_found` (for a missing room, or a private room the caller can't see; see [Room visibility in errors](rooms.md#room-visibility-in-errors-326));
 - room age-policy errors.
 
 ## `GET /api/v1/attachments/download.php?id=12`
