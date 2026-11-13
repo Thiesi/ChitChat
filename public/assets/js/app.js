@@ -290,6 +290,9 @@ async function enterApplication(user) {
 
 const GREETINGS = { login: 'Welcome back', register: 'Make yourself at home' };
 const GUEST_ENDED_NOTICE = 'Your guest visit has ended.';
+// Whether the account just signed out was a guest (#328): a late 401 arrives after
+// state.user is cleared, and must still say the visit ended, not "another device".
+let signedOutGuest = false;
 
 function showAuthMode(mode) {
   const login = mode === 'login';
@@ -1686,7 +1689,10 @@ function attachStreamListeners(source) {
   source.addEventListener('forced_logout', (event) => {
     let reason = state.user?.guest ? sessionEndedMessage() : 'Your session was invalidated.';
     const envelope = parseEvent(event);
-    if (envelope?.reason === 'session_revoked') {
+    if (envelope?.reason === 'session_revoked' && state.user?.guest) {
+      // A guest has no other device: a revoked visit is a visit a moderator ended (#328).
+      reason = GUEST_ENDED_NOTICE;
+    } else if (envelope?.reason === 'session_revoked') {
       // This login was signed out from another device (#205); the reason is a code at the top level.
       reason = REVOKED_NOTICE;
     } else if (typeof envelope?.payload?.reason === 'string' && envelope.payload.reason) {
@@ -1903,9 +1909,12 @@ function handleApiFailure(error) {
 }
 
 function sessionEndedMessage() {
-  // A revoked login (#205) has its own line, left by api.js.
-  return takeSignedOutNotice()
-    ?? (state.user?.guest ? GUEST_ENDED_NOTICE : 'Your session has ended. Please sign in again.');
+  const guest = state.user ? state.user.guest === true : signedOutGuest;
+  // A revoked login (#205) has its own line, left by api.js. For a guest only that
+  // "another device" line becomes "your visit ended" (#328); any other stated reason stays.
+  const stored = takeSignedOutNotice();
+  if (guest && (stored === null || stored === REVOKED_NOTICE)) return GUEST_ENDED_NOTICE;
+  return stored ?? 'Your session has ended. Please sign in again.';
 }
 
 /** Your own name changed (#164): the session says the new name and whether writing is still paused. */
@@ -1927,6 +1936,7 @@ function forceSignedOut(message) {
   stopEventStream();
   stopUsernameGate();
   presence?.stop();
+  if (state.user) signedOutGuest = state.user.guest === true;
   state.user = null;
   state.rooms = [];
   state.currentRoom = null;
