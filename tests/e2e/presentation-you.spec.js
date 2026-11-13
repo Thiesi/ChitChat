@@ -48,6 +48,7 @@ async function fixture(page, { user = member, mfa = mfaOff } = {}) {
       'account/mfa/remove.php': { mfa: { ...mfa, credentials: [] } },
       'account/mfa/recovery-regenerate.php': { mfa, recovery_codes: ['aaaa-bbbb', 'cccc-dddd'] },
       'account/mfa/disable.php': {},
+      'account/mfa/rename.php': { mfa: { ...mfa, credentials: (mfa?.credentials ?? []).map((credential) => ({ ...credential, label: 'Work laptop' })) } },
       'account/identities/list.php': { providers: [], identities: [], has_password: true },
       'account/sessions/list.php': { sessions: [], maximum_sessions: 50 },
       'push/preferences.php': { preferences: { mentioned_push_enabled: true, pinged_push_enabled: true, direct_message_push_enabled: false, quiet_hours: null }, devices: [] },
@@ -381,6 +382,40 @@ test('passkeys and recovery codes ask in a styled dialog, not window.confirm; Ca
   await card.getByRole('button', { name: 'Remove', exact: true }).click();
   await page.getByRole('dialog', { name: 'Remove the passkey “Laptop key”?' }).getByRole('button', { name: 'Remove passkey' }).click();
   await expect.poll(() => posts).toContain('account/mfa/remove.php');
+  expect(native).toBe(0);
+});
+
+test('renaming a passkey asks in a form dialog, not window.prompt (S7)', async ({ page }) => {
+  const posts = await fixture(page, { mfa: mfaOn });
+  let native = 0;
+  page.on('dialog', (dialog) => { native += 1; void dialog.dismiss(); });
+  await open(page, 1280, '/account.php#security');
+  const card = page.locator('#mfa-heading').locator('xpath=ancestor::section[1]');
+  await expect(card).toContainText('Laptop key');
+  const opener = card.getByRole('button', { name: 'Rename', exact: true });
+
+  await opener.click();
+  const dialog = page.getByRole('dialog', { name: 'Rename this passkey' });
+  const name = dialog.getByRole('textbox', { name: 'Name' });
+  await expect(name).toBeFocused();
+  await expect(name).toHaveValue('Laptop key');
+  await expect(dialog.getByRole('button', { name: 'Save name' })).toHaveClass(/primary-button/);
+  await axe(page, 'rename dialog');
+  // Escape changes nothing; an empty name can't be saved.
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+  await expect(opener).toBeFocused();
+  await opener.click();
+  await name.fill('');
+  await dialog.getByRole('button', { name: 'Save name' }).click();
+  await expect(dialog).toBeVisible();
+  expect(posts).not.toContain('account/mfa/rename.php');
+
+  await name.fill('Work laptop');
+  await name.press('Enter');
+  await expect(dialog).toHaveCount(0);
+  await expect.poll(() => posts).toContain('account/mfa/rename.php');
+  await expect(card).toContainText('Work laptop');
   expect(native).toBe(0);
 });
 

@@ -1,5 +1,7 @@
 import { ApiError, apiGet, apiPost, isPageLeft } from './api.js';
-import { errorText } from './unavailable.js';
+import { errorText, failedSending } from './unavailable.js';
+import { confirmAction } from './confirm-dialog.js';
+import { editInline } from './inline-edit.js';
 import { openMessageReportDialog } from './message-report-dialog.js';
 import { confirmModeratorDelete } from './moderation-tools.js';
 import { renderMessageBody } from './message-content.js';
@@ -11,6 +13,9 @@ let generation = 0;
 let lastRoomId = null;
 let elements = null;
 const reportedMessages = new Set();
+// A live update to a message being edited waits here until the editor closes (S7).
+const heldStates = new WeakMap();
+const EDIT_NOT_SAVED = 'Your edit wasn’t saved.';
 
 window.addEventListener('DOMContentLoaded', () => {
   const messageList = document.getElementById('message-list');
@@ -110,6 +115,10 @@ async function enhanceVisibleMessages() {
 
 function applyState(article, state) {
   if (!state || !elements) return;
+  if (article.dataset.editing) {
+    heldStates.set(article, state);
+    return;
+  }
   const author = article.querySelector('.message-author')?.textContent ?? 'Someone';
   const canReport = !state.deleted
     && author !== 'System'
@@ -164,7 +173,7 @@ function applyState(article, state) {
   if (!header || (!state.can_edit && !state.can_delete && !state.can_moderate && !canReport)) return;
   const actions = document.createElement('span');
   actions.className = 'message-mutation-actions';
-  if (state.can_edit) actions.append(actionButton('Edit', () => editMessage(article, state)));
+  if (state.can_edit) actions.append(actionButton('Edit', (event) => editMessage(article, state, event.currentTarget)));
   if (state.can_delete) actions.append(actionButton('Delete', () => deleteMessage(article, state), true));
   if (canReport) actions.append(actionButton('Report', () => openMessageReportDialog('room', state.id)));
   // Moderators delete someone else's message right here; the server checks their rank.
@@ -181,27 +190,50 @@ function actionButton(label, handler, danger = false) {
   return button;
 }
 
-async function editMessage(article, state) {
-  const replacement = window.prompt('Edit message', state.body ?? '');
-  if (replacement === null || replacement.trim() === state.body) return;
-  setBusy(article, true);
-  try {
-    const response = await apiPost('/api/v1/rooms/edit-message.php', {
-      message_id: state.id,
-      body: replacement,
-    });
+async function editMessage(article, state, opener) {
+  const body = article.querySelector('.message-body');
+  if (!body || article.dataset.editing) return;
+  let updated = null;
+  const saved = await editInline({
+    article,
+    body,
+    text: state.body ?? '',
+    label: 'Edit message',
+    opener,
+    save: async (text) => {
+      setBusy(article, true);
+      try {
+        const response = await apiPost('/api/v1/rooms/edit-message.php', { message_id: state.id, body: text });
+        updated = response.message;
+      } catch (error) {
+        handleFailure(error, EDIT_NOT_SAVED);
+        throw error;
+      } finally {
+        setBusy(article, false);
+      }
+    },
+  });
+  // The saved message, or a live update that arrived while the editor was open.
+  const latest = (saved ? updated : null) ?? heldStates.get(article) ?? null;
+  heldStates.delete(article);
+  if (latest) {
     delete article.dataset.mutationSignature;
-    applyState(article, response.message);
-    toast('Message edited.');
-  } catch (error) {
-    handleFailure(error);
-  } finally {
-    setBusy(article, false);
+    applyState(article, latest);
   }
+  if (saved) toast('Message edited.');
+  // The actions are drawn again with the message: focus the new Edit button.
+  const again = [...article.querySelectorAll('.message-mutation-button')].find((button) => button.textContent === 'Edit');
+  (again ?? article).focus({ preventScroll: true });
 }
 
 async function deleteMessage(article, state) {
-  if (!window.confirm('Delete this message for everyone? This cannot be undone.')) return;
+  const confirmed = await confirmAction({
+    title: 'Delete this message?',
+    text: 'It’s removed for everyone in the room. This can’t be undone.',
+    confirmLabel: 'Delete message',
+    announce: null,
+  });
+  if (!confirmed) return;
   setBusy(article, true);
   try {
     const response = await apiPost('/api/v1/rooms/delete-own-message.php', { message_id: state.id });
@@ -255,12 +287,13 @@ function toast(message, kind = 'info') {
   window.setTimeout(() => node.remove(), 5000);
 }
 
-function handleFailure(error) {
+function handleFailure(error, then = '') {
   // A request the page aborted on leaving shows nothing (#270).
   if (isPageLeft(error)) return;
   if (error instanceof ApiError && error.status === 401) {
     window.location.assign('/');
     return;
   }
-  toast(errorText(error, 'The message change failed.'), 'error');
+  const reason = errorText(error, 'The message change failed.');
+  toast(then ? failedSending(reason, then) : reason, 'error');
 }

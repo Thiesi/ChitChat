@@ -63,11 +63,20 @@ async function stableMessage(page, selector, text) {
   };
 }
 
-function acceptDialog(page, value = null) {
-  page.once('dialog', async (dialog) => {
-    if (dialog.type() === 'prompt') await dialog.accept(value ?? '');
-    else await dialog.accept();
-  });
+// S7 (#173): editing happens in the bubble, deleting asks in a styled dialog.
+async function editInPlace(message, value) {
+  await message.getByRole('button', { name: 'Edit' }).click();
+  const box = message.getByRole('textbox', { name: /^Edit/ });
+  await expect(box).toBeFocused();
+  await box.fill(value);
+  await box.press('Enter');
+}
+
+async function confirmDialog(page) {
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toBeVisible();
+  await dialog.locator('button[type="submit"]').click();
+  await expect(dialog).toHaveCount(0);
 }
 
 async function reviewMessage(page, kind, messageId, reason, password = null) {
@@ -128,8 +137,7 @@ test('Super-Administrator reviews exact room and DM revision chains with partici
     await memberPage.locator('#composer-input').fill(roomText);
     await memberPage.locator('#composer-input').press('Enter');
     const roomMessage = await stableMessage(memberPage, 'article.message', roomText);
-    acceptDialog(memberPage, editedRoomText);
-    await roomMessage.locator.getByRole('button', { name: 'Edit' }).click();
+    await editInPlace(roomMessage.locator, editedRoomText);
     await expect(roomMessage.locator.locator('.message-body')).toHaveText(editedRoomText);
 
     const adminLoginPage = await adminContext.newPage();
@@ -169,11 +177,10 @@ test('Super-Administrator reviews exact room and DM revision chains with partici
     await memberPage.locator('#dm-message-input').fill(directText);
     await memberPage.locator('#dm-message-input').press('Enter');
     const directMessage = await stableMessage(memberPage, 'article.dm-message', directText);
-    acceptDialog(memberPage, editedDirectText);
-    await directMessage.locator.getByRole('button', { name: 'Edit' }).click();
+    await editInPlace(directMessage.locator, editedDirectText);
     await expect(directMessage.locator.locator('.dm-message-body')).toHaveText(editedDirectText);
-    acceptDialog(memberPage);
     await directMessage.locator.getByRole('button', { name: 'Delete for everyone' }).click();
+    await confirmDialog(memberPage);
     await expect(directMessage.locator.locator('.dm-message-body')).toHaveText('Message deleted by sender.');
 
     await reviewMessage(
