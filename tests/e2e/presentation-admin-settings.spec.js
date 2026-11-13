@@ -290,7 +290,7 @@ test('System status: phone alerts and backups when all is well, and where the ma
   await expect(page.locator('#backups-latest')).toContainText('Succeeded');
   await expect(page.locator('#backups-success')).toContainText('9h ago');
   await expect(page.locator('#backups-max-age')).toHaveText('26 hours');
-  await expect(page.locator('#maintenance-max-age')).toHaveText('26 hours (server default)');
+  await expect(page.locator('#maintenance-max-age')).toHaveText('26 hours (from the server environment)');
 });
 
 test('System status: push not set up is neutral, with no queue figures', async ({ page }) => {
@@ -343,6 +343,7 @@ test('Health checks: backup age is saved; the maintenance age from the server de
   await open(page);
   await expect(page.getByRole('heading', { name: 'Health checks' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Use the server default' })).toBeHidden();
+  await expect(page.locator('#maintenance-max-age-hint')).toHaveText('from the server environment, until you change it');
   await page.getByLabel(/Backup maximum age, in hours/).fill('48');
   await page.getByRole('button', { name: 'Save operational settings' }).click();
   await expect.poll(() => lastSave(requests)?.backup_max_age_hours).toBe(48);

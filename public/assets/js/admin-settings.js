@@ -127,7 +127,7 @@ function renderHealthChecks(settings) {
   elements['maintenance-max-age-field'].hidden = !maintenance;
   elements['maintenance-max-age'].value = maintenance ? String(settings.maintenance_max_age_hours) : '';
   const fromServer = settings.maintenance_max_age_source !== 'setting';
-  elements['maintenance-max-age-hint'].textContent = fromServer ? 'the server default, until you change it' : 'set here, instead of the server default';
+  elements['maintenance-max-age-hint'].textContent = fromServer ? 'from the server environment, until you change it' : 'set here, instead of the server environment';
   elements['maintenance-max-age-default'].hidden = fromServer;
   maintenanceAgeChange = 'unchanged';
 }

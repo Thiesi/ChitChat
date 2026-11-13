@@ -139,7 +139,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
       <!-- #310/#312: shown when the server has them. -->
       <section id="health-checks" class="admin-card form-stack" hidden>
         <h2>Health checks</h2>
-        <label id="backup-max-age-field" hidden>Backup maximum age, in hours <span class="optional-label">older than this counts as overdue; 0 turns the check off</span>
+        <label id="backup-max-age-field" hidden>Backup maximum age, in hours <span class="optional-label">older than this counts as overdue. 0 turns the check off: use it if this server has no scheduled backups.</span>
           <input id="backup-max-age" type="number" min="0" max="720">
         </label>
         <div id="maintenance-max-age-field" class="form-stack" hidden>

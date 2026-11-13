@@ -140,7 +140,7 @@ function render(status) {
     : 'Never';
   // #312: where the maximum age comes from.
   const maintenanceSource = maintenance.maximum_age_source === 'setting' ? ' (set in Operational settings)'
-    : maintenance.maximum_age_source === 'environment' ? ' (server default)' : '';
+    : maintenance.maximum_age_source === 'environment' ? ' (from the server environment)' : '';
   elements['maintenance-max-age'].textContent = `${integer(maintenance.maximum_age_hours)} hours${maintenanceSource}`;
   elements['maintenance-result'].textContent = latest?.result ? summarizeResult(latest.result) : text(latest?.error_message ?? '—');
 }
