@@ -9,16 +9,21 @@ use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 
 /**
- * StreamCursor's skip is safe only if realtime event ids are taken solely by INSERTs into
- * realtime_events, which hold RowExclusiveLock until they end (#281). Nothing may call
- * nextval on the sequence or reserve ids any other way.
+ * The settled horizon (#281, #286) is safe only if ids are taken solely by INSERTs into the
+ * table, which hold RowExclusiveLock until they end. Nothing may call nextval or setval on
+ * these sequences or reserve ids any other way, and only the horizon code reads them.
  */
 final class RealtimeSequenceUsageTest extends TestCase
 {
-    public function testOnlyStreamCursorReadsTheSequenceAndNothingDrawsFromIt(): void
+    private const READERS = [
+        'realtime_events_id_seq' => ['src/Realtime/SettledHorizon.php', 'src/Realtime/StreamCursor.php'],
+        'room_messages_id_seq' => ['src/Realtime/SettledHorizon.php'],
+    ];
+
+    public function testOnlyTheHorizonCodeReadsTheSequencesAndNothingDrawsFromThem(): void
     {
         $root = dirname(__DIR__, 2);
-        $readers = [];
+        $readers = array_fill_keys(array_keys(self::READERS), []);
         foreach (['src', 'public', 'bin'] as $directory) {
             $files = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root . '/' . $directory));
             foreach ($files as $file) {
@@ -27,13 +32,18 @@ final class RealtimeSequenceUsageTest extends TestCase
                 }
                 $source = (string) file_get_contents($file->getPathname());
                 $relative = str_replace('\\', '/', substr($file->getPathname(), strlen($root) + 1));
-                self::assertDoesNotMatchRegularExpression('/nextval\s*\(\s*[\'"]realtime_events_id_seq/i', $source, $relative);
-                self::assertDoesNotMatchRegularExpression('/setval\s*\(\s*[\'"]realtime_events_id_seq/i', $source, $relative);
-                if (str_contains($source, 'realtime_events_id_seq')) {
-                    $readers[] = $relative;
+                foreach (array_keys(self::READERS) as $sequence) {
+                    self::assertDoesNotMatchRegularExpression('/(nextval|setval)\s*\(\s*[\'"]' . $sequence . '/i', $source, $relative);
+                    if (str_contains($source, $sequence)) {
+                        $readers[$sequence][] = $relative;
+                    }
                 }
+                self::assertDoesNotMatchRegularExpression('/pg_get_serial_sequence\s*\(\s*[\'"](realtime_events|room_messages)[\'"]/i', $source, $relative);
             }
         }
-        self::assertSame(['src/Realtime/StreamCursor.php'], $readers);
+        foreach ($readers as $sequence => $files) {
+            sort($files);
+            self::assertSame(self::READERS[$sequence], $files, $sequence);
+        }
     }
 }

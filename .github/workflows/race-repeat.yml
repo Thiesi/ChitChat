@@ -32,7 +32,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Every test that races separate worker processes against held locks.
+        # Every test that races separate worker processes or database sessions against held locks.
         # A new *ConcurrencyTest or *RaceTest must be added here (the guard step below fails otherwise).
         test:
           - AccountRestoreConcurrencyTest
@@ -42,6 +42,8 @@ jobs:
           - NativeAuthExchangeRaceTest
           - NativeAuthGuardConcurrencyTest
           - RoomOwnershipConcurrencyTest
+          - StreamCursorConcurrencyTest
+          - StreamCursorSseTest
           - TotpConcurrencyTest
           - UsernameChangeConcurrencyTest
 

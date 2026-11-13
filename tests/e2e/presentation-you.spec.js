@@ -67,6 +67,24 @@ const sectionLink = (page, name) => nav(page).getByRole('link', { name, exact: t
 const title = (page) => page.locator('#you-section-title');
 const bar = (page) => page.getByRole('navigation', { name: 'Main' });
 
+// #294: a modified click is the browser's, so the page must not cancel it.
+// Opening a real tab to show that is racy (the context's new-page event can be
+// lost, #296), so a last listener records whether anything cancelled the click
+// and then cancels it itself: no tab opens. It is on window in the bubble
+// phase, added after the page's scripts, so it runs after every app listener
+// (those listen on elements or on document, never on window for clicks).
+async function modifiedClick(page, target) {
+  await page.evaluate(() => {
+    window.__modifiedClicks = [];
+    window.addEventListener('click', (event) => {
+      window.__modifiedClicks.push({ prevented: event.defaultPrevented, href: event.target.closest('a')?.getAttribute('href') ?? null });
+      event.preventDefault();
+    }, { once: true });
+  });
+  await target.click({ modifiers: ['ControlOrMeta'] });
+  return page.evaluate(() => window.__modifiedClicks);
+}
+
 async function open(page, width = 1280, path = '/account.php') {
   await page.setViewportSize({ width, height: 900 });
   await page.goto(path);
@@ -167,19 +185,12 @@ for (const [address, section] of [
   });
 }
 
-test('a modified click on a section opens it in a new tab at its address', async ({ page }) => {
+test('a modified click on a section is left to the browser (a new tab at its address)', async ({ page }) => {
   await fixture(page);
   await open(page);
-  // The new tab gets an inert page (#288): unmocked, it would load the real
-  // page against the real server (no session, a redirect, a live event stream)
-  // and could stall the run. The original page never requests this address.
-  await page.context().route((url) => url.pathname === '/account.php', (route) => route.fulfill({ contentType: 'text/html', body: '<!doctype html><title>New tab</title>' }));
-  const opened = page.context().waitForEvent('page');
-  await sectionLink(page, 'Alerts').click({ modifiers: ['ControlOrMeta'] });
-  const tab = await opened;
-  await expect.poll(() => tab.url()).toMatch(/\/account\.php#alerts$/);
-  await tab.close();
+  expect(await modifiedClick(page, sectionLink(page, 'Alerts'))).toEqual([{ prevented: false, href: '#alerts' }]);
   await expect(title(page)).toHaveText('Profile');
+  expect(new URL(page.url()).hash).toBe('');
 });
 
 test('staff see Stewarding as the first row', async ({ page }) => {

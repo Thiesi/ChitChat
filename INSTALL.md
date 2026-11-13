@@ -233,6 +233,15 @@ Response buffering must be disabled for `/api/v1/events/stream.php`. The applica
 
 Capacity planning must account for one PHP worker per currently open SSE request. The short reconnect window bounds worker lifetime but does not remove that concurrency requirement.
 
+A stream opened with `resume=settled` (the web client's mode, #286) lets its resume position wait for any open transaction writing `realtime_events`, so a late-committing event isn't skipped. A transaction open that long holds those positions back, and reconnects resend more. The stream logs, at most once a minute per kind and installation:
+- `… has been open for N s; settled stream positions wait for it` after 30 seconds;
+- `… its start can't be read` when the writer belongs to another database role;
+- `… passed a transaction writing realtime_events (pid …, role …, started …)` when, after two minutes, it moves past the writer. If that transaction later commits, its events may not be streamed; they're still in history.
+
+ChitChat ends its own web sessions after 60 seconds idle inside a transaction, so its own sessions never trigger this; the CLI tools keep the server's setting. To cover other sessions too, set it for the role, for example `ALTER ROLE chitchat SET idle_in_transaction_session_timeout = '60s';`.
+
+The check reads other sessions' transaction start from `pg_stat_activity`. That's visible only for sessions of the same database role, or to a role with `pg_read_all_stats` (`GRANT pg_read_all_stats TO chitchat;`). Without it, a writer from another role holds positions back until the two-minute rule applies.
+
 Each stream also maintains a leased row in `sse_connections`. `SSE_CONNECTION_LEASE_SECONDS` defaults to 40 and accepts 20-300 seconds. The stream refreshes the lease every ten seconds, deletes it on a clean close, and lets it expire after an unclean client, worker, or network failure. Maintenance removes expired rows.
 
 CI verifies SSE delivery through real Nginx and PHP-FPM by opening an authenticated stream and requiring a room event to arrive before the stream closes. The tested reference configuration is documented in `docs/operations/nginx-php-fpm.md`.

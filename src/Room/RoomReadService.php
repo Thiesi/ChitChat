@@ -6,6 +6,7 @@ namespace ChitChat\Room;
 
 use ChitChat\Auth\AuthenticatedUser;
 use ChitChat\Http\ApiException;
+use ChitChat\Realtime\SettledHorizon;
 use PDO;
 use RuntimeException;
 
@@ -33,12 +34,22 @@ final class RoomReadService
      *
      * `unread_through_message_id` is the room's newest message when the counts were taken: a
      * client adding live messages to unread_count skips any at or below it, which this
-     * snapshot already covers (#279).
+     * snapshot already covers (#279). A message with a lower id can still commit after the
+     * snapshot, though (#286), so it is kept only for clients that rely on it.
      *
-     * @return array<int, array{unread_count:int, last_read_message_id:?int, unread_mention_count:int, unread_through_message_id:int}> keyed by room ID
+     * `unread_settled_message_id`: every message id at or below it had committed when the
+     * counts were taken (SettledHorizon on room_messages, checked once, before the count
+     * query). `unread_counted_ids`: the ids above it that unread_count includes, in id order
+     * (at most UNREAD_CAP). A client counts a live message unless its id is at or below
+     * last_read_message_id or unread_settled_message_id, or is in unread_counted_ids. When an
+     * older insert is still open, the position is 0 and the list holds every counted id.
+     *
+     * @return array<int, array{unread_count:int, last_read_message_id:?int, unread_mention_count:int, unread_through_message_id:int, unread_settled_message_id:int, unread_counted_ids:list<int>}> keyed by room ID
      */
     public function forUser(int $userId): array
     {
+        // Before the count query, so it runs in a later snapshot that sees every id <= settled.
+        $settled = (new SettledHorizon($this->pdo, 'room_messages'))->now() ?? 0;
         $statement = $this->pdo->prepare(<<<'SQL'
 SELECT rm.room_id,
        rr.last_read_message_id,
@@ -79,7 +90,23 @@ SELECT rm.room_id,
                LIMIT :mention_cap
            ) mentions
        ) AS unread_mention_count,
-       COALESCE((SELECT MAX(newest.id) FROM room_messages newest WHERE newest.room_id = rm.room_id), 0) AS unread_through_message_id
+       COALESCE((SELECT MAX(newest.id) FROM room_messages newest WHERE newest.room_id = rm.room_id), 0) AS unread_through_message_id,
+       -- The same conditions as unread_count, above the settled position.
+       array_to_json(ARRAY(
+           SELECT m.id
+           FROM room_messages m
+           WHERE m.room_id = rm.room_id
+             AND m.id > rr.last_read_message_id
+             AND m.id > :settled
+             AND m.deleted_at IS NULL
+             AND m.sender_id IS DISTINCT FROM rm.user_id
+             AND NOT EXISTS (
+                 SELECT 1 FROM user_ignores ignoring
+                 WHERE ignoring.user_id = rm.user_id AND ignoring.ignored_user_id = m.sender_id
+             )
+           ORDER BY m.id
+           LIMIT :ids_cap
+       ))::text AS unread_counted_ids
 FROM room_members rm
 LEFT JOIN room_reads rr ON rr.room_id = rm.room_id AND rr.user_id = rm.user_id
 WHERE rm.user_id = :user_id
@@ -87,7 +114,13 @@ SQL);
         if ($statement === false) {
             throw new RuntimeException('Unable to prepare unread counts.');
         }
-        $statement->execute(['user_id' => $userId, 'cap' => self::UNREAD_CAP, 'mention_cap' => self::UNREAD_CAP]);
+        $statement->execute([
+            'user_id' => $userId,
+            'cap' => self::UNREAD_CAP,
+            'mention_cap' => self::UNREAD_CAP,
+            'settled' => $settled,
+            'ids_cap' => self::UNREAD_CAP,
+        ]);
         $reads = [];
         foreach ($statement->fetchAll() as $row) {
             if (is_array($row)) {
@@ -96,6 +129,8 @@ SQL);
                     'last_read_message_id' => $row['last_read_message_id'] === null ? null : (int) $row['last_read_message_id'],
                     'unread_mention_count' => (int) $row['unread_mention_count'],
                     'unread_through_message_id' => (int) $row['unread_through_message_id'],
+                    'unread_settled_message_id' => $settled,
+                    'unread_counted_ids' => array_values(array_map('intval', (array) json_decode((string) $row['unread_counted_ids'], true, 2, JSON_THROW_ON_ERROR))),
                 ];
             }
         }

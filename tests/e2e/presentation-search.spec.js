@@ -10,7 +10,10 @@ import { expect, test } from '@playwright/test';
 // against intercepted APIs.
 const WCAG = ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'];
 const member = { id: 1, username: 'Jamie', roles: ['user'], session_version: 1 };
-const hoursAgo = (hours) => new Date(Date.now() - hours * 3_600_000).toISOString();
+// #295: the page's clock is fixed at noon (local time), so "an hour ago" is
+// always today; on the real clock it was yesterday between 00:00 and 01:00.
+const NOW = new Date(2026, 10, 12, 12, 0, 0);
+const hoursAgo = (hours) => new Date(NOW.getTime() - hours * 3_600_000).toISOString();
 
 const RESULTS = () => [
   {
@@ -24,6 +27,7 @@ const RESULTS = () => [
 ];
 
 async function fixture(page, { results = RESULTS() } = {}) {
+  await page.clock.setFixedTime(NOW);
   const searches = [];
   await page.route('**/api/v1/**', async (route) => {
     const request = route.request();

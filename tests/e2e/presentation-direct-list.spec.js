@@ -22,6 +22,24 @@ const yesterday = () => {
   date.setHours(12, 0, 0, 0);
   return date.toISOString();
 };
+// #294: a modified click is the browser's, so the page must not cancel it.
+// Opening a real tab to show that is racy (the context's new-page event can be
+// lost, #296), so a last listener records whether anything cancelled the click
+// and then cancels it itself: no tab opens. It is on window in the bubble
+// phase, added after the page's scripts, so it runs after every app listener
+// (those listen on elements or on document, never on window for clicks).
+async function modifiedClick(page, target) {
+  await page.evaluate(() => {
+    window.__modifiedClicks = [];
+    window.addEventListener('click', (event) => {
+      window.__modifiedClicks.push({ prevented: event.defaultPrevented, href: event.target.closest('a')?.getAttribute('href') ?? null });
+      event.preventDefault();
+    }, { once: true });
+  });
+  await target.click({ modifiers: ['ControlOrMeta'] });
+  return page.evaluate(() => window.__modifiedClicks);
+}
+
 const CONVERSATIONS = () => [
   { user: rowan, unread_count: 0, last_message: { id: 12, body: 'Direct 2', outgoing: true, created_at: hoursAgo(0.5) } },
   { user: sam, unread_count: 3, last_message: { id: 11, body: 'See you at the market', outgoing: false, created_at: yesterday() } },
@@ -110,16 +128,11 @@ test('a plain click or Enter switches in the page; a modified click is the brows
   expect(await page.evaluate(() => window.__stayed)).toBe(true);
   await expect(page).toHaveURL(/\/messages\.php$/);
 
-  // The new tab gets an inert page (#288): unmocked, it would load the real
-  // page against the real server (no session, a redirect, a live event stream)
-  // and could stall the run. The original page never requests this address.
-  await page.context().route((url) => url.pathname === '/messages.php' && url.search === '?with=3', (route) => route.fulfill({ contentType: 'text/html', body: '<!doctype html><title>New tab</title>' }));
-  const opened = page.context().waitForEvent('page');
-  await row(page, 'Sam').click({ modifiers: ['ControlOrMeta'] });
-  const tab = await opened;
-  await expect.poll(() => tab.url()).toMatch(/\/messages\.php\?with=3$/);
-  await tab.close();
+  // Ctrl or Cmd: left to the browser (a new tab at the row's address); this page stays put.
+  expect(await modifiedClick(page, row(page, 'Sam'))).toEqual([{ prevented: false, href: '/messages.php?with=3' }]);
   await expect(page.locator('#dm-peer-name')).toHaveText('Rowan');
+  await expect(row(page, 'Rowan')).toHaveAttribute('aria-current', 'page');
+  await expect(page).toHaveURL(/\/messages\.php$/);
 });
 
 test('phones (320px): a row click or tap switches in the page, with no reload', async ({ browser }) => {
