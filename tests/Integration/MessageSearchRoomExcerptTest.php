@@ -111,6 +111,24 @@ final class MessageSearchRoomExcerptTest extends DatabaseTestCase
         self::assertSame(['cherry'], $this->marked($this->only(null, 'cherry -durian')));
     }
 
+    public function testAWordBothIncludedAndExcluded(): void
+    {
+        $this->roomMessage('a banana split here');
+        $this->roomMessage('no fruit at all');
+        // PostgreSQL: 'banana' & !'banana' can never match, so there are no results.
+        foreach (['banana -banana', '"banana split" -banana', '-banana banana split'] as $query) {
+            self::assertSame([], $this->search->search($this->admin, $query, 'rooms')['results'], $query);
+        }
+        // 'banana' | !'banana' matches every message; banana is included, so it is marked where it occurs.
+        $results = $this->search->search($this->admin, 'banana OR -banana', 'rooms')['results'];
+        $marked = [];
+        foreach ($results as $result) {
+            $marked[$result['excerpt']] = $this->marked($result);
+        }
+        ksort($marked);
+        self::assertSame(['a banana split here' => ['banana'], 'no fruit at all' => []], $marked);
+    }
+
     public function testSentinelsInAMessageCantForgeAMatch(): void
     {
         $this->roomMessage('a ' . SearchExcerpt::START . 'forged' . SearchExcerpt::STOP . ' mark next to the needle');

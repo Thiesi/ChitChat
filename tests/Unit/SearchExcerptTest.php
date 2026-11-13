@@ -31,7 +31,7 @@ final class SearchExcerptTest extends TestCase
         self::assertLessThanOrEqual(SearchExcerpt::MAX, mb_strlen($result['excerpt']));
         self::assertStringStartsWith('… ', $result['excerpt']);
         self::assertStringEndsWith(' …', $result['excerpt']);
-        self::assertSame('needle', $this->slice($result, 0));
+        self::assertSame('needle', $this->slice($result, 0), 'Offsets count the leading "… " of the excerpt as sent.');
         // About 100 characters of context before it, starting at a word.
         self::assertGreaterThan(80, $result['matches'][0]['start']);
         self::assertLessThanOrEqual(102, $result['matches'][0]['start']);

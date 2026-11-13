@@ -87,7 +87,7 @@ Example response:
 - **A longer message** gets a window around its **first match** (#283): up to about 100 characters of context before the match, starting at a word, then as much as fits, cut back to a word boundary. `… ` is added at the start and ` …` at the end only where text was cut. Both count towards the 320. When the match is near the end, the window ends at the end of the message and uses the whole budget. Before #283, the excerpt was always the first 320 characters, so a match further in wasn't visible.
 - **If no match position can be determined**, the excerpt is the first 319 characters plus `…`, as before, and `excerpt_matches` is empty.
 
-`excerpt_matches` lists every match that lies wholly inside the excerpt, in order, as `{"start", "length"}`. **Offsets and lengths are in UTF-16 code units**, the unit that JavaScript (`String.prototype.slice`) and Kotlin/Java strings index by, and they already account for a leading `… `. An emoji counts as two:
+`excerpt_matches` lists every match that lies wholly inside the excerpt, in order, as `{"start", "length"}`. **Offsets and lengths are in UTF-16 code units**, the unit that JavaScript (`String.prototype.slice`) and Kotlin/Java strings index by. **They are relative to `excerpt` exactly as sent**, not to the original message: when the excerpt starts with `… `, those two characters (2 code units) are counted, so `excerpt.slice(start, start + length)` is always the matched word. An emoji counts as two:
 
 ```json
 { "excerpt": "Party 🎉 deployment done", "excerpt_matches": [{"start": 9, "length": 10}] }
@@ -100,6 +100,7 @@ Here `excerpt.slice(9, 19)` is `"deployment"`: `Party ` is 6 units, 🎉 is 2, a
 - A quoted phrase marks each of its words wherever they occur, not only where they form the phrase.
 - With `OR`, the alternatives that occur are marked.
 - A word excluded with `-` is never marked, even when the message matched through `OR`, for example `apple OR -banana`.
+- A word that is both included and excluded follows PostgreSQL. `banana -banana` and `"banana split" -banana` can never match, so they return no results. `banana OR -banana` matches every message, and since banana is also included, it is marked where it occurs.
 
 Matches are computed only for the page of results returned (in the order of 5 ms for 50 messages of about 4,700 characters).
 
