@@ -104,3 +104,11 @@ test('a link to a message that is no longer in the room says so', async ({ page 
   await expect(page.locator('#message-list article.message')).toHaveCount(1);
   await expect(toasts(page)).toContainText('That message isn’t available any more.', { timeout: 15_000 });
 });
+
+test('the room header’s search button searches this room (#318)', async ({ page }) => {
+  await fixture(page);
+  await page.goto('/');
+  await expect(page.locator('#message-list article.message')).toHaveCount(1);
+  const button = page.getByRole('link', { name: 'Search # The living room' });
+  await expect(button).toHaveAttribute('href', '/search.php?room_id=1');
+});

@@ -43,10 +43,37 @@ export function highlightSegments(text, terms) {
   return segments;
 }
 
-/** Fills the element with the text, its matching words in <mark>. Text nodes only. */
-export function renderHighlighted(element, text, terms) {
+/**
+ * Splits text by the server's excerpt_matches (#318): {start, length} in UTF-16 code units,
+ * relative to the excerpt as sent, which is how JavaScript indexes strings. Null when the
+ * ranges aren't usable (missing, out of order, overlapping, outside the text), so the caller
+ * can fall back to matching words here.
+ */
+export function rangeSegments(text, ranges) {
+  const source = String(text ?? '');
+  if (!Array.isArray(ranges) || ranges.length === 0) return null;
+  const segments = [];
+  let last = 0;
+  for (const range of ranges) {
+    const start = range?.start;
+    const length = range?.length;
+    if (!Number.isInteger(start) || !Number.isInteger(length) || length <= 0) return null;
+    if (start < last || start + length > source.length) return null;
+    if (start > last) segments.push({ text: source.slice(last, start), mark: false });
+    segments.push({ text: source.slice(start, start + length), mark: true });
+    last = start + length;
+  }
+  if (last < source.length) segments.push({ text: source.slice(last), mark: false });
+  return segments;
+}
+
+/**
+ * Fills the element with the text, its matches in <mark>: the server's ranges when it sent
+ * usable ones, else whole words that are one of the terms. Text nodes only.
+ */
+export function renderHighlighted(element, text, terms, ranges = null) {
   element.replaceChildren();
-  for (const segment of highlightSegments(text, terms)) {
+  for (const segment of rangeSegments(text, ranges) ?? highlightSegments(text, terms)) {
     if (segment.mark) {
       const mark = document.createElement('mark');
       mark.textContent = segment.text;
