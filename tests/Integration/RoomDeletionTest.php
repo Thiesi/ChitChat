@@ -44,7 +44,8 @@ final class RoomDeletionTest extends DatabaseTestCase
             $rooms->restore($moderator, $roomId, '127.0.0.3');
             self::fail('Expected a room moderator to be refused.');
         } catch (ApiException $exception) {
-            self::assertSame('forbidden', $exception->errorCode);
+            // Someone who can't manage the deleted room gets exactly a missing deleted room's answer (#326).
+            self::assertSame([404, 'room_not_found', 'No deleted room with that ID is waiting to be removed.'], [$exception->status, $exception->errorCode, $exception->getMessage()]);
         }
         self::assertSame($roomId, $rooms->restore($chatAdmin, $roomId, '127.0.0.5')->id);
         self::assertSame($roomId, $rooms->get($member, $roomId)->id);
