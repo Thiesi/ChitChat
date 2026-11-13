@@ -66,6 +66,7 @@ function harness({ probe = async () => 'ok', hidden = false, settled = true } = 
   const statuses = [];
   const calls = { signedOut: 0, longOutage: 0, probes: 0, handled: [] };
   let wake = null;
+  let pageListeners = null;
   const env = {
     EventSource: FakeSource,
     setTimeout: (callback, delay) => { timers.push({ callback, delay, cleared: false }); return timers.length - 1; },
@@ -74,6 +75,8 @@ function harness({ probe = async () => 'ok', hidden = false, settled = true } = 
     isHidden: () => hidden,
     addWakeListeners: (callback) => { wake = callback; },
     removeWakeListeners: () => { wake = null; },
+    addPageListeners: (onHide, onShow) => { pageListeners = { onHide, onShow }; },
+    removePageListeners: () => { pageListeners = null; },
   };
   const keeper = keepEventStream({
     settled,
@@ -91,8 +94,84 @@ function harness({ probe = async () => 'ok', hidden = false, settled = true } = 
     timer.ran = true;
     await timer.callback();
   };
-  return { keeper, timers, pending, fire, statuses, calls, wake: () => wake?.(), hidden: (value) => { hidden = value; } };
+  return {
+    keeper, timers, pending, fire, statuses, calls,
+    wake: () => wake?.(),
+    hidden: (value) => { hidden = value; },
+    // The browser env only calls these for pagehide/pageshow with persisted (the bfcache).
+    parkPage: () => pageListeners?.onHide(),
+    restorePage: () => pageListeners?.onShow(),
+    pageListening: () => pageListeners !== null,
+  };
 }
+
+const settleAll = () => new Promise((resolve) => setImmediate(resolve));
+
+test('into the back/forward cache the stream is closed on purpose, and a restore reopens it from its position (#323)', async () => {
+  const h = harness();
+  const first = FakeSource.made[0];
+  first.opened();
+  first.message('room_message', 101, 100);
+  assert.equal(h.statuses.at(-1), 'connected');
+
+  h.parkPage();
+  assert.equal(first.readyState, 2, 'Closed on purpose.');
+  first.emit('error');
+  assert.equal(h.pending().length, 0, 'A parked stream schedules nothing.');
+
+  h.restorePage();
+  assert.equal(h.statuses.at(-1), 'reconnecting', 'Said at once, before the session check: never a stale "Live".');
+  await settleAll();
+  assert.equal(h.calls.probes, 1);
+  const second = FakeSource.made[1];
+  assert.equal(second.url, '/api/v1/events/stream.php?resume=settled&after_id=100');
+  second.opened();
+  assert.equal(h.statuses.at(-1), 'connected');
+  second.message('room_message', 101, 100);
+  second.message('room_message', 102, 101);
+  assert.deepEqual(h.calls.handled, [101, 102], 'The resent event is dropped; the next one arrives once.');
+});
+
+test('parking cancels a pending retry, and a check in flight never reopens a parked stream', async () => {
+  let release;
+  const h = harness({ probe: () => new Promise((resolve) => { release = resolve; }) });
+  FakeSource.made[0].failedForGood();
+  assert.equal(h.pending().length, 1);
+  h.parkPage();
+  assert.equal(h.pending().length, 0, 'The retry timer is cancelled.');
+
+  // A check that was already running when the page went into the cache.
+  const g = harness({ probe: () => new Promise((resolve) => { release = resolve; }) });
+  FakeSource.made[0].failedForGood();
+  const firing = g.fire();
+  g.parkPage();
+  release('ok');
+  await firing;
+  assert.equal(FakeSource.made.length, 1, 'Nothing opened while parked.');
+});
+
+test('a restore whose session has ended signs out instead of reconnecting', async () => {
+  const h = harness({ probe: async () => 'signed_out' });
+  FakeSource.made[0].opened();
+  h.parkPage();
+  h.restorePage();
+  await settleAll();
+  assert.equal(h.calls.signedOut, 1);
+  assert.equal(h.keeper.stopped, true);
+  assert.equal(FakeSource.made.length, 1);
+});
+
+test('a restore without a park, or after stop(), does nothing; stop() removes the page listeners', async () => {
+  const h = harness();
+  FakeSource.made[0].opened();
+  h.restorePage();
+  await settleAll();
+  assert.equal(FakeSource.made.length, 1, 'Only a parked stream is reopened.');
+  assert.equal(h.calls.probes, 0);
+
+  h.keeper.stop();
+  assert.equal(h.pageListening(), false);
+});
 
 test('a stream that closes for good is recreated after the backoff, from its position, with the same dedupe', async () => {
   const h = harness();
