@@ -19,11 +19,30 @@ final class ModerationRank
 {
     public const SUPER_ADMINISTRATOR = 5;
 
-    private const GLOBAL_RANKS = ['super_admin' => 5, 'admin' => 4, 'chat_admin' => 3, 'global_moderator' => 3];
+    /** The only place global ranks are defined; SQL gets them from globalRankCase(). */
+    public const GLOBAL_RANKS = ['super_admin' => 5, 'admin' => 4, 'chat_admin' => 3, 'global_moderator' => 3];
     private const ROOM_RANKS = ['owner' => 2, 'moderator' => 1];
 
     public function __construct(private readonly PDO $pdo)
     {
+    }
+
+    /**
+     * `CASE <column> WHEN 'super_admin' THEN 5 … ELSE 0 END`, built from GLOBAL_RANKS, for a
+     * query over user_roles. Take MAX of it per user for their rank (#302: the transfer, its
+     * flags and moderation can't drift apart).
+     */
+    public static function globalRankCase(string $roleColumn): string
+    {
+        if (preg_match('/\A[a-z_][a-z0-9_]*(\.[a-z_][a-z0-9_]*)?\z/D', $roleColumn) !== 1) {
+            throw new RuntimeException('Invalid role column for the global rank.');
+        }
+        $cases = '';
+        foreach (self::GLOBAL_RANKS as $role => $rank) {
+            $cases .= " WHEN '" . $role . "' THEN " . $rank;
+        }
+
+        return 'CASE ' . $roleColumn . $cases . ' ELSE 0 END';
     }
 
     public static function globalRankOf(AuthenticatedUser $user): int
@@ -91,14 +110,10 @@ final class ModerationRank
             $parameters['user_' . $index] = $userId;
         }
         $list = implode(', ', $placeholders);
+        $globalRank = self::globalRankCase('ur.role');
         $statement = $this->pdo->prepare(<<<SQL
 SELECT u.id,
-       COALESCE(MAX(CASE ur.role
-           WHEN 'super_admin' THEN 5
-           WHEN 'admin' THEN 4
-           WHEN 'chat_admin' THEN 3
-           WHEN 'global_moderator' THEN 3
-           ELSE 0 END), 0) AS global_rank,
+       COALESCE(MAX({$globalRank}), 0) AS global_rank,
        COALESCE(MAX(CASE rm.role WHEN 'owner' THEN 2 WHEN 'moderator' THEN 1 ELSE 0 END), 0) AS room_rank
 FROM users u
 LEFT JOIN user_roles ur ON ur.user_id = u.id

@@ -76,7 +76,7 @@ Moderators act from the chat: from **Delete** on a message and from the **Modera
   "room": {
     "id": 42, "name": "General", "member_role": "member",
     "can_set_moderator": true, "can_remove": true, "can_mute": true,
-    "mute": null
+    "mute": null, "can_transfer_ownership": true
   },
   "everywhere": {
     "can_kick": true, "can_ban": true, "can_mute": true, "can_open_administration": true,
@@ -88,6 +88,8 @@ Moderators act from the chat: from **Delete** on a message and from the **Modera
 ```
 
 `room` is present only with `room_id`, for room managers and moderators of that room; `everywhere` only for Global Moderators and up (muting, requiring a new username) and Administrators and up (signing out, banning). `can_require_username_change` is false for guests and while a change is already required (`username_change_required`); see [Required username changes](username-change.md).
+
+`room.can_transfer_ownership` (#302) says whether the viewer may make this person the room's owner now, after step-up. It uses the transfer's own rule, ignoring bans for viewers who can't see them; see [Offering the transfer](rooms.md#post-apiv1roomstransfer-ownershipphp). `room` is also present when this is the only thing on offer.
 
 ### Muting: `POST /api/v1/moderation/mute.php`
 
@@ -126,9 +128,11 @@ Room administration requires a global room-management role (`super_admin`, `admi
 
 Returns:
 
-- the editable room object;
-- persistent members with room role, join timestamp, and active connection count;
+- the editable room object, with `can_take_ownership`: whether the viewer may make themselves the owner now, after step-up (for an administrator, also of a room they aren't in, under its minimum age);
+- persistent members with room role, join timestamp, active connection count and `can_transfer_ownership` (false on the owner's own row);
 - pending invitations and inviter identity.
+
+Both flags (#302) use the transfer's own rule and can go stale; bans count only for viewers who can see them. See [Offering the transfer](rooms.md#post-apiv1roomstransfer-ownershipphp).
 
 ### `GET /api/v1/admin/rooms/search-users.php`
 

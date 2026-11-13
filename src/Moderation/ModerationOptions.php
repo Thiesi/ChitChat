@@ -7,6 +7,7 @@ namespace ChitChat\Moderation;
 use ChitChat\Auth\AuthenticatedUser;
 use ChitChat\Auth\UserRepository;
 use ChitChat\Room\ModerationRank;
+use ChitChat\Room\OwnershipTransferOptions;
 use ChitChat\Room\RoomAuthorization;
 use ChitChat\Room\RoomRepository;
 use PDO;
@@ -49,8 +50,10 @@ final class ModerationOptions
                 'can_remove' => $manage,
                 'can_mute' => $outranks,
                 'mute' => $mutes->current($targetId, $roomRecord->id),
+                // The transfer's own rule; ban-blind unless the viewer can see bans (#302).
+                'can_transfer_ownership' => (new OwnershipTransferOptions($this->pdo))->forTarget($viewer, $roomRecord, $targetId),
             ];
-            if (!$room['can_set_moderator'] && !$room['can_mute']) {
+            if (!$room['can_set_moderator'] && !$room['can_mute'] && !$room['can_transfer_ownership']) {
                 $room = null;
             }
         }
