@@ -195,6 +195,8 @@ test('room: a message deleted elsewhere while being edited closes the editor and
   await openRoom(page);
   await startEditing(mine(page));
   await editBox(mine(page)).fill('Half-typed');
+  // The server knows it's gone too, so the page's routine refresh agrees.
+  saved[2] = { body: null, deleted: true, deletion_kind: 'moderator', can_edit: false, can_delete: false };
   await page.evaluate(() => window.__emit('message_deleted', { room_id: 1, message_id: 2 }));
   await expect(editBox(mine(page))).toHaveCount(0);
   await expect(mine(page)).toHaveClass(/deleted/);
