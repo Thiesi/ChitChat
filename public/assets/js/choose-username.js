@@ -3,7 +3,7 @@
 // start; an account with nothing to change is told so. On success the
 // conversation opens with the new name.
 
-import { ApiError, apiGet, apiPost, setCsrfToken } from './api.js';
+import { ApiError, apiGet, apiPost, isPageLeft, setCsrfToken } from './api.js';
 
 const $ = (id) => document.getElementById(id);
 const PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{2,31}$/;
@@ -75,6 +75,8 @@ async function submit(event) {
 }
 
 function message(error) {
+  // A request the page aborted on leaving clears the line rather than showing a fallback (#270).
+  if (isPageLeft(error)) return '';
   if (!(error instanceof ApiError)) return 'That didn’t work. Check your connection and try again.';
   switch (error.code) {
     case 'invalid_username':

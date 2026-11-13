@@ -23,6 +23,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <link rel="stylesheet" href="/assets/css/moderation.css">
   <link rel="stylesheet" href="/assets/css/person-reports.css">
   <link rel="stylesheet" href="/assets/css/shell.css">
+  <link rel="stylesheet" href="/assets/css/stewarding.css">
 </head>
 <body>
   <div id="moderation-loading" class="app-loading" role="status">Loading moderation queue…</div>
@@ -37,10 +38,9 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
       </div>
     </header>
 
-    <section class="moderation-notice" aria-labelledby="moderation-notice-title">
-      <h2 id="moderation-notice-title">Participant-submitted evidence</h2>
-      <p>Each report contains an immutable snapshot of one message as the reporter saw it, or of one person's name and profile picture. A direct-message report does not grant access to surrounding conversation history.</p>
-      <p>Room owners and room moderators see only cases from rooms they moderate. Global moderation roles may review all room and direct-message cases.</p>
+    <section class="steward-notice" aria-labelledby="moderation-notice-title">
+      <h2 id="moderation-notice-title">What a report shows</h2>
+      <p>Each report is a fixed copy of one message, or of one person’s name and picture, as the reporter saw it. It never opens the rest of the conversation. Room owners and room moderators see cases from their rooms; global moderators see every case.</p>
     </section>
 
     <p id="moderation-error" class="error-text" role="alert"></p>

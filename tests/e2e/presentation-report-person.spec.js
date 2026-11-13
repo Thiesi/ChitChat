@@ -320,3 +320,77 @@ test('moderators review person cases with a blurred picture and person actions',
   await expect(page.locator('#moderation-status')).toHaveText('No cases match this filter.');
   await noOverflow(page);
 });
+
+// ---- S6c (#172): the queue and the card in the Dusk frame ----
+
+function personQueue(page, requests) {
+  return fixture(page, {
+    user: moderator,
+    requests,
+    profile: { ...peerProfile, can_remove_avatar: true, moderation: { room: { id: 1, name: 'The living room', can_mute: true, mute: null }, everywhere: null } },
+    overrides: {
+      'moderation/cases.php': { cases: [personCase], has_more: false, next_before_id: null },
+      'moderation/case.php': { case: {
+        ...personCase,
+        snapshot: { username: 'Rowan_x', avatar_url: avatarPixel },
+        avatar_changed_since_report: true,
+        subject: { id: 2, username: 'Rowan' },
+        reports: [
+          { reporter: { id: 1, username: 'Jamie' }, category: 'offensive_username', details: 'The name is a slur.', created_at: '2026-11-08T10:12:00Z' },
+          { reporter: { id: 4, username: 'Alex' }, category: 'offensive_profile_picture', details: null, created_at: '2026-11-08T10:40:00Z' },
+        ],
+      } },
+      'moderation/resolve.php': (request) => ({ case: { ...personCase, status: request.postDataJSON().status, resolution_code: request.postDataJSON().resolution_code, resolved_by: moderator, reports: [] } }),
+    },
+  });
+}
+
+test('Dismiss asks in the styled dialog, not window.confirm; Cancel closes nothing', async ({ page }) => {
+  const requests = [];
+  let native = 0;
+  page.on('dialog', (dialog) => { native += 1; void dialog.dismiss(); });
+  await personQueue(page, requests);
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto('/moderation.php');
+  await expect(page.locator('#moderation-case-context')).toHaveText('Reported person · from # The living room');
+  await expect(page.getByRole('region', { name: 'What a report shows' })).toContainText('It never opens the rest of the conversation.');
+  await page.getByRole('button', { name: 'Dismiss: no violation' }).click();
+  const ask = page.getByRole('dialog', { name: 'Dismiss case #42?' });
+  await expect(ask).toContainText('It closes as no violation, with your note if you wrote one.');
+  await expect(ask.getByRole('button', { name: 'Cancel' })).toBeFocused();
+  await page.keyboard.press('Escape');
+  expect(requests.filter((entry) => entry.path === 'moderation/resolve.php')).toEqual([]);
+  await page.getByRole('button', { name: 'Dismiss: no violation' }).click();
+  await ask.getByRole('button', { name: 'Dismiss case' }).click();
+  await expect.poll(() => requests.find((entry) => entry.path === 'moderation/resolve.php')?.body).toMatchObject({ case_id: 42, status: 'dismissed', resolution_code: 'no_violation' });
+  expect(native).toBe(0);
+});
+
+test('the card’s Remove profile picture asks in the styled dialog, as the queue does', async ({ page }) => {
+  const requests = [];
+  let native = 0;
+  page.on('dialog', (dialog) => { native += 1; void dialog.dismiss(); });
+  await fixture(page, { user: moderator, requests, profile: { ...peerProfile, can_remove_avatar: true }, overrides: { 'account/avatar/remove.php': {} } });
+  await openRowansCard(page);
+  await page.locator('#name-menu').getByRole('button', { name: 'Remove profile picture' }).click();
+  const ask = page.getByRole('dialog', { name: "Remove Rowan's profile picture?" });
+  await expect(ask).toContainText('Their initials show instead.');
+  await ask.getByRole('button', { name: 'Remove picture' }).click();
+  await expect(page.locator('#name-menu')).toContainText('Profile picture removed.');
+  expect(requests.find((entry) => entry.path === 'account/avatar/remove.php')?.body).toEqual({ user_id: 2 });
+  expect(native).toBe(0);
+});
+
+test('baseline: the moderation queue with a person case, at 1280 in Lantern dark', async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium' || process.platform !== 'linux', 'Visual baselines are pinned Chromium on Linux (CI).');
+  await page.clock.setFixedTime(new Date('2026-11-12T12:00:00Z'));
+  await page.emulateMedia({ colorScheme: 'dark', reducedMotion: 'reduce' });
+  await personQueue(page, []);
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto('/moderation.php');
+  await expect(page.locator('#person-evidence-then')).toHaveText('Rowan_x');
+  await expect(page.locator('.moderation-report-card')).toHaveCount(2);
+  await page.waitForLoadState('networkidle');
+  await page.mouse.move(0, 0);
+  await expect(page).toHaveScreenshot('moderation-desktop.png', { animations: 'disabled', caret: 'hide', fullPage: true, maxDiffPixelRatio: 0.003, threshold: 0.2 });
+});
