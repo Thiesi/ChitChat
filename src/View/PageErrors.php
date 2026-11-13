@@ -40,7 +40,10 @@ final class PageErrors
     public static function discardBufferedOutput(int $downTo = 0): void
     {
         while (ob_get_level() > $downTo) {
-            ob_end_clean();
+            // A buffer started without PHP_OUTPUT_HANDLER_REMOVABLE can't go; stop rather than spin.
+            if (!@ob_end_clean()) {
+                break;
+            }
         }
     }
 
