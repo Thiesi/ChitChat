@@ -222,6 +222,16 @@ test('if the page can’t load its session, it says so with Try again, and Try a
   await expect(page.getByRole('heading', { name: 'Theme and colours' })).toBeVisible();
 });
 
+test('signed out meanwhile: a 401 goes to the sign-in screen, not to Try again', async ({ page }) => {
+  await fixture(page);
+  await page.route('**/api/v1/session.php', (route) => (new URL(page.url()).pathname === '/account.php'
+    ? route.fulfill({ status: 401, json: { error: { code: 'session_revoked', message: 'You were signed out on another device.' } } })
+    : route.fallback()));
+  await page.goto('/account.php');
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByRole('button', { name: 'Try again' })).toHaveCount(0);
+});
+
 test('the sections start from the answer that shows the page, even if a later session request fails', async ({ page }) => {
   await fixture(page);
   let answered = 0;

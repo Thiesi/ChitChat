@@ -36,7 +36,12 @@ async function initialize() {
     // The You list pane (S5a) appears with the section it opens.
     document.getElementById('you-list')?.classList.remove('hidden');
   } catch (error) {
-    // Say so, with a way to try again, instead of a page that never appears.
+    // Signed out (here or elsewhere): the sign-in screen, which says why when it knows (#205).
+    if (error instanceof ApiError && error.status === 401) {
+      window.location.assign('/');
+      return;
+    }
+    // Anything else: say so, with a way to try again, instead of a page that never appears.
     showLoadFailure(error instanceof Error && error.message ? error.message : 'The page couldn’t be loaded.');
   }
 }
