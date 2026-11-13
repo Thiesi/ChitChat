@@ -6,6 +6,7 @@ namespace ChitChat\Moderation;
 
 use ChitChat\Audit\AuditLogger;
 use ChitChat\Auth\AuthenticatedUser;
+use ChitChat\Auth\PasswordHasher;
 use ChitChat\Auth\PasswordPolicy;
 use ChitChat\Auth\RecoveryKeyService;
 use ChitChat\Auth\UserRepository;
@@ -151,7 +152,7 @@ SQL);
         try {
             $sessionVersion = $this->users->updatePassword(
                 $targetUserId,
-                password_hash($newPassword, PASSWORD_DEFAULT),
+                PasswordHasher::hash($newPassword),
             );
             RecoveryKeyService::invalidateInTransaction($this->pdo, $actor->id, $targetUserId, $ipAddress);
             $this->audit->log(

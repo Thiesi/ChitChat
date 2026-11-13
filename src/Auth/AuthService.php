@@ -149,7 +149,7 @@ SQL);
                 'username' => $username,
                 'canonical' => $canonical,
                 // Without a password the hash is random and can never match.
-                'password_hash' => password_hash($password ?? bin2hex(random_bytes(32)), PASSWORD_DEFAULT),
+                'password_hash' => PasswordHasher::hash($password ?? bin2hex(random_bytes(32))),
                 'has_password' => $password === null ? 'false' : 'true',
                 'birth_date' => $normalizedBirthDate,
             ]);
@@ -292,7 +292,7 @@ SQL);
             throw new ApiException(403, 'account_banned', 'This account is banned.');
         }
 
-        if (password_needs_rehash($credentials['password_hash'], PASSWORD_DEFAULT)) {
+        if (PasswordHasher::needsRehash($credentials['password_hash'])) {
             $statement = $this->pdo->prepare(
                 'UPDATE users SET password_hash = :hash, updated_at = NOW() WHERE id = :id',
             );
@@ -300,7 +300,7 @@ SQL);
                 throw new RuntimeException('Unable to prepare password rehash.');
             }
             $statement->execute([
-                'hash' => password_hash($password, PASSWORD_DEFAULT),
+                'hash' => PasswordHasher::hash($password),
                 'id' => $credentials['id'],
             ]);
         }
@@ -369,7 +369,7 @@ SQL);
                 throw new ApiException(403, 'invalid_current_password', 'The current password is incorrect.');
             }
             PasswordPolicy::validate($newPassword, (string) $credentials['username']);
-            $this->users->updatePassword($actor->id, password_hash($newPassword, PASSWORD_DEFAULT));
+            $this->users->updatePassword($actor->id, PasswordHasher::hash($newPassword));
             $this->audit->log(
                 actorUserId: $actor->id,
                 action: $hadPassword ? 'auth.password_changed' : 'auth.password_set',
