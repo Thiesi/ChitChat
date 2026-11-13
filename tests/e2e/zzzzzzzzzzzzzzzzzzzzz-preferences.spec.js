@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { openYouSection } from './support/you.js';
 
 const member = {
   username: 'MemberE2E',
@@ -20,7 +21,7 @@ test('colour schemes apply on every page, and dates follow the account format', 
   // A colour scheme chosen on You applies everywhere on this device (the account menu went in #168, S2b).
   await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'You', exact: true }).click();
   // S5a: You opens on Profile; colour schemes are under Appearance.
-  await page.getByRole('navigation', { name: 'Settings' }).getByRole('link', { name: 'Appearance', exact: true }).click();
+  await openYouSection(page, 'Appearance');
   const accountSchemes = page.locator('#account-shell').getByRole('radiogroup', { name: 'Colour scheme' });
   await accountSchemes.getByRole('radio', { name: 'Dusk' }).check();
   await expect(page.locator('html')).toHaveAttribute('data-scheme', 'dusk');

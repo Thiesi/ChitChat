@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { openYouSection } from './support/you.js';
 
 const member = {
   username: 'MemberE2E',
@@ -41,7 +42,7 @@ async function closeAndRestore(page, onClosureRequested) {
   await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'You', exact: true }).click();
   await expect(page).toHaveURL(/\/account\.php$/);
   // S5a: closing the account is under Account.
-  await page.getByRole('navigation', { name: 'Settings' }).getByRole('link', { name: 'Account', exact: true }).click();
+  await openYouSection(page, 'Account');
 
   await page.getByLabel(/I understand that I’m signed out at once/).check();
   await page.getByRole('button', { name: 'Request account closure' }).click();
