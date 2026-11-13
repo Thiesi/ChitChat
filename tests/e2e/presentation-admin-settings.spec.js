@@ -44,6 +44,8 @@ async function fixture(page, { current = settings({ username_reservation_days: 3
     const request = route.request();
     const path = new URL(request.url()).pathname.replace('/api/v1/', '');
     if (request.method() === 'POST') requests.push({ path, body: request.postDataJSON?.() ?? null });
+    // The authenticator key card has its own spec (presentation-totp); here it's an older server's: absent.
+    if (path === 'admin/settings/totp/get.php') return route.fulfill({ status: 404, json: { error: { code: 'not_found', message: 'Not found.' } } });
     if (path === 'admin/settings/update.php') {
       const body = request.postDataJSON();
       return route.fulfill({ json: { settings: { ...current, ...body, updated_at: '2026-11-12T10:00:00Z' } } });
