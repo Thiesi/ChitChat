@@ -233,7 +233,7 @@ Response buffering must be disabled for `/api/v1/events/stream.php`. The applica
 
 Capacity planning must account for one PHP worker per currently open SSE request. The short reconnect window bounds worker lifetime but does not remove that concurrency requirement.
 
-A stream opened with `resume=settled` (the web client's mode, #286) lets its resume position wait for any open transaction writing `realtime_events`, so a late-committing event isn't skipped. A transaction open that long holds those positions back, and reconnects resend more. The stream logs, at most once a minute per kind and installation:
+A stream opened with `resume=settled` (the web client's mode, #286; the client contract is in [`docs/api/realtime.md`](docs/api/realtime.md#settled-resume-resumesettled-286)) lets its resume position wait for any open transaction writing `realtime_events`, so a late-committing event isn't skipped. A transaction open that long holds those positions back, and reconnects resend more. The stream logs, at most once a minute per kind and installation:
 - `… has been open for N s; settled stream positions wait for it` after 30 seconds;
 - `… its start can't be read` when the writer belongs to another database role;
 - `… passed a transaction writing realtime_events (pid …, role …, started …)` when, after two minutes, it moves past the writer. If that transaction later commits, its events may not be streamed; they're still in history.
