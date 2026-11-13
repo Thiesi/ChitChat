@@ -1,4 +1,5 @@
 import { ApiError, apiGet, apiPost, isPageLeft } from './api.js';
+import { errorText } from './unavailable.js';
 import { openMessageReportDialog } from './message-report-dialog.js';
 import { confirmModeratorDelete } from './moderation-tools.js';
 import { renderMessageBody } from './message-content.js';
@@ -261,5 +262,5 @@ function handleFailure(error) {
     window.location.assign('/');
     return;
   }
-  toast(error instanceof Error ? error.message : 'The message change failed.', 'error');
+  toast(errorText(error, 'The message change failed.'), 'error');
 }

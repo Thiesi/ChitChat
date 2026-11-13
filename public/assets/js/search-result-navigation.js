@@ -1,3 +1,5 @@
+import { MESSAGE_UNAVAILABLE, ROOM_UNAVAILABLE, showNotice } from './unavailable.js';
+
 window.addEventListener('DOMContentLoaded', () => {
   const parameters = new URLSearchParams(window.location.search);
   const roomId = positiveInteger(parameters.get('room_id'));
@@ -9,6 +11,8 @@ window.addEventListener('DOMContentLoaded', () => {
   if (roomId !== null && (messageId !== null || pingId !== null) && document.getElementById('room-list')) {
     navigateToResult({
       findContext: () => document.querySelector(`#room-list [data-room-id="${roomId}"]`),
+      // A room that never shows up in the list is gone or can't be seen (#326): say so.
+      missingContext: ROOM_UNAVAILABLE,
       loadButton: document.getElementById('load-older-button'),
       messageSelector: messageId !== null
         ? `.message[data-message-id="${messageId}"]`
@@ -31,12 +35,15 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-async function navigateToResult({ findContext, loadButton, messageSelector }) {
+async function navigateToResult({ findContext, loadButton, messageSelector, missingContext = null }) {
   if (!(loadButton instanceof HTMLButtonElement)) return;
 
   await waitForHistoryLoad(loadButton);
   const context = await waitForElement(findContext);
-  if (!(context instanceof HTMLElement)) return;
+  if (!(context instanceof HTMLElement)) {
+    if (missingContext) showNotice(missingContext);
+    return;
+  }
 
   if (!context.classList.contains('active')) {
     context.click();
@@ -62,9 +69,16 @@ async function revealMessage(selector, loadButton) {
       return;
     }
 
-    if (loadButton.classList.contains('hidden')) return;
+    // All of the history is here and the message isn't: it's gone (#326).
+    if (loadButton.classList.contains('hidden')) {
+      showNotice(MESSAGE_UNAVAILABLE);
+      return;
+    }
     if (loadButton.disabled) await waitUntilEnabled(loadButton);
-    if (loadButton.classList.contains('hidden')) return;
+    if (loadButton.classList.contains('hidden')) {
+      showNotice(MESSAGE_UNAVAILABLE);
+      return;
+    }
     loadButton.click();
     await waitForHistoryLoad(loadButton);
   }
