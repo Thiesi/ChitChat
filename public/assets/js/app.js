@@ -1863,8 +1863,6 @@ function showEmptyState(message) {
 }
 
 function toast(message, type = 'info') {
-  // A request the page aborted on leaving has no message and shows nothing (#270).
-  if (!message) return;
   const item = document.createElement('div');
   item.className = `toast ${type}`;
   item.setAttribute('role', type === 'error' ? 'alert' : 'status');
@@ -1895,6 +1893,8 @@ function errorMessage(error) {
 }
 
 function handleApiFailure(error) {
+  // A request the page aborted on leaving shows nothing (#270).
+  if (isPageLeft(error)) return;
   if (error instanceof ApiError && error.status === 401) {
     forceSignedOut(sessionEndedMessage());
     return;

@@ -1,4 +1,4 @@
-import { ApiError, apiGet, apiPost, setCsrfToken } from './api.js';
+import { ApiError, apiGet, apiPost, isPageLeft, setCsrfToken } from './api.js';
 import { applicationName } from './application-name.js';
 import { nameButton } from './name-menu.js';
 import { formatDateTime } from './datetime.js';
@@ -259,6 +259,8 @@ function clearError() {
 }
 
 function showError(error) {
+  // A request the page aborted on leaving shows nothing (#270).
+  if (isPageLeft(error)) return;
   elements['message-search-error'].textContent = errorMessage(error);
 }
 

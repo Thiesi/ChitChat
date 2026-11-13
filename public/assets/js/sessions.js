@@ -3,7 +3,7 @@
 // and signs out one of them or every other one. These are server-issued
 // sign-ins, not proof a device is online, so the copy never says "online".
 // Members only; a guest visit is a single sign-in and has Leave.
-import { ApiError, apiGet, apiPost } from './api.js';
+import { ApiError, apiGet, apiPost, isPageLeft } from './api.js';
 import { formatDateTime } from './datetime.js';
 import { withPrivilegedStepUp } from './step-up.js';
 
@@ -159,6 +159,8 @@ function clear() {
 }
 
 function showError(failure, fallback) {
+  // A request the page aborted on leaving shows nothing (#270).
+  if (isPageLeft(failure)) return;
   // The server's message explains what happened (a malformed request, a rate limit with its wait).
   error.textContent = failure instanceof Error && failure.message ? failure.message : fallback;
 }

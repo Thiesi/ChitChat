@@ -2,7 +2,7 @@
 // and the refusals, shared by the profile card and Administration. Who may
 // hand over to whom is the server's call (can_transfer_ownership on a person,
 // can_take_ownership on a room); nothing here infers it.
-import { ApiError, apiPost } from './api.js';
+import { ApiError, apiPost, isPageLeft } from './api.js';
 import { confirmAction } from './confirm-dialog.js';
 import { withPrivilegedStepUp } from './step-up.js';
 
@@ -41,6 +41,8 @@ export function cancelledCheck(error) {
 
 /** What a refused transfer means, in plain words; the server's text for anything else. */
 export function transferError(error, name, roomName) {
+  // A request the page aborted on leaving clears the line rather than showing a fallback (#270).
+  if (isPageLeft(error)) return '';
   switch (error?.code) {
     case 'transfer_target_not_eligible': return `${name} can’t own this room right now (guests, closing or banned accounts can’t).`;
     case 'already_owner': return `${name} already owns #${roomName}.`;

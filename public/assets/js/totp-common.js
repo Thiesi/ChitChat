@@ -1,7 +1,7 @@
 // Shared pieces for authenticator codes (#204): the code field, the form
 // sign-in panels use, and plain words for the documented outcomes. Kept
 // free of heavy imports so the sign-in pages can load it cheaply.
-import { ApiError } from './api.js';
+import { ApiError, isPageLeft } from './api.js';
 
 /** A six-digit code field: numeric keyboard, one-time-code autofill; the server ignores spaces. */
 export function codeInput(id) {
@@ -57,6 +57,8 @@ export function pendingMethods(methods, session) {
 
 /** Plain words for the documented outcomes; anything else keeps the server's message. */
 export function describeTotpError(failure) {
+  // A request the page aborted on leaving clears the line rather than showing a fallback (#270).
+  if (isPageLeft(failure)) return '';
   if (failure instanceof ApiError) {
     if (failure.code === 'invalid_totp') return 'That code didn’t work. Wait for a new code in your app, then enter it.';
     if (failure.code === 'last_mfa_method') return failure.message.trim() || 'This is your only second step. Add a passkey first, or turn off two-step sign-in below.';
