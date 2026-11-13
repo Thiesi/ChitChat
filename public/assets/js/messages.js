@@ -19,7 +19,7 @@ import { phoneListShowing } from './pane-stack.js';
 import { renamedUser, renameInMessages } from './renames.js';
 import { renderConversationList as drawConversationList } from './conversation-list.js';
 import { startUsernameGate } from './username-gate.js';
-import { dropResentEvents } from './realtime-seen.js';
+import { LONG_OUTAGE_NOTICE, keepEventStream, sessionProbe } from './realtime-stream.js';
 
 let transcriptKeys = null;
 const state = {
@@ -31,7 +31,7 @@ const state = {
   messages: [],
   messageIds: new Set(),
   oldestMessageId: null,
-  eventSource: null,
+  stream: null,
   settledResume: false,
   replyTo: null,
 };
@@ -676,16 +676,21 @@ async function refreshConversationsOnly() {
   renderConversations();
 }
 
-// With ?resume=settled a reconnect never misses an event that commits late, but may resend
-// some; dropResentEvents drops those before any handler runs (#286).
-function streamUrl() {
-  return state.settledResume ? '/api/v1/events/stream.php?resume=settled' : '/api/v1/events/stream.php';
+// The stream stays open across reconnects and upgrades (#301): realtime-stream.js recreates
+// it when the browser gives up, from the last position, and drops resent events (#286).
+// This page has no status line; a long outage is said once.
+function startEventStream() {
+  state.stream?.stop();
+  state.stream = keepEventStream({
+    settled: state.settledResume,
+    attach: attachStreamListeners,
+    probe: sessionProbe(apiGet),
+    onSignedOut: () => window.location.assign('/'),
+    onLongOutage: () => announce(LONG_OUTAGE_NOTICE),
+  });
 }
 
-function startEventStream() {
-  const source = new EventSource(streamUrl(), { withCredentials: true });
-  if (state.settledResume) dropResentEvents(source);
-  state.eventSource = source;
+function attachStreamListeners(source) {
   source.addEventListener('direct_message', (event) => {
     const envelope = parseEvent(event);
     const message = envelope?.payload?.message;

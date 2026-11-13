@@ -92,3 +92,16 @@ test('open and error get no check', () => {
   assert.equal(source.listeners.get('open').length, 1);
   assert.equal(source.listeners.get('error').length, 1);
 });
+
+test('position is the highest position seen, never going back (#301)', () => {
+  const seen = new SeenEvents();
+  assert.equal(seen.position, null);
+  seen.accept(5, 4);
+  assert.equal(seen.position, 4);
+  seen.accept(6, 3);
+  assert.equal(seen.position, 4, 'A lower frame position never moves it back.');
+  seen.accept(null, null);
+  assert.equal(seen.position, 4);
+  seen.accept(9, 8);
+  assert.equal(seen.position, 8);
+});

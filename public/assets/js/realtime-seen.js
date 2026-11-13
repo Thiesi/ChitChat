@@ -40,9 +40,15 @@ export class SeenEvents {
       for (const seen of [...this.#ids]) {
         if (seen <= position) this.#ids.delete(seen);
       }
+      // A new EventSource doesn't send Last-Event-ID, so a recreated stream resumes from
+      // this, as after_id (#301). It never goes back.
+      if (this.position === null || position > this.position) this.position = position;
     }
     return fresh;
   }
+
+  /** The highest position a dispatched event carried, or null before the first. */
+  position = null;
 
   get size() {
     return this.#ids.size;

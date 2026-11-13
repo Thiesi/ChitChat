@@ -5,7 +5,7 @@ import { identityHueIndex } from './identity-hue.js';
 import { lantern, renderRoomList as drawRoomList, unreadRoomMentions } from './room-list.js';
 import { attachTranscriptKeys } from './transcript-keys.js';
 import { countLiveMessage } from './unread-count.js';
-import { dropResentEvents } from './realtime-seen.js';
+import { LONG_OUTAGE_NOTICE, keepEventStream, sessionProbe } from './realtime-stream.js';
 import { createPresenceClient } from './presence.js';
 import { renderMessageBody, buildReplyPreview, buildReactionBar } from './message-content.js';
 import { attachMentionAutocomplete } from './mention-autocomplete.js';
@@ -48,7 +48,7 @@ const state = {
   messages: [],
   messageIds: new Set(),
   oldestMessageId: null,
-  eventSource: null,
+  stream: null,
   settledResume: false,
   replyTo: null,
   roomMembers: [],
@@ -1555,20 +1555,26 @@ function markMessageDeleted(messageId) {
   renderMessages();
 }
 
+// The stream stays open across reconnects and upgrades (#301): realtime-stream.js recreates
+// it when the browser gives up, from the last position, and drops resent events (#286).
 function startEventStream() {
   stopEventStream();
-  updateConnectionStatus('connecting', 'Connecting');
-
-  const source = new EventSource(streamUrl(), { withCredentials: true });
-  if (state.settledResume) dropResentEvents(source);
-  state.eventSource = source;
-  source.addEventListener('open', () => updateConnectionStatus('connected', 'Live'));
-  source.addEventListener('error', () => {
-    if (state.eventSource === source && state.user) {
-      updateConnectionStatus('error', 'Reconnecting');
-    }
+  state.stream = keepEventStream({
+    settled: state.settledResume,
+    attach: attachStreamListeners,
+    probe: sessionProbe(apiGet),
+    onStatus: (status) => {
+      if (!state.user) return;
+      if (status === 'connected') updateConnectionStatus('connected', 'Live');
+      else if (status === 'reconnecting') updateConnectionStatus('error', 'Reconnecting');
+      else updateConnectionStatus('connecting', 'Connecting');
+    },
+    onSignedOut: () => forceSignedOut(sessionEndedMessage()),
+    onLongOutage: () => announce(LONG_OUTAGE_NOTICE),
   });
+}
 
+function attachStreamListeners(source) {
   source.addEventListener('room_message', (event) => {
     const envelope = parseEvent(event);
     const message = envelope?.payload?.message;
@@ -1708,17 +1714,9 @@ function announceRoomMessage(message) {
   });
 }
 
-// With ?resume=settled a reconnect never misses an event that commits late, but may resend
-// some; dropResentEvents drops those before any handler runs (#286).
-function streamUrl() {
-  return state.settledResume ? '/api/v1/events/stream.php?resume=settled' : '/api/v1/events/stream.php';
-}
-
 function stopEventStream() {
-  if (state.eventSource) {
-    state.eventSource.close();
-    state.eventSource = null;
-  }
+  state.stream?.stop();
+  state.stream = null;
   updateConnectionStatus('disconnected', 'Offline');
 }
 
@@ -1732,6 +1730,10 @@ function parseEvent(event) {
 
 function updateConnectionStatus(status, label) {
   if (!elements['connection-status']) {
+    return;
+  }
+  // A polite live region: setting the same text again on every retry could be read out again (#301).
+  if (elements['connection-status'].dataset.state === status && elements['connection-status'].textContent === label) {
     return;
   }
   elements['connection-status'].dataset.state = status;
