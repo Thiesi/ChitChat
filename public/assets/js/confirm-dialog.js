@@ -47,6 +47,40 @@ export function confirmAction({ title, text, items = [], confirmLabel, announce 
   return settle(dialog, form, () => ({ announce: Boolean(announceBox?.checked) }));
 }
 
+/**
+ * A form dialog with one text field (S7, in place of window.prompt): Save is the
+ * primary action, the field starts filled and selected, an empty value can't be saved.
+ *
+ * @param {{ title: string, label: string, value: string, saveLabel: string, maxLength?: number }} options
+ * @returns {Promise<string | null>} the trimmed new value, or null when cancelled or unchanged
+ */
+export function askText({ title, label, value, saveLabel, maxLength = 100 }) {
+  const id = `ask-${(dialogCount += 1)}`;
+  const { dialog, form } = dialogShell(id, title);
+  const field = document.createElement('label');
+  field.textContent = label;
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.value = value;
+  input.maxLength = maxLength;
+  input.required = true;
+  input.autocomplete = 'off';
+  field.append(input);
+  const actions = actionRow(saveLabel);
+  actions.querySelector('[type="submit"]').className = 'primary-button';
+  form.append(field, actions);
+  dialog.append(form);
+  document.body.append(dialog);
+  dialog.showModal();
+  input.focus();
+  input.select();
+
+  return settle(dialog, form, () => {
+    const next = input.value.trim();
+    return next === '' || next === value.trim() ? null : next;
+  });
+}
+
 export function dialogShell(id, title) {
   const dialog = document.createElement('dialog');
   dialog.className = 'room-dialog confirm-dialog';

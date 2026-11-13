@@ -3,11 +3,17 @@ import { openMessageReportDialog } from './message-report-dialog.js';
 import { renderMessageBody } from './message-content.js';
 import './realtime-bridge.js';
 import { formatDateTime } from './datetime.js';
+import { confirmAction } from './confirm-dialog.js';
+import { editInline } from './inline-edit.js';
+import { errorText, failedSending } from './unavailable.js';
 
 let enhancementQueued = false;
 let generation = 0;
 let elements = null;
 const reportedMessages = new Set();
+// A live update to a message being edited waits here until the editor closes (S7).
+const heldStates = new WeakMap();
+const EDIT_NOT_SAVED = 'Your edit wasn’t saved.';
 
 window.addEventListener('DOMContentLoaded', () => {
   const messageList = document.getElementById('dm-message-list');
@@ -81,6 +87,10 @@ async function enhanceVisibleMessages() {
 
 function applyState(article, state) {
   if (!state) return;
+  if (article.dataset.editing) {
+    heldStates.set(article, state);
+    return;
+  }
   const canReport = !state.deleted
     && !article.classList.contains('outgoing')
     && !reportedMessages.has(state.id);
@@ -121,7 +131,7 @@ function applyState(article, state) {
   if (!state.can_edit && !state.can_delete && !canReport) return;
   const actions = document.createElement('span');
   actions.className = 'message-mutation-actions';
-  if (state.can_edit) actions.append(actionButton('Edit', () => editMessage(article, state)));
+  if (state.can_edit) actions.append(actionButton('Edit', (event) => editMessage(article, state, event.currentTarget)));
   if (state.can_delete) actions.append(actionButton('Delete for everyone', () => deleteMessage(article, state), true));
   if (canReport) actions.append(actionButton('Report', () => openMessageReportDialog('direct', state.id)));
   article.append(actions);
@@ -136,27 +146,50 @@ function actionButton(label, handler, danger = false) {
   return button;
 }
 
-async function editMessage(article, state) {
-  const replacement = window.prompt('Edit direct message', state.body ?? '');
-  if (replacement === null || replacement.trim() === state.body) return;
-  setBusy(article, true);
-  try {
-    const response = await apiPost('/api/v1/direct-messages/edit.php', {
-      message_id: state.id,
-      body: replacement,
-    });
+async function editMessage(article, state, opener) {
+  const body = article.querySelector('.dm-message-body');
+  if (!body || article.dataset.editing) return;
+  let updated = null;
+  const saved = await editInline({
+    article,
+    body,
+    text: state.body ?? '',
+    label: 'Edit direct message',
+    opener,
+    save: async (text) => {
+      setBusy(article, true);
+      try {
+        const response = await apiPost('/api/v1/direct-messages/edit.php', { message_id: state.id, body: text });
+        updated = response.message;
+      } catch (error) {
+        handleFailure(error, EDIT_NOT_SAVED);
+        throw error;
+      } finally {
+        setBusy(article, false);
+      }
+    },
+  });
+  // The saved message, or a live update that arrived while the editor was open.
+  const latest = (saved ? updated : null) ?? heldStates.get(article) ?? null;
+  heldStates.delete(article);
+  if (latest) {
     delete article.dataset.mutationSignature;
-    applyState(article, response.message);
-    toast('Direct message edited.');
-  } catch (error) {
-    handleFailure(error);
-  } finally {
-    setBusy(article, false);
+    applyState(article, latest);
   }
+  if (saved) toast('Direct message edited.');
+  // The actions are drawn again with the message: focus the new Edit button.
+  const again = [...article.querySelectorAll('.message-mutation-button')].find((button) => button.textContent === 'Edit');
+  (again ?? article).focus({ preventScroll: true });
 }
 
 async function deleteMessage(article, state) {
-  if (!window.confirm('Delete this direct message for both participants? This cannot be undone.')) return;
+  const confirmed = await confirmAction({
+    title: 'Delete this direct message?',
+    text: 'It’s removed for both of you. This can’t be undone.',
+    confirmLabel: 'Delete for both',
+    announce: null,
+  });
+  if (!confirmed) return;
   setBusy(article, true);
   try {
     const response = await apiPost('/api/v1/direct-messages/delete.php', { message_id: state.id });
@@ -176,7 +209,7 @@ function setBusy(article, busy) {
 
 
 function toast(message, kind = 'info') {
-  if (!elements) return;
+  if (!elements || !message) return;
   const node = document.createElement('div');
   node.className = `toast ${kind}`;
   node.textContent = message;
@@ -184,12 +217,13 @@ function toast(message, kind = 'info') {
   window.setTimeout(() => node.remove(), 5000);
 }
 
-function handleFailure(error) {
+function handleFailure(error, then = '') {
   // A request the page aborted on leaving shows nothing (#270).
   if (isPageLeft(error)) return;
   if (error instanceof ApiError && error.status === 401) {
     window.location.assign('/');
     return;
   }
-  toast(error instanceof Error ? error.message : 'The direct-message change failed.', 'error');
+  const reason = errorText(error, 'The direct-message change failed.');
+  toast(then ? failedSending(reason, then) : reason, 'error');
 }

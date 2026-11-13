@@ -1,6 +1,6 @@
 import { apiGet, apiPost, setCsrfToken } from './api.js';
 import { applicationName } from './application-name.js';
-import { confirmAction } from './confirm-dialog.js';
+import { askText, confirmAction } from './confirm-dialog.js';
 import { withPrivilegedStepUp } from './step-up.js';
 import { createPasskey, webAuthnSupported } from './webauthn.js';
 import { formatDateTime } from './datetime.js';
@@ -193,14 +193,20 @@ async function addPasskey(event) {
 }
 
 async function renamePasskey(credential) {
-  const label = window.prompt('New passkey label:', credential.label);
-  if (label === null || label.trim() === '' || label.trim() === credential.label) return;
+  const label = await askText({
+    title: 'Rename this passkey',
+    label: 'Name',
+    value: credential.label,
+    saveLabel: 'Save name',
+    maxLength: 80,
+  });
+  if (label === null) return;
   card.error.textContent = '';
   setBusy(true);
   try {
     const response = await withPrivilegedStepUp(() => apiPost('/api/v1/account/mfa/rename.php', {
       credential_id: credential.id,
-      label: label.trim(),
+      label,
     }));
     render(response.mfa);
   } catch (error) {

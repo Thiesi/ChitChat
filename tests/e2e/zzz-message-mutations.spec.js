@@ -51,11 +51,20 @@ async function selectPeer(page, username) {
   await expect(page.locator('#dm-composer')).toBeVisible();
 }
 
-function acceptDialog(page, value = null) {
-  page.once('dialog', async (dialog) => {
-    if (dialog.type() === 'prompt') await dialog.accept(value ?? '');
-    else await dialog.accept();
-  });
+// S7 (#173): editing happens in the bubble, deleting asks in a styled dialog.
+async function editInPlace(message, value) {
+  await message.getByRole('button', { name: 'Edit' }).click();
+  const box = message.getByRole('textbox', { name: /^Edit/ });
+  await expect(box).toBeFocused();
+  await box.fill(value);
+  await box.press('Enter');
+}
+
+async function confirmDialog(page) {
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toBeVisible();
+  await dialog.locator('button[type="submit"]').click();
+  await expect(dialog).toHaveCount(0);
 }
 
 async function stableMessage(page, selector, text) {
@@ -104,14 +113,13 @@ test('authors edit and delete room and direct messages for everyone', async ({ b
     await expect(adminRoomMessage).toContainText(roomText, { timeout: 20_000 });
     await expect(memberRoomMessage.getByRole('button', { name: 'Edit' })).toBeVisible();
 
-    acceptDialog(memberChat, editedRoomText);
-    await memberRoomMessage.getByRole('button', { name: 'Edit' }).click();
+    await editInPlace(memberRoomMessage, editedRoomText);
     await expect(memberRoomMessage.locator('.message-body')).toContainText(editedRoomText);
     await expect(adminRoomMessage).toContainText(editedRoomText, { timeout: 20_000 });
     await expect(memberRoomMessage.locator('.message-edited-indicator')).toHaveText('edited');
 
-    acceptDialog(memberChat);
     await memberRoomMessage.getByRole('button', { name: 'Delete' }).click();
+    await confirmDialog(memberChat);
     await expect(memberRoomMessage.locator('.message-body')).toHaveText('Message deleted by its author.');
     await expect(adminRoomMessage).toContainText('Message deleted by its author.', { timeout: 20_000 });
 
@@ -136,13 +144,12 @@ test('authors edit and delete room and direct messages for everyone', async ({ b
     await expect(adminDirectMessage).toContainText(directText, { timeout: 20_000 });
     await expect(memberDirectMessage.getByRole('button', { name: 'Edit' })).toBeVisible();
 
-    acceptDialog(memberMessages, editedDirectText);
-    await memberDirectMessage.getByRole('button', { name: 'Edit' }).click();
+    await editInPlace(memberDirectMessage, editedDirectText);
     await expect(memberDirectMessage.locator('.dm-message-body')).toHaveText(editedDirectText);
     await expect(adminDirectMessage).toContainText(editedDirectText, { timeout: 20_000 });
 
-    acceptDialog(memberMessages);
     await memberDirectMessage.getByRole('button', { name: 'Delete for everyone' }).click();
+    await confirmDialog(memberMessages);
     await expect(memberDirectMessage.locator('.dm-message-body')).toHaveText('Message deleted by sender.');
     await expect(adminDirectMessage).toContainText('Message deleted by sender.', { timeout: 20_000 });
 
@@ -160,8 +167,8 @@ test('authors edit and delete room and direct messages for everyone', async ({ b
     expect(href).not.toBeNull();
     expect((await adminContext.request.get(href)).status()).toBe(200);
 
-    acceptDialog(memberMessages);
     await attachmentMessage.getByRole('button', { name: 'Delete for everyone' }).click();
+    await confirmDialog(memberMessages);
     await expect(attachmentMessage.locator('.dm-message-body')).toHaveText('Message deleted by sender.');
     await expect(attachmentMessage.locator('.attachment-card')).toHaveCount(0, { timeout: 20_000 });
     expect((await adminContext.request.get(href)).status()).toBe(410);
