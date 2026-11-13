@@ -1910,9 +1910,10 @@ function handleApiFailure(error) {
 
 function sessionEndedMessage() {
   const guest = state.user ? state.user.guest === true : signedOutGuest;
-  // A revoked login (#205) has its own line, left by api.js; for a guest it means the visit ended (#328).
+  // A revoked login (#205) has its own line, left by api.js. For a guest only that
+  // "another device" line becomes "your visit ended" (#328); any other stated reason stays.
   const stored = takeSignedOutNotice();
-  if (guest) return GUEST_ENDED_NOTICE;
+  if (guest && (stored === null || stored === REVOKED_NOTICE)) return GUEST_ENDED_NOTICE;
   return stored ?? 'Your session has ended. Please sign in again.';
 }
 

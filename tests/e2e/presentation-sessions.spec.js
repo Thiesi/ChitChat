@@ -195,6 +195,16 @@ test('a guest’s forced_logout with session_revoked says the visit ended, not �
   await expect(page.locator('#auth-notice')).toHaveText(GUEST_ENDED);
 });
 
+test('a guest signed out with another stated reason keeps it (only “another device” becomes “visit ended”)', async ({ page }) => {
+  const reason = 'Sign-ins are paused for maintenance. Please try again later.';
+  await page.addInitScript((line) => window.sessionStorage.setItem('chitchat-signed-out', line), reason);
+  await stubEventSource(page);
+  await fixture(page, { user: guestVisitor, capability: false, roomsStatus: { status: 401, error: { code: 'unauthenticated', message: 'Sign in.' } } });
+  await page.goto('/');
+  await expect(page.locator('#auth-shell')).toBeVisible();
+  await expect(page.locator('#auth-notice')).toHaveText(reason);
+});
+
 test('on Direct, forced_logout with session_revoked leads to the sign-in screen with that line', async ({ page }) => {
   await stubEventSource(page);
   const { state } = await fixture(page);
