@@ -350,6 +350,22 @@
   --shadow: none;
 }
 
+/* Web-only tokens for stewardship (S6, #172), derived from each scheme's own
+   --steward and neutrals: no new colours. They are not part of the shared
+   Lantern vocabulary (the app has no stewardship UI); if a scheme ever needs a
+   value these can't produce, it becomes a paired change with CCM. Checked in
+   tests/js/design-contrast.test.js against the A-01/A-02 floors.
+   - --on-steward: labels on a filled --steward button (the page's ground in
+     dark, where --steward is light; the card surface in light, where it's dark).
+   - --steward-hover: hover and press move the fill towards --text, away from the label.
+   - --steward-wash: a selected row or the current tab, under --text. */
+:root {
+  --on-steward: var(--ground);
+  --steward-hover: color-mix(in srgb, var(--steward) 80%, var(--text));
+  --steward-wash: color-mix(in srgb, var(--steward) 14%, var(--surface));
+}
+:root[data-theme="light"] { --on-steward: var(--surface); }
+
 /* Scheme picker swatches: each shows its scheme's action colour on its dark ground. */
 .scheme-swatch[data-swatch="lantern"] { background: linear-gradient(135deg, #F06A3B 50%, #14111C 50%); }
 .scheme-swatch[data-swatch="lounge"] { background: linear-gradient(135deg, #A8DBC5 50%, #111E22 50%); }

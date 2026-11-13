@@ -1,0 +1,50 @@
+/*
+ * Stewardship in Dusk (S6, #172; spec comment 6842902529). On every
+ * stewardship page the actions take the steward accent instead of persimmon:
+ * primary buttons, links, focus rings, checked controls and hovers. Social
+ * marks keep theirs (unread counts, identity tones, the brand), and
+ * destructive or restrictive actions stay rose (.danger-button).
+ *
+ * The scope is the page, found by the shell's frame, so the page's own
+ * dialogs (outside <main>) are included. Colours come only from tokens.css;
+ * --on-steward, --steward-hover and --steward-wash are web-only tokens
+ * derived from --steward there.
+ */
+
+body:has(> .app-frame[data-tab="stewarding"]) a:not([class]) { color: var(--steward); }
+
+body:has(> .app-frame[data-tab="stewarding"]) .primary-button {
+  background: var(--steward);
+  color: var(--on-steward);
+  box-shadow: 0 3px 0 color-mix(in srgb, var(--steward) 60%, var(--ground));
+}
+
+body:has(> .app-frame[data-tab="stewarding"]) .primary-button:hover:not(:disabled),
+body:has(> .app-frame[data-tab="stewarding"]) .primary-button:active:not(:disabled) { background: var(--steward-hover); }
+
+body:has(> .app-frame[data-tab="stewarding"]) .secondary-button:hover:not(:disabled) {
+  border-color: var(--steward);
+  background: var(--steward-wash);
+}
+
+body:has(> .app-frame[data-tab="stewarding"]) :is(input, textarea, select):focus,
+body:has(> .app-frame[data-tab="stewarding"]) :is(button, a, summary):focus-visible { outline-color: var(--steward); }
+
+body:has(> .app-frame[data-tab="stewarding"]) :is(input[type="checkbox"], input[type="radio"]) { accent-color: var(--steward); }
+
+/* The sensitive-access notice: prominent, in the steward accent rather than the error colour. */
+.steward-notice {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0 0 1rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--steward);
+  border-radius: 0.9rem;
+  background: var(--steward-wash);
+}
+
+.steward-notice h2,
+.steward-notice p { margin: 0; }
+
+.steward-notice h2 { font-size: 1rem; }

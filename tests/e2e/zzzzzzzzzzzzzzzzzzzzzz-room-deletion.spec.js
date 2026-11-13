@@ -58,8 +58,9 @@ test('a deleted room disappears for members at once and can be restored', async 
     // The picker's label wraps the select, so its text includes every room name; address it directly.
     await rootPage.locator('#room-picker').selectOption({ label: `# ${roomName}` });
     await expect(rootPage.locator('#admin-room-name')).toHaveValue(roomName);
-    rootPage.once('dialog', (dialog) => dialog.accept());
+    // S6a: the styled confirmation (#172), then the sign-in check.
     await rootPage.getByRole('button', { name: 'Delete room' }).click();
+    await rootPage.getByRole('dialog', { name: `Delete #${roomName}?` }).getByRole('button', { name: 'Delete room' }).click();
     await passStepUp(rootPage, root.password);
 
     const deleted = rootPage.locator('#deleted-room-list .admin-list-item', { hasText: roomName });
@@ -72,8 +73,9 @@ test('a deleted room disappears for members at once and can be restored', async 
     await expect(memberRoom).toBeVisible();
 
     // Leave nothing behind for later specs.
-    rootPage.once('dialog', (dialog) => dialog.accept());
+    // S6a: the styled confirmation (#172), then the sign-in check.
     await rootPage.getByRole('button', { name: 'Delete room' }).click();
+    await rootPage.getByRole('dialog', { name: `Delete #${roomName}?` }).getByRole('button', { name: 'Delete room' }).click();
     await passStepUp(rootPage, root.password);
     await expect(deleted).toBeVisible();
   } finally {

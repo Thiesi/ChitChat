@@ -137,6 +137,39 @@ test('ink reads on every identity hue', () => {
   }
 });
 
+// S6 (#172): the web-only stewardship tokens, derived in tokens.css from each
+// scheme's --steward and neutrals. color-mix(in srgb, …) mixes the encoded channels.
+function mix(a, b, share) {
+  const channel = (hex, offset) => parseInt(hex.slice(offset, offset + 2), 16);
+  return `#${[1, 3, 5].map((offset) => Math.round(channel(a, offset) * share + channel(b, offset) * (1 - share)).toString(16).padStart(2, '0')).join('')}`;
+}
+
+function stewardTokens(tokens, theme) {
+  return {
+    onSteward: theme === 'light' ? tokens.surface : tokens.ground,
+    hover: mix(tokens.steward, tokens.text, 0.8),
+    wash: mix(tokens.steward, tokens.surface, 0.14),
+  };
+}
+
+test('the derived stewardship tokens meet the floors in every scheme and theme', () => {
+  const failures = [];
+  for (const [key, tokens] of schemes) {
+    const { onSteward, hover, wash } = stewardTokens(tokens, key.split('/')[1]);
+    for (const [fg, bg, minimum, why] of [
+      [onSteward, tokens.steward, TEXT, 'labels on steward buttons'],
+      [onSteward, hover, TEXT, 'labels on hovered steward buttons'],
+      [tokens.text, wash, TEXT, 'text on a selected row or the current tab'],
+      [tokens.steward, wash, TEXT, 'steward text on a selected row'],
+      [tokens.steward, tokens.surface, BOUNDARY, 'the current tab’s edge'],
+    ]) {
+      const ratio = contrast(fg, bg);
+      if (ratio < minimum) failures.push(`${key}: ${why} is ${ratio.toFixed(2)}:1, needs ${minimum}:1`);
+    }
+  }
+  assert.deepEqual(failures, []);
+});
+
 test('the persimmon fill exception is real, so it stays a reviewed rule', () => {
   const [fill, ground, theme] = KNOWN_FILL_EXCEPTION;
   const tokens = schemes.get(`lantern/${theme}`);

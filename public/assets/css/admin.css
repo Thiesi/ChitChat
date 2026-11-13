@@ -77,9 +77,10 @@
 }
 
 .admin-tabs button[aria-pressed="true"] {
-  border-color: var(--signature-text);
-  background: var(--raised);
+  border-color: var(--steward);
+  background: var(--steward-wash);
   color: var(--text);
+  font-weight: 700;
 }
 
 .admin-panel {
