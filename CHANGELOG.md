@@ -6,6 +6,8 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ## [Unreleased]
 
+- Reconnect the live event stream after going back to a page from the browser's back/forward cache (#323). The stream is closed when the page enters the cache, and on return the page shows "Reconnecting" at once, checks the session, and reopens the stream from its last position, so nothing is missed or shown twice. No server change.
+
 - Leaving a page no longer logs cancelled requests as errors (#270). Requests still in flight are aborted when the page is left, and quietly: no message, toast or console error. A page restored from the back/forward cache works again at once, and controls that were waiting on a request are re-enabled. No server change.
 
 - Message search can be limited to one room, and the excerpt now centres on the first match (#283). `POST /api/v1/search/messages.php` accepts an optional `room_id`; a room the caller can't search answers `404 room_not_found`, like a missing room. **The excerpt window changed:** a message longer than 320 characters now shows up to 320 characters around its first match, with ellipses where it was cut, instead of always its first 320 characters. Results add `excerpt_matches` (start and length of each match in the excerpt, in UTF-16 code units) so clients can highlight without markup. Matching is unchanged (`websearch_to_tsquery('simple', …)`); excluded words are never marked. Additive to API v1; no migration.

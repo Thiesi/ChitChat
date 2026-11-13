@@ -14,6 +14,10 @@
 //   `event: error` frames end that stream; the check then decides, like any closed stream.
 // - A hidden tab checks at most every 30 s; becoming visible or going online retries now.
 // - onLongOutage runs once per outage, when the wait reaches its 30 s cap.
+// - Into the back/forward cache (pagehide with persisted) the stream is closed on purpose; on a
+//   restore (pageshow with persisted) the status says "Reconnecting" at once, then the session
+//   is checked and the stream reopened from its position (#323). Real restores can't be observed
+//   in our test automation, which runs with the cache off, so this is defensive by design.
 
 import { SeenEvents, dropResentEvents } from './realtime-seen.js';
 
@@ -73,9 +77,11 @@ export function keepEventStream({ settled, attach, probe, onStatus = () => {}, o
   let announced = false;
   let stopped = false;
   let checking = false;
+  // In the back/forward cache (#323): closed on purpose, reopened on a restore.
+  let parked = false;
 
   function open() {
-    if (stopped) return;
+    if (stopped || parked) return;
     const current = new env.EventSource(streamUrl(settled, seen.position), { withCredentials: true });
     source = current;
     dropResentEvents(current, seen);
@@ -101,7 +107,7 @@ export function keepEventStream({ settled, attach, probe, onStatus = () => {}, o
   }
 
   function schedule() {
-    if (stopped || timer !== null || checking) return;
+    if (stopped || parked || timer !== null || checking) return;
     onStatus('reconnecting');
     let delay = reconnectDelay(attempt, env.random);
     if (env.isHidden()) delay = Math.max(delay, LONGEST_DELAY);
@@ -124,7 +130,7 @@ export function keepEventStream({ settled, attach, probe, onStatus = () => {}, o
       result = 'unavailable';
     }
     checking = false;
-    if (stopped) return;
+    if (stopped || parked) return;
     if (result === 'signed_out') {
       stop();
       onSignedOut();
@@ -142,6 +148,29 @@ export function keepEventStream({ settled, attach, probe, onStatus = () => {}, o
     retry();
   }
 
+  // Into the back/forward cache: close the stream on purpose, so a restored page never sits on a
+  // closed or stale one, and an open stream doesn't keep the page out of the cache (#323).
+  function park() {
+    if (stopped || parked) return;
+    parked = true;
+    if (timer !== null) env.clearTimeout(timer);
+    timer = null;
+    const current = source;
+    source = null;
+    current?.close();
+  }
+
+  // Back from the cache: say so at once, never a stale "Live", then check the session and reopen
+  // from the stored position with the same SeenEvents, as after any closure.
+  function resume() {
+    if (stopped || !parked) return;
+    parked = false;
+    attempt = 0;
+    announced = false;
+    onStatus('reconnecting');
+    retry();
+  }
+
   function stop() {
     if (stopped) return;
     stopped = true;
@@ -149,9 +178,11 @@ export function keepEventStream({ settled, attach, probe, onStatus = () => {}, o
     timer = null;
     source?.close();
     env.removeWakeListeners(retryNow);
+    env.removePageListeners?.();
   }
 
   env.addWakeListeners(retryNow);
+  env.addPageListeners?.(park, resume);
   onStatus('connecting');
   open();
 
@@ -168,6 +199,7 @@ function browserEnv() {
     if (document.visibilityState === 'visible') callback();
   };
   const wake = new Map();
+  let page = null;
   return {
     EventSource: window.EventSource,
     setTimeout: (callback, delay) => window.setTimeout(callback, delay),
@@ -184,6 +216,21 @@ function browserEnv() {
       document.removeEventListener('visibilitychange', wake.get(callback));
       window.removeEventListener('online', callback);
       wake.delete(callback);
+    },
+    // Only the back/forward cache: an ordinary unload closes the stream anyway.
+    addPageListeners(onHide, onShow) {
+      page = {
+        hide: (event) => { if (event.persisted) onHide(); },
+        show: (event) => { if (event.persisted) onShow(); },
+      };
+      window.addEventListener('pagehide', page.hide);
+      window.addEventListener('pageshow', page.show);
+    },
+    removePageListeners() {
+      if (page === null) return;
+      window.removeEventListener('pagehide', page.hide);
+      window.removeEventListener('pageshow', page.show);
+      page = null;
     },
   };
 }
