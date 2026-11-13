@@ -6,9 +6,12 @@ import { openRoom } from './support/rooms.js';
 // connection, every message is shown once and counted once in the unread badge.
 //
 // Playwright can't cut a response that is already streaming, so the journey uses the
-// server's own end of each stream (after 25 s): it fails the browser's reconnect once, and
-// holds the next attempt while another account writes. Those messages are only delivered
-// by the resumed stream, from the Last-Event-ID the browser sends.
+// server's own end of each stream (after 25 s) and holds the browser's reconnect while
+// another account writes: the member is offline for that time. (It doesn't abort the
+// reconnect: Firefox then closes the EventSource for good instead of retrying.)
+//
+// Chromium adds Last-Event-ID below the layer Playwright routes, so the header is only
+// asserted in browsers that show it to the route.
 
 const baseURL = process.env.CHITCHAT_BASE_URL ?? 'http://127.0.0.1:8080';
 const root = {
@@ -35,26 +38,24 @@ async function send(page, text) {
   await expect(page.locator('.message-body', { hasText: text })).toBeVisible();
 }
 
-test('messages sent while the event stream reconnects are shown once and counted once', async ({ browser }) => {
+test('messages sent while the event stream reconnects are shown once and counted once', async ({ browser, browserName }) => {
   test.setTimeout(150_000);
   const rootContext = await browser.newContext({ baseURL });
   const memberContext = await browser.newContext({ baseURL });
-  const roomName = `Reconnect ${attemptName('Porch')}`;
+  // "… room" so the first attempt's name isn't a prefix of a retry's.
+  const roomName = `Reconnect ${attemptName('Porch')} room`;
 
-  // Every stream request the member's browser makes, and a gate for the held reconnect.
+  // Every stream request the member's page makes. Once armed, the next reconnect waits for
+  // the gate (the first stream may already have ended while the rooms were set up).
   const streams = [];
+  let armed = false;
   let releaseHeld;
   const held = new Promise((resolve) => { releaseHeld = resolve; });
   await memberContext.route('**/api/v1/events/stream.php*', async (route) => {
     const request = route.request();
     const entry = { url: new URL(request.url()), lastEventId: request.headers()['last-event-id'] ?? null, outcome: 'continued' };
     streams.push(entry);
-    const reconnects = streams.filter((stream) => stream.lastEventId !== null);
-    if (entry.lastEventId !== null && reconnects.length === 1) {
-      entry.outcome = 'aborted';
-      return route.abort('internetdisconnected');
-    }
-    if (entry.lastEventId !== null && reconnects.length === 2) {
+    if (armed && !streams.some((stream) => stream.outcome === 'held' || stream.outcome === 'resumed')) {
       entry.outcome = 'held';
       await held;
       entry.outcome = 'resumed';
@@ -91,7 +92,8 @@ test('messages sent while the event stream reconnects are shown once and counted
     await send(rootPage, before);
     await expect(room.locator('.unread-count')).toHaveText('1 unread');
 
-    // The server ends the stream; the reconnect fails once, and the next attempt waits.
+    // The server ends the stream within 25 s; the browser's reconnect then waits.
+    armed = true;
     await expect.poll(() => streams.some((stream) => stream.outcome === 'held'), { timeout: 60_000 }).toBe(true);
     const gap = [attemptText('Sent while offline one'), attemptText('Sent while offline two')];
     for (const text of gap) await send(rootPage, text);
@@ -102,11 +104,12 @@ test('messages sent while the event stream reconnects are shown once and counted
     await send(rootPage, after);
     await expect(room.locator('.unread-count')).toHaveText('4 unread');
 
-    // Each reconnect asked to resume settled, from a position the browser had stored.
-    const reconnects = streams.filter((stream) => stream.lastEventId !== null);
-    expect(reconnects.map((stream) => stream.outcome)).toEqual(['aborted', 'resumed']);
+    // Every request asked to resume settled; the held reconnect, from a stored position.
+    const resumed = streams.find((stream) => stream.outcome === 'resumed');
+    expect(resumed).toBeDefined();
+    expect(streams.indexOf(resumed)).toBeGreaterThan(0);
     for (const stream of streams) expect(stream.url.searchParams.get('resume')).toBe('settled');
-    for (const stream of reconnects) expect(stream.lastEventId).toMatch(/^\d+$/u);
+    if (browserName !== 'chromium') expect(resumed.lastEventId).toMatch(/^\d+$/u);
 
     // Nothing arrives twice afterwards either.
     await memberPage.waitForTimeout(2_500);
