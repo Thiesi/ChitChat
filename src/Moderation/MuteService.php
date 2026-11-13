@@ -143,7 +143,15 @@ SQL);
         if ($roomId === null) {
             $this->requireMayMuteEverywhere($actor, $targetId);
         } else {
-            $this->requireMayMuteInRoom($actor, $roomId, $targetId);
+            try {
+                $this->requireMayMuteInRoom($actor, $roomId, $targetId);
+            } catch (ApiException $exception) {
+                // A deleted room, or one the caller can't see, answers like a mute that ended (#326).
+                if ($exception->errorCode === 'room_not_found') {
+                    throw new ApiException(404, 'mute_not_found', 'That mute has already ended.');
+                }
+                throw $exception;
+            }
         }
 
         $update = $this->pdo->prepare('UPDATE user_mutes SET lifted_at = NOW(), lifted_by = :actor WHERE id = :id AND lifted_at IS NULL');

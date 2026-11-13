@@ -94,7 +94,7 @@ SQL);
         $roomId = (int) $row['room_id'];
         $room = $this->rooms->findForUser($roomId, $actor->id);
         if ($room === null) {
-            throw new ApiException(404, 'room_not_found', 'Room not found.');
+            throw new ApiException(404, 'message_not_found', 'Message not found.');
         }
         // Addressed by message ID: a room the caller can't see answers like a missing message (#326).
         RoomAuthorization::requireMessageVisible($actor, $room);

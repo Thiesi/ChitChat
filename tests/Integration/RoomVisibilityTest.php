@@ -19,6 +19,11 @@ use ChitChat\Room\MessageService;
 use ChitChat\Room\RoomMessageMutationService;
 use ChitChat\Room\RoomService;
 use ChitChat\Upload\AttachmentMetadataService;
+use ChitChat\Auth\GuestService;
+use ChitChat\Moderation\UserReportService;
+use ChitChat\Realtime\TypingService;
+use ChitChat\Room\RoomReadService;
+use ChitChat\Search\MessageSearchService;
 use Closure;
 use DateTimeImmutable;
 
@@ -144,6 +149,67 @@ final class RoomVisibilityTest extends DatabaseTestCase
         $adults = $this->rooms->create($this->admin, 'adults', 'Adults', '', 'public', 18, 0, '127.0.0.1');
         $minor = $this->auth->register('Minor', 'A younger caller passphrase 3!', '127.0.0.4', (new DateTimeImmutable('-15 years'))->format('Y-m-d'));
         $this->assertRefusal([403, 'minimum_age_not_met'], fn (): mixed => $this->rooms->join($minor, $adults->id, '127.0.0.4'));
+    }
+
+    public function testTheRemainingRoutesAnswerAnInvisibleRoomLikeAMissingOne(): void
+    {
+        $private = $this->rooms->create($this->admin, 'private', 'Private', '', 'private', 0, 0, '127.0.0.1');
+        (new MessageService($this->pdo))->send($this->admin, $private->id, 'Needle for members');
+        $target = $this->auth->register('Target', 'Someone to report passphrase 4!', '127.0.0.5');
+        $this->rooms->invite($this->admin, $private->id, $target->id, '127.0.0.1');
+        $this->rooms->join($target, $private->id, '127.0.0.5');
+        $actor = $this->outsider;
+
+        $this->assertSameRefusal('search room_id', fn (int $room): mixed => (new MessageSearchService($this->pdo))->search($actor, 'needle', 'all', 25, 0, $room), $private->id, self::MISSING, [404, 'room_not_found', 'Room not found.']);
+        $this->assertSameRefusal('rooms/read', fn (int $room): mixed => (new RoomReadService($this->pdo))->markRead($actor, $room, 1), $private->id, self::MISSING, [404, 'room_not_found', 'You are not a member of that room.']);
+        // Typing already answered both cases alike (403), so nothing to learn there either.
+        $this->assertSameRefusal('typing', fn (int $room): mixed => (new TypingService($this->pdo))->inRoom($actor, $room), $private->id, self::MISSING, [403, 'membership_required', 'Join the room before typing in it.']);
+        $this->assertSameRefusal('reports/user (room context)', fn (int $room): mixed => (new UserReportService($this->pdo, $this->config))->report($actor, $target->id, 'spam', null, $room, '127.0.0.2'), $private->id, self::MISSING, [403, 'report_not_allowed', 'You cannot report this person from here.']);
+
+        // Unmute of a mute in a room the caller can't see: like a mute that has ended.
+        $mute = (new MuteService($this->pdo))->mute($this->admin, $target->id, $private->id, null, 'Reason', false, '127.0.0.1');
+        $muteId = $mute['id'];
+        $this->assertSameRefusal('moderation/unmute', fn (int $id): mixed => (new MuteService($this->pdo))->lift($actor, $id, '127.0.0.2'), $muteId, self::MISSING, [404, 'mute_not_found', 'That mute has already ended.']);
+    }
+
+    public function testDeletedRoomsAndMessagesAnswerLikeMissingOnes(): void
+    {
+        $private = $this->rooms->create($this->admin, 'private', 'Private', '', 'private', 0, 0, '127.0.0.1');
+        $message = (new MessageService($this->pdo))->send($this->admin, $private->id, 'Soon gone');
+        $public = $this->rooms->create($this->admin, 'public', 'Public', '', 'public', 0, 0, '127.0.0.1');
+        $publicMessage = (new MessageService($this->pdo))->send($this->admin, $public->id, 'Also soon gone');
+        $this->rooms->join($this->outsider, $public->id, '127.0.0.2');
+        $this->rooms->delete($this->admin, $private->id, '127.0.0.1');
+        $this->rooms->delete($this->admin, $public->id, '127.0.0.1');
+        $actor = $this->reload($this->outsider);
+
+        // Restore: anyone who can't manage the deleted room gets exactly a missing deleted room's answer,
+        // also a former member of the deleted public room.
+        foreach ([$private->id, $public->id] as $roomId) {
+            $this->assertSameRefusal('rooms/restore', fn (int $room): mixed => $this->rooms->restore($actor, $room, '127.0.0.2'), $roomId, self::MISSING, [404, 'room_not_found', 'No deleted room with that ID is waiting to be removed.']);
+        }
+        // Message-ID routes on a message in a deleted room: like a missing message.
+        foreach ([(int) $message['id'], (int) $publicMessage['id']] as $messageId) {
+            foreach ([
+                'rooms/react' => fn (int $id): mixed => (new RoomReactionService($this->pdo))->add($actor, $id, '👍'),
+                'rooms/edit-message' => fn (int $id): mixed => (new RoomMessageMutationService($this->pdo))->edit($actor, $id, 'Changed', '127.0.0.2'),
+                'rooms/delete-own-message' => fn (int $id): mixed => (new RoomMessageMutationService($this->pdo))->deleteOwn($actor, $id, '127.0.0.2'),
+                'rooms/delete-message' => fn (int $id): mixed => (new MessageService($this->pdo))->delete($actor, $id, '127.0.0.2'),
+            ] as $route => $call) {
+                $this->assertSameRefusal($route, $call, $messageId, self::MISSING, [404, 'message_not_found', 'Message not found.']);
+            }
+        }
+    }
+
+    public function testAGuestShutOutOfARoomGetsTheMissingAnswers(): void
+    {
+        $this->pdo->exec('UPDATE system_settings SET guest_access_enabled = TRUE WHERE id = 1');
+        $closed = $this->rooms->create($this->admin, 'members', 'Members', '', 'public', 0, 0, '127.0.0.1');
+        $message = (new MessageService($this->pdo))->send($this->admin, $closed->id, 'Members only');
+        $guest = (new GuestService($this->pdo))->start('10.0.0.9');
+
+        $this->assertSameRefusal('rooms/messages (guest)', fn (int $room): mixed => (new MessageService($this->pdo))->history($guest, $room), $closed->id, self::MISSING, [404, 'room_not_found', 'Room not found.']);
+        $this->assertSameRefusal('rooms/react (guest)', fn (int $id): mixed => (new RoomReactionService($this->pdo))->add($guest, $id, '👍'), (int) $message['id'], self::MISSING, [404, 'message_not_found', 'Message not found.']);
     }
 
     /**

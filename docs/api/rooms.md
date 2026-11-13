@@ -17,6 +17,9 @@ Super-Administrators, Administrators, Chat Admins, and Global Moderators may vie
 - **Routes addressed by a room ID** answer `404 room_not_found` ("Room not found."). That covers details, history, mutation and attachment metadata, member search, pings, sending, uploads, join, leave, presence, management, broadcasts and room mutes.
 - **Routes addressed by a message ID** (react, unreact, edit, delete, delete own, report) answer `404 message_not_found` ("Message not found."), as for a missing message.
 - **`attachments/download.php`** answers `404 attachment_not_found` ("Attachment not found."), as for a missing attachment. This includes a deleted attachment: the `410 attachment_deleted` is only given to callers who can see the room.
+- **Message-ID routes on a message in a deleted room,** or in a room closed to a guest, also answer `404 message_not_found`.
+- **`rooms/restore.php`:** anyone who can't manage the deleted room gets exactly the answer for a missing deleted room: `404 room_not_found`, "No deleted room with that ID is waiting to be removed." That includes former members of a deleted public room.
+- **`moderation/unmute.php`:** a mute in a room the caller can't see, or in a deleted room, answers `404 mute_not_found` ("That mute has already ended."), as for a missing mute.
 - **Visibility is checked before anything else that depends on state:** membership, authorship, rank, minimum age, `not_a_member`, `message_already_deleted`, `attachment_deleted`. Input validation, which doesn't depend on any state, still comes first.
 
 The `403` answers remain for callers who **can** see the room but may not do something:
