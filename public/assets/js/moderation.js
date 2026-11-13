@@ -716,6 +716,8 @@ function handleFailure(error) {
 }
 
 function toast(message) {
+  // A request the page aborted on leaving has no message and shows nothing (#270).
+  if (!message) return;
   const node = document.createElement('div');
   node.className = 'toast info';
   node.textContent = message;

@@ -1,4 +1,4 @@
-import { ApiError, apiGet, apiPost } from './api.js';
+import { ApiError, apiGet, apiPost, logError } from './api.js';
 import { miniAvatar } from './avatar.js';
 import { nameButton } from './name-menu.js';
 import { markGuestAvatar } from './guest.js';
@@ -203,7 +203,7 @@ export function createPresenceClient({
       clear();
       return;
     }
-    console.error(error);
+    logError(error);
   }
 
   function stopTimer() {

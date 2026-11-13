@@ -253,6 +253,8 @@ async function saveLegalNotice(event) {
 }
 
 function toast(message) {
+  // A request the page aborted on leaving has no message and shows nothing (#270).
+  if (!message) return;
   const region = document.getElementById('toast-region');
   if (!region) return;
   const item = document.createElement('div');

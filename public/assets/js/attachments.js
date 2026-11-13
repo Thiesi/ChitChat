@@ -1,4 +1,4 @@
-import { apiGet, apiUpload } from './api.js';
+import { apiGet, apiUpload, logError } from './api.js';
 import { imageBox } from './image-box.js';
 
 const elements = {};
@@ -126,7 +126,7 @@ function queueEnhancement() {
     enhancementQueued = false;
     enhanceVisibleMessages().catch((error) => {
       if (error?.status !== 401 && error?.status !== 403) {
-        console.error(error);
+        logError(error);
       }
     });
   }, 40);

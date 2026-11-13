@@ -246,6 +246,8 @@ function parseEvent(event) {
 
 
 function toast(message, kind = 'info') {
+  // A request the page aborted on leaving has no message and shows nothing (#270).
+  if (!message) return;
   if (!elements) return;
   const node = document.createElement('div');
   node.className = `toast ${kind}`;

@@ -305,6 +305,8 @@ function setFormBusy(form, busy) {
 
 
 function toast(message) {
+  // A request the page aborted on leaving has no message and shows nothing (#270).
+  if (!message) return;
   const item = document.createElement('div');
   item.className = 'toast';
   item.textContent = message;

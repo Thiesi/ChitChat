@@ -1,5 +1,6 @@
 import { setDateFormatPreference } from './datetime.js';
 import { REVOKED_NOTICE, rememberSignedOutNotice } from './signed-out-notice.js';
+import { pageLifetime } from './page-lifetime.js';
 
 let csrfToken = '';
 let sessionRequest = null;
@@ -42,6 +43,34 @@ export class ApiError extends Error {
     // How long a throttled request (429) should wait, when the server says.
     this.retryAfterSeconds = Number.isInteger(retryAfterSeconds) && retryAfterSeconds > 0 ? retryAfterSeconds : null;
   }
+}
+
+/**
+ * A request the page aborted because it was left (#270). It still rejects, so every finally
+ * runs (a button re-enables after Back from the back/forward cache), but it has no message and
+ * the shared error surfaces ignore it: toasts, error lines, status and the console.
+ */
+export class PageLeftError extends ApiError {
+  constructor() {
+    super(0, 'page_left', '');
+    this.name = 'PageLeftError';
+  }
+}
+
+export function isPageLeft(error) {
+  return error instanceof PageLeftError;
+}
+
+/** console.error for an unexpected failure; silent for a request the page aborted on leaving. */
+export function logError(error) {
+  if (!isPageLeft(error)) console.error(error);
+}
+
+// A PageLeftError nobody caught must not reach the console either.
+if (typeof window !== 'undefined') {
+  window.addEventListener('unhandledrejection', (event) => {
+    if (isPageLeft(event.reason)) event.preventDefault();
+  });
 }
 
 export function setCsrfToken(token) {
@@ -108,16 +137,28 @@ export async function apiUpload(path, formData) {
 
 async function request(path, options) {
   const startedSessionGeneration = sessionGeneration;
-  const response = await fetch(path, {
-    credentials: 'same-origin',
-    cache: 'no-store',
-    ...options,
-  });
-
+  // Leaving the page aborts the request (#270); a keepalive request outlives the page on purpose.
+  const page = pageLifetime();
+  const pageSignal = options.keepalive ? null : page.signal();
+  const signal = pageSignal === null
+    ? options.signal
+    : (options.signal && typeof AbortSignal.any === 'function' ? AbortSignal.any([options.signal, pageSignal]) : options.signal ?? pageSignal);
+  let response;
   let payload = null;
-  const contentType = response.headers.get('content-type') ?? '';
-  if (contentType.includes('application/json')) {
-    payload = await response.json();
+  try {
+    response = await fetch(path, {
+      credentials: 'same-origin',
+      cache: 'no-store',
+      ...options,
+      signal,
+    });
+    const contentType = response.headers.get('content-type') ?? '';
+    if (contentType.includes('application/json')) {
+      payload = await response.json();
+    }
+  } catch (error) {
+    if (pageSignal?.aborted || page.leaving()) throw new PageLeftError();
+    throw error;
   }
 
   if (!response.ok) {

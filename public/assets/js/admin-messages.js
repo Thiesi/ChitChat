@@ -219,6 +219,8 @@ function canInspect(user, role) {
 
 
 function toast(message, kind = 'info') {
+  // A request the page aborted on leaving has no message and shows nothing (#270).
+  if (!message) return;
   const node = document.createElement('div');
   node.className = `toast ${kind}`;
   node.textContent = message;

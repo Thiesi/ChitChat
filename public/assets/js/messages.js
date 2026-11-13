@@ -1,4 +1,4 @@
-import { ApiError, apiGet, apiPost, setCsrfToken } from './api.js';
+import { ApiError, apiGet, apiPost, isPageLeft, logError, setCsrfToken } from './api.js';
 import { announce, announceIncoming, markKnown, resetAnnouncements } from './announcer.js';
 import { controlItem, moreButton, reactButton, reconcile, runPositions, signatureOf, withDays } from './transcript.js';
 import { attachTranscriptKeys } from './transcript-keys.js';
@@ -666,7 +666,7 @@ async function markRead() {
     await apiPost('/api/v1/direct-messages/read.php', { user_id: state.selectedUser.id });
     await refreshConversationsOnly();
   } catch (error) {
-    if (!(error instanceof ApiError && error.status === 401)) console.error(error);
+    if (!(error instanceof ApiError && error.status === 401)) logError(error);
   }
 }
 
@@ -708,7 +708,7 @@ function attachStreamListeners(source) {
       else announceIncoming({ key: `dm:${message.id}`, sender: peer.username, body: message.body, direct: true });
     }
     if (state.selectedUser?.id === peer.id) {
-      if (!message.outgoing) markRead().catch(console.error);
+      if (!message.outgoing) markRead().catch(logError);
     } else if (!message.outgoing) {
       toast(`New message from ${peer.username}.`);
     }
@@ -764,6 +764,8 @@ function formatRole(role) {
 
 
 function toast(message, kind = 'info') {
+  // A request the page aborted on leaving has no message and shows nothing (#270).
+  if (!message) return;
   const node = document.createElement('div');
   node.className = `toast ${kind}`;
   node.textContent = message;
@@ -780,6 +782,8 @@ function handleApiFailure(error) {
   elements['messages-error'].textContent = error instanceof Error ? error.message : 'The request failed.';
 }
 function handleFatal(error) {
+  // Nothing to show for a request the page aborted on leaving (#270).
+  if (isPageLeft(error)) return;
   elements['messages-loading'].textContent = error instanceof Error ? error.message : 'Unable to load direct messages.';
 }
 
