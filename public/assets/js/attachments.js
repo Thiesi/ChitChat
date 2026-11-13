@@ -1,6 +1,6 @@
 import { apiGet, apiUpload, logError } from './api.js';
 import { imageBox } from './image-box.js';
-import { errorText } from './unavailable.js';
+import { FILE_NOT_SENT, errorText, failedSending } from './unavailable.js';
 
 const elements = {};
 let enhancementQueued = false;
@@ -83,7 +83,7 @@ async function submitAttachment(event) {
     showToast('Attachment uploaded.');
     window.setTimeout(queueEnhancement, 250);
   } catch (error) {
-    showToast(errorMessage(error), 'error');
+    showToast(failedSending(errorMessage(error), FILE_NOT_SENT), 'error');
   } finally {
     setBusy(false);
     elements['composer-input'].focus();

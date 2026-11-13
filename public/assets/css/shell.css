@@ -87,13 +87,19 @@ body:not(:has(.app-frame.has-nav)) .skip-link { display: none; }
 }
 
 /* The installation's own icon and name, at the top of the rail (phones show
-   it at the top of the list panes instead, panes.css). */
+   it at the top of the list panes instead, panes.css). It's a header, not a
+   control: its icon-over-name shape matches the items below, so a hairline
+   in the separator colour closes it off, and nothing about it suggests a
+   button (no hover, no pointer, no tile behind it). */
 .app-nav-brand {
   display: grid;
   justify-items: center;
   gap: 0.3rem;
   width: 4.5rem;
-  margin: 0 0 1rem;
+  margin: 0 0 0.85rem;
+  padding: 0 0 0.85rem;
+  border-bottom: 1px solid var(--line);
+  cursor: default;
   color: var(--text);
   font-size: 0.7rem;
   font-weight: 700;

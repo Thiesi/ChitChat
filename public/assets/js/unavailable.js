@@ -25,6 +25,16 @@ export function errorText(error, fallback) {
   return error instanceof Error && error.message ? error.message : fallback;
 }
 
+// What happened to what you were sending, said after the reason (CCM's words). The draft or
+// file stays where it was, so it can be sent again.
+export const MESSAGE_NOT_SENT = 'Your message wasn’t sent.';
+export const FILE_NOT_SENT = 'Your file wasn’t sent.';
+
+/** `reason` then `then`; nothing at all when there's no reason (page_left). */
+export function failedSending(reason, then) {
+  return reason ? `${reason} ${then}` : '';
+}
+
 /** Says `text` once in the page's toast region, for pages whose own toast isn't reachable here. */
 export function showNotice(text) {
   const region = document.getElementById('toast-region');

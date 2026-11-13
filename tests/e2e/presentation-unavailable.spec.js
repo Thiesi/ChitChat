@@ -72,8 +72,22 @@ test('sending to a room that is no longer there says so plainly', async ({ page 
   await expect(page.locator('#message-list article.message')).toHaveCount(1);
   await page.locator('#composer-input').fill('Hello?');
   await page.locator('#composer-input').press('Enter');
-  await expect(toasts(page)).toContainText('This room isn’t available any more.');
+  // What happened to the draft, in CCM's words; and the draft is still there to send again.
+  await expect(toasts(page)).toContainText('This room isn’t available any more. Your message wasn’t sent.');
   await expect(toasts(page)).not.toContainText('Room not found.');
+  await expect(page.locator('#composer-input')).toHaveValue('Hello?');
+});
+
+test('uploading to a room that is no longer there says the file wasn’t sent, and keeps it', async ({ page }) => {
+  await fixture(page, { overrides: { 'attachments/upload.php': notFound('room_not_found', 'Room not found.') } });
+  await page.goto('/');
+  await expect(page.locator('#message-list article.message')).toHaveCount(1);
+  await page.locator('#attachment-input').setInputFiles({ name: 'notes.txt', mimeType: 'text/plain', buffer: Buffer.from('hello') });
+  await page.locator('#composer-input').fill('The notes');
+  await page.locator('#composer-input').press('Enter');
+  await expect(toasts(page)).toContainText('This room isn’t available any more. Your file wasn’t sent.');
+  await expect(page.locator('#attachment-name')).toContainText('notes.txt');
+  await expect(page.locator('#composer-input')).toHaveValue('The notes');
 });
 
 test('a link to a room you can’t see says the room isn’t available', async ({ page }) => {

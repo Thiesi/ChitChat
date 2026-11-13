@@ -13,6 +13,7 @@ import { openPersonReportDialog } from './message-report-dialog.js';
 import { canReport } from './person-reports.js';
 import { startRulesGate } from './rules.js';
 import { REVOKED_NOTICE, rememberSignedOutNotice } from './signed-out-notice.js';
+import { MESSAGE_NOT_SENT, failedSending } from './unavailable.js';
 import { initials } from './avatar.js';
 import { identityHueIndex } from './identity-hue.js';
 import { phoneListShowing } from './pane-stack.js';
@@ -643,7 +644,7 @@ async function sendMessage(event) {
     if (error instanceof ApiError && error.code === 'direct_message_unavailable') {
       await loadRelationship(user);
     }
-    handleApiFailure(error);
+    handleApiFailure(error, MESSAGE_NOT_SENT);
   } finally {
     elements['dm-send'].disabled = false;
     if (state.relationship?.messaging_available) elements['dm-message-input'].focus();
@@ -772,14 +773,16 @@ function toast(message, kind = 'info') {
 }
 
 function clearError() { elements['messages-error'].textContent = ''; }
-function handleApiFailure(error) {
+function handleApiFailure(error, then = '') {
   // A request the page aborted on leaving shows nothing (#270).
   if (isPageLeft(error)) return;
   if (error instanceof ApiError && error.status === 401) {
     window.location.assign('/');
     return;
   }
-  elements['messages-error'].textContent = error instanceof Error ? error.message : 'The request failed.';
+  const reason = error instanceof Error && error.message ? error.message : 'The request failed.';
+  // `then`: what happened to what was being sent, e.g. "Your message wasn't sent."
+  elements['messages-error'].textContent = then ? failedSending(reason, then) : reason;
 }
 function handleFatal(error) {
   // Nothing to show for a request the page aborted on leaving (#270).
