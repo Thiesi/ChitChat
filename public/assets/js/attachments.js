@@ -239,6 +239,7 @@ function formatBytes(bytes) {
 }
 
 function showToast(message, kind = 'info') {
+  if (!message) return;
   const toast = document.createElement('div');
   toast.className = `toast ${kind}`;
   toast.textContent = message;

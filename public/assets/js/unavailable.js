@@ -14,8 +14,12 @@ const BY_CODE = {
   attachment_not_found: FILE_UNAVAILABLE,
 };
 
-/** The sentence for an error: ours for the "not available" codes, else the server's, else `fallback`. */
+/**
+ * The sentence for an error: ours for the "not available" codes, else the server's, else
+ * `fallback`. A request cut short by leaving the page (#270, code page_left) says nothing.
+ */
 export function errorText(error, fallback) {
+  if (error?.code === 'page_left') return '';
   const ours = BY_CODE[error?.code];
   if (ours) return ours;
   return error instanceof Error && error.message ? error.message : fallback;
@@ -24,7 +28,7 @@ export function errorText(error, fallback) {
 /** Says `text` once in the page's toast region, for pages whose own toast isn't reachable here. */
 export function showNotice(text) {
   const region = document.getElementById('toast-region');
-  if (!region) return;
+  if (!region || !text) return;
   const note = document.createElement('div');
   note.className = 'toast error';
   note.setAttribute('role', 'alert');

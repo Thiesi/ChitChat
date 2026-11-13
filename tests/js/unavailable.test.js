@@ -19,6 +19,10 @@ test('the not-available codes get our sentences, not the server’s', () => {
   assert.equal(ROOM_UNAVAILABLE, 'This room isn’t available any more.');
 });
 
+test('a request cut short by leaving the page says nothing, not the fallback (#270)', () => {
+  assert.equal(errorText(new FakeApiError(0, 'page_left', ''), 'The attachment request failed.'), '');
+});
+
 test('any other error keeps the server’s message, then the fallback', () => {
   assert.equal(errorText(new FakeApiError(403, 'muted', 'You are muted in this room.'), 'x'), 'You are muted in this room.');
   assert.equal(errorText(new FakeApiError(500, 'server_error', ''), 'Fallback.'), 'Fallback.');

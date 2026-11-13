@@ -247,7 +247,7 @@ function parseEvent(event) {
 
 
 function toast(message, kind = 'info') {
-  if (!elements) return;
+  if (!elements || !message) return;
   const node = document.createElement('div');
   node.className = `toast ${kind}`;
   node.textContent = message;

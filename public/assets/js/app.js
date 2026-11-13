@@ -1864,6 +1864,8 @@ function showEmptyState(message) {
 }
 
 function toast(message, type = 'info') {
+  // Nothing to say (a request cut short by leaving the page, #270): no empty toast.
+  if (!message) return;
   const item = document.createElement('div');
   item.className = `toast ${type}`;
   item.setAttribute('role', type === 'error' ? 'alert' : 'status');
