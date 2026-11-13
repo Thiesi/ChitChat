@@ -11,6 +11,7 @@ use ChitChat\Http\ApiException;
 use ChitChat\Realtime\EventRepository;
 use ChitChat\Room\MessageService;
 use ChitChat\Room\ModerationRank;
+use ChitChat\Room\OwnershipTransferOptions;
 use ChitChat\Room\Room;
 use ChitChat\Room\RoomAuthorization;
 use ChitChat\Room\RoomListSignal;
@@ -35,8 +36,8 @@ final class RoomAdminService
 
     /**
      * @return array{
-     *   room:array{id:int, key:string, name:string, info_line:string, visibility:string, minimum_age:int, inactivity_timeout_seconds:int, created_by:int, member_role:?string, invited:bool},
-     *   members:list<array{id:int, username:string, role:string, joined_at:string, active_connections:int}>,
+     *   room:array{id:int, key:string, name:string, info_line:string, visibility:string, minimum_age:int, inactivity_timeout_seconds:int, created_by:int, member_role:?string, invited:bool, guest_access:string, can_take_ownership:bool},
+     *   members:list<array{id:int, username:string, role:string, joined_at:string, active_connections:int, can_transfer_ownership:bool}>,
      *   invitations:list<array{id:int, username:string, invited_by:int, invited_by_username:string, created_at:string}>
      * }
      */
@@ -79,6 +80,13 @@ SQL);
             ];
         }
 
+        // Viewer flags with the transfer's own rule (#302), one lookup for every member.
+        $transfers = new OwnershipTransferOptions($this->pdo);
+        $transferable = $transfers->forTargets($actor, $room, array_map(static fn (array $member): int => $member['id'], $members));
+        foreach ($members as $index => $member) {
+            $members[$index]['can_transfer_ownership'] = $transferable[$member['id']] ?? false;
+        }
+
         $invitationsStatement = $this->pdo->prepare(<<<'SQL'
 SELECT invited.id,
        invited.username,
@@ -110,7 +118,7 @@ SQL);
         }
 
         return [
-            'room' => $room->toArray(),
+            'room' => $room->toArray() + ['can_take_ownership' => $transfers->canTakeOwnership($actor, $room)],
             'members' => $members,
             'invitations' => $invitations,
         ];
