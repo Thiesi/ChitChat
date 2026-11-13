@@ -1,0 +1,70 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+// Syntax-checks every PHP file with `php -l`, several at a time (#163). Each file still gets its
+// own `php -l` process, exactly as before; only the scheduling is parallel. Exits non-zero, and
+// prints the linter's output, for every file that fails.
+
+$root = dirname(__DIR__);
+$files = [];
+foreach (['bootstrap', 'public', 'src', 'tests'] as $directory) {
+    $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root . '/' . $directory, FilesystemIterator::SKIP_DOTS));
+    foreach ($iterator as $file) {
+        if ($file->isFile() && $file->getExtension() === 'php') {
+            $files[] = $file->getPathname();
+        }
+    }
+}
+foreach (new DirectoryIterator($root . '/bin') as $file) {
+    if ($file->isFile()) {
+        $files[] = $file->getPathname();
+    }
+}
+sort($files);
+
+$workers = (int) (getenv('LINT_JOBS') ?: 0);
+if ($workers < 1) {
+    $workers = max(1, min(16, (int) (PHP_OS_FAMILY === 'Windows' ? getenv('NUMBER_OF_PROCESSORS') : trim((string) @shell_exec('getconf _NPROCESSORS_ONLN 2>/dev/null')))));
+}
+
+$running = [];
+$failed = 0;
+$checked = 0;
+$next = 0;
+while ($next < count($files) || $running !== []) {
+    while ($next < count($files) && count($running) < $workers) {
+        $file = $files[$next++];
+        $process = proc_open([PHP_BINARY, '-n', '-l', $file], [1 => ['pipe', 'w'], 2 => ['redirect', 1]], $pipes);
+        if (!is_resource($process)) {
+            fwrite(STDERR, "Could not start the linter for {$file}\n");
+            exit(2);
+        }
+        stream_set_blocking($pipes[1], false);
+        $running[] = ['process' => $process, 'pipe' => $pipes[1], 'file' => $file, 'output' => ''];
+    }
+    foreach ($running as $index => $job) {
+        $running[$index]['output'] .= (string) stream_get_contents($job['pipe']);
+        $status = proc_get_status($job['process']);
+        if ($status['running']) {
+            continue;
+        }
+        $output = $running[$index]['output'] . (string) stream_get_contents($job['pipe']);
+        fclose($job['pipe']);
+        proc_close($job['process']);
+        unset($running[$index]);
+        $checked++;
+        if ($status['exitcode'] !== 0) {
+            $failed++;
+            fwrite(STDERR, trim($output) . "\n");
+        }
+    }
+    usleep(2000);
+}
+
+if ($failed > 0) {
+    fwrite(STDERR, "{$failed} of {$checked} files failed the syntax check.\n");
+    exit(1);
+}
+echo "No syntax errors in {$checked} files.\n";
