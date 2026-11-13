@@ -172,6 +172,29 @@ test('the stream’s forced_logout with session_revoked says the same, on Rooms'
   await expect(page.locator('#auth-notice')).toHaveText(REVOKED);
 });
 
+// #328: a guest has no other device. A revoked guest session is a visit a moderator
+// ended, whichever way it arrives, so the guest is told that.
+const guestVisitor = { id: 90, username: 'Guest 4821', roles: ['guest'], guest: true, session_version: 1 };
+const GUEST_ENDED = 'Your guest visit has ended.';
+
+test('a guest whose session is revoked (401) is told the visit ended, not “another device”', async ({ page }) => {
+  await stubEventSource(page);
+  await fixture(page, { user: guestVisitor, capability: false, roomsStatus: { status: 401, error: { code: 'session_revoked', message: REVOKED } } });
+  await page.goto('/');
+  await expect(page.locator('#auth-shell')).toBeVisible();
+  await expect(page.locator('#auth-notice')).toHaveText(GUEST_ENDED);
+});
+
+test('a guest’s forced_logout with session_revoked says the visit ended, not “another device”', async ({ page }) => {
+  await stubEventSource(page);
+  await fixture(page, { user: guestVisitor, capability: false });
+  await page.goto('/');
+  await expect(page.locator('#chat-shell')).toBeVisible();
+  await page.evaluate(() => window.__emitRaw('forced_logout', { reason: 'session_revoked' }));
+  await expect(page.locator('#auth-shell')).toBeVisible();
+  await expect(page.locator('#auth-notice')).toHaveText(GUEST_ENDED);
+});
+
 test('on Direct, forced_logout with session_revoked leads to the sign-in screen with that line', async ({ page }) => {
   await stubEventSource(page);
   const { state } = await fixture(page);
