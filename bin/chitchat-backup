@@ -5,6 +5,7 @@ declare(strict_types=1);
 
 use ChitChat\Backup\BackupException;
 use ChitChat\Backup\BackupManager;
+use ChitChat\Backup\BackupRunRecorder;
 use ChitChat\Backup\CliArguments;
 use ChitChat\Backup\ProcessRunner;
 use ChitChat\Config;
@@ -31,6 +32,13 @@ attachment inventory changes, but PostgreSQL and files still cannot be captured
 in one atomic transaction; offline backups remain the strongest option.
 TEXT;
 
+// Each run is recorded for System status (#310), best-effort and only after the backup has
+// finished or failed: BackupRunRecorder never throws, and the exit code and output below never
+// depend on it, so a backup of a read-only or broken database works exactly as before.
+$config = null;
+$startedAt = null;
+$writesStopped = false;
+
 try {
     /** @var list<string> $argv */
     $options = CliArguments::parse($argv, [
@@ -46,10 +54,20 @@ try {
     }
 
     $config = Config::fromEnvironment();
+    $destination = CliArguments::string($options, 'destination');
+    $writesStopped = CliArguments::flag($options, 'application-stopped');
+    $startedAt = new DateTimeImmutable('now', new DateTimeZone('UTC'));
     $manager = new BackupManager($config, Database::connect($config), new ProcessRunner());
-    $result = $manager->create(
-        CliArguments::string($options, 'destination'),
-        CliArguments::flag($options, 'application-stopped'),
+    $result = $manager->create($destination, $writesStopped);
+    BackupRunRecorder::forConfig($config)->record(
+        $startedAt,
+        new DateTimeImmutable('now', new DateTimeZone('UTC')),
+        'success',
+        $writesStopped ? 'offline' : 'live',
+        BackupRunRecorder::setSize($result['backup_path']),
+        basename($result['backup_path']),
+        null,
+        $config->applicationVersion,
     );
     $manifest = $result['manifest'];
     $manifestData = $manifest->toArray();
@@ -77,6 +95,19 @@ try {
     fwrite(STDOUT, 'Consistency: ' . (is_array($consistency) ? (string) ($consistency['mode'] ?? 'unknown') : 'unknown') . "\n");
     fwrite(STDOUT, 'Migrations: ' . count($migrations) . "\n");
 } catch (Throwable $exception) {
+    if ($config instanceof Config && $startedAt instanceof DateTimeImmutable) {
+        // A short category only: messages can name paths.
+        BackupRunRecorder::forConfig($config)->record(
+            $startedAt,
+            new DateTimeImmutable('now', new DateTimeZone('UTC')),
+            'failure',
+            $writesStopped ? 'offline' : 'live',
+            null,
+            null,
+            $exception instanceof BackupException ? 'backup_failed' : 'unexpected',
+            $config->applicationVersion,
+        );
+    }
     $message = $exception instanceof BackupException ? $exception->getMessage() : 'Unexpected error: ' . $exception->getMessage();
     fwrite(STDERR, 'Backup failed: ' . $message . "\n");
     exit(1);

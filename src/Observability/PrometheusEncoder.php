@@ -112,6 +112,50 @@ final class PrometheusEncoder
             'chitchat_maintenance_last_success_timestamp_seconds ' . self::timestamp($latestSuccess['finished_at'] ?? null),
         );
 
+        // Push queue and backup freshness (#310). Timestamps are 0 when there is none, as for maintenance.
+        $push = self::section($status, 'push');
+        $backups = self::section($status, 'backups');
+        $backupRun = is_array($backups['latest_run'] ?? null) ? $backups['latest_run'] : null;
+        $backupSuccess = is_array($backups['latest_success'] ?? null) ? $backups['latest_success'] : null;
+        array_push(
+            $lines,
+            '# HELP chitchat_push_configured Whether Web Push (VAPID) is configured.',
+            '# TYPE chitchat_push_configured gauge',
+            'chitchat_push_configured ' . self::boolean($push, 'configured'),
+            '# HELP chitchat_push_deliveries Push deliveries by state (failed: within the retained history).',
+            '# TYPE chitchat_push_deliveries gauge',
+            'chitchat_push_deliveries{state="pending"} ' . self::integer($push, 'pending_deliveries'),
+            'chitchat_push_deliveries{state="due"} ' . self::integer($push, 'due_deliveries'),
+            'chitchat_push_deliveries{state="failed"} ' . self::integer($push, 'failed_deliveries'),
+            '# HELP chitchat_push_oldest_due_seconds How long the oldest push that is already due has waited (0 when none).',
+            '# TYPE chitchat_push_oldest_due_seconds gauge',
+            'chitchat_push_oldest_due_seconds ' . self::integer($push, 'oldest_due_seconds'),
+            '# HELP chitchat_push_oldest_pending_seconds Age of the oldest pending push, including retries not yet due.',
+            '# TYPE chitchat_push_oldest_pending_seconds gauge',
+            'chitchat_push_oldest_pending_seconds ' . self::integer($push, 'oldest_pending_seconds'),
+            '# HELP chitchat_push_overdue Whether a due push has waited longer than 300 seconds.',
+            '# TYPE chitchat_push_overdue gauge',
+            'chitchat_push_overdue ' . self::boolean($push, 'overdue'),
+            '# HELP chitchat_push_last_sent_timestamp_seconds When a push was last sent.',
+            '# TYPE chitchat_push_last_sent_timestamp_seconds gauge',
+            'chitchat_push_last_sent_timestamp_seconds ' . self::timestamp($push['last_sent_at'] ?? null),
+            '# HELP chitchat_backup_tracking_enabled Whether backup freshness is tracked (backup_max_age_hours above 0).',
+            '# TYPE chitchat_backup_tracking_enabled gauge',
+            'chitchat_backup_tracking_enabled ' . self::boolean($backups, 'tracking_enabled'),
+            '# HELP chitchat_backup_overdue Whether no recorded successful backup exists within the maximum age.',
+            '# TYPE chitchat_backup_overdue gauge',
+            'chitchat_backup_overdue ' . self::boolean($backups, 'overdue'),
+            '# HELP chitchat_backup_last_run_success Whether the most recent recorded backup run succeeded.',
+            '# TYPE chitchat_backup_last_run_success gauge',
+            'chitchat_backup_last_run_success ' . (($backupRun['outcome'] ?? null) === 'success' ? '1' : '0'),
+            '# HELP chitchat_backup_last_run_timestamp_seconds When the most recent recorded backup run finished.',
+            '# TYPE chitchat_backup_last_run_timestamp_seconds gauge',
+            'chitchat_backup_last_run_timestamp_seconds ' . self::timestamp($backupRun['finished_at'] ?? null),
+            '# HELP chitchat_backup_last_success_timestamp_seconds When the most recent recorded successful backup finished.',
+            '# TYPE chitchat_backup_last_success_timestamp_seconds gauge',
+            'chitchat_backup_last_success_timestamp_seconds ' . self::timestamp($backupSuccess['finished_at'] ?? null),
+        );
+
         return implode("\n", $lines) . "\n";
     }
 

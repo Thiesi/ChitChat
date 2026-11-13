@@ -98,6 +98,37 @@ cmp "$work_root/source-migrations.txt" "$work_root/restored-migrations.txt"
 DB_NAME="$restore_db" ATTACHMENT_STORAGE_PATH="$restore_storage" \
   php bin/maintenance-cleanup --dry-run > "$work_root/maintenance.json"
 
+# Backup runs are recorded for System status after the dump, best-effort (#310).
+runs() {
+  psql --set ON_ERROR_STOP=1 --dbname "$1" --tuples-only --no-align -c "$2"
+}
+[[ "$(runs "$DB_NAME" "SELECT outcome || '|' || consistency || '|' || set_name || '|' || (size_bytes > 0)::text || '|' || COALESCE(error_kind, '-') FROM backup_runs ORDER BY id")" \
+  == "success|offline|$(basename "$backup_path")|true|-" ]]
+# The run is recorded after its own dump, so the restored copy doesn't contain it.
+[[ "$(runs "$restore_db" 'SELECT COUNT(*) FROM backup_runs')" == "0" ]]
+
+# A database that can't be written still gets a backup, with the same exit code and JSON
+# keys; only the run goes unrecorded, with a warning on stderr.
+readonly_json="$(PGOPTIONS='-c default_transaction_read_only=on' php bin/chitchat-backup \
+  --destination "$backup_parent" \
+  --json 2> "$work_root/readonly-stderr.txt")"
+printf '%s\n' "$readonly_json" > "$work_root/readonly-backup.json"
+[[ -d "$(jq -er '.backup_path' <<< "$readonly_json")" ]]
+[[ "$(jq -c 'keys' <<< "$readonly_json")" == "$(jq -c 'keys' <<< "$backup_json")" ]]
+jq -e '.status == "ok" and .verified == true and .consistency == "live"' <<< "$readonly_json" >/dev/null
+grep -q 'Warning: backup run not recorded' "$work_root/readonly-stderr.txt"
+[[ "$(runs "$DB_NAME" 'SELECT COUNT(*) FROM backup_runs')" == "1" ]]
+
+# A failed backup is recorded with a short category only, never its message or a path.
+if php bin/chitchat-backup --destination "$PWD/public/backup-refused" >/dev/null 2> "$work_root/refused-stderr.txt"; then
+  echo 'A backup into the public web root was unexpectedly accepted.' >&2
+  exit 1
+fi
+grep -q 'outside the public web root' "$work_root/refused-stderr.txt"
+[[ "$(runs "$DB_NAME" "SELECT outcome || '|' || error_kind || '|' || COALESCE(set_name, '-') FROM backup_runs ORDER BY id DESC LIMIT 1")" \
+  == "failure|backup_failed|-" ]]
+rm -rf "$PWD/public/backup-refused"
+
 cp -a "$backup_path" "$corrupt_backup"
 printf 'corruption' >> "$corrupt_backup/database.dump"
 if php bin/chitchat-verify-backup --backup "$corrupt_backup" >/dev/null 2> "$work_root/corruption-error.txt"; then

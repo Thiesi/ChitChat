@@ -48,6 +48,7 @@ Endpoint::run($config, static function () use ($config): ApiResult {
         deletedRoomGraceDays: Request::optionalInteger($payload, 'deleted_room_grace_days'),
         guestAccessEnabled: array_key_exists('guest_access_enabled', $payload) ? Request::boolean($payload, 'guest_access_enabled') : null,
         usernameReservationDays: Request::optionalInteger($payload, 'username_reservation_days'),
+        backupMaxAgeHours: Request::optionalInteger($payload, 'backup_max_age_hours'),
     );
 
     return ApiResult::ok(['settings' => $settings]);

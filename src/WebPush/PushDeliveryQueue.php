@@ -388,6 +388,30 @@ SQL, ['now' => self::time($now), 'age_now' => self::time($now)])->fetch();
         return array_map(static fn (mixed $value): int => (int) $value, $row);
     }
 
+    /**
+     * For System status (#310): how long the oldest delivery that is already due has waited (null
+     * when none is due), and when a push was last sent. Unlike oldest_pending_seconds, a delivery
+     * waiting for its retry doesn't count, so this only grows when the dispatcher isn't working.
+     *
+     * @return array{oldest_due_seconds: ?int, last_sent_at: ?string}
+     */
+    public function freshness(DateTimeImmutable $now): array
+    {
+        $row = $this->query(<<<'SQL'
+SELECT (SELECT EXTRACT(EPOCH FROM (CAST(:age_now AS timestamptz) - MIN(d.next_attempt_at)))::integer
+        FROM push_deliveries d WHERE d.state = 'pending' AND d.next_attempt_at <= :due_now) AS oldest_due_seconds,
+       (SELECT MAX(d.completed_at) FROM push_deliveries d WHERE d.state = 'sent') AS last_sent_at
+SQL, ['age_now' => self::time($now), 'due_now' => self::time($now)])->fetch();
+        if (!is_array($row)) {
+            throw new RuntimeException('Unable to read push queue freshness.');
+        }
+
+        return [
+            'oldest_due_seconds' => $row['oldest_due_seconds'] === null ? null : max(0, (int) $row['oldest_due_seconds']),
+            'last_sent_at' => $row['last_sent_at'] === null ? null : (string) $row['last_sent_at'],
+        ];
+    }
+
     /** @param array<string,mixed> $row */
     private function notification(array $row): PushNotification
     {

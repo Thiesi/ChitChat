@@ -43,6 +43,7 @@ final class SystemSettingsService
         ?int $deletedRoomGraceDays = null,
         ?bool $guestAccessEnabled = null,
         ?int $usernameReservationDays = null,
+        ?int $backupMaxAgeHours = null,
     ): array {
         $this->requireSuperAdministrator($actor);
         $this->validateDays('room_message_retention_days', $roomMessageRetentionDays, true);
@@ -57,6 +58,9 @@ final class SystemSettingsService
         }
         if ($usernameReservationDays !== null) {
             $this->validateDays('username_reservation_days', $usernameReservationDays, true);
+        }
+        if ($backupMaxAgeHours !== null) {
+            $this->validateRange('backup_max_age_hours', $backupMaxAgeHours, 0, 720);
         }
 
         $this->pdo->beginTransaction();
@@ -83,6 +87,7 @@ SET registration_enabled = :registration_enabled,
     deleted_room_grace_days = COALESCE(CAST(:deleted_room_grace_days AS integer), deleted_room_grace_days),
     guest_access_enabled = COALESCE(CAST(:guest_access_enabled AS boolean), guest_access_enabled),
     username_reservation_days = COALESCE(CAST(:username_reservation_days AS integer), username_reservation_days),
+    backup_max_age_hours = COALESCE(CAST(:backup_max_age_hours AS integer), backup_max_age_hours),
     updated_at = NOW()
 WHERE id = 1
 SQL);
@@ -112,6 +117,11 @@ SQL);
                 ':username_reservation_days',
                 $usernameReservationDays,
                 $usernameReservationDays === null ? PDO::PARAM_NULL : PDO::PARAM_INT,
+            );
+            $statement->bindValue(
+                ':backup_max_age_hours',
+                $backupMaxAgeHours,
+                $backupMaxAgeHours === null ? PDO::PARAM_NULL : PDO::PARAM_INT,
             );
             $statement->execute();
             $new = $this->load();
@@ -153,6 +163,7 @@ SELECT registration_enabled::int,
        deleted_room_grace_days,
        guest_access_enabled::int,
        username_reservation_days,
+       backup_max_age_hours,
        updated_at
 FROM system_settings
 WHERE id = 1
@@ -178,6 +189,8 @@ SQL);
             'guest_access_enabled' => (int) $row['guest_access_enabled'] === 1,
             // How long a name a moderator removed stays unclaimable after the new name is chosen (#164).
             'username_reservation_days' => (int) $row['username_reservation_days'],
+            // How old the newest successful backup may be before System status calls it overdue; 0 = off (#310).
+            'backup_max_age_hours' => (int) $row['backup_max_age_hours'],
             'updated_at' => (string) $row['updated_at'],
         ];
     }
