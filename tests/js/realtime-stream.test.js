@@ -130,6 +130,20 @@ test('into the back/forward cache the stream is closed on purpose, and a restore
   second.message('room_message', 101, 100);
   second.message('room_message', 102, 101);
   assert.deepEqual(h.calls.handled, [101, 102], 'The resent event is dropped; the next one arrives once.');
+  assert.equal(h.calls.longOutage, 0, 'A quick Back and forward never says "Still reconnecting".');
+});
+
+test('a restore after a long outage starts the backoff afresh: no announcement until the cap is reached again', async () => {
+  const h = harness({ probe: async () => 'unavailable' });
+  FakeSource.made[0].failedForGood();
+  for (let i = 0; i < 6; i += 1) await h.fire();
+  assert.equal(h.calls.longOutage, 1);
+  h.parkPage();
+  h.restorePage();
+  await settleAll();
+  // The failed check after the restore schedules the shortest wait, and says nothing.
+  assert.deepEqual(h.pending().map((timer) => timer.delay), [1000]);
+  assert.equal(h.calls.longOutage, 1);
 });
 
 test('parking cancels a pending retry, and a check in flight never reopens a parked stream', async () => {
