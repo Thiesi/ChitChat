@@ -19,6 +19,24 @@ const yesterday = () => {
   date.setHours(12, 0, 0, 0);
   return date.toISOString();
 };
+// #294: a modified click is the browser's, so the page must not cancel it.
+// Opening a real tab to show that is racy (the context's new-page event can be
+// lost, #296), so a last listener records whether anything cancelled the click
+// and then cancels it itself: no tab opens. It is on window in the bubble
+// phase, added after the page's scripts, so it runs after every app listener
+// (those listen on elements or on document, never on window for clicks).
+async function modifiedClick(page, target) {
+  await page.evaluate(() => {
+    window.__modifiedClicks = [];
+    window.addEventListener('click', (event) => {
+      window.__modifiedClicks.push({ prevented: event.defaultPrevented, href: event.target.closest('a')?.getAttribute('href') ?? null });
+      event.preventDefault();
+    }, { once: true });
+  });
+  await target.click({ modifiers: ['ControlOrMeta'] });
+  return page.evaluate(() => window.__modifiedClicks);
+}
+
 const base = {
   unread_count: 0, last_read_message_id: 2, visibility: 'public', member_role: 'member', minimum_age: 0,
   inactivity_timeout_seconds: 0, info_line: '', guest_access: 'write', invited: false, active_count: 0, last_activity_at: null,
@@ -145,17 +163,10 @@ test('a plain click switches in the page; a modified click is the browser’s', 
   await expect(page.locator('#room-title')).toHaveText('# Garden');
   expect(await page.evaluate(() => window.__stayed)).toBe(true);
 
-  // Ctrl or Cmd: a new tab at the room's address, and this page stays put.
-  // The new tab gets an inert page (#288): unmocked, it would load the real
-  // page against the real server (no session, a redirect, a live event stream)
-  // and could stall the run. The original page never requests this address.
-  await page.context().route((url) => url.pathname === '/' && url.search === '?room_id=1', (route) => route.fulfill({ contentType: 'text/html', body: '<!doctype html><title>New tab</title>' }));
-  const opened = page.context().waitForEvent('page');
-  await row(page, 'The living room').click({ modifiers: ['ControlOrMeta'] });
-  const tab = await opened;
-  await expect.poll(() => tab.url()).toMatch(/\/\?room_id=1$/);
-  await tab.close();
+  // Ctrl or Cmd: left to the browser (a new tab at the room's address); this page stays put.
+  expect(await modifiedClick(page, row(page, 'The living room'))).toEqual([{ prevented: false, href: '/?room_id=1' }]);
   await expect(page.locator('#room-title')).toHaveText('# Garden');
+  await expect(page).toHaveURL(/\/$/);
 });
 
 test('phones (320px): a row click or tap switches in the page, with no reload', async ({ browser }) => {
