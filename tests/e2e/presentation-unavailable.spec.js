@@ -9,6 +9,9 @@ const member = { id: 1, username: 'Jamie', roles: ['user'], session_version: 1, 
 const rooms = [{
   id: 1, name: 'The living room', key: 'room-0', visibility: 'public', member_role: 'member',
   minimum_age: 0, inactivity_timeout_seconds: 0, info_line: 'Everyday talk.', unread_count: 0, guest_access: 'none',
+}, {
+  id: 2, name: 'Kitchen', key: 'room-2', visibility: 'public', member_role: 'member',
+  minimum_age: 0, inactivity_timeout_seconds: 0, info_line: '', unread_count: 0, guest_access: 'none',
 }];
 const messages = [
   { id: 1, room_id: 1, sender_id: 2, user_id: 2, username: 'Rowan', body: 'Anyone around?', type: 'text', deleted: false, mentions: [], reactions: [], reply_to: null, attachment: null, created_at: '2026-11-12T10:00:00Z' },
@@ -60,6 +63,12 @@ async function fixture(page, { overrides = {} } = {}) {
       'account/notifications/list.php': { notifications: [], unread_count: 0 },
       'direct-messages/conversations.php': { conversations: [] },
     };
+    // #334: a room that isn't listed is checked once; 99 is gone or hidden.
+    if (path === 'rooms/detail.php') {
+      const id = Number(new URL(route.request().url()).searchParams.get('room_id'));
+      const room = rooms.find((entry) => entry.id === id);
+      return room ? route.fulfill({ json: { room } }) : route.fulfill(notFound('room_not_found', 'Room not found.'));
+    }
     await route.fulfill({ json: responses[path] ?? {} });
   });
 }
@@ -90,12 +99,21 @@ test('uploading to a room that is no longer there says the file wasn’t sent, a
   await expect(page.locator('#composer-input')).toHaveValue('The notes');
 });
 
-test('a link to a room you can’t see says the room isn’t available', async ({ page }) => {
-  test.setTimeout(60_000);
+test('a link to a message in a room you can’t see says so straight away (#334)', async ({ page }) => {
   await fixture(page);
   await page.goto('/?room_id=99&message_id=5');
   await expect(page.locator('#message-list article.message')).toHaveCount(1);
-  await expect(toasts(page)).toContainText('This room isn’t available any more.', { timeout: 25_000 });
+  // One check once the list has drawn, not a 15-second wait for the room to appear.
+  await expect(toasts(page)).toContainText('This room isn’t available any more.', { timeout: 5_000 });
+});
+
+test('a bare room link opens that room, or says at once that it’s gone (#334)', async ({ page }) => {
+  await fixture(page);
+  await page.goto('/?room_id=2');
+  await expect(page.locator('#room-title')).toContainText('Kitchen');
+  await page.goto('/?room_id=99');
+  await expect(page.locator('#message-list article.message')).toHaveCount(1);
+  await expect(toasts(page)).toContainText('This room isn’t available any more.', { timeout: 5_000 });
 });
 
 test('a link to a message that is no longer in the room says so', async ({ page }) => {

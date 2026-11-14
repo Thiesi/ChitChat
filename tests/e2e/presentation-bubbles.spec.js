@@ -54,8 +54,10 @@ async function fixture(page) {
     if (path === 'attachments/download.php') {
       const id = url.searchParams.get('id');
       const preview = url.searchParams.get('variant') === 'preview';
-      // 70: the rendition is missing, the original works. 80: the rendition works. 90: nothing loads.
-      if ((id === '70' && preview) || id === '90') return route.fulfill({ status: 404, json: { error: { code: 'attachment_preview_unavailable' } } });
+      // 70: the rendition is missing, the original works. 80: the rendition works. 90: the file
+      // is there but nothing displays (it doesn't decode); a gone file is #334's own spec.
+      if (id === '70' && preview) return route.fulfill({ status: 404, json: { error: { code: 'attachment_preview_unavailable' } } });
+      if (id === '90') return route.fulfill({ contentType: 'image/png', body: 'not really a png' });
       return route.fulfill({ contentType: 'image/png', body: PNG });
     }
     const responses = {

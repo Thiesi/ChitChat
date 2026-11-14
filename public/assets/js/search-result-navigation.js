@@ -1,3 +1,4 @@
+import { ApiError, apiGet } from './api.js';
 import { MESSAGE_UNAVAILABLE, ROOM_UNAVAILABLE, showNotice } from './unavailable.js';
 
 window.addEventListener('DOMContentLoaded', () => {
@@ -8,11 +9,15 @@ window.addEventListener('DOMContentLoaded', () => {
   const pingId = positiveInteger(parameters.get('ping_id'));
   const peerName = parameters.get('peer_name')?.trim() ?? '';
 
+  if (roomId !== null && messageId === null && pingId === null && document.getElementById('room-list')) {
+    // A bare room link (#334): Activity's "room restored", a shared address. Open the room,
+    // or say at once that it's gone.
+    openRoomLink(roomId).catch(() => {});
+  }
+
   if (roomId !== null && (messageId !== null || pingId !== null) && document.getElementById('room-list')) {
     navigateToResult({
-      findContext: () => document.querySelector(`#room-list [data-room-id="${roomId}"]`),
-      // A room that never shows up in the list is gone or can't be seen (#326): say so.
-      missingContext: ROOM_UNAVAILABLE,
+      resolveContext: () => roomButtonOrNotice(roomId),
       loadButton: document.getElementById('load-older-button'),
       messageSelector: messageId !== null
         ? `.message[data-message-id="${messageId}"]`
@@ -35,15 +40,49 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-async function navigateToResult({ findContext, loadButton, messageSelector, missingContext = null }) {
+const GONE = Symbol('gone');
+
+/**
+ * The room's button once the room list has drawn; GONE when it isn't listed and the
+ * server says it doesn't exist or can't be seen (#326, #334): one check, no long wait.
+ * Null otherwise (signed out, the list never drew, a visible room that isn't listed).
+ */
+async function findRoom(roomId) {
+  const listed = () => document.querySelector(`#room-list [data-room-id="${roomId}"]`);
+  const drawn = await waitForElement(() => document.querySelector('#room-list [data-room-id], #room-list .room-list-empty'));
+  if (!(drawn instanceof HTMLElement)) return null;
+  const button = listed();
+  if (button instanceof HTMLElement) return button;
+  try {
+    await apiGet(`/api/v1/rooms/detail.php?room_id=${encodeURIComponent(roomId)}`);
+    // Visible but not in the list: the list may still catch up.
+    return await waitForElement(listed, 3_000);
+  } catch (error) {
+    return error instanceof ApiError && error.code === 'room_not_found' ? GONE : null;
+  }
+}
+
+/** The room's button, or null after saying it isn't available any more. */
+async function roomButtonOrNotice(roomId) {
+  const room = await findRoom(roomId);
+  if (room === GONE) {
+    showNotice(ROOM_UNAVAILABLE);
+    return null;
+  }
+  return room;
+}
+
+async function openRoomLink(roomId) {
+  const room = await roomButtonOrNotice(roomId);
+  if (room instanceof HTMLElement && !room.classList.contains('active')) room.click();
+}
+
+async function navigateToResult({ findContext = null, resolveContext = null, loadButton, messageSelector }) {
   if (!(loadButton instanceof HTMLButtonElement)) return;
 
   await waitForHistoryLoad(loadButton);
-  const context = await waitForElement(findContext);
-  if (!(context instanceof HTMLElement)) {
-    if (missingContext) showNotice(missingContext);
-    return;
-  }
+  const context = resolveContext ? await resolveContext() : await waitForElement(findContext);
+  if (!(context instanceof HTMLElement)) return;
 
   if (!context.classList.contains('active')) {
     context.click();
