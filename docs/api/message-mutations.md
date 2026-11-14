@@ -136,7 +136,7 @@ The sender may delete an active message even while either participant has blocke
 
 ## Attachment deletion and retention
 
-Deleting a room or direct message immediately marks associated attachment metadata deleted. Metadata enrichment stops returning the file, and download attempts return HTTP 410 with `attachment_deleted` to callers who can see the room. For a private room the caller can't see, the answer is `404 attachment_not_found`, as for a missing attachment (#326). The binary is deliberately not removed inside the user request so moderation evidence and backup consistency are preserved.
+Deleting a room or direct message immediately marks associated attachment metadata deleted. Metadata enrichment stops returning the file, and download attempts return HTTP 410 with `attachment_deleted` to callers who can see the room. For a private room the caller can't see, the answer is `404 attachment_not_found`, as for a missing attachment (#326), and the same holds for a direct message the caller isn't part of (#356). The binary is deliberately not removed inside the user request so moderation evidence and backup consistency are preserved.
 
 The configured `deleted_attachment_retention_days` policy applies to both room and direct-message attachments. A maintenance dry-run counts both types. Once the cutoff is reached, maintenance deletes the metadata and binary in the same run. Until then, both remain known to orphan detection and are not removed as untracked files.
 
