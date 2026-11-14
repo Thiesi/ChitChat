@@ -190,3 +190,22 @@ for (const width of [180, 320]) {
     await expect(page.locator('.composer-help.member-only')).toBeHidden();
   });
 }
+
+// S7h (CCM J-read S1, S4): notices and results come first on small screens.
+for (const [width, height] of [[360, 780], [640, 450], [180, 390]]) {
+  test(`${width}×${height}: Activity's first notice starts in the first view; search brings its results up`, async ({ page }) => {
+    await page.setViewportSize({ width, height });
+    await fixture(page);
+    await page.goto('/notifications.php');
+    await expect(page.locator('#privacy-notifications-status')).toContainText('unread');
+    const first = await page.locator('.activity-item').first().boundingBox();
+    expect(first.y, 'the first notice starts within the first view').toBeLessThan(height);
+    await expect(page.locator('details.activity-about summary')).toHaveText('About these notices');
+
+    await page.goto('/search.php');
+    await page.locator('#message-search-query').fill('weather');
+    await page.locator('#message-search-query').press('Enter');
+    await expect(page.locator('#message-search-results > li')).toHaveCount(2);
+    await expect(page.locator('#message-search-status')).toBeInViewport();
+  });
+}
