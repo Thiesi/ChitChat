@@ -8,9 +8,20 @@ body:
       value: |
         Thank you for telling us. We test ChitChat with automated checks only, so reports from people who use assistive technology every day are the most useful input we get.
 
-        Please don't include your account details, passwords or the content of anyone's messages. If you attach a speech log or transcript, remove anything personal that was read out from your chats first, such as names, message text or room names.
+        **Issues here are public.** Please don't include your account details, passwords or the content of anyone's messages. If you attach a speech log or transcript, remove anything personal that was read out from your chats first, such as names, message text or room names.
 
         See [ChitChat's accessibility statement](https://github.com/Thiesi/ChitChat/blob/main/docs/accessibility.md) for what we support and how we test, and the optional [assistive-technology checklist](https://github.com/Thiesi/ChitChat/blob/main/docs/operations/accessibility-review.md) if you'd like ideas for what to try.
+  - type: dropdown
+    id: app
+    attributes:
+      label: In the web app or in ChitChat Mobile?
+      description: ChitChat Mobile is a separate project; we pass those reports on to it.
+      options:
+        - The web app, in a browser
+        - ChitChat Mobile
+        - Not sure
+    validations:
+      required: true
   - type: input
     id: assistive-technology
     attributes:

@@ -17,7 +17,7 @@ final class PoweredBy
 
     public static function html(?Config $config = null): string
     {
-        $attribution = 'Powered by <a href="' . self::REPOSITORY_URL . '">ChitChat</a>!';
+        $attribution = 'Powered by <a href="' . self::REPOSITORY_URL . '">ChitChat</a>';
         $documents = $config === null ? '' : PolicyLinks::footerHtml($config);
         if ($documents === '') {
             return '<p class="powered-by">' . $attribution . '</p>';

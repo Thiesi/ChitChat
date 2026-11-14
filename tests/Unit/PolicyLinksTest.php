@@ -20,7 +20,7 @@ final class PolicyLinksTest extends TestCase
         PolicyLinks::useDocuments([]);
 
         self::assertSame(
-            '<p class="powered-by">Powered by <a href="' . PoweredBy::REPOSITORY_URL . '">ChitChat</a>!</p>',
+            '<p class="powered-by">Powered by <a href="' . PoweredBy::REPOSITORY_URL . '">ChitChat</a></p>',
             PoweredBy::html(Config::fromEnvironment()),
         );
         self::assertSame(PoweredBy::html(Config::fromEnvironment()), PoweredBy::html());
