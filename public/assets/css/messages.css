@@ -295,9 +295,10 @@
 .dm-composer > .reply-banner { grid-column: 1 / -1; margin-bottom: 0; }
 
 .dm-composer textarea {
-  min-height: 3.5rem;
+  /* One row when empty, growing with the text (autosize.js) up to the max; no grip (#256). */
+  min-height: 3rem;
   max-height: 12rem;
-  resize: vertical;
+  resize: none;
   border-color: transparent;
   background: transparent;
 }
@@ -384,7 +385,8 @@
 @media (max-width: 34rem) {
   .dm-composer { margin: 0.65rem; padding: 0.4rem; gap: 0.35rem; }
   .dm-composer .primary-button { padding-inline: 0.8rem; }
-  .dm-message-list { padding: 1rem 0.75rem; }
+  /* The gutter keeps the chit (11px outside the bubble) clear of the screen edge (#256). */
+  .dm-message-list { padding: 1rem 1.25rem; }
   .messages-shell,
   .inspection-shell {
     width: 100%;

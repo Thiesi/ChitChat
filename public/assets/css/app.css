@@ -1365,9 +1365,10 @@ button.user-name.mention { padding: 0 0.2rem; border-radius: 0.25rem; background
 .composer .primary-button { min-height: 3rem; margin-right: 0.2rem; }
 
 .composer textarea {
+  /* One row when empty, growing with the text (autosize.js) up to the max; no grip (#256). */
   min-height: 3rem;
   max-height: 10rem;
-  resize: vertical;
+  resize: none;
   border-color: transparent;
   background: transparent;
 }
@@ -1490,7 +1491,8 @@ button.user-name.mention { padding: 0 0.2rem; border-radius: 0.25rem; background
   .menu-item { padding: 0.75rem 0.8rem; }
   .popover.name-menu { inset: auto 0 0 0; width: auto; }
 
-  .message-list { padding: 1.25rem 0.85rem; }
+  /* The gutter keeps the chit (11px outside the bubble) clear of the screen edge (#256). */
+  .message-list { padding: 1.25rem 1.25rem; }
   .message { padding-left: 2.65rem; }
   .message-avatar { width: 2rem; height: 2rem; border-radius: 0.7rem; font-size: 0.65rem; }
   .message-header { gap: 0.3rem 0.5rem; }
@@ -1520,8 +1522,6 @@ button.user-name.mention { padding: 0 0.2rem; border-radius: 0.25rem; background
   /* The direct composer's side margins (messages.css) would eat a quarter of the row. */
   #dm-composer { margin: 0.4rem 0.5rem; }
   /* Three rows to start with is a lot of a 180 px screen; it still grows as you type. */
-  /* The room field's two lines (75.6px at 180), so the placeholder keeps its "…". */
-  #dm-message-input { height: 4.75rem; min-height: 4.75rem; }
   /* Keyboard advice (Enter sends…) is for keyboards; on a phone this narrow it was five lines. */
   .composer-help { display: none; }
 
@@ -1545,6 +1545,8 @@ button.user-name.mention { padding: 0 0.2rem; border-radius: 0.25rem; background
 /* Below 320 CSS px (S7g): a phone with large text. At 320 and up the field and Send
    share a row comfortably; under it the field would shrink to a few letters. */
 @media (max-width: 19.99rem) {
+  /* Two lines to start with, so "Write a message…" fits whole at this width (#352, #256). */
+  :is(#composer-input, #dm-message-input) { min-height: 4.75rem; }
   /* B1: the message field takes the whole first row; attach, emoji and Send share the
      row under it. The field's wrapper steps aside (display: contents) so its parts sit
      in the composer's own grid. Scoped to both composers, since components.css loads
@@ -1556,4 +1558,10 @@ button.user-name.mention { padding: 0 0.2rem; border-radius: 0.25rem; background
   :is(.composer, .dm-composer) .composer-field .emoji-button { position: static; grid-row: 2; grid-column: 2; }
   :is(.composer, .dm-composer) > .primary-button { grid-row: 2; grid-column: 4; min-height: 2.75rem; }
   :is(.composer, .dm-composer) > :is(.attachment-selection, .reply-banner, .typing-indicator) { grid-column: 1 / -1; }
+}
+
+/* #256: "Enter sends · Shift+Enter…" is keyboard advice; a touch screen without a hover
+   pointer doesn't need it (a keyboard attached to a tablet still gets /help). */
+@media (hover: none) and (pointer: coarse) {
+  .composer-help { display: none; }
 }

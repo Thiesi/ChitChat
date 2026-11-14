@@ -316,18 +316,33 @@
 }
 
 @media (max-width: 34rem) {
+  /* #256: the band's pebbles crowded the edge and pulled the lockup off centre; the glow stays. */
+  .auth-band-art { display: none; }
   .auth-shell { gap: 1rem; padding: 1rem; }
   .auth-card { padding: 1.35rem; border-radius: 1.25rem; }
   .auth-greeting { font-size: 1.4rem; }
 }
 
-/* Sign in / Register stack when there's no room for two labels side by side (S7g). */
-@media (max-width: 24rem) {
+/* Sign in / Register stack only where two labels can't share a row: below 320 (#256; a 360
+   phone fits both). */
+@media (max-width: 19.99rem) {
   .auth-tabs { grid-template-columns: 1fr; border-radius: 1.2rem; }
+}
+
+@media (max-width: 24rem) {
   /* The lockup scales down so the installation's name fits beside its mark. */
   .auth-intro .lockup { gap: 0.6rem; }
   .auth-intro .lockup-mark img { width: 2.25rem; height: 2.25rem; }
   .auth-intro .lockup-name { font-size: clamp(1.1rem, 9vw, 1.6rem); }
   .auth-shell { padding: 0.75rem 0.5rem; }
   .auth-card { padding: 1rem; }
+  /* Fields shrink with the card: a date input's built-in minimum width (about 177px) set
+     the whole register form's column, wider than the card at 180 CSS px (#256). */
+  .auth-card form > *,
+  .auth-card :is(label, input, select, .password-field, .password-field-row) { min-width: 0; max-width: 100%; }
+  .auth-card input[type="date"] { width: 100%; }
 }
+
+/* #256: a field's hint ("at least 12 characters") on its own line under the label, as the
+   birth date's already wraps, instead of running into the label. */
+.auth-card label .optional-label { display: block; margin-top: 0.15rem; }
