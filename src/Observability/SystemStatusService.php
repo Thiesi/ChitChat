@@ -49,6 +49,16 @@ SELECT pg_database_size(current_database())::bigint AS size_bytes,
 SQL);
         $databaseLatencyMs = max(0.0, (microtime(true) - $databaseStarted) * 1000);
 
+        // A point sample of backends queuing for PostgreSQL's lock table (#365), the trigger #293
+        // watches for. Other roles' wait_event is NULL without pg_read_all_stats; ChitChat's own
+        // role, which runs the settled-horizon queries, is always visible.
+        $lockWaits = $this->row(<<<'SQL'
+SELECT COUNT(*) FILTER (WHERE wait_event_type = 'LWLock' AND wait_event = 'LockManager')::int AS lock_manager_waits,
+       pg_has_role(current_user, 'pg_read_all_stats', 'USAGE')::int AS sees_all_roles
+FROM pg_stat_activity
+WHERE datname = current_database() AND pid <> pg_backend_pid()
+SQL);
+
         $attachments = $this->row(<<<'SQL'
 SELECT COUNT(*)::bigint AS tracked_files,
        COUNT(*) FILTER (WHERE deleted_at IS NULL)::bigint AS active_files,
@@ -121,6 +131,8 @@ SQL),
                 'name' => (string) $database['database_name'],
                 'size_bytes' => (int) $database['size_bytes'],
                 'query_latency_ms' => round($databaseLatencyMs, 3),
+                'lock_manager_waits' => (int) $lockWaits['lock_manager_waits'],
+                'lock_manager_waits_scope' => (int) $lockWaits['sees_all_roles'] === 1 ? 'all_roles' : 'own_role',
             ],
             'attachments' => [
                 'tracked_files' => (int) $attachments['tracked_files'],

@@ -34,6 +34,7 @@ window.addEventListener('DOMContentLoaded', () => {
     'database-name',
     'database-size',
     'database-latency',
+    'database-lock-waits',
     'sse-connections',
     'sse-users',
     'presence-leases',
@@ -104,6 +105,7 @@ function render(status) {
   elements['database-name'].textContent = text(database.name);
   elements['database-size'].textContent = formatBytes(database.size_bytes);
   elements['database-latency'].textContent = `${number(database.query_latency_ms).toFixed(3)} ms`;
+  elements['database-lock-waits'].textContent = lockWaits(database);
 
   elements['sse-connections'].textContent = String(integer(realtime.active_sse_connections));
   elements['sse-users'].textContent = String(integer(realtime.active_sse_users));
@@ -323,6 +325,13 @@ function object(value) {
 
 function nullableObject(value) {
   return value === null ? null : object(value);
+}
+
+// Backends waiting on PostgreSQL's lock manager (#365); a dash from servers that don't report it.
+function lockWaits(database) {
+  if (typeof database.lock_manager_waits !== 'number' || !Number.isFinite(database.lock_manager_waits)) return '—';
+  const count = String(Math.trunc(database.lock_manager_waits));
+  return database.lock_manager_waits_scope === 'own_role' ? `${count} (ChitChat's own connections)` : count;
 }
 
 function text(value) {

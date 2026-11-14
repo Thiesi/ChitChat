@@ -20,7 +20,7 @@ const settings = (extra = {}) => ({
 const SYSTEM_STATUS = {
   generated_at: '2026-11-12T10:00:00Z',
   application: { name: 'ChitChat', version: '3.9.0', environment: 'production' },
-  database: { name: 'chitchat', size_bytes: 52428800, query_latency_ms: 0.412 },
+  database: { name: 'chitchat', size_bytes: 52428800, query_latency_ms: 0.412, lock_manager_waits: 0, lock_manager_waits_scope: 'all_roles' },
   realtime: { active_sse_connections: 4, active_sse_users: 3, active_presence_leases: 3, active_presence_users: 3, retained_events: 1200 },
   attachments: { active_files: 18, deleted_files: 2, tracked_bytes: 7340032, storage_available: true, disk_free_bytes: 10737418240, disk_total_bytes: 21474836480, disk_used_percent: 50 },
   security: {
@@ -217,6 +217,9 @@ test('System status: every card filled, the rate-limit table, and the plain note
   await expect(page.locator('#application-version')).toHaveText('3.9.0');
   await expect(page.locator('#maintenance-state')).toHaveText('Current');
   await expect(page.locator('#rate-limit-policies tr')).toHaveCount(2);
+  // #365: a plain count with a neutral note, no warning state.
+  await expect(page.locator('#database-lock-waits')).toHaveText('0');
+  await expect(page.getByText('A point sample. Brief non-zero values are normal;', { exact: false })).toBeVisible();
   await expect(page.getByText('The limits in effect on this server, and how often each one allowed or refused a request. No account or IP address is kept here.')).toBeVisible();
 });
 
@@ -291,6 +294,13 @@ test('System status: phone alerts and backups when all is well, and where the ma
   await expect(page.locator('#backups-success')).toContainText('9h ago');
   await expect(page.locator('#backups-max-age')).toHaveText('26 hours');
   await expect(page.locator('#maintenance-max-age')).toHaveText('26 hours (from the server environment)');
+});
+
+test("System status: lock-manager waits say when only ChitChat's own connections are counted, and a dash from older servers", async ({ page }) => {
+  await openStatus(page, { ...SYSTEM_STATUS, database: { ...SYSTEM_STATUS.database, lock_manager_waits: 2, lock_manager_waits_scope: 'own_role' } });
+  await expect(page.locator('#database-lock-waits')).toHaveText("2 (ChitChat's own connections)");
+  await openStatus(page, { ...SYSTEM_STATUS, database: { name: 'chitchat', size_bytes: 52428800, query_latency_ms: 0.412 } });
+  await expect(page.locator('#database-lock-waits')).toHaveText('—');
 });
 
 test('System status: push not set up is neutral, with no queue figures', async ({ page }) => {
