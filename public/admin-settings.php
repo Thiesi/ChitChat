@@ -436,7 +436,7 @@ foreach ($policyForms as $kind => $form):
   </main>
   <?= \ChitChat\View\AppShell::close() ?>
 
-  <div id="toast-region" class="toast-region" aria-live="assertive"></div>
+  <div id="toast-region" class="toast-region" aria-live="polite"></div>
   <script type="module" src="/assets/js/admin-settings.js"></script>
   <script type="module" src="/assets/js/admin-policies.js"></script>
   <script type="module" src="/assets/js/admin-icon.js"></script>

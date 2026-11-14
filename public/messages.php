@@ -146,7 +146,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
 
   <?= \ChitChat\View\ReportDialog::html() ?>
 
-  <div id="toast-region" class="toast-region" aria-live="assertive"></div>
+  <div id="toast-region" class="toast-region" aria-live="polite"></div>
   <script type="module" src="/assets/js/messages.js"></script>
   <script type="module" src="/assets/js/search-result-navigation.js"></script>
   <script type="module" src="/assets/js/dm-attachments.js"></script>

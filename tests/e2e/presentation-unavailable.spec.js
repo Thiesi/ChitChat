@@ -107,6 +107,46 @@ test('uploading to a room that is no longer there says the file wasn’t sent, a
   await expect(page.locator('#composer-input')).toHaveValue('The notes');
 });
 
+// #369: the toast region is polite, so a confirmation waits for a pause; only an error
+// interrupts, as its own alert. No toast nests a second live region otherwise.
+test('confirmations are read politely; only an error toast is an alert (#369)', async ({ page }) => {
+  await fixture(page, { overrides: { 'rooms/send.php': notFound('room_not_found', 'Room not found.') } });
+  await page.goto('/');
+  await expect(page.locator('#message-list article.message')).toHaveCount(1);
+  await expect(toasts(page)).toHaveAttribute('aria-live', 'polite');
+
+  await page.locator('#composer-input').fill('Hello?');
+  await page.locator('#composer-input').press('Enter');
+  const failed = toasts(page).locator('.toast', { hasText: 'Your message wasn’t sent.' });
+  await expect(failed).toHaveClass(/\berror\b/);
+  await expect(failed).toHaveAttribute('role', 'alert');
+
+  await page.locator('#composer-input').fill('');
+  await page.locator('#attachment-input').setInputFiles({ name: 'notes.txt', mimeType: 'text/plain', buffer: Buffer.from('hello') });
+  await page.locator('#composer-input').press('Enter');
+  const uploaded = toasts(page).locator('.toast', { hasText: 'Attachment uploaded.' });
+  await expect(uploaded).toBeVisible();
+  await expect(uploaded).not.toHaveAttribute('role', /.+/);
+});
+
+test('a failed upload’s toast is an alert (#369)', async ({ page }) => {
+  await fixture(page, { overrides: { 'attachments/upload.php': notFound('room_not_found', 'Room not found.') } });
+  await page.goto('/');
+  await expect(page.locator('#message-list article.message')).toHaveCount(1);
+  await page.locator('#attachment-input').setInputFiles({ name: 'notes.txt', mimeType: 'text/plain', buffer: Buffer.from('hello') });
+  await page.locator('#composer-input').press('Enter');
+  await expect(toasts(page).locator('.toast', { hasText: 'Your file wasn’t sent.' })).toHaveAttribute('role', 'alert');
+});
+
+test('the neutral “isn’t available any more” notice is read politely, without its own role (#369)', async ({ page }) => {
+  await fixture(page);
+  await page.goto('/?room_id=99');
+  const notice = toasts(page).locator('.toast.notice', { hasText: 'This room isn’t available any more.' });
+  await expect(notice).toBeVisible({ timeout: 5_000 });
+  await expect(notice).not.toHaveAttribute('role', /.+/);
+  await expect(toasts(page)).toHaveAttribute('aria-live', 'polite');
+});
+
 test('a link to a message in a room you can’t see says so straight away (#334)', async ({ page }) => {
   await fixture(page);
   await page.goto('/?room_id=99&message_id=5');

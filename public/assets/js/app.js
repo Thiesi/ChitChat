@@ -1973,7 +1973,8 @@ function toast(message, type = 'info') {
   if (!message) return;
   const item = document.createElement('div');
   item.className = `toast ${type}`;
-  item.setAttribute('role', type === 'error' ? 'alert' : 'status');
+  // The region is polite; only an error interrupts (#369).
+  if (type === 'error') item.setAttribute('role', 'alert');
   // Slash commands stay on one line; browsers otherwise may break right after "/".
   for (const part of String(message).split(/((?<=^|\s)\/[a-z]+(?=[\s.,;:!?)]|$))/)) {
     if (/^\/[a-z]+$/.test(part)) {

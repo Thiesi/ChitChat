@@ -43,7 +43,7 @@ We do not claim conformance with any WCAG level. The automated checks below use 
 - **Search results:** each result's link names the room or conversation and opens the exact message. The excerpt and the sender follow as its description, and the words you searched for are marked in the excerpt. The scope (All, Rooms, Direct) is a radio group, so the arrow keys move between the choices.
 - Navigation tabs with unread items are read with their visible name first, for example "Activity, 3 unread", so voice-control users can say what they see.
 - A "signed out" line on the sign-in screen, for example after signing out on another device, is also announced.
-- **Short notices are announced assertively:** errors, confirmations such as "Attachment uploaded." and "isn't available any more" notices appear in an assertive live region, so a screen reader may interrupt to read them. Form errors use alerts.
+- **Short notices are read politely; only errors interrupt.** Confirmations such as "Attachment uploaded." and "isn't available any more" notices wait until the screen reader is done speaking. An error notice is an alert, so it's read at once. Form errors use alerts too.
 
 ### Colour, contrast and motion
 
@@ -74,7 +74,6 @@ Every change runs these checks in continuous integration:
 - **Not tested at all:** speech input, switch access, screen magnifiers and cognitive accessibility.
 - **Known gaps:**
   - Short notices disappear after five or six seconds, and they don't pause on hover or focus.
-  - Confirmations are announced as urgently as errors.
   - Text spacing (WCAG 1.4.12) isn't checked.
   - Right-to-left text and layouts aren't tested.
   - Target size is checked only for the navigation tabs and a few phone controls.
