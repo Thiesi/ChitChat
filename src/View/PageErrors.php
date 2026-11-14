@@ -11,7 +11,9 @@ use Throwable;
 /**
  * An uncaught failure while rendering a page (S7, #173) shows the 500 status
  * page instead of a blank one: an uncaught Throwable, and since #345 a true
- * fatal too (memory, time limit, a fatal error in an include). Only for a
+ * fatal too (memory, PHP's own time limit, a fatal error in an include). A worker
+ * the process manager kills (PHP-FPM's request_terminate_timeout) runs no PHP at
+ * all, so that one still ends without a page. Only for a
  * browser asking for a page: API requests answer in JSON through
  * Endpoint::run, the command line keeps PHP's own output, APP_DEBUG keeps
  * PHP's own trace on screen, and once a page has started sending, nothing is
@@ -27,6 +29,9 @@ final class PageErrors
      * Set-Cookie stays: dropping a rotated session cookie would sign the person out.
      */
     private const STALE_HEADERS = ['Location', 'Refresh', 'Content-Length', 'Content-Disposition', 'Content-Type', 'ETag', 'Last-Modified', 'Content-Security-Policy'];
+
+    /** How much more memory the status page may use after a fatal, on top of what's in use. */
+    private const RENDER_MEMORY_BYTES = 8 * 1024 * 1024;
 
     private static bool $handled = false;
 
@@ -45,9 +50,23 @@ final class PageErrors
             $error = error_get_last();
             // PHP has already logged a fatal error itself.
             if (is_array($error) && in_array($error['type'], self::FATAL, true)) {
+                self::allowMemoryForThePage();
                 self::showFailure($config);
             }
         });
+    }
+
+    /**
+     * A page that grew right up to memory_limit still holds that memory while shutdown runs,
+     * so rendering the status page would fail again: give it a few megabytes more.
+     */
+    private static function allowMemoryForThePage(): void
+    {
+        // Unlimited stays unlimited; otherwise a fixed 8 MiB above what's in use, never -1.
+        if (ini_get('memory_limit') === '-1') {
+            return;
+        }
+        ini_set('memory_limit', (string) (memory_get_usage(true) + self::RENDER_MEMORY_BYTES));
     }
 
     private static function showFailure(Config $config): void

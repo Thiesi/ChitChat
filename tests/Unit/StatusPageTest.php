@@ -62,6 +62,9 @@ final class StatusPageTest extends TestCase
         self::assertSame('/', StatusPage::localAddress('/\evil.example/x'));
         self::assertSame('/', StatusPage::localAddress('https://evil.example/'));
         self::assertSame('/', StatusPage::localAddress(null));
+        // Browsers drop tabs and line breaks before reading a URL: these are //evil.example.
+        self::assertSame('/', StatusPage::localAddress("/\t/evil.example/x"));
+        self::assertSame('/', StatusPage::localAddress("/\n/evil.example/x"));
     }
 
     public function testOnlyABrowserAskingForAPageGetsTheErrorPage(): void

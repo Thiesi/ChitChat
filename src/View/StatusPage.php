@@ -96,7 +96,10 @@ HTML;
     /** A path on this site, or "/": never //host or /\host, which browsers read as another site (#345). */
     public static function localAddress(mixed $uri): string
     {
-        if (!is_string($uri) || !str_starts_with($uri, '/') || str_starts_with($uri, '//') || str_starts_with($uri, '/\\')) {
+        // Browsers drop tabs and line breaks from a URL before reading it ("/<tab>/host" is
+        // "//host"), so any control character or space makes it "/" as well.
+        if (!is_string($uri) || !str_starts_with($uri, '/') || str_starts_with($uri, '//') || str_starts_with($uri, '/\\')
+            || preg_match('/[\x00-\x20\x7f]/', $uri) === 1) {
             return '/';
         }
 

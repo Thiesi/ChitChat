@@ -34,6 +34,7 @@ $mode = $_GET['mode'] ?? '';
 if ($mode === 'throw') {
     header('Location: /elsewhere');
     header('ETag: "stale"');
+    setcookie('kept', 'yes');
     ob_start();
     echo '<!doctype html><main>half a page';
     throw new RuntimeException('The page failed.');
@@ -41,6 +42,14 @@ if ($mode === 'throw') {
 if ($mode === 'fatal') {
     ini_set('memory_limit', '16M');
     $big = str_repeat('x', 64 * 1024 * 1024);
+}
+if ($mode === 'creep') {
+    // Growing a little at a time dies right at the limit: the reserve leaves room for the page.
+    ini_set('memory_limit', '16M');
+    $parts = [];
+    while (true) {
+        $parts[] = str_repeat('y', 32 * 1024);
+    }
 }
 echo 'fine';
 PHP, '.php');
@@ -54,8 +63,12 @@ PHP, '.php');
         fclose($pipes[0]);
         try {
             PhpHttpFixture::waitUntilReady($process, $address, $log);
-            foreach (['throw', 'fatal'] as $mode) {
+            foreach (['throw', 'fatal', 'creep'] as $mode) {
                 [$status, $headers, $body] = self::get($address, '/page.php?mode=' . $mode);
+                if ($mode === 'throw') {
+                    // A rotated session cookie must survive, or the person would be signed out.
+                    self::assertStringContainsString("\nset-cookie: kept=yes", $headers);
+                }
                 self::assertStringContainsString('500', $status, $mode . ': ' . $body);
                 self::assertStringContainsString('<h1>Something went wrong</h1>', $body, $mode);
                 self::assertStringContainsString('· Garden Chat</title>', $body, $mode);
