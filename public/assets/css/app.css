@@ -1536,8 +1536,9 @@ button.user-name.mention { padding: 0 0.2rem; border-radius: 0.25rem; background
   /* No resize grip on a field this narrow: it sat over the end of the placeholder (#351).
      The field still scrolls with its text. */
   :is(#composer-input, #dm-message-input) { resize: none; }
-  /* The direct composer's side margins (messages.css) would eat a quarter of the row. */
-  #dm-composer { margin: 0.4rem 0.5rem; }
+  /* The direct composer's side margins (messages.css) would eat a quarter of the row; it
+     sits at the room composer's gutter (S8b). */
+  #dm-composer { margin: 0.4rem 0.65rem; }
   /* Three rows to start with is a lot of a 180 px screen; it still grows as you type. */
   /* Keyboard advice (Enter sends…) is for keyboards; on a phone this narrow it was five lines. */
   .composer-help { display: none; }

@@ -276,15 +276,17 @@ test('360 CSS px: the day heading stays eyebrow-sized (H6)', async ({ page }) =>
 // CCM's S8 read (A): at 180 CSS px (360 at 200%) the direct composer stacks exactly like the
 // room's: the field spans the row, attach and emoji sit at the same places, and the
 // placeholder keeps its whole width.
-test('180 CSS px: the direct composer stacks like the room composer (S8 A)', async ({ page }) => {
-  await page.setViewportSize({ width: 180, height: 390 });
+for (const [width, height] of [[180, 390], [360, 780]]) test(`${width} CSS px: the direct composer sits and stacks like the room composer (S8 A, S8b)`, async ({ page }) => {
+  await page.setViewportSize({ width, height });
   await fixture(page);
   const layout = (field) => page.locator(field).evaluate((node) => {
     const form = node.closest('form').getBoundingClientRect();
     const box = node.getBoundingClientRect();
     const emoji = node.closest('form').querySelector('.emoji-button').getBoundingClientRect();
     const attach = node.closest('form').querySelector('.attachment-button').getBoundingClientRect();
-    return { span: Math.round(form.right - box.right + box.left - form.left), emoji: Math.round(emoji.left - form.left), attach: Math.round(attach.left - form.left) };
+    const send = node.closest('form').querySelector('.primary-button').getBoundingClientRect();
+    // Measured from the screen edge too, so a different gutter shows (S8b).
+    return { span: Math.round(form.right - box.right + box.left - form.left), emoji: Math.round(emoji.left - form.left), attach: Math.round(attach.left - form.left), left: Math.round(form.left), right: Math.round(innerWidth - form.right), sendInset: Math.round(form.right - send.right) };
   });
   await page.goto('/');
   await page.locator('#room-list .room-button', { hasText: 'The living room' }).click();
@@ -294,9 +296,13 @@ test('180 CSS px: the direct composer stacks like the room composer (S8 A)', asy
   await page.locator('#dm-conversation-list .conversation-button').first().click();
   await expect(page.locator('#dm-message-list article.dm-message')).toHaveCount(3);
   const direct = await layout('#dm-message-input');
-  // The field leaves only the composer's padding and border on either side.
-  expect(direct.span).toBeLessThanOrEqual(16);
-  expect(direct).toEqual(room);
+  // Same gutter and Send inset at every phone width (S8b).
+  expect({ left: direct.left, right: direct.right, sendInset: direct.sendInset }).toEqual({ left: room.left, right: room.right, sendInset: room.sendInset });
+  if (width < 320) {
+    // Stacked: the field leaves only the composer's padding and border on either side.
+    expect(direct.span).toBeLessThanOrEqual(16);
+    expect(direct).toEqual(room);
+  }
 });
 
 // CCM's S8 read (B): one focus ring on the composer: its own border while the field has

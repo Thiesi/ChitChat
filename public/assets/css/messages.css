@@ -290,7 +290,7 @@
   background: var(--surface);
 }
 
-.dm-composer .primary-button { min-height: 3rem; }
+.dm-composer .primary-button { min-height: 3rem; margin-right: 0.2rem; }
 .dm-composer > .reply-banner { grid-column: 1 / -1; margin-bottom: 0; }
 
 .dm-composer textarea {
