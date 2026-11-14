@@ -161,7 +161,7 @@ test('nothing configured changes nothing', async ({ page }) => {
   await page.goto('/?register=1');
   await expect(page.locator('#register-agreement')).toBeHidden();
   await expect(page.locator('[data-guest-rules]').first()).toBeHidden();
-  await expect(page.locator('.powered-by').first()).toHaveText('Powered by ChitChat!');
+  await expect(page.locator('.powered-by').first()).toHaveText('Powered by ChitChat');
   await page.locator('#register-username').fill('newperson');
   await page.locator('#register-password').fill('a long enough password');
   await page.getByRole('button', { name: 'Create account' }).click();
