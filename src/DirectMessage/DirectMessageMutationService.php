@@ -322,6 +322,12 @@ SQL);
     /** @param array<string, mixed> $row */
     private function requireAuthor(AuthenticatedUser $actor, array $row): void
     {
+        // Outsiders first (#360): the same 404 as a missing ID, whether the message is active or
+        // deleted, so DM IDs don't reveal which messages exist or were deleted. The recipient
+        // may know both, and keeps the 409 and 403 below.
+        if ((int) $row['sender_user_id'] !== $actor->id && (int) $row['recipient_user_id'] !== $actor->id) {
+            throw new ApiException(404, 'message_not_found', 'Direct message not found.');
+        }
         if ($row['deleted_at'] !== null) {
             throw new ApiException(409, 'message_already_deleted', 'Direct message is already deleted.');
         }
