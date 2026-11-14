@@ -62,6 +62,13 @@ final class DirectMessageMutationHttpTest extends DatabaseTestCase
                 $this->assertError($this->request('sender', $path, $payload($deleted)), 409, 'message_already_deleted', $name . ' sender deleted');
                 $this->assertError($this->request('recipient', $path, $payload($missing)), 404, 'message_not_found', $name . ' recipient missing');
             }
+            // Validation runs before the lookup, so it answers the same for every ID too.
+            $empty = static fn (int $id): array => ['message_id' => $id, 'body' => '   '];
+            $invalid = $this->request('outsider', '/api/v1/direct-messages/edit.php', $empty($missing));
+            $this->assertError($invalid, 400, 'empty_message', 'edit empty, missing');
+            foreach (['active' => $active, 'deleted' => $deleted] as $kind => $id) {
+                $this->assertSameAnswer($invalid, $this->request('outsider', '/api/v1/direct-messages/edit.php', $empty($id)), 'edit empty, ' . $kind);
+            }
             self::assertSame($rowsBefore, $rows(), 'Refused attempts change nothing.');
             self::assertSame($auditBefore, (int) $this->pdo->query('SELECT COUNT(*) FROM audit_log')->fetchColumn(), 'Refused attempts write no audit rows.');
 

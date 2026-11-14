@@ -126,7 +126,7 @@ Only messages involving the authenticated account are returned.
 
 The operation serializes with send, attachment upload, block, unblock, and delete operations through the existing unordered user-pair PostgreSQL advisory lock. After acquiring the lock it rechecks blocking and ownership. Success publishes separate perspective-correct `direct_message` events to sender and recipient.
 
-**Errors for edit and delete (#360).** Someone who is neither the sender nor the recipient gets `404 message_not_found` for every message ID, whether the message is missing, active or deleted, so IDs reveal nothing about other conversations. The recipient gets `403 message_author_required` for an active message and `409 message_already_deleted` for a deleted one; the sender gets `409 message_already_deleted` once it is deleted.
+For the errors, see [Errors for direct-message edit and delete](#errors-for-direct-message-edit-and-delete-360).
 
 ### `POST /api/v1/direct-messages/delete.php`
 
@@ -135,6 +135,14 @@ The operation serializes with send, attachment upload, block, unblock, and delet
 ```
 
 The sender may delete an active message even while either participant has blocked the other. The revision trigger preserves the previous body and replaces the canonical body with the fixed non-sensitive string `Message deleted.` for compatibility with older clients. Mutation-aware clients receive `deleted: true` and render “Message deleted by sender.”
+
+### Errors for direct-message edit and delete (#360)
+
+These apply to both `edit.php` and `delete.php`.
+
+- **Checked first, the same for every message ID:** the session, the CSRF token and the rate limit; for `edit.php` also the body (`400 empty_message`, `400 message_too_long`) and the writing policy (for example `403 rules_acceptance_required`); and `400 validation_error` for a `message_id` below 1. These never depend on which message the ID names.
+- **Then the message:** someone who is neither the sender nor the recipient gets `404 message_not_found` for every message ID, whether the message is missing, active or deleted, so IDs reveal nothing about other conversations.
+- **The recipient** gets `403 message_author_required` for an active message and `409 message_already_deleted` for a deleted one. **The sender** gets `409 message_already_deleted` once it is deleted, and `409 message_unchanged` for an edit that changes nothing.
 
 ## Attachment deletion and retention
 

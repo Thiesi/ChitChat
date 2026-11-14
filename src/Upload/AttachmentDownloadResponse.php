@@ -14,8 +14,8 @@ final class AttachmentDownloadResponse
      *
      * $headersOnly (a HEAD request, #357) sends exactly the same status and headers and never
      * opens the file. Content-Length is the stored size, which the caller has already checked
-     * against the file on disk. The one difference: if the file vanishes between that check
-     * and the open, GET answers 410 here while HEAD has already said 200.
+     * against the file on disk. The one difference: if the file can't be opened (for example
+     * it vanished after that check), GET answers 410 here while HEAD has already said 200.
      *
      * @param array{path:string,name:string,mime_type:string,size_bytes:int,sha256:string,previewable:bool} $attachment
      */
