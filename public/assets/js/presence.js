@@ -135,7 +135,7 @@ export function createPresenceClient({
     if (members.length === 0) {
       const empty = document.createElement('li');
       empty.className = 'room-meta';
-      empty.textContent = guests.length === 0 ? 'No active users.' : 'No members online.';
+      empty.textContent = guests.length === 0 ? 'Nobody else is here right now.' : 'No members here right now, only guests.';
       list.append(empty);
     }
     list.append(...members.map(memberRow));

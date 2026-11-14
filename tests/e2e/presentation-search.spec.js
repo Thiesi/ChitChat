@@ -253,3 +253,14 @@ for (const [scheme, theme] of [['lantern', 'light'], ['dusk', 'dark']]) {
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   });
 }
+
+test('the privacy notice is one line with Learn more, and opens to the details (S7)', async ({ page }) => {
+  await fixture(page);
+  await open(page);
+  const notice = page.locator('details.message-search-notice');
+  await expect(notice.locator('summary')).toHaveText('Search covers only messages you can see. Learn more');
+  await expect(notice.getByText('Deleted messages and retained revision bodies are deliberately excluded.', { exact: false })).toBeHidden();
+  await notice.locator('summary').click();
+  await expect(notice.getByText('Deleted messages and retained revision bodies are deliberately excluded.', { exact: false })).toBeVisible();
+  await axe(page, 'notice open');
+});

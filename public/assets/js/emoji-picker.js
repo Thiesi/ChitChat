@@ -35,7 +35,7 @@ export function attachEmojiPicker(button, textarea) {
   }
   const empty = document.createElement('p');
   empty.className = 'emoji-empty';
-  empty.textContent = 'No emoji found.';
+  empty.textContent = 'No emoji match. Try another word.';
   empty.hidden = true;
   scroller.append(empty);
   picker.append(search, scroller);

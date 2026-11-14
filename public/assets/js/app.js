@@ -928,6 +928,13 @@ function setHeaderSearch(room) {
   link.title = label;
 }
 
+/** An empty room says what to do next (S7): say hello, or join first; just the fact when you can't write. */
+function emptyRoomText(room) {
+  if (room.member_role === null || room.member_role === undefined) return 'No messages yet. Join the room to start the conversation.';
+  if (room.muted || guestReadOnly(room)) return 'No messages yet.';
+  return 'No messages yet. Say hello to start the conversation.';
+}
+
 function renderNoRoom() {
   setHeaderSearch(null);
   renderLeave(null);
@@ -1061,7 +1068,7 @@ function renderMessages({ scrollToEnd = false, prepended = false } = {}) {
 
   const entries = timeline();
   if (entries.length === 0) {
-    showEmptyState(state.currentRoom ? 'No messages yet.' : 'Choose a room to begin.');
+    showEmptyState(state.currentRoom ? emptyRoomText(state.currentRoom) : 'Choose a room to begin.');
     return;
   }
 
