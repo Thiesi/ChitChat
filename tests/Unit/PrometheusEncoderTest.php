@@ -12,7 +12,7 @@ final class PrometheusEncoderTest extends TestCase
     {
         $output = PrometheusEncoder::encode([
             'application' => ['version' => '1.1.0-dev"test', 'environment' => "test\nci"],
-            'database' => ['query_latency_ms' => 12.5, 'size_bytes' => 1024],
+            'database' => ['query_latency_ms' => 12.5, 'size_bytes' => 1024, 'lock_manager_waits' => 3],
             'attachments' => [
                 'active_files' => 3,
                 'deleted_files' => 1,
@@ -49,6 +49,12 @@ final class PrometheusEncoderTest extends TestCase
 
         self::assertStringContainsString('chitchat_info{version="1.1.0-dev\\"test",environment="test\\nci"} 1', $output);
         self::assertStringContainsString('chitchat_database_query_latency_seconds 0.0125', $output);
+        self::assertStringContainsString(
+            "# HELP chitchat_database_lock_manager_waits Backends of this database waiting on the PostgreSQL lock manager (point sample).\n"
+            . "# TYPE chitchat_database_lock_manager_waits gauge\n"
+            . "chitchat_database_lock_manager_waits 3\n",
+            $output,
+        );
         self::assertStringContainsString('chitchat_attachment_files{state="active"} 3', $output);
         self::assertStringContainsString('chitchat_sse_connections 4', $output);
         self::assertStringContainsString('chitchat_failed_logins_24h 7', $output);
@@ -64,6 +70,12 @@ final class PrometheusEncoderTest extends TestCase
         self::assertStringContainsString('chitchat_maintenance_last_run_status{status="success"} 1', $output);
         self::assertStringContainsString('chitchat_maintenance_last_run_duration_seconds 0.25', $output);
         self::assertStringEndsWith("\n", $output);
+    }
+
+    public function testNoLockManagerWaitsIsZero(): void
+    {
+        $output = PrometheusEncoder::encode(['database' => ['lock_manager_waits' => 0]]);
+        self::assertStringContainsString("\nchitchat_database_lock_manager_waits 0\n", $output);
     }
 
     public function testPushAndBackupHealthAreEncoded(): void

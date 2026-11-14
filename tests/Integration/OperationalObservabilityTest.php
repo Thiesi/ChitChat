@@ -74,6 +74,11 @@ SQL);
         $status = (new SystemStatusService($this->pdo, $config))->forAdministrator($root);
         self::assertSame('3.13.0', $status['application']['version']);
         self::assertGreaterThanOrEqual(0.0, $status['database']['query_latency_ms']);
+        // A point sample (#365): a count, and whether other roles' backends are visible.
+        self::assertIsInt($status['database']['lock_manager_waits']);
+        self::assertGreaterThanOrEqual(0, $status['database']['lock_manager_waits']);
+        $seesAllRoles = (int) $this->pdo->query("SELECT pg_has_role(current_user, 'pg_read_all_stats', 'USAGE')::int")?->fetchColumn() === 1;
+        self::assertSame($seesAllRoles ? 'all_roles' : 'own_role', $status['database']['lock_manager_waits_scope']);
         self::assertTrue($status['attachments']['storage_available']);
         self::assertSame(1, $status['realtime']['active_sse_connections']);
         self::assertSame(1, $status['security']['failed_logins_24h']);
