@@ -225,7 +225,7 @@ body[data-audience="guest"] .account-card:not([data-guest-visible]) { display: n
   .account-card select:focus-visible { outline-offset: -3px; }
   .account-card .form-stack label { grid-template-columns: minmax(0, 1fr); }
   /* Card headings shrink so one long word ("Accessibility") fits; break-word is the last resort. */
-  .account-card :is(h2, h3) { font-size: clamp(1.05rem, 6.5vw, 1.35rem); overflow-wrap: break-word; }
+  .account-card :is(h2, h3):not(.activity-day-heading) { font-size: clamp(1.05rem, 6.5vw, 1.35rem); overflow-wrap: break-word; }
   .date-preview { grid-template-columns: minmax(0, auto) minmax(0, 1fr); padding: 0.6rem 0.75rem; }
   .date-preview dd { overflow-wrap: break-word; }
 }

@@ -372,6 +372,8 @@
   .message-search-result header { flex-wrap: wrap; gap: 0.1rem 0.75rem; }
   .message-search-body { min-width: 0; }
 
+}
+
 /* C1 (S7h): the page eyebrow is muted, like every page's. */
 .message-search-eyebrow { color: var(--text-muted); }
 
@@ -385,9 +387,10 @@
 }
 
 /* S4: below 384 the three scope chips become one select, on one line. */
-.search-scope-select-field { display: none; }
+/* .message-search-form prefix: its labels are display: grid, which would win otherwise (H1). */
+.message-search-form .search-scope-select-field { display: none; }
 @media (max-width: 24rem) {
   #message-search-scope { display: none; }
-  .search-scope-select-field:not([hidden]) { display: grid; gap: 0.4rem; }
+  .message-search-form .search-scope-select-field:not([hidden]) { display: grid; gap: 0.4rem; }
   .message-search-form { gap: 0.6rem; padding: 0.75rem; }
 }
