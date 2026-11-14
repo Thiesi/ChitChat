@@ -48,7 +48,7 @@ final class StatusPage
         }
         $uri = $_SERVER['REQUEST_URI'] ?? '/';
         // "Try again" reloads the same address; only a local path, never another site.
-        $again = is_string($uri) && str_starts_with($uri, '/') && !str_starts_with($uri, '//') ? $uri : '/';
+        $again = self::localAddress($uri);
         echo self::render($status, $appName, $again);
     }
 
@@ -91,6 +91,16 @@ final class StatusPage
 </body>
 </html>
 HTML;
+    }
+
+    /** A path on this site, or "/": never //host or /\host, which browsers read as another site (#345). */
+    public static function localAddress(mixed $uri): string
+    {
+        if (!is_string($uri) || !str_starts_with($uri, '/') || str_starts_with($uri, '//') || str_starts_with($uri, '/\\')) {
+            return '/';
+        }
+
+        return $uri;
     }
 
     /** The installation's name, or null when it can't be read (the database is down, say). */

@@ -55,8 +55,20 @@ final class StatusPageTest extends TestCase
         $this->expectOutputString('');
     }
 
+    public function testTryAgainOnlyEverLinksBackToThisSite(): void
+    {
+        self::assertSame('/messages.php?with=3', StatusPage::localAddress('/messages.php?with=3'));
+        self::assertSame('/', StatusPage::localAddress('//evil.example/x'));
+        self::assertSame('/', StatusPage::localAddress('/\evil.example/x'));
+        self::assertSame('/', StatusPage::localAddress('https://evil.example/'));
+        self::assertSame('/', StatusPage::localAddress(null));
+    }
+
     public function testOnlyABrowserAskingForAPageGetsTheErrorPage(): void
     {
+        // The script that runs decides (#345): a doubled slash doesn't hide an API request.
+        self::assertFalse(PageErrors::wantsPage(['REQUEST_URI' => '//api/v1/session.php', 'SCRIPT_NAME' => '/api/v1/session.php', 'HTTP_ACCEPT' => 'text/html']));
+        self::assertFalse(PageErrors::wantsPage(['REQUEST_URI' => '/api//v1/session.php', 'HTTP_ACCEPT' => 'text/html']));
         self::assertTrue(PageErrors::wantsPage(['REQUEST_URI' => '/admin.php', 'HTTP_ACCEPT' => 'text/html,application/xhtml+xml']));
         self::assertFalse(PageErrors::wantsPage(['REQUEST_URI' => '/api/v1/session.php', 'HTTP_ACCEPT' => 'text/html']));
         self::assertFalse(PageErrors::wantsPage(['REQUEST_URI' => '/health.php', 'HTTP_ACCEPT' => 'application/json']));

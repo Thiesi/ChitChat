@@ -133,6 +133,18 @@ server {
 
 The exact SSE location must take precedence over the general PHP location. ChitChat also sends `X-Accel-Buffering: no`, but the explicit Nginx directives are retained because proxy behavior must not depend solely on an upstream response header.
 
+**Optional, a friendlier 404 for a missing `*.php` address.** Unknown paths already reach ChitChat through `try_files` and get its own "There's nothing here" page with status `404`. An address ending in `.php` that doesn't exist stops at `try_files $uri =404` and gets Nginx's plain page instead. To show ChitChat's page there too, add one line to the general PHP location:
+
+```nginx
+    location ~ \.php$ {
+        try_files $uri =404;
+        error_page 404 /not-found.php;
+        # …the rest as above
+    }
+```
+
+This only replaces Nginx's own 404 for a file that isn't there. ChitChat's API endpoints that answer `404` keep their JSON, because `fastcgi_intercept_errors` is off by default. Don't turn it on for this. A missing `/api/…` file then gets the HTML page, which is what it gets from Nginx today too. Apache has no equivalent that leaves API responses alone: a missing `*.php` there goes to PHP-FPM, and `ProxyErrorOverride` would replace the API's JSON errors as well. So on Apache, leave it as it is.
+
 Do not add `proxy_buffering` directives to a FastCGI location; use `fastcgi_buffering off`. Do not enable gzip on the event stream. The upstream timeout must exceed the approximately 25-second stream lifetime.
 
 ## Native authentication log privacy
