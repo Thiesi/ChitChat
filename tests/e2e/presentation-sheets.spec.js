@@ -102,11 +102,11 @@ for (const dialogCase of DIALOGS) {
   });
 }
 
-test('the help sheet opens at the top on a phone, with focus on Close', async ({ page }) => {
+test('the help sheet opens at the top on a phone, with focus on its heading', async ({ page }) => {
   await fixture(page);
   await openRoom(page, 360);
   const dialog = await DIALOGS[2].open(page);
-  await expect(dialog.getByRole('button', { name: 'Close' })).toBeFocused();
+  await expect(dialog.getByRole('heading', { name: 'Commands and formatting' })).toBeFocused();
   await expect.poll(() => dialog.evaluate((node) => node.scrollTop)).toBe(0);
 });
 
