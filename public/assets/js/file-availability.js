@@ -18,6 +18,19 @@ export async function fileGone(url) {
   }
 }
 
+/** A gone file's name stays, as plain text: there's nothing left to open (S8). */
+export function showFileGone(link) {
+  if (!(link instanceof HTMLAnchorElement)) return;
+  link.removeAttribute('href');
+  link.removeAttribute('target');
+  link.dataset.gone = 'true';
+}
+
+/** Every download link to this address in the card around `element`. */
+export function markCardFileGone(element) {
+  element.closest('.attachment-card')?.querySelectorAll('a.attachment-download').forEach(showFileGone);
+}
+
 let installed = false;
 
 /** A plain click on any attachment download link checks first; modified clicks are left alone. */
@@ -36,6 +49,7 @@ export function checkDownloadsBeforeOpening() {
     event.preventDefault();
     if (await fileGone(link.href)) {
       showNotice(FILE_UNAVAILABLE);
+      showFileGone(link);
       return;
     }
     // There: let the link do what it always did (the server sends a download, so the
