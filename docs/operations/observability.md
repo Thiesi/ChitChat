@@ -7,7 +7,7 @@ ChitChat exposes one human-facing status page and one optional machine-facing me
 Administrators and Super-Administrators can open `/admin-status.php` from the administration header. The page reports:
 
 - application version and environment;
-- PostgreSQL database size and status-query latency;
+- PostgreSQL database size, status-query latency, and how many connections are waiting on the lock manager (see [Lock-manager waits](#lock-manager-waits));
 - active leased SSE connections and distinct SSE users;
 - active room-presence leases and distinct present users;
 - retained realtime-event rows;
@@ -24,6 +24,14 @@ Administrators and Super-Administrators can open `/admin-status.php` from the ad
 The page never lists usernames, message bodies, attachment names, IP addresses, rate-limit identifier hashes, or bearer secrets. The underlying API is `GET /api/v1/admin/system-status.php` and requires Administrator access.
 
 See [`rate-limiting.md`](rate-limiting.md) for policy configuration, bounds, coverage, and privacy behavior.
+
+## Lock-manager waits
+
+System status › PostgreSQL shows **Waiting on the lock manager**: how many of this database's connections were waiting on PostgreSQL's lock manager (`wait_event_type = 'LWLock'`, `wait_event = 'LockManager'` in `pg_stat_activity`) at the moment the page or `/metrics.php` was read. The status request itself is not counted. In the API it is `database.lock_manager_waits`, and in Prometheus `chitchat_database_lock_manager_waits`.
+
+It is a point sample, not an alarm. Brief non-zero values are normal under load. A value that stays above zero across many views, or `min_over_time(chitchat_database_lock_manager_waits[10m]) > 0`, means queries are queuing for the lock manager. That is the "sustained `pg_locks` contention" trigger for revisiting how settled event streams find the oldest open writer (#293).
+
+`database.lock_manager_waits_scope` says what is counted. With `own_role`, only connections of ChitChat's own database role are counted, which covers the web requests and event streams; System status then adds "(ChitChat’s connections only)". With `all_roles`, other roles' connections are counted too. That needs `pg_read_all_stats`, described under [`INSTALL.md`, Server-Sent Events](../../INSTALL.md#server-sent-events).
 
 ## SSE connection leases
 
@@ -92,7 +100,7 @@ When disabled, the endpoint returns HTTP 404. When enabled, requests require:
 Authorization: Bearer <configured token>
 ```
 
-Incorrect or missing credentials return HTTP 401. Successful responses use the Prometheus text exposition format and include gauges for database latency and size, attachment metadata and capacity, SSE and presence leases, retained events, failed logins, rate-limit rows, maintenance freshness, the push queue and backup freshness. Monotonic rate-limit counters are exported as:
+Incorrect or missing credentials return HTTP 401. Successful responses use the Prometheus text exposition format and include gauges for database latency and size, lock-manager waits, attachment metadata and capacity, SSE and presence leases, retained events, failed logins, rate-limit rows, maintenance freshness, the push queue and backup freshness. Monotonic rate-limit counters are exported as:
 
 ```text
 chitchat_rate_limit_decisions_total{policy="room_send",outcome="allowed"} 123
@@ -131,7 +139,8 @@ Useful initial alerts include:
 - sustained growth in `chitchat_failed_logins_24h`;
 - an unexpected increase in `chitchat_rate_limit_decisions_total{outcome="rejected"}` for login, step-up, inspection, or revision review;
 - unexpected disappearance of all SSE connections during known active periods;
-- PostgreSQL status-query latency materially above the installation's normal baseline.
+- PostgreSQL status-query latency materially above the installation's normal baseline;
+- lock-manager waits that stay above zero, for example `min_over_time(chitchat_database_lock_manager_waits[10m]) > 0` (see [Lock-manager waits](#lock-manager-waits)).
 
 Push and backup metrics: `chitchat_push_configured`, `chitchat_push_deliveries{state="pending|due|failed"}`, `chitchat_push_oldest_due_seconds`, `chitchat_push_oldest_pending_seconds`, `chitchat_push_overdue`, `chitchat_push_last_sent_timestamp_seconds`, `chitchat_backup_tracking_enabled`, `chitchat_backup_overdue`, `chitchat_backup_last_run_success`, `chitchat_backup_last_run_timestamp_seconds` and `chitchat_backup_last_success_timestamp_seconds`. Timestamps are `0` when there is none, as for maintenance.
 

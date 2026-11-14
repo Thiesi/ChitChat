@@ -29,6 +29,7 @@ test('Administrator sees shared operational status and metrics remain disabled b
     await expect(page.getByRole('heading', { name: 'System status' })).toBeVisible();
     await expect(page.locator('#database-size')).not.toHaveText('—');
     await expect(page.locator('#database-latency')).toContainText('ms');
+    await expect(page.locator('#database-lock-waits')).toHaveText(/^[0-9]+( \(ChitChat’s connections only\))?$/);
     await expect(page.locator('#attachment-active')).toHaveText(/^[0-9]+$/);
     await expect(page.locator('#sse-connections')).toHaveText(/^[0-9]+$/);
     await expect(page.locator('#maintenance-state')).toHaveText(/^(Current|Overdue)$/);
