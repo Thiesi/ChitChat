@@ -12,11 +12,11 @@ Privacy fixes for direct messages and room links, a configurable "Report an acce
 
 - **Contract change, DM privacy (#356, #359; #360, #362):** for a caller who isn't a participant, downloading a deleted DM attachment answers `404 attachment_not_found` (was `410 attachment_deleted`), and DM edit and delete answer `404 message_not_found` for every ID (were `403 message_author_required` and `409 message_already_deleted`). Participants are unchanged.
 
-- Room, message and ping links no longer join a guest silently; a bare `/?room_id=N` opens that room, and gone rooms and files say so at once, as neutral notices (#334, #354, #363, #366).
+- Message and ping links no longer join a guest silently (nor do the new bare `/?room_id=N` links, which now open that room); gone rooms and files say so at once, as neutral notices (#334, #354, #363, #366).
 
-- `HEAD` on both attachment download endpoints, with GET's status and headers, no body, and no file opened; `Allow` on every 405; exact-case HEAD (#357, #361, #364).
+- `HEAD` on both attachment download endpoints, with GET's status and headers, no body, and no file opened; `Allow` on every 405; only an exact-case `HEAD` is body-less (any other case is treated as GET) (#357, #361, #364).
 
-- "Report an accessibility problem" (#219, #368, #371, #374): migration `0061` adds `system_settings.accessibility_feedback_enabled` and `accessibility_feedback_url` (`https://` or `mailto:` only); `GET`/`POST /api/v1/admin/settings/accessibility-feedback/…` (Super-Administrator, step-up for updates); public `session.php` `accessibility_feedback` (`{url}` resolved, or `null` when off); a footer, sign-in and You link with a destination hint; the accessibility statement claims only what's tested and lists the gaps.
+- "Report an accessibility problem" (#219, #368, #371, #374): migration `0061` adds `system_settings.accessibility_feedback_enabled` and `accessibility_feedback_url` (`https://` or `mailto:` only); `GET`/`POST /api/v1/admin/settings/accessibility-feedback/…` (Super-Administrator, step-up for updates); public `session.php` `accessibility_feedback` (`{url}` resolved, or `null` when off); a link in the sign-in screens' footer and under You, with a destination hint; the accessibility statement claims only what's tested and lists the gaps.
 
 - Polite toast region; only error toasts interrupt, as alerts (#369, #372).
 
@@ -24,7 +24,7 @@ Privacy fixes for direct messages and room links, a configurable "Report an acce
 
 - Room "@" badge from `unread_mention_count`, kept live and cleared on read (#355).
 
-- Web polish from CCM's reads: a one-row composer that grows to `min(10rem, 35dvh)` with one focus ring and no grip, shared composer layout on phones, the hint hidden on touch, two-line room titles, phone chits and sign-in band, and `tests/js/css-structure.test.js` (#351, #352, #256, #358, #366).
+- Web polish from CCM's reads: a one-row composer that grows to `min(10rem, 35dvh)` (Direct `12rem`) with one focus ring and no grip, Direct's composer stacking like Rooms' below 320 CSS px, the hint hidden on touch, two-line room titles on phones, sender chits clear of the bubbles, the sign-in illustration hidden on narrow screens, and `tests/js/css-structure.test.js` (#351, #352, #256, #358, #366).
 
 - Footer: "Powered by ChitChat" without the exclamation mark (#370).
 
