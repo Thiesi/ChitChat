@@ -1624,6 +1624,8 @@ async function markCurrentRoomRead() {
       if (!entry) continue;
       entry.last_read_message_id = response.last_read_message_id;
       entry.unread_count = 0;
+      // Reading the room past its mentions clears them on the server too (#266).
+      entry.unread_mention_count = 0;
     }
   } catch {
     // Unread counts are a convenience; the next attempt catches up.
@@ -1640,6 +1642,11 @@ function countUnread(message) {
   }
   // Skips messages already read or already in the list's snapshot (#268, #279).
   if (!countLiveMessage(room, message.id)) return;
+  // A live mention of you adds to the room's "@" until the next fetch says otherwise.
+  // Only explicit ones: @here reaches only who's present, which the client can't know.
+  if (message.mentions?.some((mention) => mention.user_id === state.user?.id && mention.broadcast !== true)) {
+    room.unread_mention_count = Math.min(100, (room.unread_mention_count ?? 0) + 1);
+  }
   if (room.id !== state.currentRoom?.id) renderRoomList();
 }
 
