@@ -22,6 +22,7 @@ import { renderConversationList as drawConversationList } from './conversation-l
 import { startUsernameGate } from './username-gate.js';
 import { LONG_OUTAGE_NOTICE, RECOVERED_NOTICE, keepEventStream, sessionProbe } from './realtime-stream.js';
 import { createConnectionStatus } from './connection-status.js';
+import { autosize } from './autosize.js';
 
 let transcriptKeys = null;
 const state = {
@@ -64,6 +65,8 @@ function bindElements() {
 }
 
 function bindEvents() {
+  // One row when empty, taller as the text wraps (#256).
+  autosize(elements['dm-message-input']);
   elements['dm-user-search-form'].addEventListener('submit', searchUsers);
   elements['dm-load-older'].addEventListener('click', loadOlder);
   transcriptKeys = attachTranscriptKeys(elements['dm-message-list'], {

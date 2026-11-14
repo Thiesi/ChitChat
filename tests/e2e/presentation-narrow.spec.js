@@ -106,6 +106,8 @@ const phone = () => true;
 
 const SCREENS = [
   { name: 'sign-in', path: '/', user: null, ready: (page) => expect(page.locator('#auth-greeting')).toBeVisible() },
+  // #256: the register form, with its date field, fits too.
+  { name: 'register', path: '/?register=1', user: null, ready: (page) => expect(page.locator('#register-birth-date')).toBeVisible() },
   { name: 'rooms-list', path: '/', ready: (page) => expect(page.locator('#room-list .room-button').first()).toBeVisible() },
   {
     name: 'room-conversation', path: '/',

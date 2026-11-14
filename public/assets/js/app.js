@@ -33,6 +33,7 @@ import { confirmAction } from './confirm-dialog.js';
 import { renderSeason } from './sign-in-season.js';
 import { renamedUser, renameInMessages, renameInPings } from './renames.js';
 import { startUsernameGate, stopUsernameGate } from './username-gate.js';
+import { autosize } from './autosize.js';
 
 const registrationChallenge = createRegistrationChallenge();
 const guestChallenge = createRegistrationChallenge('/api/v1/guest/challenge.php');
@@ -162,6 +163,8 @@ function bindElements() {
 }
 
 function bindEvents() {
+  // One row when empty, taller as the text wraps (#256).
+  autosize(elements['composer-input']);
   elements['login-tab'].addEventListener('click', () => showAuthMode('login'));
   elements['register-tab'].addEventListener('click', () => showAuthMode('register'));
   elements['register-provider-cancel'].addEventListener('click', cancelProviderSignUp);
