@@ -677,7 +677,7 @@ async function searchInvitableUsers(event) {
   const users = Array.isArray(response.users) ? response.users : [];
   elements['invitation-search-results'].replaceChildren();
   if (users.length === 0) {
-    elements['invitation-search-results'].append(emptyItem('No eligible users found.'));
+    elements['invitation-search-results'].append(emptyItem('No one who can be invited matches. Check the spelling, or try part of the name.'));
     return;
   }
   for (const user of users) {

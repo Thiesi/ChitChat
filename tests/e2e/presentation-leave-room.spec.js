@@ -154,3 +154,12 @@ for (const [scheme, theme] of [['lantern', 'light'], ['lantern', 'dark'], ['dusk
     expect(result.violations, `dialog: ${result.violations.map((violation) => violation.id).join(', ')}`).toEqual([]);
   });
 }
+
+test('an empty room says what to do next: join it first, or say hello (S7)', async ({ page }) => {
+  await fixture(page, { rooms: [room(1, 'Garden', { member_role: null }), room(2, 'Kitchen')] });
+  await page.goto('/');
+  await page.locator('#room-list .room-button', { hasText: 'Garden' }).click();
+  await expect(page.locator('#empty-state')).toHaveText('No messages yet. Join the room to start the conversation.');
+  await page.locator('#room-list .room-button', { hasText: 'Kitchen' }).click();
+  await expect(page.locator('#empty-state')).toHaveText('No messages yet. Say hello to start the conversation.');
+});

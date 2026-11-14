@@ -137,7 +137,7 @@ export function renderRoomList(container, options) {
   if (rooms.length === 0) {
     const message = document.createElement('p');
     message.className = 'room-meta room-list-empty';
-    message.textContent = canCreate ? 'No rooms yet. Create the first one.' : 'No rooms are available yet.';
+    message.textContent = canCreate ? 'No rooms yet. Create the first one.' : 'No rooms are available yet. An administrator can create one.';
     container.append(message);
     return;
   }
@@ -155,7 +155,7 @@ export function renderRoomList(container, options) {
   } else if (invitations.length === 0) {
     const hint = document.createElement('p');
     hint.className = 'room-meta room-list-empty';
-    hint.textContent = others.length > 0 ? 'You haven’t joined a room yet. Pick one below.' : 'No rooms to join yet.';
+    hint.textContent = others.length > 0 ? 'You haven’t joined a room yet. Pick one below.' : 'No rooms to join yet. An invitation will show up here.';
     container.append(hint);
   }
 

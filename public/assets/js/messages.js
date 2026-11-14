@@ -441,7 +441,12 @@ function renderMessages({ scrollToEnd = false, prepended = false } = {}) {
   if (state.messages.length === 0) {
     reconcile(list, []);
     elements['dm-empty-state'].classList.remove('hidden');
-    elements['dm-empty-state'].textContent = state.selectedUser ? 'No messages yet.' : 'No conversation selected.';
+    // A next step (S7): say hello unless writing to them is known to be off; otherwise pick a conversation.
+    elements['dm-empty-state'].textContent = !state.selectedUser
+      ? 'Choose a conversation from the list, or start a new one.'
+      : state.relationship?.messaging_available !== false
+        ? `No messages yet. Say hello to ${state.selectedUser.username}.`
+        : 'No messages yet.';
     return;
   }
   elements['dm-empty-state'].classList.add('hidden');

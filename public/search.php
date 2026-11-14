@@ -39,11 +39,12 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
       </nav>
     </header>
 
-    <section class="message-search-notice" aria-labelledby="message-search-notice-heading">
-      <h2 id="message-search-notice-heading">Your visible history only</h2>
+    <!-- One line plus Learn more (S7 copy pass), like the direct-message privacy line. -->
+    <details class="message-search-notice">
+      <summary><span id="message-search-notice-heading">Search covers only messages you can see.</span> <span class="message-search-more">Learn more</span></summary>
       <p>Search includes current message bodies in rooms whose history you may discover and read, plus direct conversations in which you participate.</p>
       <p>Deleted messages and retained revision bodies are deliberately excluded. Search terms are sent in a protected request body rather than the address bar, are rate-limited, and are not written to the <?= $appName ?> audit log or aggregate metrics.</p>
-    </section>
+    </details>
 
     <form id="message-search-form" class="message-search-form">
       <label class="message-search-query">
