@@ -119,8 +119,10 @@
 /* ---- The pinned mention card ---- */
 
 .mention-card {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  /* Flex with wrapping (S7g): Open moves to its own line, end-aligned, only once the
+     text would be squeezed below about nine characters' width, at any zoom. */
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.6rem;
   margin: 0 0.6rem 0.25rem;
@@ -131,9 +133,10 @@
   color: var(--text);
 }
 
-.mention-card-text { margin: 0; min-width: 0; font-size: 0.86rem; line-height: 1.35; overflow-wrap: anywhere; }
+.mention-card-text { flex: 1 1 9rem; margin: 0; min-width: 0; font-size: 0.86rem; line-height: 1.35; overflow-wrap: break-word; }
 
 .mention-card-open {
+  margin-left: auto;
   display: inline-grid;
   place-items: center;
   min-height: 2.25rem;

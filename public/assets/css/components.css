@@ -426,6 +426,18 @@ form:has(.attachment-selection > button:not(.hidden)) .attachment-button {
     animation: sheet-in 0.14s ease-out;
   }
 
+  /* A title that fits a narrow sheet in two lines rather than four. */
+  dialog:is(.room-dialog, .step-up-dialog)[open] h2 { font-size: clamp(1.15rem, 6.5vw, 1.5rem); overflow-wrap: break-word; }
+
+  /* Both actions always in view (S7g): the row sticks to the sheet's foot as it scrolls. */
+  dialog:is(.room-dialog, .step-up-dialog)[open] form > .action-row:last-child {
+    position: sticky;
+    bottom: 0;
+    margin-bottom: -0.25rem;
+    padding-block: 0.6rem 0.25rem;
+    background: var(--surface);
+  }
+
   dialog:is(.room-dialog, .step-up-dialog, .command-help)[open]::before {
     display: block;
     width: 2.5rem;

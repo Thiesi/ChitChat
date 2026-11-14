@@ -81,11 +81,11 @@
 .lockup-name {
   margin: 0;
   font-family: var(--display-font);
-  font-size: clamp(2.2rem, 4.5vw, 3.4rem);
+  font-size: clamp(1.5rem, 11vw, 3.4rem);
   font-weight: 800;
   line-height: 1.04;
   letter-spacing: var(--display-tracking);
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
   text-wrap: balance;
 }
 
@@ -319,4 +319,15 @@
   .auth-shell { gap: 1rem; padding: 1rem; }
   .auth-card { padding: 1.35rem; border-radius: 1.25rem; }
   .auth-greeting { font-size: 1.4rem; }
+}
+
+/* Sign in / Register stack when there's no room for two labels side by side (S7g). */
+@media (max-width: 24rem) {
+  .auth-tabs { grid-template-columns: 1fr; border-radius: 1.2rem; }
+  /* The lockup scales down so the installation's name fits beside its mark. */
+  .auth-intro .lockup { gap: 0.6rem; }
+  .auth-intro .lockup-mark img { width: 2.25rem; height: 2.25rem; }
+  .auth-intro .lockup-name { font-size: clamp(1.1rem, 9vw, 1.6rem); }
+  .auth-shell { padding: 0.75rem 0.5rem; }
+  .auth-card { padding: 1rem; }
 }
