@@ -43,6 +43,28 @@ final class PolicyLinksTest extends TestCase
         self::assertStringContainsString('href="https://example.org/imprint" rel="noopener">Legal notice<span aria-hidden="true"> ↗</span><span class="visually-hidden"> (opens another site)</span>', $html);
     }
 
+    public function testTheSignInFooterOffersAHiddenAccessibilityFeedbackSlotBeforeTheAttribution(): void
+    {
+        PolicyLinks::useDocuments([]);
+        $slot = PoweredBy::feedbackSlot();
+
+        // Hidden until accessibility-feedback.js fills it from session.php (#219).
+        self::assertStringContainsString('data-accessibility-feedback hidden', $slot);
+        self::assertStringContainsString('Report an accessibility problem', $slot);
+        self::assertSame(
+            '<p class="powered-by">' . $slot . 'Powered by <a href="' . PoweredBy::REPOSITORY_URL . '">ChitChat</a></p>',
+            PoweredBy::html(Config::fromEnvironment(), accessibilityFeedback: true),
+        );
+
+        PolicyLinks::useDocuments([PolicyLinks::RULES => ['source' => 'hosted', 'url' => 'https://chat.example/rules.php']]);
+        self::assertMatchesRegularExpression(
+            '/Community rules.*Report an accessibility problem.*Powered by/s',
+            PoweredBy::html(Config::fromEnvironment(), accessibilityFeedback: true),
+        );
+        // Other pages' footers don't carry it.
+        self::assertStringNotContainsString('data-accessibility-feedback', PoweredBy::html(Config::fromEnvironment()));
+    }
+
     public function testUnconfiguredDocumentsAreSkippedAndUrlsAreEscaped(): void
     {
         PolicyLinks::useDocuments([

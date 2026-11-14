@@ -362,6 +362,29 @@ foreach ($policyForms as $kind => $form):
       </form>
     </section>
 
+    <!-- #219: where "Report an accessibility problem" leads. admin-accessibility-feedback.js; shown once it loads. -->
+    <form id="accessibility-feedback-settings" class="admin-card form-stack settings-wide feedback-settings" aria-labelledby="feedback-heading" novalidate hidden>
+      <h2 id="feedback-heading">Accessibility feedback</h2>
+      <p class="admin-muted">
+        The sign-in screens and the You page offer “Report an accessibility problem”. Choose where it leads.
+        If reports come to you, please pass problems with ChitChat itself on to the project.
+      </p>
+      <fieldset class="feedback-choices">
+        <legend class="visually-hidden">Where the link leads</legend>
+        <label><input type="radio" name="feedback-choice" value="project"> The ChitChat project (GitHub)</label>
+        <label><input type="radio" name="feedback-choice" value="own"> My own address</label>
+        <label><input type="radio" name="feedback-choice" value="off"> Don’t show a link</label>
+      </fieldset>
+      <div id="feedback-own" class="feedback-own" hidden>
+        <label for="feedback-url">Address <span class="optional-label">a web page starting with https:// or an email address starting with mailto:</span></label>
+        <input id="feedback-url" type="text" inputmode="url" maxlength="2048" spellcheck="false" autocomplete="off" placeholder="https://example.org/accessibility" aria-describedby="feedback-error">
+      </div>
+      <p id="feedback-current" class="admin-muted"></p>
+      <p id="feedback-error" class="error-text" role="alert"></p>
+      <p id="feedback-status" class="admin-muted" role="status" aria-live="polite"></p>
+      <button id="feedback-save" class="secondary-button" type="submit">Save accessibility feedback</button>
+    </form>
+
     <form id="registration-protection-form">
       <section class="admin-card form-stack settings-wide">
         <h2>Registration protection</h2>
@@ -419,6 +442,7 @@ foreach ($policyForms as $kind => $form):
   <script type="module" src="/assets/js/admin-icon.js"></script>
   <script type="module" src="/assets/js/admin-totp.js"></script>
   <script type="module" src="/assets/js/admin-decoration.js"></script>
+  <script type="module" src="/assets/js/admin-accessibility-feedback.js"></script>
   <script type="module" src="/assets/js/shell.js"></script>
 </body>
 </html>
