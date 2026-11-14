@@ -72,9 +72,29 @@ async function roomButtonOrNotice(roomId) {
   return room;
 }
 
+/**
+ * Whether opening this room from a link would join it: for a guest, opening a room they
+ * aren't in joins it (app.js selectRoom), and a link must never join without a click.
+ * Members only ever get the room's preview with its Join button.
+ */
+function openingWouldJoin(button) {
+  return Boolean(document.querySelector('#chat-shell.guest-mode')) && !button.closest('#room-group-yours');
+}
+
+/** Opens the linked room; for a guest's room they aren't in, only shows its row to choose. */
+function openFromLink(button) {
+  if (openingWouldJoin(button)) {
+    button.scrollIntoView({ block: 'nearest' });
+    button.focus({ preventScroll: true });
+    return false;
+  }
+  if (!button.classList.contains('active')) button.click();
+  return true;
+}
+
 async function openRoomLink(roomId) {
   const room = await roomButtonOrNotice(roomId);
-  if (room instanceof HTMLElement && !room.classList.contains('active')) room.click();
+  if (room instanceof HTMLElement) openFromLink(room);
 }
 
 async function navigateToResult({ findContext = null, resolveContext = null, loadButton, messageSelector }) {
@@ -84,7 +104,11 @@ async function navigateToResult({ findContext = null, resolveContext = null, loa
   const context = resolveContext ? await resolveContext() : await waitForElement(findContext);
   if (!(context instanceof HTMLElement)) return;
 
-  if (!context.classList.contains('active')) {
+  if (resolveContext && !context.classList.contains('active')) {
+    // A room link: never joins a guest without a click (see openFromLink).
+    if (!openFromLink(context)) return;
+    await waitForHistoryLoad(loadButton);
+  } else if (!context.classList.contains('active')) {
     context.click();
     await waitForHistoryLoad(loadButton);
   }

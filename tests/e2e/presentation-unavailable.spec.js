@@ -12,7 +12,12 @@ const rooms = [{
 }, {
   id: 2, name: 'Kitchen', key: 'room-2', visibility: 'public', member_role: 'member',
   minimum_age: 0, inactivity_timeout_seconds: 0, info_line: '', unread_count: 0, guest_access: 'none',
+}, {
+  // A public room you aren't in: a link opens its preview, never joins it (#334).
+  id: 3, name: 'Lobby', key: 'room-3', visibility: 'public', member_role: null,
+  minimum_age: 0, inactivity_timeout_seconds: 0, info_line: '', unread_count: 0, guest_access: 'write',
 }];
+const guest = { id: 90, username: 'Guest 4821', roles: ['guest'], guest: true, session_version: 1 };
 const messages = [
   { id: 1, room_id: 1, sender_id: 2, user_id: 2, username: 'Rowan', body: 'Anyone around?', type: 'text', deleted: false, mentions: [], reactions: [], reply_to: null, attachment: null, created_at: '2026-11-12T10:00:00Z' },
 ];
@@ -40,17 +45,19 @@ async function stubEventSource(page) {
   });
 }
 
-async function fixture(page, { overrides = {} } = {}) {
+async function fixture(page, { overrides = {}, user = member } = {}) {
   await stubEventSource(page);
+  const posts = [];
   await page.route('**/api/v1/**', async (route) => {
     const path = new URL(route.request().url()).pathname.replace('/api/v1/', '');
+    if (route.request().method() === 'POST') posts.push(path);
     if (path === 'avatars/show.php') return route.fulfill({ status: 404, body: '' });
     if (path in overrides) {
       const value = overrides[path];
       return Number.isInteger(value?.status) ? route.fulfill({ status: value.status, json: value.json }) : route.fulfill({ json: value });
     }
     const responses = {
-      'session.php': { user: member, csrf_token: 'fixture', registration_enabled: true, sign_in_providers: [] },
+      'session.php': { user, csrf_token: 'fixture', registration_enabled: true, sign_in_providers: [], guest_access: true },
       'rooms/list.php': { rooms },
       'rooms/messages.php': { messages: structuredClone(messages) },
       'rooms/message-mutations.php': { messages: [] },
@@ -71,6 +78,7 @@ async function fixture(page, { overrides = {} } = {}) {
     }
     await route.fulfill({ json: responses[path] ?? {} });
   });
+  return posts;
 }
 
 const toasts = (page) => page.locator('#toast-region');
@@ -129,4 +137,22 @@ test('the room header’s search button searches this room (#318)', async ({ pag
   await expect(page.locator('#message-list article.message')).toHaveCount(1);
   const button = page.getByRole('link', { name: 'Search # The living room' });
   await expect(button).toHaveAttribute('href', '/search.php?room_id=1');
+});
+
+test('a link to a public room you aren’t in opens its preview; for a guest it never joins (#334)', async ({ page }) => {
+  const posts = await fixture(page);
+  await page.goto('/?room_id=3');
+  await expect(page.locator('#room-title')).toContainText('Lobby');
+  await expect(page.locator('#join-button')).toBeVisible();
+  expect(posts).not.toContain('rooms/join.php');
+});
+
+test('for a guest, a link to a room they aren’t in only shows its row: opening would join (#334)', async ({ page }) => {
+  const posts = await fixture(page, { user: guest });
+  await page.goto('/?room_id=3');
+  const lobby = page.locator('#room-list [data-room-id="3"]');
+  await expect(lobby).toBeFocused();
+  await page.waitForTimeout(500);
+  expect(posts).not.toContain('rooms/join.php');
+  await expect(page.locator('#room-title')).not.toContainText('Lobby');
 });
