@@ -6,6 +6,28 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ## [Unreleased]
 
+## [3.14.0] - 2026-11-14
+
+Privacy fixes for direct messages and room links, a configurable "Report an accessibility problem" link, polite screen-reader notices, clear notices for gone rooms and files, lock-manager waits on System status, and web polish. One forward-only migration (`0061`), so back up before upgrading. **Contract change** for callers outside a direct message (two error codes), plus additive API changes. No configuration changes, and nobody is signed out. See the [`v3.14.0` release notes](docs/releases/v3.14.0.md).
+
+- **Contract change, DM privacy (#356, #359; #360, #362):** for a caller who isn't a participant, downloading a deleted DM attachment answers `404 attachment_not_found` (was `410 attachment_deleted`), and DM edit and delete answer `404 message_not_found` for every ID (were `403 message_author_required` and `409 message_already_deleted`). Participants are unchanged.
+
+- Room, message and ping links no longer join a guest silently; a bare `/?room_id=N` opens that room, and gone rooms and files say so at once, as neutral notices (#334, #354, #363, #366).
+
+- `HEAD` on both attachment download endpoints, with GET's status and headers, no body, and no file opened; `Allow` on every 405; exact-case HEAD (#357, #361, #364).
+
+- "Report an accessibility problem" (#219, #368, #371, #374): migration `0061` adds `system_settings.accessibility_feedback_enabled` and `accessibility_feedback_url` (`https://` or `mailto:` only); `GET`/`POST /api/v1/admin/settings/accessibility-feedback/…` (Super-Administrator, step-up for updates); public `session.php` `accessibility_feedback` (`{url}` resolved, or `null` when off); a footer, sign-in and You link with a destination hint; the accessibility statement claims only what's tested and lists the gaps.
+
+- Polite toast region; only error toasts interrupt, as alerts (#369, #372).
+
+- Lock-manager waits: `database.lock_manager_waits` and `_scope` in system status, `chitchat_database_lock_manager_waits` in `/metrics.php`, and a neutral row on System status (#365, #373).
+
+- Room "@" badge from `unread_mention_count`, kept live and cleared on read (#355).
+
+- Web polish from CCM's reads: a one-row composer that grows to `min(10rem, 35dvh)` with one focus ring and no grip, shared composer layout on phones, the hint hidden on touch, two-line room titles, phone chits and sign-in band, and `tests/js/css-structure.test.js` (#351, #352, #256, #358, #366).
+
+- Footer: "Powered by ChitChat" without the exclamation mark (#370).
+
 ## [3.13.0] - 2026-11-14
 
 The web client's S7 redesign sweep (#173): no browser pop-ups, leaving a room from the web, a quieter connection status, error and not-found pages, empty screens with a next step, bottom sheets and large-text layouts on phones, and Activity notices first. No database migrations, no configuration changes, no API changes, and nobody is signed out. **Unknown paths that the web server falls back to `index.php` now answer `404` instead of the chat page with `200`:** point health probes at `/health.php` or `/ready.php`. See the [`v3.13.0` release notes](docs/releases/v3.13.0.md).

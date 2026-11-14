@@ -72,7 +72,7 @@ SQL);
         self::assertArrayHasKey('maintenance_run_rows', $result);
 
         $status = (new SystemStatusService($this->pdo, $config))->forAdministrator($root);
-        self::assertSame('3.13.0', $status['application']['version']);
+        self::assertSame('3.14.0', $status['application']['version']);
         self::assertGreaterThanOrEqual(0.0, $status['database']['query_latency_ms']);
         // A point sample (#365): a count, and whether other roles' backends are visible.
         self::assertIsInt($status['database']['lock_manager_waits']);
