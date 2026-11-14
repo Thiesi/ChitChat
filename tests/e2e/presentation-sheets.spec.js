@@ -107,7 +107,7 @@ test('the help sheet opens at the top on a phone, with focus on Close', async ({
   await openRoom(page, 360);
   const dialog = await DIALOGS[2].open(page);
   await expect(dialog.getByRole('button', { name: 'Close' })).toBeFocused();
-  expect(await dialog.evaluate((node) => node.scrollTop)).toBe(0);
+  await expect.poll(() => dialog.evaluate((node) => node.scrollTop)).toBe(0);
 });
 
 test('the decision dialog is described by the sentence that names its effect', async ({ page }) => {

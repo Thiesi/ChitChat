@@ -200,6 +200,8 @@ export function showCommandHelp(commands) {
   // Focus the way out, but read from the top (on a phone the sheet scrolls, S7).
   close.focus({ preventScroll: true });
   dialog.scrollTop = 0;
+  // WebKit scrolls the focused button into view after this; put the top back on the next frame.
+  window.requestAnimationFrame(() => { dialog.scrollTop = 0; });
 }
 
 function definitionList(entries) {
