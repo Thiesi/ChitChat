@@ -43,7 +43,7 @@ We do not claim conformance with any WCAG level. The automated checks below use 
 - **Search results:** each result's link names the room or conversation and opens the exact message. The excerpt and the sender follow as its description, and the words you searched for are marked in the excerpt. The scope (All, Rooms, Direct) is a radio group, so the arrow keys move between the choices.
 - Navigation tabs with unread items are read with their visible name first, for example "Activity, 3 unread", so voice-control users can say what they see.
 - A "signed out" line on the sign-in screen, for example after signing out on another device, is also announced.
-- **Errors are announced assertively:** short notices about errors and things that "aren't available any more" go to an assertive region, and form errors use alerts.
+- **Short notices are announced assertively:** errors, confirmations such as "Attachment uploaded." and "isn't available any more" notices appear in an assertive live region, so a screen reader may interrupt to read them. Form errors use alerts.
 
 ### Colour, contrast and motion
 
@@ -63,16 +63,18 @@ Every change runs these checks in continuous integration:
 - **Accessibility-tree snapshots** check what assistive technology is given for the conversation, the actions menu and the navigation: roles, names and reading order.
 - **Keyboard tests** drive the conversation (one Tab stop, arrows, Home/End, Enter, Escape, loading older history), the menus, the suggestion lists and the emoji picker without a mouse.
 - **A deeper gate** in Chromium checks core surfaces with axe in both modes, reflow without horizontal scrolling, forced-colours affordances and reduced-motion durations. Forced-colours and reduced-motion emulation is only available in Chromium in our test tool.
+- **Narrow-screen tests** check for no sideways scrolling at 180 and 320 CSS pixels, in all three engines.
 - **A contrast test** reads the shipped colour tokens and checks the contrast floors above for every scheme in light and dark mode.
 
 ### What is not tested
 
 - **No manual testing with screen readers or other assistive technology.** That's the maintainer's decision. Automated checks can't tell whether something is pleasant or efficient to use, only whether certain rules are met.
 - **No conformance audit** against WCAG or any other standard.
-- **Only Chromium** runs the deeper axe gate and the reflow, forced-colours and reduced-motion checks. Forced colours and reduced motion are emulated there, not checked with real Windows Contrast themes.
+- **Only Chromium** runs the deeper axe gate and the forced-colours and reduced-motion checks; the narrow-screen reflow checks run in all three engines. Forced colours and reduced motion are emulated there, not checked with real Windows Contrast themes.
 - **Not tested at all:** speech input, switch access, screen magnifiers and cognitive accessibility.
 - **Known gaps:**
   - Short notices disappear after five or six seconds, and they don't pause on hover or focus.
+  - Confirmations are announced as urgently as errors.
   - Text spacing (WCAG 1.4.12) isn't checked.
   - Right-to-left text and layouts aren't tested.
   - Target size is checked only for the navigation tabs and a few phone controls.
