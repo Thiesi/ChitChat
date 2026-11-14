@@ -17,6 +17,8 @@ require $autoload;
 
 Config::loadEnvFile($root . '/.env');
 $config = Config::fromEnvironment();
+// A page that fails shows the status page, not a blank one (S7); APIs, the CLI and APP_DEBUG are untouched.
+\ChitChat\View\PageErrors::install($config->debug);
 SecurityHeaders::send($config);
 
 return $config;

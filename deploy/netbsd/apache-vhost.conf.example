@@ -30,8 +30,8 @@ SetEnvIf Request_URI "^/api/v1/events/stream\.php$" no-gzip
 
 # Android credential association (#145, the release after v3.5.0). An exact
 # path served by assetlinks.php; an operator's own static file, if present,
-# takes precedence. Without this, FallbackResource would answer with the chat
-# page. Vhost context only (not inside <Directory>/<Location>), and ahead of
+# takes precedence. Without this, FallbackResource would answer with ChitChat's
+# 404 page. Vhost context only (not inside <Directory>/<Location>), and ahead of
 # any dotfile deny.
 RewriteEngine On
 RewriteCond %{DOCUMENT_ROOT}%{REQUEST_URI} !-f
