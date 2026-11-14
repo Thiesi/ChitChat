@@ -184,7 +184,8 @@ test('empty conversations, long names, and user accessibility preferences', asyn
   await page.route('**/api/v1/direct-messages/history.php?**', (route) => route.fulfill({ json: { messages: [] } }));
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/');
-  await expect(page.locator('#empty-state')).toHaveText('No messages yet.');
+  // An empty room says what to do next (S7).
+  await expect(page.locator('#empty-state')).toHaveText('No messages yet. Say hello to start the conversation.');
   for (const width of [1440, 640, 320]) {
     await page.setViewportSize({ width, height: 844 });
     // A long list title (a translation, say) must not push the page sideways.
@@ -198,7 +199,7 @@ test('empty conversations, long names, and user accessibility preferences', asyn
   await page.goto('/messages.php');
   // Phones open on the conversation list, with nothing opened behind it (S2c).
   if ((page.viewportSize()?.width ?? 1280) < 768) await page.locator('#dm-conversation-list .conversation-button').first().click();
-  await expect(page.locator('#dm-empty-state')).toHaveText('No messages yet.');
+  await expect(page.locator('#dm-empty-state')).toHaveText(/^No messages yet\. Say hello to .+\.$/);
   await expect(page.locator('#dm-composer')).toBeVisible();
   await noOverflow(page);
   const [empty, composer] = await Promise.all([page.locator('#dm-empty-state').boundingBox(), page.locator('#dm-composer').boundingBox()]);

@@ -59,11 +59,17 @@
   display: grid;
   gap: 0.45rem;
   margin-bottom: 1rem;
-  padding: 1rem 1.2rem;
+  padding: 0.75rem 1.2rem;
   border: 1px solid var(--line);
   border-radius: 1rem;
   background: var(--raised);
 }
+
+.message-search-notice summary { cursor: pointer; list-style: none; line-height: 1.5; }
+.message-search-notice summary::-webkit-details-marker { display: none; }
+.message-search-notice summary:focus-visible { outline: 2px solid var(--signature-text); outline-offset: 2px; border-radius: 0.3rem; }
+.message-search-more { color: var(--signature-text); font-weight: 600; text-decoration: underline; text-underline-offset: 0.15em; }
+.message-search-notice[open] .message-search-more { display: none; }
 
 .message-search-notice p {
   line-height: 1.5;
