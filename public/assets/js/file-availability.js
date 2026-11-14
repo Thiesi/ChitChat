@@ -7,12 +7,10 @@ import { FILE_UNAVAILABLE, showNotice } from './unavailable.js';
 
 /** Whether the file at this same-site download address is gone (404 or 410). */
 export async function fileGone(url) {
-  // A GET, because the download endpoints accept only GET (HEAD gets 405). The status
-  // arrives with the headers; the body is cancelled before it downloads.
-  const controller = new AbortController();
+  // A HEAD (#357): the download endpoints answer it with exactly GET's status and no body,
+  // so nothing is streamed and nothing reads as a download. Only the status counts.
   try {
-    const response = await fetch(url, { credentials: 'same-origin', cache: 'no-store', signal: controller.signal });
-    controller.abort();
+    const response = await fetch(url, { method: 'HEAD', credentials: 'same-origin', cache: 'no-store' });
     return response.status === 404 || response.status === 410;
   } catch {
     // No answer at all (offline, say): not proof that it's gone.

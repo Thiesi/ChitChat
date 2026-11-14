@@ -30,19 +30,23 @@ const attachments = [
 ];
 
 async function fixture(page) {
+  const downloads = [];
   await page.route('**/api/v1/**', async (route) => {
     const url = new URL(route.request().url());
     const path = url.pathname.replace('/api/v1/', '');
     if (path === 'events/stream.php') return route.fulfill({ contentType: 'text/event-stream', body: 'retry: 600000\n\n' });
     if (path === 'avatars/show.php') return route.fulfill({ status: 404, body: '' });
     if (path === 'attachments/download.php') {
-      // As the real endpoint: GET only (#334 checks with a GET it cancels, not a HEAD).
-      if (route.request().method() !== 'GET') return route.fulfill({ status: 405, json: { error: { code: 'method_not_allowed' } } });
+      // As the real endpoint (#357): GET and HEAD, the same status, and no body for HEAD.
+      const method = route.request().method();
+      if (method !== 'GET' && method !== 'HEAD') return route.fulfill({ status: 405, json: { error: { code: 'method_not_allowed' } } });
       const id = url.searchParams.get('id');
-      if (id === '70') return route.fulfill({ status: 404, json: { error: { code: 'attachment_not_found', message: 'Attachment not found.' } } });
-      if (id === '50') return route.fulfill({ status: 410, json: { error: { code: 'attachment_deleted', message: 'Attachment deleted.' } } });
-      if (id === '80') return route.fulfill({ contentType: 'image/png', body: 'not really a png' });
-      return route.fulfill({ contentType: 'text/plain', headers: { 'Content-Disposition': 'attachment; filename="notes.txt"' }, body: 'hello there\n' });
+      downloads.push(`${method} ${id}`);
+      const answer = (options) => route.fulfill(method === 'HEAD' ? { ...options, json: undefined, body: '' } : options);
+      if (id === '70') return answer({ status: 404, json: { error: { code: 'attachment_not_found', message: 'Attachment not found.' } } });
+      if (id === '50') return answer({ status: 410, json: { error: { code: 'attachment_deleted', message: 'Attachment deleted.' } } });
+      if (id === '80') return answer({ contentType: 'image/png', body: 'not really a png' });
+      return answer({ contentType: 'text/plain', headers: { 'Content-Disposition': 'attachment; filename="notes.txt"' }, body: 'hello there\n' });
     }
     const responses = {
       'session.php': { user: viewer, csrf_token: 'fixture', registration_enabled: true, sign_in_providers: [] },
@@ -60,15 +64,17 @@ async function fixture(page) {
     };
     await route.fulfill({ json: responses[path] ?? {} });
   });
+  return downloads;
 }
 
 const card = (page, id) => page.locator(`#message-list article[data-message-id="${id}"] .attachment-card`);
 
 async function open(page) {
-  await fixture(page);
+  const downloads = await fixture(page);
   await page.goto('/');
   await expect(page.locator('#message-list article.message')).toHaveCount(4);
   await expect(card(page, 4)).toHaveCount(1);
+  return downloads;
 }
 
 test('a gone image’s preview says the file isn’t available, and stops linking to it', async ({ page }) => {
@@ -88,21 +94,25 @@ test('an image that’s there but doesn’t show keeps "Preview unavailable" and
 });
 
 test('a gone file’s download link says so and the page stays put; a file that’s there downloads', async ({ page }) => {
-  await open(page);
+  const downloads = await open(page);
   const before = page.url();
   await card(page, 2).getByRole('link', { name: 'rules.pdf' }).click();
   await expect(page.locator('#toast-region')).toContainText('This file isn’t available any more.');
   expect(page.url()).toBe(before);
+  // The check is a HEAD (#357): a gone file is never fetched at all.
+  expect(downloads).toContain('HEAD 50');
+  expect(downloads).not.toContain('GET 50');
   await card(page, 1).getByRole('link', { name: 'board.png' }).click();
   await expect(page.locator('#toast-region')).toContainText('This file isn’t available any more.');
 
-  // A file that's there: after its check, the browser asks for the file itself (a GET; the
-  // server answers with a download). The request is what's engine-independent: a local
+  // A file that's there: after its HEAD check, the browser asks for the file itself (a GET;
+  // the server answers with a download). The request is what's engine-independent: a local
   // Windows WebKit build reports no download event even for a plain link.
-  // The check is a GET too, so wait for the navigation's own request (a document request).
   const fetched = page.waitForRequest((request) => request.method() === 'GET' && request.resourceType() === 'document' && /attachments\/download\.php\?id=60/.test(request.url()));
   await card(page, 4).getByRole('link', { name: 'notes.txt' }).click();
   await fetched;
   expect(page.url()).toBe(before);
+  // Its check came first, as a HEAD (the GET itself is awaited above; the route may log it later).
+  expect(downloads.find((entry) => entry.endsWith(' 60'))).toBe('HEAD 60');
 });
 
