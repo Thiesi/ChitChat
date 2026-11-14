@@ -300,6 +300,9 @@ form:has(.attachment-selection > button:not(.hidden)) .attachment-button {
   white-space: nowrap;
 }
 
+/* A gone file's name: plain ink, no link (S8). */
+.attachment-download:not([href]) { color: var(--text); font-weight: 600; text-decoration: none; cursor: default; }
+
 .attachment-metadata {
   color: var(--text-muted);
   font-size: 0.76rem;

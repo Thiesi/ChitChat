@@ -1361,13 +1361,24 @@ button.user-name.mention { padding: 0 0.2rem; border-radius: 0.25rem; background
   box-shadow: 0 5px 20px var(--shadow-soft);
 }
 
-.composer:focus-within { border-color: var(--signature-text); }
+/* One focus ring (S8 B): the composer's border, 2px, while its message field has focus.
+   The field draws none of its own; attach, emoji and Send keep their own rings. */
+:is(.composer, .dm-composer):has(textarea:focus) {
+  border-color: var(--signature-text);
+  box-shadow: 0 0 0 1px var(--signature-text), 0 5px 20px var(--shadow-soft);
+}
+:is(.composer, .dm-composer) textarea:focus { outline: none; }
+/* Forced colours drop box-shadow, so there the field keeps its own system-colour outline. */
+@media (forced-colors: active) {
+  :is(.composer, .dm-composer) textarea:focus { outline: 2px solid CanvasText; }
+}
 .composer .primary-button { min-height: 3rem; margin-right: 0.2rem; }
 
 .composer textarea {
   /* One row when empty, growing with the text (autosize.js) up to the max; no grip (#256). */
   min-height: 3rem;
-  max-height: 10rem;
+  /* At zoom the cap is a third of the screen at most, so the conversation stays in view (S8). */
+  max-height: min(10rem, 35dvh);
   resize: none;
   border-color: transparent;
   background: transparent;
@@ -1407,6 +1418,11 @@ button.user-name.mention { padding: 0 0.2rem; border-radius: 0.25rem; background
 .toast.error {
   border-color: var(--error);
 }
+
+/* A level-1 notice (S8 C): "isn't available any more" is information, not an error, so it
+   keeps the neutral line and no colour of its own. It has nothing to press, so clicks pass
+   through it to the header controls it may cover for its few seconds. */
+.toast.notice { pointer-events: none; }
 
 /* Too narrow for a third column: the members panel overlays the chat. */
 @media (max-width: 64rem) {
@@ -1460,7 +1476,8 @@ button.user-name.mention { padding: 0 0.2rem; border-radius: 0.25rem; background
   .room-button { padding: 0.65rem 0.75rem; font-size: 0.95rem; }
 
   .room-header { gap: 0.35rem; padding: 0.5rem 0.5rem 0.5rem 0.4rem; border-radius: 0; }
-  .room-heading h2 { overflow: hidden; font-size: 1.25rem; text-overflow: ellipsis; white-space: nowrap; }
+  /* Two lines before it truncates (S8). */
+  .room-heading h2 { display: -webkit-box; overflow: hidden; font-size: 1.25rem; line-height: 1.2; overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
   .header-actions { gap: 0.1rem; }
   .header-button { min-width: 2.75rem; height: 2.75rem; padding: 0 0.45rem; }
   .header-divider, .header-search { display: none; }
@@ -1519,8 +1536,9 @@ button.user-name.mention { padding: 0 0.2rem; border-radius: 0.25rem; background
   /* No resize grip on a field this narrow: it sat over the end of the placeholder (#351).
      The field still scrolls with its text. */
   :is(#composer-input, #dm-message-input) { resize: none; }
-  /* The direct composer's side margins (messages.css) would eat a quarter of the row. */
-  #dm-composer { margin: 0.4rem 0.5rem; }
+  /* The direct composer's side margins (messages.css) would eat a quarter of the row; it
+     sits at the room composer's gutter (S8b). */
+  #dm-composer { margin: 0.4rem 0.65rem; }
   /* Three rows to start with is a lot of a 180 px screen; it still grows as you type. */
   /* Keyboard advice (Enter sends…) is for keyboards; on a phone this narrow it was five lines. */
   .composer-help { display: none; }
@@ -1551,7 +1569,8 @@ button.user-name.mention { padding: 0 0.2rem; border-radius: 0.25rem; background
      row under it. The field's wrapper steps aside (display: contents) so its parts sit
      in the composer's own grid. Scoped to both composers, since components.css loads
      after this file with the plain selectors. */
-  :is(.composer, .dm-composer) { grid-template-columns: auto auto minmax(0, 1fr) auto; gap: 0.25rem 0.35rem; padding: 0.4rem; }
+  /* form: outranks messages.css's .dm-composer grid (loaded later), so both composers share this (S8 A). */
+  form:is(.composer, .dm-composer) { grid-template-columns: auto auto minmax(0, 1fr) auto; gap: 0.25rem 0.35rem; padding: 0.4rem; }
   :is(.composer, .dm-composer) .composer-field { display: contents; }
   :is(.composer, .dm-composer) .composer-field textarea { grid-column: 1 / -1; grid-row: 1; padding-inline: 0.75rem; }
   :is(.composer, .dm-composer) .composer-field .attachment-button { position: static; grid-row: 2; grid-column: 1; }

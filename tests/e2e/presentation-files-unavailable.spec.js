@@ -82,6 +82,10 @@ test('a gone image’s preview says the file isn’t available, and stops linkin
   const box = card(page, 1).locator('.image-box');
   await expect(box.locator('.image-box-unavailable')).toHaveText('This file isn’t available any more.');
   await expect(box).not.toHaveAttribute('href', /./);
+  // Its name stays, as plain text: nothing left to open (S8).
+  const name = card(page, 1).locator('.attachment-download');
+  await expect(name).toHaveText('board.png');
+  await expect(name).not.toHaveAttribute('href', /./);
 });
 
 test('an image that’s there but doesn’t show keeps "Preview unavailable" and its link', async ({ page }) => {
@@ -99,11 +103,16 @@ test('a gone file’s download link says so and the page stays put; a file that�
   await card(page, 2).getByRole('link', { name: 'rules.pdf' }).click();
   await expect(page.locator('#toast-region')).toContainText('This file isn’t available any more.');
   expect(page.url()).toBe(before);
+  // A neutral notice that clicks pass through (S8 C); the name is now text.
+  const notice = page.locator('#toast-region .toast', { hasText: 'This file isn’t available any more.' });
+  await expect(notice).not.toHaveClass(/\berror\b/);
+  await expect(notice).toHaveCSS('pointer-events', 'none');
+  await expect(card(page, 2).locator('.attachment-download')).not.toHaveAttribute('href', /./);
   // The check is a HEAD (#357): a gone file is never fetched at all.
   expect(downloads).toContain('HEAD 50');
   expect(downloads).not.toContain('GET 50');
-  await card(page, 1).getByRole('link', { name: 'board.png' }).click();
-  await expect(page.locator('#toast-region')).toContainText('This file isn’t available any more.');
+  // board.png's preview already said it's gone, so its name is text now, not a link (S8).
+  await expect(card(page, 1).getByRole('link', { name: 'board.png' })).toHaveCount(0);
 
   // A file that's there: after its HEAD check, the browser asks for the file itself (a GET;
   // the server answers with a download). The request is what's engine-independent: a local
