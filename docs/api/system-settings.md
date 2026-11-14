@@ -121,6 +121,47 @@ Both require a Super-Administrator; the update also requires the current `X-CSRF
 
 The value is `off`, `winter`, `spring` or `celebration`; anything else is `400 validation_error`. Both endpoints return `{"sign_in_decoration": {"value": "winter", "options": ["off", "winter", "spring", "celebration"]}}`, with `options` in the order a select offers them. A change is audited as `system.sign_in_decoration_updated` with `old` and `new`; saving the current value again is a successful no-op without an audit entry. No account is notified. `session.php` publishes the choice as `sign_in_decoration` (see [Session bootstrap](session.md)).
 
+## Accessibility feedback
+
+```text
+GET  /api/v1/admin/settings/accessibility-feedback/get.php
+POST /api/v1/admin/settings/accessibility-feedback/update.php
+```
+
+Both require a Super-Administrator; the update also requires the current `X-CSRF-Token` and active privileged step-up (without it: `403 step_up_required`, and nothing changes). It sets where the apps' "Report an accessibility problem" link leads (#219).
+
+```json
+{ "enabled": true, "url": "mailto:access@example.org" }
+```
+
+Both fields are required.
+
+- `enabled: false` hides the link everywhere. A saved `url` is kept, so switching the link back on restores it.
+- `url: null` (the default) means the ChitChat project's issue form, `https://github.com/Thiesi/ChitChat/issues/new?template=accessibility.yml`.
+- Otherwise `url` is the operator's own page or mailbox, and must be:
+  - `https://` followed by a host, with no user name or password; or
+  - `mailto:` followed by one valid e-mail address, optionally with `?subject=…` and similar;
+  - lower-case scheme, printable ASCII only (no spaces, control or non-ASCII characters), at most 2,048 characters.
+
+  Anything else, including `http:`, `javascript:`, `data:` or a bare host, is `400 validation_error`. The database enforces the scheme, the character set and the length as well.
+
+Both endpoints return:
+
+```json
+{
+  "accessibility_feedback": {
+    "enabled": true,
+    "url": null,
+    "default_url": "https://github.com/Thiesi/ChitChat/issues/new?template=accessibility.yml",
+    "effective_url": "https://github.com/Thiesi/ChitChat/issues/new?template=accessibility.yml"
+  }
+}
+```
+
+`effective_url` is what the apps show, or `null` when the link is off. A change is audited as `system.accessibility_feedback_updated` with `old` and `new` (`enabled` and `url` each); saving the current values again is a successful no-op without an audit entry. No account is notified. `session.php` publishes the resolved link as `accessibility_feedback` (see [Session bootstrap](session.md#accessibility-feedback)).
+
+Operators who route reports to themselves are asked to pass problems with ChitChat itself on to the project's issue form.
+
 ## Registration protection
 
 ```text
