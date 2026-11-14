@@ -190,7 +190,7 @@ function renderNotification(notification) {
   if (leadsWithMessage) {
     const kindLabel = document.createElement('p');
     kindLabel.className = 'activity-kind';
-    kindLabel.textContent = titleText;
+    kindLabel.textContent = presentation.type ?? titleText;
     body.append(kindLabel);
   }
 

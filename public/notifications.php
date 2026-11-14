@@ -40,18 +40,12 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
 
 
     <section class="account-card" aria-labelledby="privacy-notifications-heading">
+      <!-- Notices first (S7h, CCM J-read): the heading with Mark all as read beside it,
+           then the list; what these notices are sits underneath, one click away. -->
       <div class="privacy-notifications-heading-row">
-        <div>
-          <p class="account-eyebrow">Security and transparency</p>
-          <h2 id="privacy-notifications-heading">Events affecting your account or content</h2>
-        </div>
-        <button id="privacy-notifications-mark-all" class="secondary-button" type="button" disabled>Mark all as read</button>
+        <h2 id="privacy-notifications-heading">Your notices</h2>
+        <button id="privacy-notifications-mark-all" class="text-button" type="button" disabled>Mark all as read</button>
       </div>
-
-      <p>
-        These durable notices disclose selected administrative and moderation actions without copying message bodies,
-        administrator reasons, IP addresses, credentials, or recovery material into the notification record.
-      </p>
 
       <p id="privacy-notifications-status" class="account-muted" role="status" aria-live="polite"></p>
       <ol id="privacy-notifications-list" class="privacy-notification-list" aria-label="Notifications"></ol>
@@ -60,6 +54,14 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
       <div class="account-action-row">
         <button id="privacy-notifications-more" class="secondary-button hidden" type="button">Load older notifications</button>
       </div>
+
+      <details class="activity-about">
+        <summary>About these notices</summary>
+        <p>
+          These durable notices disclose selected administrative and moderation actions without copying message bodies,
+          administrator reasons, IP addresses, credentials, or recovery material into the notification record.
+        </p>
+      </details>
     </section>
 
     <p id="privacy-notifications-error" class="error-text" role="alert"></p>

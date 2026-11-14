@@ -360,3 +360,12 @@
   .lantern, .pebble { border: 1px solid CanvasText; }
   .lantern.glow { outline: 2px solid Highlight; outline-offset: 2px; }
 }
+
+/* R2 (S7h): on a narrow phone the encryption line is short words, which wrap rather than
+   truncate, so "Learn more" is never cut off. The accessible name stays the full sentence. */
+.privacy-short { display: none; }
+@media (max-width: 24rem) {
+  .privacy-line { padding-block: 0.35rem; font-size: 0.88rem; }
+  .privacy-line:not([open]) .privacy-long { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .privacy-line:not([open]) .privacy-short { display: inline; }
+}

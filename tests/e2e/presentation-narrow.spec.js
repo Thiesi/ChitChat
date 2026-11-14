@@ -128,7 +128,7 @@ const SCREENS = [
       if (phone(page)) await page.locator('#room-list .room-button', { hasText: 'The living room' }).click();
       await expect(page.locator('#message-list article.message')).toHaveCount(6);
       await page.locator('#members-toggle').click();
-      await page.getByRole('button', { name: /^Leave # / }).click();
+      await page.getByRole('button', { name: 'Leave room…' }).click();
       await expect(page.getByRole('dialog')).toBeVisible();
     },
   },
@@ -190,3 +190,80 @@ for (const width of [180, 320]) {
     await expect(page.locator('.composer-help.member-only')).toBeHidden();
   });
 }
+
+// S7h (CCM J-read S1, S4): notices and results come first on small screens.
+for (const [width, height] of [[360, 780], [640, 450], [180, 390]]) {
+  test(`${width}×${height}: Activity's first notice starts in the first view; search brings its results up`, async ({ page }) => {
+    await page.setViewportSize({ width, height });
+    await fixture(page);
+    await page.goto('/notifications.php');
+    await expect(page.locator('#privacy-notifications-status')).toContainText('unread');
+    const first = await page.locator('.activity-item').first().boundingBox();
+    expect(first.y, 'the first notice starts within the first view').toBeLessThan(height);
+    await expect(page.locator('details.activity-about summary')).toHaveText('About these notices');
+
+    await page.goto('/search.php');
+    await page.locator('#message-search-query').fill('weather');
+    await page.locator('#message-search-query').press('Enter');
+    await expect(page.locator('#message-search-results > li')).toHaveCount(2);
+    await expect(page.locator('#message-search-status')).toBeInViewport();
+  });
+}
+
+test('180 CSS px: the direct encryption line keeps its words and Learn more in view (R2)', async ({ page }) => {
+  await page.setViewportSize({ width: 180, height: 390 });
+  await fixture(page);
+  await page.goto('/messages.php?user=2');
+  await page.locator('#dm-conversation-list .conversation-button').first().click();
+  const line = page.locator('#dm-privacy-notice summary');
+  await expect(line.locator('.privacy-short')).toHaveText('Not end-to-end encrypted');
+  await expect(line.locator('.privacy-more')).toBeInViewport({ ratio: 1 });
+  expect(await line.evaluate((node) => node.scrollWidth <= node.clientWidth)).toBe(true);
+  await expect(line).toHaveAccessibleName(/Direct messages aren’t end-to-end encrypted\./);
+});
+
+// CCM's S7h read (H1–H6): the desktop paths, and exactly one scope control at any width.
+for (const width of [1280, 385, 384, 360]) {
+  test(`${width} CSS px: exactly one "Search in" control is shown and exposed (H1)`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 800 });
+    await fixture(page);
+    await page.goto('/search.php');
+    await page.locator('#message-search-query').waitFor();
+    const chips = page.getByRole('group', { name: 'Search in' });
+    const select = page.getByRole('combobox', { name: 'Search in' });
+    expect((await chips.count()) + (await select.count()), 'one control in the accessibility tree').toBe(1);
+    await expect(width <= 384 ? select : chips).toBeVisible();
+  });
+}
+
+for (const [width, height] of [[1280, 900], [640, 450]]) {
+  test(`${width} CSS px: read rows are regular, page eyebrows muted, Mark all as read sized and end-aligned (H2–H5)`, async ({ page }) => {
+    await page.setViewportSize({ width, height });
+    await fixture(page);
+    await page.goto('/notifications.php');
+    await page.locator('.activity-item').first().waitFor();
+    const weights = await page.locator('.activity-item').evaluateAll((items) => items.map((item) => [item.classList.contains('privacy-notification-unread'), Number(getComputedStyle(item.querySelector('.activity-lead')).fontWeight)]));
+    for (const [unread, weight] of weights) expect(weight, unread ? 'unread' : 'read').toBe(unread ? 800 : 400);
+    const muted = await page.evaluate(() => getComputedStyle(document.querySelector('.account-muted')).color);
+    const eyebrow = page.locator('#privacy-notifications-shell > .account-header .account-eyebrow');
+    if (width >= 768) await expect(eyebrow).toHaveCSS('color', muted);
+    else await expect(eyebrow).toBeHidden();
+    const mark = page.getByRole('button', { name: 'Mark all as read' });
+    await expect(mark).toHaveCSS('font-size', '16px');
+    const [box, row] = await Promise.all([mark.boundingBox(), page.locator('.privacy-notifications-heading-row').boundingBox()]);
+    expect(box.height).toBeGreaterThanOrEqual(24);
+    expect(Math.abs(box.x + box.width - (row.x + row.width)), 'end-aligned on the heading row').toBeLessThanOrEqual(1);
+
+    await page.goto('/search.php');
+    await page.locator('#message-search-query').waitFor();
+    if (width >= 768) await expect(page.locator('.message-search-eyebrow')).toHaveCSS('color', muted);
+  });
+}
+
+test('360 CSS px: the day heading stays eyebrow-sized (H6)', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 780 });
+  await fixture(page);
+  await page.goto('/notifications.php');
+  const size = await page.locator('.activity-day-heading').first().evaluate((node) => parseFloat(getComputedStyle(node).fontSize));
+  expect(size).toBeLessThan(14);
+});

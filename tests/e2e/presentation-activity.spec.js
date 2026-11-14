@@ -107,7 +107,8 @@ test('every kind in the table has its mark and leads with the server’s words',
     else await expect(link, `${id}`).toHaveCount(0);
   }
   // A conversation kind keeps its generic title as a small label; others keep their message and details.
-  await expect(item(page, 60).locator('.activity-kind')).toHaveText('You were mentioned');
+  // The small label is the kind, not a second copy of the sentence (S7h).
+  await expect(item(page, 60).locator('.activity-kind')).toHaveText('Mention');
   await expect(item(page, 52).locator('.activity-message')).toHaveText('A Super-Administrator changed one or more installation policies.');
   await expect(item(page, 52).locator('.privacy-notification-details li')).toHaveText(['Guest access: on']);
   // The pebble takes the person's hue from the server's own link.

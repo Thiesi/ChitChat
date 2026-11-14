@@ -49,10 +49,10 @@ const DIALOGS = [
     name: 'decision (Leave room)',
     open: async (page) => {
       await page.locator('#members-toggle').click();
-      await page.getByRole('button', { name: 'Leave # Garden…' }).click();
-      return page.getByRole('dialog', { name: 'Leave # Garden?' });
+      await page.getByRole('button', { name: 'Leave room…' }).click();
+      return page.getByRole('dialog', { name: 'Leave Garden?' });
     },
-    opener: (page) => page.getByRole('button', { name: 'Leave # Garden…' }),
+    opener: (page) => page.getByRole('button', { name: 'Leave room…' }),
   },
   {
     name: 'form (Create room)',

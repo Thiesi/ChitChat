@@ -44,6 +44,7 @@ function bindElements() {
     'message-search-room',
     'message-search-room-name',
     'message-search-room-clear',
+    'message-search-scope-select',
   ]) {
     const element = document.getElementById(id);
     if (!element) throw new Error(`Missing message-search interface element: ${id}`);
@@ -59,6 +60,17 @@ function bindEvents() {
     if (state.query) void runSearch({ replace: true });
     else updateAddress();
   });
+  // S4: the narrow-screen select and the chips are one choice.
+  elements['message-search-scope-select'].addEventListener('change', () => {
+    const chip = elements['message-search-scope'].querySelector(`input[value="${elements['message-search-scope-select'].value}"]`);
+    if (chip) {
+      chip.checked = true;
+      chip.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+  });
+  elements['message-search-scope'].addEventListener('change', () => {
+    elements['message-search-scope-select'].value = selectedScope();
+  });
   elements['message-search-room-clear'].addEventListener('click', async () => {
     setRoom(null);
     // The button goes away with the chip: focus returns to the words, after the search re-runs.
@@ -72,6 +84,7 @@ function setRoom(room) {
   state.room = room;
   elements['message-search-room'].hidden = room === null;
   elements['message-search-scope'].hidden = room !== null;
+  elements['message-search-scope-select'].closest('label').hidden = room !== null;
   elements['message-search-room-name'].textContent = room ? `In # ${room.name}` : '';
   updateAddress();
 }
@@ -116,6 +129,7 @@ async function bootstrap() {
   const chosen = SCOPES.includes(scope) ? scope : 'all';
   const chip = elements['message-search-scope'].querySelector(`input[value="${chosen}"]`);
   if (chip) chip.checked = true;
+  elements['message-search-scope-select'].value = chosen;
   const roomId = Number(parameters.get('room_id'));
   if (Number.isInteger(roomId) && roomId > 0) await loadRoomFilter(roomId);
   elements['message-search-query'].focus();
@@ -182,6 +196,10 @@ async function runSearch({ replace, offset = 0 }) {
       elements['message-search-status'].textContent = `${state.resultCount} results shown. More results are available.`;
     } else {
       elements['message-search-status'].textContent = `${state.resultCount} ${state.resultCount === 1 ? 'result' : 'results'} shown.`;
+    }
+    // On a narrow screen the form fills the first view: bring the result count up (S4).
+    if (replace && window.matchMedia('(max-width: 47.99rem)').matches) {
+      elements['message-search-status'].scrollIntoView({ block: 'start', behavior: 'auto' });
     }
   } catch (error) {
     if (state.room && error instanceof ApiError && error.code === 'room_not_found') {
@@ -309,6 +327,7 @@ function setBusy(busy) {
   elements['message-search-submit'].disabled = busy;
   elements['message-search-more'].disabled = busy;
   elements['message-search-room-clear'].disabled = busy;
+  elements['message-search-scope-select'].disabled = busy;
 }
 
 function clearError() {

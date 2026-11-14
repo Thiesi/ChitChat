@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
-// #299, S7 (#173): leaving a room from the web. "Leave # Room…" sits at the
+// #299, S7 (#173): leaving a room from the web. "Leave room…" sits at the
 // foot of the room's Members panel, asks in the shared decision dialog (a
 // private room says getting back in needs a new invitation), and afterwards
 // the next room of yours opens without a reload. The owner is told the way out
@@ -69,9 +69,9 @@ test('a member leaves a public room: asked first, Cancel first; then the next ro
   page.on('dialog', (dialog) => { native += 1; void dialog.dismiss(); });
   const requests = await fixture(page, { rooms: [room(1, 'Garden'), room(2, 'Kitchen')] });
   await openPanel(page, 'Garden');
-  const leave = panel(page).getByRole('button', { name: 'Leave # Garden…' });
+  const leave = panel(page).getByRole('button', { name: 'Leave room…' });
   await leave.click();
-  const ask = page.getByRole('dialog', { name: 'Leave # Garden?' });
+  const ask = page.getByRole('dialog', { name: 'Leave Garden?' });
   await expect(ask).toContainText('You stop getting its messages. You can join again from the room list any time.');
   await expect(ask.getByRole('button', { name: 'Cancel' })).toBeFocused();
   await page.keyboard.press('Escape');
@@ -79,19 +79,19 @@ test('a member leaves a public room: asked first, Cancel first; then the next ro
   expect(left(requests)).toHaveLength(0);
 
   await leave.click();
-  await page.getByRole('dialog', { name: 'Leave # Garden?' }).getByRole('button', { name: 'Leave room' }).click();
+  await page.getByRole('dialog', { name: 'Leave Garden?' }).getByRole('button', { name: 'Leave room' }).click();
   await expect(page.locator('#toast-region')).toContainText('You left # Garden.');
   expect(left(requests)).toEqual([{ path: 'rooms/leave.php', body: { room_id: 1 } }]);
   await expect(page.locator('#room-title')).toContainText('Kitchen');
-  await expect(panel(page).getByRole('button', { name: 'Leave # Kitchen…' })).toBeVisible();
+  await expect(panel(page).getByRole('button', { name: 'Leave room…' })).toBeVisible();
   expect(native).toBe(0);
 });
 
 test('a private room says getting back in needs a new invitation, and drops out of the list', async ({ page }) => {
   await fixture(page, { rooms: [room(1, 'Back room', { visibility: 'private' }), room(2, 'Kitchen')] });
   await openPanel(page, 'Back room');
-  await panel(page).getByRole('button', { name: 'Leave # Back room…' }).click();
-  const ask = page.getByRole('dialog', { name: 'Leave # Back room?' });
+  await panel(page).getByRole('button', { name: 'Leave room…' }).click();
+  const ask = page.getByRole('dialog', { name: 'Leave Back room?' });
   await expect(ask).toContainText('You stop getting its messages. Getting back in needs a new invitation.');
   await ask.getByRole('button', { name: 'Leave room' }).click();
   await expect(page.locator('#room-title')).toContainText('Kitchen');
@@ -101,7 +101,7 @@ test('a private room says getting back in needs a new invitation, and drops out 
 test('the owner is told the way out instead of being asked, and nothing is sent', async ({ page }) => {
   const requests = await fixture(page, { rooms: [room(1, 'Garden', { member_role: 'owner' })] });
   await openPanel(page, 'Garden');
-  await panel(page).getByRole('button', { name: 'Leave # Garden…' }).click();
+  await panel(page).getByRole('button', { name: 'Leave room…' }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.locator('#room-leave-note')).toHaveText('You own # Garden, so you can’t leave it yet. Make someone else the owner first: open their name and choose Make owner…');
   expect(left(requests)).toHaveLength(0);
@@ -113,8 +113,8 @@ test('if the server says the member has just become the owner (409), the same se
     overrides: { 'rooms/leave.php': { status: 409, json: { error: { code: 'owner_cannot_leave', message: 'The room owner cannot leave the room.' } } } },
   });
   await openPanel(page, 'Garden');
-  await panel(page).getByRole('button', { name: 'Leave # Garden…' }).click();
-  await page.getByRole('dialog', { name: 'Leave # Garden?' }).getByRole('button', { name: 'Leave room' }).click();
+  await panel(page).getByRole('button', { name: 'Leave room…' }).click();
+  await page.getByRole('dialog', { name: 'Leave Garden?' }).getByRole('button', { name: 'Leave room' }).click();
   await expect(page.locator('#room-leave-note')).toHaveText(/^You own # Garden, so you can’t leave it yet\./);
   await expect(page.locator('#toast-region')).not.toContainText('The room owner cannot leave the room.');
 });
@@ -134,7 +134,7 @@ for (const [scheme, theme] of [['lantern', 'light'], ['lantern', 'dark'], ['dusk
     await fixture(page, { rooms: [room(1, 'Garden', { member_role: 'owner' }), room(2, 'Kitchen')] });
     for (const width of [1280, 360]) {
       await openPanel(page, 'Garden', width);
-      await panel(page).getByRole('button', { name: 'Leave # Garden…' }).click();
+      await panel(page).getByRole('button', { name: 'Leave room…' }).click();
       await expect(page.locator('#room-leave-note')).not.toBeEmpty();
       await page.mouse.move(0, 0);
       await page.waitForTimeout(250);
@@ -147,8 +147,8 @@ for (const [scheme, theme] of [['lantern', 'light'], ['lantern', 'dark'], ['dusk
     await page.goto('/');
     await page.locator('#room-list .room-button', { hasText: 'Kitchen' }).click();
     await page.locator('#members-toggle').click();
-    await panel(page).getByRole('button', { name: 'Leave # Kitchen…' }).click();
-    await expect(page.getByRole('dialog', { name: 'Leave # Kitchen?' })).toBeVisible();
+    await panel(page).getByRole('button', { name: 'Leave room…' }).click();
+    await expect(page.getByRole('dialog', { name: 'Leave Kitchen?' })).toBeVisible();
     await page.waitForTimeout(250);
     const result = await new AxeBuilder({ page }).include('dialog').withTags(WCAG).analyze();
     expect(result.violations, `dialog: ${result.violations.map((violation) => violation.id).join(', ')}`).toEqual([]);

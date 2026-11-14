@@ -861,7 +861,8 @@ function renderLeave(room) {
   if (!box || !button || !note) return;
   box.hidden = !room || room.member_role === null || room.member_role === undefined;
   if (box.hidden) return;
-  button.textContent = `Leave # ${room.name}…`;
+  // The panel is the room's own; the dialog names it (S7h copy).
+  button.textContent = 'Leave room…';
   button.dataset.roomId = String(room.id);
   // The note stays for the room it was written about, and goes when another room opens.
   if (note.dataset.roomId !== String(room.id)) {
@@ -885,7 +886,7 @@ async function leaveCurrentRoom() {
     return;
   }
   const confirmed = await confirmAction({
-    title: `Leave # ${room.name}?`,
+    title: `Leave ${room.name}?`,
     text: room.visibility === 'public'
       ? 'You stop getting its messages. You can join again from the room list any time.'
       : 'You stop getting its messages. Getting back in needs a new invitation.',

@@ -92,7 +92,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
       </header>
       <!-- One line, with the detail a click away (#163 voice). -->
       <details id="dm-privacy-notice" class="privacy-line">
-        <summary><span id="dm-privacy-heading">Direct messages aren’t end-to-end encrypted.</span> <span class="privacy-more">Learn more</span></summary>
+        <summary><span id="dm-privacy-heading"><span class="privacy-long">Direct messages aren’t end-to-end encrypted.</span><span class="privacy-short" aria-hidden="true">Not end-to-end encrypted</span></span> <span class="privacy-more">Learn more</span></summary>
         <p id="dm-privacy-text"></p>
         <p>Edits and deletions preserve historical bodies until direct-message retention removes the message. Administrative revision review is separately configurable, requires a stated reason, and is audited when enabled.</p>
       </details>
@@ -118,7 +118,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
           </div>
           <div class="composer-field">
             <label class="visually-hidden" for="dm-message-input">Direct message or attachment caption</label>
-            <textarea id="dm-message-input" maxlength="4000" rows="3" placeholder="Write a direct message…"></textarea>
+            <textarea id="dm-message-input" maxlength="4000" rows="3" placeholder="Write a message…"></textarea>
             <button id="dm-emoji-button" class="emoji-button" type="button" aria-label="Insert emoji" title="Insert emoji">
               <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
             </button>

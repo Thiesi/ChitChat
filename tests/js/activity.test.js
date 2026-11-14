@@ -21,9 +21,9 @@ test('every kind has a mark, a lead and an action label (or none)', () => {
 });
 
 test('the addendum’s table: marks and what leads', () => {
-  assert.deepEqual(kindPresentation('mentioned'), { icon: 'mention', lead: 'message', action: 'View message' });
-  assert.deepEqual(kindPresentation('pinged'), { icon: 'bell', lead: 'message', action: 'View ping' });
-  assert.deepEqual(kindPresentation('direct_message_received'), { icon: 'pebble', lead: 'message', action: 'Open conversation' });
+  assert.deepEqual(kindPresentation('mentioned'), { icon: 'mention', lead: 'message', action: 'View message', type: 'Mention' });
+  assert.deepEqual(kindPresentation('pinged'), { icon: 'bell', lead: 'message', action: 'View ping', type: 'Ping' });
+  assert.deepEqual(kindPresentation('direct_message_received'), { icon: 'pebble', lead: 'message', action: 'Open conversation', type: 'Direct message' });
   assert.deepEqual(kindPresentation('username_change_required'), { icon: 'shield', lead: 'title', action: 'Choose a username' });
   assert.equal(kindPresentation('avatar_removed').icon, 'shield');
   assert.equal(kindPresentation('moderator_message_deleted').icon, 'shield');
@@ -32,8 +32,11 @@ test('the addendum’s table: marks and what leads', () => {
   assert.equal(kindPresentation('room_restored').action, 'Open room');
   // #300: a room handed to you, or handed on: the server's sentence leads, and its link opens the room.
   for (const kind of ['room_ownership_received', 'room_ownership_removed']) {
-    assert.deepEqual(kindPresentation(kind), { icon: 'lantern', lead: 'message', action: 'Open room' });
+    assert.deepEqual(kindPresentation(kind), { icon: 'lantern', lead: 'message', action: 'Open room', type: 'Room ownership' });
   }
+  // S7h: the small label is the kind; kinds that lead with their title have none.
+  assert.equal(kindPresentation('room_deleted').type, 'Room');
+  assert.equal(kindPresentation('username_change_required').type, undefined);
   assert.equal(kindPresentation('system_policy_changed').icon, 'info');
   assert.equal(kindPresentation('something_new').icon, 'info');
 });
