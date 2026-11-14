@@ -1,10 +1,14 @@
+import { fileGone } from './file-availability.js';
+import { FILE_UNAVAILABLE } from './unavailable.js';
+
 // One image box for room and direct-message attachments (#158, built in S1c).
 // The box is reserved from the original's oriented width and height before
 // anything loads, so the transcript doesn't jump; without dimensions it is a
 // 4:3 box and the image is contained in it. The small rendition
 // (`preview.url`, used exactly as the server sends it) is shown when there is
 // one; if it fails to load, the original's inline link is tried once, then
-// "Preview unavailable". A GIF's rendition is its static first frame, so it
+// "Preview unavailable", or, when the server says the file is gone (#334), "This
+// file isn't available any more." and no link to it. A GIF's rendition is its static first frame, so it
 // carries a "GIF" label. The box opens the original in a new tab.
 
 /**
@@ -45,6 +49,14 @@ export function imageBox(attachment, originalUrl) {
     unavailable.textContent = 'Preview unavailable';
     image.replaceWith(unavailable);
     link.dataset.unavailable = 'true';
+    // Gone, or just no preview? Ask once; a gone file isn't offered as a link any more.
+    void fileGone(originalUrl).then((gone) => {
+      if (!gone) return;
+      unavailable.textContent = FILE_UNAVAILABLE;
+      link.dataset.gone = 'true';
+      link.removeAttribute('href');
+      link.removeAttribute('target');
+    });
   });
   link.append(image);
 

@@ -1,5 +1,9 @@
 import { apiGet, apiUpload, logError } from './api.js';
 import { imageBox } from './image-box.js';
+import { checkDownloadsBeforeOpening } from './file-availability.js';
+
+// A gone file's download link says so instead of opening the server's error (#334).
+checkDownloadsBeforeOpening();
 import { FILE_NOT_SENT, errorText, failedSending } from './unavailable.js';
 
 const elements = {};
