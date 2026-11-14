@@ -148,6 +148,39 @@ test('no unread notifications: no badge and a plain name', async ({ page }) => {
   await expect(nav(page).locator('[data-badge="activity"]')).toBeHidden();
 });
 
+test('forced colours: the current tab keeps an outline the others lack, and the badge a border, on the rail and the bottom bar (#378)', async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium', 'Forced-colours emulation is Chromium-only.');
+  await fixture(page, { unread: 2 });
+  await page.emulateMedia({ forcedColors: 'active' });
+  const outline = (name) => tab(page, name).locator('.app-nav-icon').evaluate((icon) => {
+    const style = getComputedStyle(icon);
+    return { style: style.outlineStyle, width: parseFloat(style.outlineWidth), color: style.outlineColor, canvas: getComputedStyle(document.body).backgroundColor };
+  });
+  for (const width of [1280, 390]) {
+    await page.setViewportSize({ width, height: 860 });
+    await openRooms(page);
+    // Backgrounds are dropped in forced colours, so the current tab can't rely on its tint.
+    const current = await outline('Rooms');
+    expect(current.style, `${width}px`).toBe('solid');
+    expect(current.width, `${width}px`).toBeGreaterThanOrEqual(2);
+    // CanvasText, while the icon itself is LinkText: either way it stands out from Canvas.
+    expect(current.color, `${width}px: a system colour that shows on Canvas`).not.toBe(current.canvas);
+    expect(current.color, `${width}px`).not.toBe('rgba(0, 0, 0, 0)');
+    expect((await outline('Direct')).style, `${width}px`).toBe('none');
+    // The Activity count stays a badge: digits inside a system-colour border.
+    const badge = nav(page).locator('[data-badge="activity"]');
+    await expect(badge).toBeVisible();
+    await expect(badge).toHaveText('2');
+    const border = await badge.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return { style: style.borderTopStyle, width: parseFloat(style.borderTopWidth), color: style.borderTopColor, canvas: getComputedStyle(document.body).backgroundColor };
+    });
+    expect(border.style, `${width}px`).toBe('solid');
+    expect(border.width, `${width}px`).toBeGreaterThanOrEqual(1);
+    expect(border.color, `${width}px: a system colour that shows on Canvas`).not.toBe(border.canvas);
+  }
+});
+
 for (const [label, options, destination] of [
   ['an administrator', { user: { ...member, roles: ['admin'] } }, '/admin.php'],
   ['a room owner', { roomRole: 'owner' }, '/admin.php'],

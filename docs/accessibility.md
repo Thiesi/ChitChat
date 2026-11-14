@@ -50,7 +50,7 @@ We do not claim conformance with any WCAG level. The automated checks below use 
 - **Light, dark or system.** The mode follows your operating system unless you choose Light or Dark under You → Appearance. The choice is stored per device.
 - **Colour schemes:** Lantern (the default), Lounge, Dusk, Ember, Rosé, Midnight and **High contrast**.
 - **Contrast floors are checked for every scheme, in every mode it offers** (Midnight is dark only): at least 4.5:1 for text and icons that carry meaning, and 3:1 for component boundaries and meaningful non-text marks.
-- **Forced colours** (for example Windows Contrast themes): the selected item, the primary action and focus outlines keep visible system-colour outlines or borders.
+- **Forced colours** (for example Windows Contrast themes): the selected item, the primary action and focus outlines keep visible system-colour outlines or borders. The current navigation tab keeps an outline the other tabs don't have, on the side rail and the phone bottom bar. The unread counts in the navigation and in the Rooms and Direct lists, and a room's "@" mention mark, keep a system-colour border, so they still read as badges.
 - **Reduced motion:** when your system asks for reduced motion, animations, transitions and smooth scrolling are switched off.
 - **Reflow:** core screens fit narrow windows down to 180 CSS pixels (for example 200% zoom on a 360-pixel phone) without horizontal page scrolling. On narrow screens a long room title wraps to two lines.
 - **Navigation tabs** are at least 48 pixels tall, and 48 × 48 pixels down to 320 CSS pixels wide.
@@ -62,7 +62,7 @@ Every change runs these checks in continuous integration:
 - **axe-core** with the WCAG 2.0, 2.1 and 2.2 A and AA rule sets, on each screen and on the states that matter (open menus and dialogs, errors, empty and loading states). These run in **Chromium, Firefox and WebKit**, most screens in both light and dark mode; a few run in one mode, and a few checks run in Chromium only.
 - **Accessibility-tree snapshots** check what assistive technology is given for the conversation, the actions menu and the navigation: roles, names and reading order.
 - **Keyboard tests** drive the conversation (one Tab stop, arrows, Home/End, Enter, Escape, loading older history), the menus, the suggestion lists and the emoji picker without a mouse.
-- **A deeper gate** in Chromium checks core surfaces with axe in both modes, reflow without horizontal scrolling, forced-colours affordances and reduced-motion durations. Forced-colours and reduced-motion emulation is only available in Chromium in our test tool.
+- **A deeper gate** in Chromium checks core surfaces with axe in both modes, reflow without horizontal scrolling, forced-colours affordances and reduced-motion durations. The current tab and the unread badges in forced colours are checked by the Chromium runs of the shell, Rooms list and Direct list tests (`presentation-shell`, `presentation-room-list` and `presentation-direct-list`). Forced-colours and reduced-motion emulation is only available in Chromium in our test tool.
 - **Narrow-screen tests** check for no sideways scrolling at 180 and 320 CSS pixels, in all three engines.
 - **A contrast test** reads the shipped colour tokens and checks the contrast floors above for every scheme in light and dark mode.
 
