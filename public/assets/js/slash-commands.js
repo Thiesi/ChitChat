@@ -197,7 +197,9 @@ export function showCommandHelp(commands) {
   close.addEventListener('click', () => dialog.close());
   dialog.replaceChildren(title, commandList, formattingTitle, formattingList, note, close);
   dialog.showModal();
-  close.focus();
+  // Focus the way out, but read from the top (on a phone the sheet scrolls, S7).
+  close.focus({ preventScroll: true });
+  dialog.scrollTop = 0;
 }
 
 function definitionList(entries) {

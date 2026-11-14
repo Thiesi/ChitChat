@@ -26,6 +26,8 @@ window.addEventListener('DOMContentLoaded', () => {
 
   document.addEventListener('keydown', (event) => {
     if (event.key !== 'Escape') return;
+    // Escape in a dialog opened from the sheet (Leave room, say) closes that dialog only (S7).
+    if (event.target instanceof Element && event.target.closest('dialog')) return;
     if (phone.matches && elements['chat-shell'].classList.contains('members-open')) {
       setMembersOpen(false);
       elements['members-toggle'].focus();
