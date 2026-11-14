@@ -78,7 +78,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   </main>
   <?= \ChitChat\View\AppShell::close() ?>
 
-  <div id="toast-region" class="toast-region" aria-live="assertive"></div>
+  <div id="toast-region" class="toast-region" aria-live="polite"></div>
   <script type="module" src="/assets/js/admin-message-revisions.js"></script>
   <script type="module" src="/assets/js/shell.js"></script>
 </body>

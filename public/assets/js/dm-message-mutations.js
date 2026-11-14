@@ -212,6 +212,8 @@ function toast(message, kind = 'info') {
   if (!elements || !message) return;
   const node = document.createElement('div');
   node.className = `toast ${kind}`;
+  // The region is polite; only an error interrupts (#369).
+  if (kind === 'error') node.setAttribute('role', 'alert');
   node.textContent = message;
   elements.toastRegion.append(node);
   window.setTimeout(() => node.remove(), 5000);

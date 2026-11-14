@@ -376,7 +376,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
 
   <?= \ChitChat\View\ReportDialog::html() ?>
 
-  <div id="toast-region" class="toast-region" aria-live="assertive"></div>
+  <div id="toast-region" class="toast-region" aria-live="polite"></div>
 
   <script type="module" src="/assets/js/mfa-login.js"></script>
   <script type="module" src="/assets/js/password-reset.js"></script>
