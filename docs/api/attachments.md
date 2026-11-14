@@ -138,6 +138,8 @@ Important errors include:
 
 ## `GET /api/v1/attachments/download.php?id=12`
 
+**`HEAD`** is accepted too (#357), on the same URL with the same query parameters. It runs the same session, visibility, deletion and storage checks and answers with exactly the same status and headers as `GET` (including `Content-Length`, `Content-Disposition`, `ETag` and the preview `304`), but with no body. The file is never opened or read, so it is a cheap way to check whether a file is still available. Without a body it carries no error code; use `GET` when you need `attachment_deleted` versus `attachment_storage_missing`. If the file disappears between a `HEAD` and a later `GET`, the `GET` can still answer `410 attachment_storage_missing`. HEAD has no rate limit and writes no audit rows, the same as `GET`. Other methods still answer `405`.
+
 The server reloads the linked room and applies current history and minimum-age authorization. Private-room invitations alone are not sufficient; the caller must have joined, unless a global moderation role grants access.
 
 The normal response uses `Content-Disposition: attachment`. Add `inline=1` to request an inline response. Inline disposition is honored only for JPEG, PNG, GIF and WebP; all other MIME types remain forced downloads.

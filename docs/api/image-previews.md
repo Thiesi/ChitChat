@@ -95,6 +95,7 @@ sandbox CSP/same-origin resource policy, `Cache-Control: private, no-cache` and 
 quoted SHA-256 `ETag` for its bytes. Send `If-None-Match` to revalidate: a matching
 validator returns 304 with no body. Weak validators, lists and `*` follow GET
 revalidation semantics. Original downloads do not use preview validators.
+`HEAD` works the same way, including the 304, with no body (#357).
 
 Authorization, room history/minimum-age rules, DM participant scope, deletion,
 and original/rendition storage integrity checks happen before any 304. An old
