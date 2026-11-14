@@ -155,8 +155,10 @@ body:not(:has(.app-frame.has-nav)) .skip-link { display: none; }
     border-top: 1px solid var(--line);
   }
   .app-nav-list { flex: 1; }
-  .app-nav-entry { flex: 1; justify-content: center; }
-  .app-nav-item { flex: 1; min-height: var(--bar-height); }
+  /* Every destination keeps its slot (S7g): slots shrink, never drop off the bar. */
+  .app-nav-entry { flex: 1 1 0; min-width: 0; justify-content: center; }
+  .app-nav-item { flex: 1; min-width: 0; min-height: var(--bar-height); }
+  .app-nav-icon { width: min(3.5rem, 100%); }
   .app-nav-brand { display: none; }
   /* On phones Stewarding lives inside You (S2b); until then the account menu has it. */
   .app-nav-steward { display: none; }
@@ -190,4 +192,19 @@ body:not(:has(.app-frame.has-nav)) .skip-link { display: none; }
   font-size: 0;
   line-height: 0;
   white-space: nowrap;
+}
+
+/* Very narrow (a phone with large text): icons only; each label stays the link's name. */
+@media (max-width: 20rem) {
+  /* Four slots share the bar even with a coarse pointer's 3rem minimum (above): at 180 CSS px
+     that minimum pushed You off the screen. Each slot is still about 45px wide. */
+  .app-nav-item { min-width: 0; }
+  .app-nav-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
 }

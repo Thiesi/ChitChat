@@ -157,7 +157,7 @@ body[data-audience="guest"] .you-member-since { display: none; }
   .you-main.account-shell { padding: 0 0.5rem; }
   .you-main-header { position: sticky; top: 0; z-index: 4; margin: 0 -0.5rem 0.75rem; padding: 0.5rem 0.5rem 0.5rem 0.25rem; background: var(--ground); border-bottom: 1px solid var(--line); }
   .you-frame .drawer-toggle { display: inline-flex; }
-  .you-section-title { font-size: 1.5rem; overflow-wrap: anywhere; }
+  .you-section-title { font-size: clamp(1.2rem, 8vw, 1.5rem); overflow-wrap: break-word; }
   .you-section-link { min-height: 3rem; font-size: 1rem; }
 }
 
