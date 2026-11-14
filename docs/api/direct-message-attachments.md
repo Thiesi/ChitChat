@@ -56,7 +56,7 @@ The normal direct-message history and SSE payload remain backward-compatible. Br
 
 `GET /api/v1/direct-messages/attachments/download.php?id=14`
 
-The server rechecks that the authenticated account is the direct-message sender or recipient on every request. Unauthorized callers receive the same HTTP 404 response as an unknown attachment.
+The server rechecks that the authenticated account is the direct-message sender or recipient on every request. Unauthorized callers receive the same HTTP 404 response as an unknown attachment, also when the attachment was deleted: only the sender and recipient get `410 attachment_deleted` (#356).
 
 `inline=1` is honored only for the existing raster-image preview allowlist. Other MIME types always use attachment disposition. Original responses use `no-store`, `nosniff`, same-origin resource policy, and a sandboxed attachment CSP.
 

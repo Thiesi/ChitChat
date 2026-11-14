@@ -6,7 +6,6 @@ namespace ChitChat\DirectMessage;
 
 use ChitChat\Auth\AuthenticatedUser;
 use ChitChat\Config;
-use ChitChat\Http\ApiException;
 use PDO;
 use RuntimeException;
 
@@ -74,24 +73,9 @@ final class DirectMessageAttachmentAccessService
     /** @return array{path:string, name:string, mime_type:string, size_bytes:int, sha256:string, previewable:bool, width:?int, height:?int, preview:?array{url:string,width:int,height:int,mime_type:string,size_bytes:int,sha256:string}} */
     public function authorizeDownload(AuthenticatedUser $actor, int $attachmentId, string $variant = 'original'): array
     {
-        if ($attachmentId < 1) {
-            throw new ApiException(400, 'validation_error', 'id must be positive.');
-        }
-        $statement = $this->pdo->prepare(
-            'SELECT deleted_at FROM direct_message_attachments WHERE id = :id',
-        );
-        if ($statement === false) {
-            throw new RuntimeException('Unable to prepare direct-message attachment deletion lookup.');
-        }
-        $statement->execute(['id' => $attachmentId]);
-        $deletedAt = $statement->fetchColumn();
-        if ($deletedAt === false) {
-            throw new ApiException(404, 'attachment_not_found', 'Attachment not found.');
-        }
-        if ($deletedAt !== null) {
-            throw new ApiException(410, 'attachment_deleted', 'This attachment is no longer available.');
-        }
-
+        // No deleted check here (#356): DirectMessageAttachmentService checks the participant
+        // first, so someone outside the conversation gets the same 404 for a deleted attachment
+        // as for one that never existed, and only a participant learns it was deleted (410).
         return $this->attachments->authorizeDownload($actor, $attachmentId, $variant);
     }
 }
