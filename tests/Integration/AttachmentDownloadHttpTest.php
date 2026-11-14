@@ -171,12 +171,21 @@ final class AttachmentDownloadHttpTest extends DatabaseTestCase
                 self::assertSame('', $body, $client . ' ' . $path);
             }
 
-            // The other refusals: a corrupt rendition, no rendition, and the age gate.
+            self::assertSame($auditBefore, (int) $this->pdo->query('SELECT COUNT(*) FROM audit_log')->fetchColumn(), 'Downloads, GET or HEAD, write no audit rows.');
+
+            // The other refusals: a corrupt rendition, no rendition, and the age gate. Their
+            // setup (a room, two uploads) is audited; the downloads after it must add nothing.
             $files = new AttachmentFileStore($config);
             $legacyUpload = $this->request('root', '/api/v1/attachments/upload.php',
                 ['room_id' => (string) $room->id, 'file' => new \CURLFile($source, 'image/jpeg', 'legacy.jpg')], [], true);
             self::assertSame(201, $legacyUpload['status'], $legacyUpload['body']);
             $legacyId = (int) $this->json($legacyUpload)['message']['attachment']['id'];
+            $aged = (new RoomService($this->pdo))->create($root, 'head-adults', 'Adults', '', 'public', 18, 0, '127.0.0.1');
+            $agedUpload = $this->request('root', '/api/v1/attachments/upload.php',
+                ['room_id' => (string) $aged->id, 'file' => new \CURLFile($source, 'image/jpeg', 'adult.jpg')], [], true);
+            self::assertSame(201, $agedUpload['status'], $agedUpload['body']);
+            $agedPath = '/api/v1/attachments/download.php?id=' . $this->json($agedUpload)['message']['attachment']['id'];
+            $auditBefore = (int) $this->pdo->query('SELECT COUNT(*) FROM audit_log')->fetchColumn();
             $legacyKey = $this->pdo->query('SELECT preview_storage_key FROM attachments WHERE id = ' . $legacyId)->fetchColumn();
             self::assertIsString($legacyKey);
             file_put_contents($files->pathForKey($legacyKey), 'truncated');
@@ -185,11 +194,6 @@ final class AttachmentDownloadHttpTest extends DatabaseTestCase
             $files->remove($legacyKey);
             $this->pdo->exec('UPDATE attachments SET preview_storage_key = NULL, preview_width = NULL, preview_height = NULL, preview_size_bytes = NULL, preview_sha256 = NULL WHERE id = ' . $legacyId);
             $this->assertHeadMatchesGet('root', $legacyPreview, 404, ['If-None-Match' => '*'], 'attachment_preview_unavailable');
-            $aged = (new RoomService($this->pdo))->create($root, 'head-adults', 'Adults', '', 'public', 18, 0, '127.0.0.1');
-            $agedUpload = $this->request('root', '/api/v1/attachments/upload.php',
-                ['room_id' => (string) $aged->id, 'file' => new \CURLFile($source, 'image/jpeg', 'adult.jpg')], [], true);
-            self::assertSame(201, $agedUpload['status'], $agedUpload['body']);
-            $agedPath = '/api/v1/attachments/download.php?id=' . $this->json($agedUpload)['message']['attachment']['id'];
             $this->assertHeadMatchesGet('member', $agedPath, 403, [], 'birth_date_required');
             $this->assertHeadMatchesGet('member', $agedPath . '&variant=preview', 403, ['If-None-Match' => '*'], 'birth_date_required');
 
