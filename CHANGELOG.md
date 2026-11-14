@@ -6,6 +6,22 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ## [Unreleased]
 
+## [3.13.0] - 2026-11-14
+
+The web client's S7 redesign sweep (#173): no browser pop-ups, leaving a room from the web, a quieter connection status, error and not-found pages, empty screens with a next step, bottom sheets and large-text layouts on phones, and Activity notices first. No database migrations, no configuration changes, no API changes, and nobody is signed out. **Unknown paths that the web server falls back to `index.php` now answer `404` instead of the chat page with `200`:** point health probes at `/health.php` or `/ready.php`. See the [`v3.13.0` release notes](docs/releases/v3.13.0.md).
+
+- Replace every browser pop-up (#341): edit messages inline in the bubble, delete in a styled confirmation with Cancel first, rename passkeys in a form dialog; `tests/js/no-native-dialogs.test.js` guards against new ones.
+
+- Leave a room from the foot of the Members panel (#299, #342), with a private-room warning and the next room opened without a reload; the owner is told to transfer ownership first, including on a `409` race.
+
+- Connection status on Rooms and Direct (#309, #343): quiet when live, "Reconnecting…" after 3 s down, "Offline. You can't send until you're back." when offline; offline sends fail with "You're offline. Your message wasn't sent." and keep the draft. The line is no longer a live region; screen readers hear "Still reconnecting…" once and "Connected again." on recovery.
+
+- Error and not-found pages (#344, #345, #348): `public/index.php` answers paths other than `/`, `/index.php` and `/favicon.ico` with a `404` status page (no session started, security headers sent, `no-store`, `noindex`); uncaught page failures and true fatals render a `500` status page with the configured name, after discarding buffered output and stale headers, with 8 MiB extra memory after a fatal (never unlimited). APIs, the CLI and `APP_DEBUG` are unchanged. New `public/not-found.php`; optional Nginx `error_page` documented.
+
+- Empty states with a next step everywhere, and the search privacy notice as one line with Learn more (#346).
+
+- Phones (#347, #349, #350): bottom sheets below 768 px with pinned actions; layouts hold down to 180 CSS px (composer, mention banner, bottom navigation, room header, headings), guarded by reflow and axe tests at 180 and 320 px; Activity notices first; one search scope control on narrow screens; muted page eyebrows; read notices in regular weight. Escape in a dialog from the phone Members sheet no longer closes the sheet.
+
 ## [3.12.0] - 2026-11-13
 
 A web-client release: phone alerts and backups on System status, a Health checks card in Operational settings, search in the current room, a clearer navigation rail heading, and "wasn't sent" notices. No database migrations, no configuration changes, no API changes, and nobody is signed out. Instances without scheduled `bin/chitchat-backup` runs should set Backup maximum age to 0. See the [`v3.12.0` release notes](docs/releases/v3.12.0.md).
