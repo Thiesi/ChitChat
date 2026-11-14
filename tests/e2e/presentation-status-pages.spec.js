@@ -42,3 +42,20 @@ for (const [scheme, theme] of [['lantern', 'light'], ['lantern', 'dark'], ['dusk
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   });
 }
+
+test('the 404 carries the security headers and no-store; HEAD answers 404 too; // is the chat (#345)', async ({ page, baseURL }) => {
+  const response = await page.request.get('/no-such-page', { headers: { Accept: 'text/html' } });
+  expect(response.status()).toBe(404);
+  const headers = response.headers();
+  expect(headers['content-security-policy']).toContain("default-src 'self'");
+  expect(headers['cache-control']).toContain('no-store');
+  expect(headers['x-content-type-options']).toBe('nosniff');
+  expect((await page.request.head('/no-such-page')).status()).toBe(404);
+  expect((await page.request.get(`${baseURL.replace(/\/+$/, '')}//`, { headers: { Accept: 'text/html' } })).status()).toBe(200);
+});
+
+test('an API address asked for as a page still answers in JSON (#345)', async ({ page }) => {
+  const response = await page.request.get('/api/v1/session.php', { headers: { Accept: 'text/html' } });
+  expect(response.headers()['content-type']).toContain('application/json');
+  expect(await response.text()).not.toContain('status-page');
+});

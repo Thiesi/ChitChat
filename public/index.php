@@ -4,6 +4,12 @@ declare(strict_types=1);
 /** @var ChitChat\Config $config */
 $config = require dirname(__DIR__) . '/bootstrap/app.php';
 $requestPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
+// A path of only slashes ("//", say) is the chat's own address too (#345). parse_url reads
+// "//" as the start of a host, so look at the raw path.
+$rawPath = strtok((string) ($_SERVER['REQUEST_URI'] ?? '/'), '?');
+if (is_string($rawPath) && preg_match('#^/+$#', $rawPath) === 1) {
+    $requestPath = '/';
+}
 if ($requestPath === '/favicon.ico') {
     \ChitChat\InstallationIcon\IconResponse::respond($config, true);
 }
