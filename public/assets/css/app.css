@@ -1514,6 +1514,9 @@ button.user-name.mention { padding: 0 0.2rem; border-radius: 0.25rem; background
    down to 180 (a 360 phone at 200%). Nothing may be lost: the message field keeps
    its width, the room keeps its name, headings wrap at word boundaries. ---- */
 @media (max-width: 24rem) {
+  /* No resize grip on a field this narrow: it sat over the end of the placeholder (#351).
+     The field still scrolls with its text. */
+  :is(#composer-input, #dm-message-input) { resize: none; }
   /* The direct composer's side margins (messages.css) would eat a quarter of the row. */
   #dm-composer { margin: 0.4rem 0.5rem; }
   /* Three rows to start with is a lot of a 180 px screen; it still grows as you type. */
