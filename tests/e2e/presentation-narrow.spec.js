@@ -209,3 +209,15 @@ for (const [width, height] of [[360, 780], [640, 450], [180, 390]]) {
     await expect(page.locator('#message-search-status')).toBeInViewport();
   });
 }
+
+test('180 CSS px: the direct encryption line keeps its words and Learn more in view (R2)', async ({ page }) => {
+  await page.setViewportSize({ width: 180, height: 390 });
+  await fixture(page);
+  await page.goto('/messages.php?user=2');
+  await page.locator('#dm-conversation-list .conversation-button').first().click();
+  const line = page.locator('#dm-privacy-notice summary');
+  await expect(line.locator('.privacy-short')).toHaveText('Not end-to-end encrypted');
+  await expect(line.locator('.privacy-more')).toBeInViewport({ ratio: 1 });
+  expect(await line.evaluate((node) => node.scrollWidth <= node.clientWidth)).toBe(true);
+  await expect(line).toHaveAccessibleName(/Direct messages aren’t end-to-end encrypted\./);
+});
