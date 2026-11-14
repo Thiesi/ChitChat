@@ -364,3 +364,23 @@
   .message-search-excerpt mark { forced-color-adjust: none; background: Mark; color: MarkText; box-shadow: none; }
   .search-scope-chip:has(input:checked) { border: 2px solid Highlight; }
 }
+
+/* C1 (S7h): the page eyebrow is muted, like every page's. */
+.message-search-eyebrow { color: var(--text-muted); }
+
+/* S4 (S7h): below the desktop layout the results come up sooner: no installation
+   eyebrow, no "Signed in as", and no header link to Direct (the bar has it). */
+@media (max-width: 47.99rem) {
+  .message-search-eyebrow,
+  #message-search-identity,
+  .message-search-actions { display: none; }
+  .message-search-header h1 { font-size: 1.6rem; }
+}
+
+/* S4: below 384 the three scope chips become one select, on one line. */
+.search-scope-select-field { display: none; }
+@media (max-width: 24rem) {
+  #message-search-scope { display: none; }
+  .search-scope-select-field:not([hidden]) { display: grid; gap: 0.4rem; }
+  .message-search-form { gap: 0.6rem; padding: 0.75rem; }
+}

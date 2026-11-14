@@ -358,3 +358,13 @@
   .lantern, .pebble { border: 1px solid CanvasText; }
   .lantern.glow { outline: 2px solid Highlight; outline-offset: 2px; }
 }
+
+/* R2 (S7h): on a narrow phone the encryption line keeps its meaning on one line. The
+   short words are the eye's; the accessible name stays the full sentence. */
+.privacy-short { display: none; }
+@media (max-width: 24rem) {
+  .privacy-line { padding-block: 0.35rem; }
+  .privacy-line summary { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .privacy-line:not([open]) .privacy-long { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .privacy-line:not([open]) .privacy-short { display: inline; }
+}

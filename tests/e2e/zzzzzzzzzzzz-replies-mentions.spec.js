@@ -88,7 +88,7 @@ test('participants reply to and mention each other, with a working notification 
 
     await rootPage.goto('/notifications.php');
     await expect(rootPage.locator('#privacy-notifications-shell')).toBeVisible();
-    const mentionNotification = rootPage.locator('.privacy-notification', { hasText: 'You were mentioned' }).first();
+    const mentionNotification = rootPage.locator('.privacy-notification', { hasText: 'mentioned you' }).first();
     await expect(mentionNotification).toBeVisible();
     await expect(mentionNotification).toContainText('MemberE2E mentioned you in “General E2E”.');
     await mentionNotification.getByRole('link', { name: 'View message' }).click();
@@ -131,7 +131,7 @@ test('direct-message mentions only resolve the recipient and notify them', async
 
     await peerPage.goto('/notifications.php');
     await expect(peerPage.locator('#privacy-notifications-shell')).toBeVisible();
-    const notification = peerPage.locator('.privacy-notification', { hasText: 'You were mentioned' }).first();
+    const notification = peerPage.locator('.privacy-notification', { hasText: 'mentioned you' }).first();
     await expect(notification).toContainText(`${member.username} mentioned you in a direct message.`);
   } finally {
     await peerContext.close();

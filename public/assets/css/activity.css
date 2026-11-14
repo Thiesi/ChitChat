@@ -106,3 +106,41 @@
   .activity-icon { border: 1px solid CanvasText; }
   .privacy-notification-unread.activity-item::after { background: Highlight; forced-color-adjust: none; }
 }
+
+/* ---- Notices first (S7h, CCM J-read) ---- */
+
+/* Mark all as read sits beside the heading as a text button, not a full-width bar. */
+.privacy-notifications-heading-row { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0.25rem 1rem; }
+.privacy-notifications-heading-row h2 { margin: 0; }
+.text-button {
+  min-height: 2.75rem;
+  padding: 0 0.25rem;
+  border: 0;
+  background: transparent;
+  color: var(--signature-text);
+  font: inherit;
+  font-weight: 650;
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+  cursor: pointer;
+}
+.text-button:disabled { color: var(--text-muted); text-decoration: none; cursor: default; }
+.text-button:focus-visible { outline: 2px solid var(--signature-text); outline-offset: 2px; border-radius: 0.3rem; }
+
+/* What these notices are: under the list, one click away. */
+.activity-about { color: var(--text-muted); }
+.activity-about summary { width: fit-content; min-height: 2.75rem; padding-block: 0.6rem; color: var(--signature-text); font-weight: 600; cursor: pointer; }
+.activity-about summary:focus-visible { outline: 2px solid var(--signature-text); outline-offset: 2px; border-radius: 0.3rem; }
+.activity-about p { margin: 0; line-height: 1.55; }
+
+/* Read and unread differ by weight as well as the dot (two of three). */
+.privacy-notification.activity-item:not(.privacy-notification-unread) .activity-lead { font-weight: 400; }
+
+/* Below the desktop layout the page header steps back: no installation eyebrow or
+   "Signed in as" (that's You's), and a compact title, so the first notice is in view. */
+@media (max-width: 47.99rem) {
+  #privacy-notifications-shell > .account-header .account-eyebrow,
+  #privacy-notifications-identity { display: none; }
+  #privacy-notifications-shell > .account-header h1 { font-size: 1.6rem; }
+  #privacy-notifications-shell > .account-header { margin-bottom: 0.5rem; }
+}

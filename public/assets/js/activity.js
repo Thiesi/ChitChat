@@ -12,13 +12,15 @@ const DAY_MS = 86_400_000;
 // ("Rowan mentioned you in “Garden”."), so it leads and the generic title
 // ("You were mentioned") steps back to a small label.
 const KINDS = {
-  mentioned: { icon: 'mention', lead: 'message', action: 'View message' },
-  pinged: { icon: 'bell', lead: 'message', action: 'View ping' },
-  direct_message_received: { icon: 'pebble', lead: 'message', action: 'Open conversation' },
-  room_deleted: { icon: 'lantern', lead: 'message', action: null },
-  room_restored: { icon: 'lantern', lead: 'message', action: 'Open room' },
-  room_ownership_received: { icon: 'lantern', lead: 'message', action: 'Open room' },
-  room_ownership_removed: { icon: 'lantern', lead: 'message', action: 'Open room' },
+  // `type` is the small label above the sentence (S7h): what kind of notice it is, so it
+  // doesn't repeat the sentence ("Rowan pinged you" over "Rowan pinged you in …").
+  mentioned: { icon: 'mention', lead: 'message', action: 'View message', type: 'Mention' },
+  pinged: { icon: 'bell', lead: 'message', action: 'View ping', type: 'Ping' },
+  direct_message_received: { icon: 'pebble', lead: 'message', action: 'Open conversation', type: 'Direct message' },
+  room_deleted: { icon: 'lantern', lead: 'message', action: null, type: 'Room' },
+  room_restored: { icon: 'lantern', lead: 'message', action: 'Open room', type: 'Room' },
+  room_ownership_received: { icon: 'lantern', lead: 'message', action: 'Open room', type: 'Room ownership' },
+  room_ownership_removed: { icon: 'lantern', lead: 'message', action: 'Open room', type: 'Room ownership' },
   username_change_required: { icon: 'shield', lead: 'title', action: 'Choose a username' },
   avatar_removed: { icon: 'shield', lead: 'title', action: 'Open You' },
   moderator_message_deleted: { icon: 'shield', lead: 'title', action: null },
