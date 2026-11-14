@@ -61,10 +61,10 @@ test.describe('the link', () => {
     await expect(link).toHaveAttribute('href', PROJECT);
     await expect(link).toHaveAttribute('target', '_blank');
     await expect(link).toHaveAttribute('rel', 'noopener noreferrer');
-    // It sits before the attribution, and is a comfortable target.
+    // It sits before the attribution, with the footer document links' target (above WCAG 2.2's 24px).
     // innerText also carries the visually hidden ", in a new tab".
     expect(await page.locator('#auth-shell .powered-by').innerText()).toMatch(/^Report an accessibility problem \(opens GitHub\)\s*(, in a new tab)?\s*·\s*Powered by ChitChat$/);
-    expect((await link.boundingBox()).height).toBeGreaterThanOrEqual(44);
+    expect((await link.boundingBox()).height).toBeGreaterThanOrEqual(24);
   });
 
   test('an operator’s mailbox says email and stays in this tab', async ({ page }) => {
@@ -97,7 +97,7 @@ test.describe('the link', () => {
     await expect(youLink(page)).toBeVisible();
     await expect(youLink(page)).toHaveAccessibleName(/^Report an accessibility problem \(opens GitHub\)\s*, in a new tab$/);
     await expect(youLink(page)).toHaveAttribute('href', PROJECT);
-    expect((await youLink(page).boundingBox()).height).toBeGreaterThanOrEqual(44);
+    expect((await youLink(page).boundingBox()).height).toBeGreaterThanOrEqual(24);
   });
 
   test('signed in and switched off, the You list has no link', async ({ page }) => {

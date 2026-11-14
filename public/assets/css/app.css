@@ -119,7 +119,7 @@ button:disabled {
 
 /* The installation's documents (#160), when configured: 44px tall targets. */
 .powered-by .footer-documents a { display: inline-block; padding-block: 0.75rem; font-weight: 600; }
-/* "Report an accessibility problem" on the sign-in screens (#219): the same 44px target. */
+/* "Report an accessibility problem" on the sign-in screens (#219): the same target as the document links. */
 .powered-by .footer-feedback a { display: inline-block; padding-block: 0.75rem; font-weight: 600; }
 .feedback-where { font-weight: 400; }
 
