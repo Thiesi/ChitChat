@@ -8,22 +8,30 @@ use JsonException;
 
 final class Request
 {
-    /** One of the given methods, or 405. Most endpoints allow one; the downloads allow GET and HEAD (#357). */
+    /**
+     * One of the given methods, or 405 with an Allow header naming them (RFC 9110). Most
+     * endpoints allow one; the downloads allow GET and HEAD (#357).
+     */
     public static function requireMethod(string $method, string ...$others): void
     {
+        $allowed = array_map(strtoupper(...), [$method, ...$others]);
         $actual = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
-        foreach ([$method, ...$others] as $allowed) {
-            if ($actual === strtoupper($allowed)) {
-                return;
-            }
+        if (in_array($actual, $allowed, true)) {
+            return;
+        }
+        if (!headers_sent()) {
+            header('Allow: ' . implode(', ', $allowed));
         }
         throw new ApiException(405, 'method_not_allowed', 'Method not allowed.');
     }
 
-    /** A HEAD request: the same status and headers as GET, and no body. */
+    /**
+     * A HEAD request: the same status and headers as GET, and no body. Exactly "HEAD", as
+     * methods are case-sensitive and PHP itself only drops the body for that spelling.
+     */
     public static function isHead(): bool
     {
-        return strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET')) === 'HEAD';
+        return ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'HEAD';
     }
 
     /** @return array<string, mixed> */

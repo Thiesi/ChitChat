@@ -159,10 +159,43 @@ final class AttachmentDownloadHttpTest extends DatabaseTestCase
                 $this->assertHeadMatchesGet($client, $path, $status, $headers);
             }
 
+            // Signed in, straight off the socket: a 200 and a 304 send no body bytes either.
+            foreach ([
+                ['root', $roomPath, [], '200'],
+                ['root', $roomPath . '&variant=preview', ['If-None-Match' => $roomPreview['etag']], '304'],
+                ['member', $directPath, [], '200'],
+                ['member', $directPath . '&variant=preview', ['If-None-Match' => $directPreview['etag']], '304'],
+            ] as [$client, $path, $headers, $status]) {
+                [$statusLine, $body] = $this->rawHead($path, $client, $headers);
+                self::assertStringContainsString(' ' . $status . ' ', $statusLine . ' ', $client . ' ' . $path);
+                self::assertSame('', $body, $client . ' ' . $path);
+            }
+
+            // The other refusals: a corrupt rendition, no rendition, and the age gate.
+            $files = new AttachmentFileStore($config);
+            $legacyUpload = $this->request('root', '/api/v1/attachments/upload.php',
+                ['room_id' => (string) $room->id, 'file' => new \CURLFile($source, 'image/jpeg', 'legacy.jpg')], [], true);
+            self::assertSame(201, $legacyUpload['status'], $legacyUpload['body']);
+            $legacyId = (int) $this->json($legacyUpload)['message']['attachment']['id'];
+            $legacyKey = $this->pdo->query('SELECT preview_storage_key FROM attachments WHERE id = ' . $legacyId)->fetchColumn();
+            self::assertIsString($legacyKey);
+            file_put_contents($files->pathForKey($legacyKey), 'truncated');
+            $legacyPreview = '/api/v1/attachments/download.php?id=' . $legacyId . '&variant=preview';
+            $this->assertHeadMatchesGet('root', $legacyPreview, 410, [], 'attachment_storage_invalid');
+            $files->remove($legacyKey);
+            $this->pdo->exec('UPDATE attachments SET preview_storage_key = NULL, preview_width = NULL, preview_height = NULL, preview_size_bytes = NULL, preview_sha256 = NULL WHERE id = ' . $legacyId);
+            $this->assertHeadMatchesGet('root', $legacyPreview, 404, ['If-None-Match' => '*'], 'attachment_preview_unavailable');
+            $aged = (new RoomService($this->pdo))->create($root, 'head-adults', 'Adults', '', 'public', 18, 0, '127.0.0.1');
+            $agedUpload = $this->request('root', '/api/v1/attachments/upload.php',
+                ['room_id' => (string) $aged->id, 'file' => new \CURLFile($source, 'image/jpeg', 'adult.jpg')], [], true);
+            self::assertSame(201, $agedUpload['status'], $agedUpload['body']);
+            $agedPath = '/api/v1/attachments/download.php?id=' . $this->json($agedUpload)['message']['attachment']['id'];
+            $this->assertHeadMatchesGet('member', $agedPath, 403, [], 'birth_date_required');
+            $this->assertHeadMatchesGet('member', $agedPath . '&variant=preview', 403, ['If-None-Match' => '*'], 'birth_date_required');
+
             self::assertSame($auditBefore, (int) $this->pdo->query('SELECT COUNT(*) FROM audit_log')->fetchColumn(), 'Downloads, GET or HEAD, write no audit rows.');
 
             // Gone from storage, then deleted: the same 410s, and the same 404 for outsiders.
-            $files = new AttachmentFileStore($config);
             $key = $this->pdo->query('SELECT storage_key FROM direct_message_attachments WHERE id = ' . $directId)->fetchColumn();
             self::assertIsString($key);
             $files->remove($key);
@@ -176,17 +209,26 @@ final class AttachmentDownloadHttpTest extends DatabaseTestCase
 
             // HEAD is no body on the wire, not just a client that stops reading.
             foreach (['/api/v1/attachments/download.php?id=' . $neverExisted, $directPath] as $path) {
-                self::assertSame('', $this->rawHeadBody($path), $path);
+                self::assertSame('', $this->rawHead($path)[1], $path);
             }
             self::assertSame($auditBefore, (int) $this->pdo->query('SELECT COUNT(*) FROM audit_log')->fetchColumn(), 'HEAD writes no audit rows.');
 
             // Everything else stays as it was.
             foreach (['POST', 'PUT', 'DELETE'] as $method) {
-                self::assertSame(405, $this->request('root', $roomPath, null, [], false, $method)['status'], $method);
-                self::assertSame(405, $this->request('member', $directPath, null, [], false, $method)['status'], $method);
+                foreach ([['root', $roomPath], ['member', $directPath]] as [$client, $path]) {
+                    $refused = $this->request($client, $path, null, [], false, $method);
+                    self::assertSame(405, $refused['status'], $method . ' ' . $path);
+                    self::assertSame('GET, HEAD', $refused['headers']['allow'] ?? null, $method . ' ' . $path);
+                }
             }
-            self::assertSame(405, $this->request('root', '/api/v1/attachments/metadata.php?room_id=' . $room->id . '&message_ids=' . $roomMessage['id'], null, [], false, 'HEAD')['status']);
-            self::assertSame(405, $this->request('member', '/api/v1/direct-messages/attachments/metadata.php?message_ids=1', null, [], false, 'HEAD')['status']);
+            foreach ([
+                ['root', '/api/v1/attachments/metadata.php?room_id=' . $room->id . '&message_ids=' . $roomMessage['id']],
+                ['member', '/api/v1/direct-messages/attachments/metadata.php?message_ids=1'],
+            ] as [$client, $path]) {
+                $refused = $this->request($client, $path, null, [], false, 'HEAD');
+                self::assertSame(405, $refused['status'], $path);
+                self::assertSame('GET', $refused['headers']['allow'] ?? null, $path);
+            }
         } finally {
             if (proc_get_status($process)['running']) {
                 proc_terminate($process);
@@ -220,19 +262,47 @@ final class AttachmentDownloadHttpTest extends DatabaseTestCase
         return $get['headers'];
     }
 
-    /** The bytes after the headers of a HEAD request, read straight off the socket. */
-    private function rawHeadBody(string $path): string
+    /**
+     * A HEAD request straight over the socket, signed in as $client when given (its cookies
+     * from curl's jar): the status line, and every byte that came after the headers.
+     *
+     * @param array<string,string> $headers
+     * @return array{0: string, 1: string}
+     */
+    private function rawHead(string $path, ?string $client = null, array $headers = []): array
     {
         $address = substr($this->baseUrl, strlen('http://'));
+        $lines = ['HEAD ' . $path . ' HTTP/1.1', 'Host: ' . $address, 'Connection: close'];
+        if ($client !== null) {
+            $lines[] = 'Cookie: ' . $this->cookieHeader($client);
+        }
+        foreach ($headers as $name => $value) {
+            $lines[] = $name . ': ' . $value;
+        }
         $socket = stream_socket_client('tcp://' . $address, $errorCode, $errorMessage, 5);
         self::assertIsResource($socket, $errorMessage);
         stream_set_timeout($socket, 10);
-        fwrite($socket, 'HEAD ' . $path . " HTTP/1.1\r\nHost: " . $address . "\r\nConnection: close\r\n\r\n");
+        fwrite($socket, implode("\r\n", $lines) . "\r\n\r\n");
         $raw = (string) stream_get_contents($socket);
         fclose($socket);
         $end = strpos($raw, "\r\n\r\n");
         self::assertNotFalse($end, $raw);
-        return substr($raw, $end + 4);
+        return [strtok($raw, "\r\n") ?: '', substr($raw, $end + 4)];
+    }
+
+    /** The Cookie header for a client, from curl's Netscape-format cookie jar. */
+    private function cookieHeader(string $client): string
+    {
+        $pairs = [];
+        foreach (file($this->cookies[$client], FILE_IGNORE_NEW_LINES) ?: [] as $line) {
+            $line = str_starts_with($line, '#HttpOnly_') ? substr($line, strlen('#HttpOnly_')) : $line;
+            $fields = explode("\t", $line);
+            if (count($fields) === 7 && !str_starts_with($line, '#')) {
+                $pairs[] = $fields[5] . '=' . $fields[6];
+            }
+        }
+        self::assertNotSame([], $pairs, 'No cookies for ' . $client);
+        return implode('; ', $pairs);
     }
 
     /** @param array{status:int,body:string,headers:array<string,string>} $response */
