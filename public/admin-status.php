@@ -93,7 +93,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
           <div><dt>Status query latency</dt><dd id="database-latency">—</dd></div>
           <div><dt>Waiting on the lock manager</dt><dd id="database-lock-waits">—</dd></div>
         </dl>
-        <p class="status-note">A point sample. Brief non-zero values are normal; a value that stays above zero across many views means queries are queuing for PostgreSQL's lock table.</p>
+        <p class="status-note">Lock-manager waits are a point sample. Brief non-zero values are normal; if the count stays above zero across many views, queries are queuing for PostgreSQL’s lock manager.</p>
       </section>
 
       <section class="admin-card status-card">

@@ -219,7 +219,7 @@ test('System status: every card filled, the rate-limit table, and the plain note
   await expect(page.locator('#rate-limit-policies tr')).toHaveCount(2);
   // #365: a plain count with a neutral note, no warning state.
   await expect(page.locator('#database-lock-waits')).toHaveText('0');
-  await expect(page.getByText('A point sample. Brief non-zero values are normal;', { exact: false })).toBeVisible();
+  await expect(page.getByText('Lock-manager waits are a point sample. Brief non-zero values are normal;', { exact: false })).toBeVisible();
   await expect(page.getByText('The limits in effect on this server, and how often each one allowed or refused a request. No account or IP address is kept here.')).toBeVisible();
 });
 
@@ -298,7 +298,7 @@ test('System status: phone alerts and backups when all is well, and where the ma
 
 test("System status: lock-manager waits say when only ChitChat's own connections are counted, and a dash from older servers", async ({ page }) => {
   await openStatus(page, { ...SYSTEM_STATUS, database: { ...SYSTEM_STATUS.database, lock_manager_waits: 2, lock_manager_waits_scope: 'own_role' } });
-  await expect(page.locator('#database-lock-waits')).toHaveText("2 (ChitChat's own connections)");
+  await expect(page.locator('#database-lock-waits')).toHaveText('2 (ChitChat’s connections only)');
   await openStatus(page, { ...SYSTEM_STATUS, database: { name: 'chitchat', size_bytes: 52428800, query_latency_ms: 0.412 } });
   await expect(page.locator('#database-lock-waits')).toHaveText('—');
 });

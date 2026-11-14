@@ -27,11 +27,11 @@ See [`rate-limiting.md`](rate-limiting.md) for policy configuration, bounds, cov
 
 ## Lock-manager waits
 
-System status › PostgreSQL shows **Waiting on the lock manager**: how many of this database's connections were waiting on PostgreSQL's lock table (`wait_event_type = 'LWLock'`, `wait_event = 'LockManager'` in `pg_stat_activity`) at the moment the page or `/metrics.php` was read. The status request itself is not counted. In the API it is `database.lock_manager_waits`, and in Prometheus `chitchat_database_lock_manager_waits`.
+System status › PostgreSQL shows **Waiting on the lock manager**: how many of this database's connections were waiting on PostgreSQL's lock manager (`wait_event_type = 'LWLock'`, `wait_event = 'LockManager'` in `pg_stat_activity`) at the moment the page or `/metrics.php` was read. The status request itself is not counted. In the API it is `database.lock_manager_waits`, and in Prometheus `chitchat_database_lock_manager_waits`.
 
-It is a point sample, not an alarm. Brief non-zero values are normal under load. A value that stays above zero across many views, or `min_over_time(chitchat_database_lock_manager_waits[10m]) > 0`, means queries are queuing for the lock table. That is the "sustained `pg_locks` contention" trigger for revisiting how settled event streams find the oldest open writer (#293).
+It is a point sample, not an alarm. Brief non-zero values are normal under load. A value that stays above zero across many views, or `min_over_time(chitchat_database_lock_manager_waits[10m]) > 0`, means queries are queuing for the lock manager. That is the "sustained `pg_locks` contention" trigger for revisiting how settled event streams find the oldest open writer (#293).
 
-`database.lock_manager_waits_scope` says what is counted. With `own_role`, only connections of ChitChat's own database role are counted, which covers the web requests and event streams; System status then adds "(ChitChat's own connections)". With `all_roles`, other roles' connections are counted too. That needs `pg_read_all_stats`, described under [`INSTALL.md`, Server-Sent Events](../../INSTALL.md#server-sent-events).
+`database.lock_manager_waits_scope` says what is counted. With `own_role`, only connections of ChitChat's own database role are counted, which covers the web requests and event streams; System status then adds "(ChitChat’s connections only)". With `all_roles`, other roles' connections are counted too. That needs `pg_read_all_stats`, described under [`INSTALL.md`, Server-Sent Events](../../INSTALL.md#server-sent-events).
 
 ## SSE connection leases
 

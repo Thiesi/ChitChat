@@ -331,7 +331,7 @@ function nullableObject(value) {
 function lockWaits(database) {
   if (typeof database.lock_manager_waits !== 'number' || !Number.isFinite(database.lock_manager_waits)) return '—';
   const count = String(Math.trunc(database.lock_manager_waits));
-  return database.lock_manager_waits_scope === 'own_role' ? `${count} (ChitChat's own connections)` : count;
+  return database.lock_manager_waits_scope === 'own_role' ? `${count} (ChitChat’s connections only)` : count;
 }
 
 function text(value) {
