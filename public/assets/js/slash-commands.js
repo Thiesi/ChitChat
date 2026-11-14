@@ -183,6 +183,7 @@ export function showCommandHelp(commands) {
   const title = document.createElement('h2');
   title.id = 'command-help-title';
   title.textContent = 'Commands and formatting';
+  title.tabIndex = -1;
   const commandList = definitionList(commands.map((command) => [command.usage, command.description]));
   const formattingTitle = document.createElement('h3');
   formattingTitle.textContent = 'Formatting';
@@ -197,7 +198,10 @@ export function showCommandHelp(commands) {
   close.addEventListener('click', () => dialog.close());
   dialog.replaceChildren(title, commandList, formattingTitle, formattingList, note, close);
   dialog.showModal();
-  close.focus();
+  // Start at the heading, read from the top; Tab reaches Close (S7). Focusing Close, at the
+  // bottom, scrolled the phone sheet to its end, and WebKit kept it there.
+  title.focus();
+  dialog.scrollTop = 0;
 }
 
 function definitionList(entries) {

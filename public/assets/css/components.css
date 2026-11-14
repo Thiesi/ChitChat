@@ -405,3 +405,39 @@ form:has(.attachment-selection > button:not(.hidden)) .attachment-button {
 }
 .password-toggle[aria-pressed="true"] { color: var(--signature-text); }
 .password-toggle:focus-visible { outline: 2px solid var(--signature-text); outline-offset: -2px; }
+
+/* ---- Bottom sheets below 768px (S7, #173) ----
+   On a phone every modal (decision, form and help dialogs alike) docks to the
+   bottom edge: full width, rounded on top, a small grab bar, its own scroll,
+   clear of the home indicator. dialog:is(...)[open] outranks each dialog's own
+   width and radius, including step-up.css, which loads later. */
+@media (max-width: 47.99rem) {
+  dialog:is(.room-dialog, .step-up-dialog, .command-help)[open] {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    max-height: calc(100dvh - 1.5rem);
+    margin: auto 0 0;
+    padding-bottom: env(safe-area-inset-bottom, 0);
+    overflow-y: auto;
+    border-width: 1px 0 0;
+    border-radius: 1.5rem 1.5rem 0 0;
+    /* A fade only: a moving box would be measured mid-flight (by people's zoom tools and by tests). */
+    animation: sheet-in 0.14s ease-out;
+  }
+
+  dialog:is(.room-dialog, .step-up-dialog, .command-help)[open]::before {
+    display: block;
+    width: 2.5rem;
+    height: 0.3rem;
+    margin: 0.6rem auto 0;
+    border-radius: 999px;
+    background: var(--line);
+    content: "";
+  }
+}
+
+@keyframes sheet-in {
+  from { opacity: 0.6; }
+  to { opacity: 1; }
+}

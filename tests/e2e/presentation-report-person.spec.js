@@ -225,6 +225,8 @@ test('phones get the dialog as a bottom sheet', async ({ page }, testInfo) => {
   expect(Math.round(box.y + box.height)).toBe(740);
   await expect(dialog.getByRole('button', { name: 'Report', exact: true })).toBeInViewport();
   await noOverflow(page);
+  // S7: the sheet passes axe as a sheet, too.
+  await accessible(page);
   await page.screenshot({ path: testInfo.outputPath('report-person-phone.png') });
 });
 

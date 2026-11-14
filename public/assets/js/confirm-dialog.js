@@ -18,6 +18,9 @@ export function confirmAction({ title, text, items = [], confirmLabel, announce 
   const { dialog, form } = dialogShell(id, title);
   const body = document.createElement('p');
   body.textContent = text;
+  // The effect, read with the title when the dialog opens (S7).
+  body.id = `${id}-text`;
+  dialog.setAttribute('aria-describedby', body.id);
   form.append(body);
   if (items.length > 0) {
     const list = document.createElement('ul');
