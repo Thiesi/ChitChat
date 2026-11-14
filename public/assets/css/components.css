@@ -422,7 +422,8 @@ form:has(.attachment-selection > button:not(.hidden)) .attachment-button {
     overflow-y: auto;
     border-width: 1px 0 0;
     border-radius: 1.5rem 1.5rem 0 0;
-    animation: sheet-rise 0.18s ease-out;
+    /* A fade only: a moving box would be measured mid-flight (by people's zoom tools and by tests). */
+    animation: sheet-in 0.14s ease-out;
   }
 
   dialog:is(.room-dialog, .step-up-dialog, .command-help)[open]::before {
@@ -436,7 +437,7 @@ form:has(.attachment-selection > button:not(.hidden)) .attachment-button {
   }
 }
 
-@keyframes sheet-rise {
-  from { transform: translateY(1.5rem); opacity: 0.6; }
-  to { transform: none; opacity: 1; }
+@keyframes sheet-in {
+  from { opacity: 0.6; }
+  to { opacity: 1; }
 }
