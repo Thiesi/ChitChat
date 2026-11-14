@@ -280,7 +280,9 @@
     padding: 0;
     gap: 0;
   }
-  .dm-shell .conversation-main { border: 0; border-radius: 0; box-shadow: none; }
+  /* The full height (S7g): messages.css gives the inspection layout's .conversation-main
+     85dvh on narrow screens, which left a blank strip under every phone's direct composer. */
+  .dm-shell .conversation-main { height: auto; min-height: 0; border: 0; border-radius: 0; box-shadow: none; }
   .dm-shell .conversation-header { gap: 0.35rem; padding: 0.5rem 0.5rem 0.5rem 0.4rem; }
   .dm-shell .conversation-header h2 { overflow: hidden; font-size: 1.25rem; text-overflow: ellipsis; white-space: nowrap; }
   .dm-shell #dm-peer-status { font-size: 0.82rem; }

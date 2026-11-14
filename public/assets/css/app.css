@@ -1510,3 +1510,46 @@ button.user-name.mention { padding: 0 0.2rem; border-radius: 0.25rem; background
   .composer-wrap { border-radius: 0; }
 }
 
+/* ---- Narrow phones and large text (S7g, CCM J-read): up to about 384 CSS px,
+   down to 180 (a 360 phone at 200%). Nothing may be lost: the message field keeps
+   its width, the room keeps its name, headings wrap at word boundaries. ---- */
+@media (max-width: 24rem) {
+  /* The direct composer's side margins (messages.css) would eat a quarter of the row. */
+  #dm-composer { margin: 0.4rem 0.5rem; }
+  /* Three rows to start with is a lot of a 180 px screen; it still grows as you type. */
+  #dm-message-input { height: 3.75rem; min-height: 3.75rem; }
+  /* Keyboard advice (Enter sends…) is for keyboards; on a phone this narrow it was five lines. */
+  .composer-help { display: none; }
+
+  /* B4: the room's name first. Its lantern and the member count give way, and the
+     "N here now" line keeps to one line instead of wrapping under the name. */
+  .room-heading h2 .lantern { display: none; }
+  .room-heading p.room-meta-line { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #members-count { display: none; }
+  .header-button { min-width: 2.5rem; padding-inline: 0.3rem; }
+  /* Focus rings stay inside the cramped header instead of painting over neighbours. */
+  .room-header :focus-visible { outline-offset: -2px; }
+
+  /* B5: the empty-room line wraps at words, a size that fits. */
+  /* safe center: when the line and its picture are taller than the space, they start at the
+     top instead of overflowing upwards under the header. */
+  .empty-state { align-content: safe center; gap: 0.9rem; padding: 1rem 0.75rem; font-size: clamp(1.05rem, 7vw, 1.65rem); overflow-wrap: break-word; }
+  /* The picture is decoration; at this size the words need its room. */
+  .empty-state::before { display: none; }
+}
+
+/* Below 320 CSS px (S7g): a phone with large text. At 320 and up the field and Send
+   share a row comfortably; under it the field would shrink to a few letters. */
+@media (max-width: 19.99rem) {
+  /* B1: the message field takes the whole first row; attach, emoji and Send share the
+     row under it. The field's wrapper steps aside (display: contents) so its parts sit
+     in the composer's own grid. Scoped to both composers, since components.css loads
+     after this file with the plain selectors. */
+  :is(.composer, .dm-composer) { grid-template-columns: auto auto minmax(0, 1fr) auto; gap: 0.25rem 0.35rem; padding: 0.4rem; }
+  :is(.composer, .dm-composer) .composer-field { display: contents; }
+  :is(.composer, .dm-composer) .composer-field textarea { grid-column: 1 / -1; grid-row: 1; padding-inline: 0.75rem; }
+  :is(.composer, .dm-composer) .composer-field .attachment-button { position: static; grid-row: 2; grid-column: 1; }
+  :is(.composer, .dm-composer) .composer-field .emoji-button { position: static; grid-row: 2; grid-column: 2; }
+  :is(.composer, .dm-composer) > .primary-button { grid-row: 2; grid-column: 4; min-height: 2.75rem; }
+  :is(.composer, .dm-composer) > :is(.attachment-selection, .reply-banner, .typing-indicator) { grid-column: 1 / -1; }
+}

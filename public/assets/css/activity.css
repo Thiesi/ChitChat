@@ -107,6 +107,16 @@
   .privacy-notification-unread.activity-item::after { background: Highlight; forced-color-adjust: none; }
 }
 
+/* Narrow phones and large text (S7g): the kind and the time share a line only while
+   they fit, and the actions wrap instead of running off the screen. */
+@media (max-width: 24rem) {
+  /* The kind's mark is decoration (the kind is in the words): the words get the row. */
+  .privacy-notification.activity-item { grid-template-columns: minmax(0, 1fr); padding: 0.65rem; }
+  .activity-item .activity-icon { display: none; }
+  .activity-body .privacy-notification-header { flex-wrap: wrap; gap: 0.1rem 0.6rem; }
+  .activity-kind { min-width: 0; overflow-wrap: break-word; }
+  .activity-body .privacy-notification-actions > * { max-width: 100%; white-space: normal; }
+
 /* ---- Notices first (S7h, CCM J-read) ---- */
 
 /* Mark all as read sits beside the heading as a text button, not a full-width bar. */

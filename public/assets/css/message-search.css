@@ -365,6 +365,13 @@
   .search-scope-chip:has(input:checked) { border: 2px solid Highlight; }
 }
 
+/* Narrow phones and large text (S7g): the place and the time wrap instead of
+   pushing the result wider than the screen. */
+@media (max-width: 24rem) {
+  .message-search-result { padding: 0.75rem; gap: 0.6rem; }
+  .message-search-result header { flex-wrap: wrap; gap: 0.1rem 0.75rem; }
+  .message-search-body { min-width: 0; }
+
 /* C1 (S7h): the page eyebrow is muted, like every page's. */
 .message-search-eyebrow { color: var(--text-muted); }
 
