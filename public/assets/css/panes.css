@@ -209,7 +209,7 @@
 }
 .privacy-line summary { cursor: pointer; list-style: none; }
 .privacy-line summary::-webkit-details-marker { display: none; }
-.privacy-line .privacy-more { color: var(--steward); font-weight: 600; text-decoration: underline; text-underline-offset: 0.15em; }
+.privacy-line .privacy-more { color: var(--signature-text); font-weight: 600; text-decoration: underline; text-underline-offset: 0.15em; }
 .privacy-line[open] .privacy-more { display: none; }
 .privacy-line p { margin: 0.4rem 0 0; line-height: 1.5; }
 .privacy-line summary:focus-visible { outline: 2px solid var(--signature-text); outline-offset: 2px; border-radius: 0.3rem; }

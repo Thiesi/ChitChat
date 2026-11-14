@@ -1520,7 +1520,8 @@ button.user-name.mention { padding: 0 0.2rem; border-radius: 0.25rem; background
   /* The direct composer's side margins (messages.css) would eat a quarter of the row. */
   #dm-composer { margin: 0.4rem 0.5rem; }
   /* Three rows to start with is a lot of a 180 px screen; it still grows as you type. */
-  #dm-message-input { height: 3.75rem; min-height: 3.75rem; }
+  /* The room field's two lines (75.6px at 180), so the placeholder keeps its "…". */
+  #dm-message-input { height: 4.75rem; min-height: 4.75rem; }
   /* Keyboard advice (Enter sends…) is for keyboards; on a phone this narrow it was five lines. */
   .composer-help { display: none; }
 
