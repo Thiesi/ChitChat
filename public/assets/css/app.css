@@ -121,7 +121,9 @@ button:disabled {
 .powered-by .footer-documents a { display: inline-block; padding-block: 0.75rem; font-weight: 600; }
 /* "Report an accessibility problem" on the sign-in screens (#219): the same target as the document links. */
 .powered-by .footer-feedback a { display: inline-block; padding-block: 0.75rem; font-weight: 600; }
-.feedback-where { font-weight: 400; }
+/* The hint wraps as one piece ("(opens" / "GitHub)" read badly on phones, #377), but an
+   inline-block, unlike nowrap, can still break inside when a long host is wider than the line. */
+.feedback-where { display: inline-block; max-width: 100%; overflow-wrap: anywhere; font-weight: 400; }
 
 /* A labelled theme selector, compact enough for the sidebar footer. */
 .theme-select {
