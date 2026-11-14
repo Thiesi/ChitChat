@@ -63,7 +63,7 @@ test.describe('the link', () => {
     await expect(link).toHaveAttribute('rel', 'noopener noreferrer');
     // It sits before the attribution, and is a comfortable target.
     // innerText also carries the visually hidden ", in a new tab".
-    expect(await page.locator('#auth-shell .powered-by').innerText()).toMatch(/^Report an accessibility problem \(opens GitHub\)(, in a new tab)?\s*·\s*Powered by ChitChat$/);
+    expect(await page.locator('#auth-shell .powered-by').innerText()).toMatch(/^Report an accessibility problem \(opens GitHub\)\s*(, in a new tab)?\s*·\s*Powered by ChitChat$/);
     expect((await link.boundingBox()).height).toBeGreaterThanOrEqual(44);
   });
 
@@ -87,7 +87,8 @@ test.describe('the link', () => {
     await page.goto('/');
     await expect(page.locator('#auth-shell .powered-by')).toBeVisible();
     await expect(page.locator('#auth-shell [data-accessibility-feedback]')).toBeHidden();
-    expect((await page.locator('#auth-shell .powered-by').innerText()).trim()).toBe('Powered by ChitChat');
+    await expect(page.locator('#auth-shell .powered-by')).toHaveText('Powered by ChitChat');
+    await expect(page.locator('#auth-shell [data-accessibility-feedback]')).toBeEmpty();
   });
 
   test('signed in, the You list ends with it', async ({ page }) => {

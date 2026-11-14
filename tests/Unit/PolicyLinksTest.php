@@ -49,8 +49,9 @@ final class PolicyLinksTest extends TestCase
         $slot = PoweredBy::feedbackSlot();
 
         // Hidden until accessibility-feedback.js fills it from session.php (#219).
-        self::assertStringContainsString('data-accessibility-feedback hidden', $slot);
-        self::assertStringContainsString('Report an accessibility problem', $slot);
+        self::assertStringContainsString('data-accessibility-feedback data-feedback-separator hidden', $slot);
+        // Empty, so a footer without the link reads exactly as before.
+        self::assertStringEndsWith('hidden></span>', $slot);
         self::assertSame(
             '<p class="powered-by">' . $slot . 'Powered by <a href="' . PoweredBy::REPOSITORY_URL . '">ChitChat</a></p>',
             PoweredBy::html(Config::fromEnvironment(), accessibilityFeedback: true),
@@ -58,7 +59,7 @@ final class PolicyLinksTest extends TestCase
 
         PolicyLinks::useDocuments([PolicyLinks::RULES => ['source' => 'hosted', 'url' => 'https://chat.example/rules.php']]);
         self::assertMatchesRegularExpression(
-            '/Community rules.*Report an accessibility problem.*Powered by/s',
+            '/Community rules.*data-accessibility-feedback.*Powered by/s',
             PoweredBy::html(Config::fromEnvironment(), accessibilityFeedback: true),
         );
         // Other pages' footers don't carry it.

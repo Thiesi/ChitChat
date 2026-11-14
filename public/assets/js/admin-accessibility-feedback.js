@@ -43,7 +43,9 @@ function savedChoice() {
 
 async function load() {
   try {
-    render((await apiGet(`${BASE}get.php`)).accessibility_feedback);
+    const feedback = (await apiGet(`${BASE}get.php`))?.accessibility_feedback;
+    if (!feedback || typeof feedback !== 'object' || typeof feedback.enabled !== 'boolean') return;
+    render(feedback);
     $('accessibility-feedback-settings').hidden = false;
   } catch {
     // Not a Super-Administrator, or an older server: the card stays away.

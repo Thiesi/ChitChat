@@ -22,31 +22,49 @@ export function feedbackDestination(url) {
   return { href: url, where: host === 'github.com' ? 'GitHub' : host, newTab: true };
 }
 
-/** Fills every slot under `root` from session.php's accessibility_feedback ({url} or null). */
+/** The link itself: "Report an accessibility problem (opens GitHub)". */
+function feedbackLink(destination) {
+  const link = document.createElement('a');
+  link.href = destination.href;
+  const where = document.createElement('span');
+  where.className = 'feedback-where';
+  if (destination.newTab) {
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    const tab = document.createElement('span');
+    tab.className = 'visually-hidden';
+    tab.textContent = ', in a new tab';
+    // The new tab is said last, so the visible words stay one piece: "(opens GitHub)".
+    where.append(`(opens ${destination.where})`, tab);
+  } else {
+    where.append(`(${destination.where})`);
+  }
+  link.append('Report an accessibility problem ', where);
+  return link;
+}
+
+/**
+ * Fills every slot under `root` from session.php's accessibility_feedback ({url} or null).
+ * A slot is empty and hidden until then; one marked data-feedback-separator also gets the
+ * footer's " · " before the attribution.
+ */
 export function fillFeedbackLinks(feedback, root = document) {
   const destination = feedbackDestination(feedback?.url);
   for (const slot of root.querySelectorAll('[data-accessibility-feedback]')) {
-    const link = slot.querySelector('a');
-    const where = slot.querySelector('[data-feedback-where]');
-    if (!destination || !link || !where) {
+    if (!destination) {
+      slot.replaceChildren();
       slot.hidden = true;
-      link?.removeAttribute('href');
       continue;
     }
-    link.href = destination.href;
-    if (destination.newTab) {
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
-      const tab = document.createElement('span');
-      tab.className = 'visually-hidden';
-      tab.textContent = ', in a new tab';
-      // The new tab is said last, so the visible words stay one piece: "(opens GitHub)".
-      where.replaceChildren(`(opens ${destination.where})`, tab);
-    } else {
-      link.removeAttribute('target');
-      link.removeAttribute('rel');
-      where.replaceChildren(`(${destination.where})`);
+    const parts = [feedbackLink(destination)];
+    if (slot.hasAttribute('data-feedback-separator')) {
+      const separator = document.createElement('span');
+      separator.className = 'footer-separator';
+      separator.setAttribute('aria-hidden', 'true');
+      separator.textContent = ' · ';
+      parts.push(separator);
     }
+    slot.replaceChildren(...parts);
     slot.hidden = false;
   }
 }

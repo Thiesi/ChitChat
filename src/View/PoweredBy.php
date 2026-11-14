@@ -34,11 +34,12 @@ final class PoweredBy
             . self::SEPARATOR . $feedback . $attribution . '</p>';
     }
 
-    /** The hidden link, filled in the browser; it carries its own separator before the attribution. */
+    /**
+     * An empty, hidden slot: the browser puts the link and its separator before the
+     * attribution, so nothing of it is in the page while the link is off.
+     */
     public static function feedbackSlot(): string
     {
-        return '<span class="footer-feedback" data-accessibility-feedback hidden>'
-            . '<a>Report an accessibility problem <span class="feedback-where" data-feedback-where></span></a>'
-            . self::SEPARATOR . '</span>';
+        return '<span class="footer-feedback" data-accessibility-feedback data-feedback-separator hidden></span>';
     }
 }
