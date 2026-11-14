@@ -55,7 +55,7 @@ const messages = [1, 2].map((id) => ({
   mentions: [], reactions: [], reply_to: null, attachment: null, created_at: `2026-10-04T10:0${id}:00Z`,
 }));
 
-async function fixture(page, { user = member, rooms = ROOMS(), notifications = [MENTION] } = {}) {
+async function fixture(page, { user = member, rooms = ROOMS(), notifications = [MENTION], roomMessages = { 1: messages } } = {}) {
   const posts = [];
   const state = { rooms, notifications };
   await page.route('**/api/v1/**', async (route) => {
@@ -78,7 +78,7 @@ async function fixture(page, { user = member, rooms = ROOMS(), notifications = [
     }
     const responses = {
       'rooms/list.php': { rooms: state.rooms },
-      'rooms/messages.php': { messages: url.searchParams.get('room_id') === '1' ? messages : [] },
+      'rooms/messages.php': { messages: roomMessages[url.searchParams.get('room_id')] ?? [] },
       'rooms/message-mutations.php': { messages: [] },
       'attachments/metadata.php': { attachments: [] },
       'presence/heartbeat.php': { presence: { room_id: 1, expired: false } },
@@ -342,3 +342,55 @@ for (const [scheme, theme] of [['lantern', 'light'], ['lantern', 'dark'], ['dusk
     expect(overflow).toBe(0);
   });
 }
+
+// ---- The "@" from the server's count (unread_mention_count, #266) ----
+
+async function stubEventSource(page) {
+  await page.addInitScript(() => {
+    class FakeEventSource extends EventTarget {
+      constructor(url) { super(); this.url = url; this.readyState = 1; (window.__sources ??= []).push(this); window.setTimeout(() => this.dispatchEvent(new Event('open')), 0); }
+      close() { this.readyState = 2; }
+    }
+    window.EventSource = FakeEventSource;
+    window.__emit = (type, payload) => {
+      for (const source of window.__sources ?? []) {
+        if (source.readyState !== 2) source.dispatchEvent(new MessageEvent(type, { data: JSON.stringify({ type, payload }) }));
+      }
+    };
+  });
+}
+
+const withMentions = (counts) => ROOMS().map((room) => ({ ...room, unread_mention_count: counts[room.id] ?? 0 }));
+const gardenMessages = [3, 4].map((id) => ({ ...messages[0], id, room_id: 4, body: `Seeds ${id}` }));
+
+test('the server’s count alone shows "@", with no notification', async ({ page }) => {
+  await fixture(page, { rooms: withMentions({ 4: 2 }), notifications: [] });
+  await open(page);
+  await expect(row(page, 'Garden').locator('.mention-badge')).toHaveText('@');
+  await expect(row(page, 'Garden')).toHaveAccessibleName(/mentions you/);
+  await expect(page.locator('.mention-card')).toHaveCount(0);
+  await expect(row(page, 'Attic').locator('.mention-badge')).toHaveCount(0);
+});
+
+test('reading the room clears the server’s count too', async ({ page }) => {
+  const posts = await fixture(page, { rooms: withMentions({ 4: 2 }), notifications: [], roomMessages: { 1: messages, 4: gardenMessages } });
+  await open(page);
+  await row(page, 'Garden').click();
+  await expect.poll(() => posts.some((entry) => entry.path === 'rooms/read.php' && entry.body?.room_id === 4)).toBe(true);
+  await row(page, 'The living room').click();
+  await expect(row(page, 'Garden').locator('.mention-badge')).toHaveCount(0);
+});
+
+test('a live mention of you in another room adds its "@"; a live @here doesn’t', async ({ page }) => {
+  await stubEventSource(page);
+  await fixture(page, { rooms: withMentions({}), notifications: [] });
+  await open(page);
+  await expect(page.locator('.mention-badge')).toHaveCount(0);
+  const live = (id, roomId, mention) => ({ ...messages[0], id, room_id: roomId, mentions: [mention] });
+  // An @here in Garden counts as unread but adds no "@" (it reaches only who's present).
+  await page.evaluate((message) => window.__emit('room_message', { message }), live(90, 4, { user_id: null, username: 'here', broadcast: true }));
+  await expect(row(page, 'Garden').locator('.unread-count')).toContainText('4');
+  await expect(row(page, 'Garden').locator('.mention-badge')).toHaveCount(0);
+  await page.evaluate((message) => window.__emit('room_message', { message }), live(91, 4, { user_id: member.id, username: member.username, broadcast: false }));
+  await expect(row(page, 'Garden').locator('.mention-badge')).toHaveText('@');
+});
