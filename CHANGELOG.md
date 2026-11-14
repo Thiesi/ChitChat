@@ -14,13 +14,13 @@ The web client's S7 redesign sweep (#173): no browser pop-ups, leaving a room fr
 
 - Leave a room from the foot of the Members panel (#299, #342), with a private-room warning and the next room opened without a reload; the owner is told to transfer ownership first, including on a `409` race.
 
-- Connection status on Rooms and Direct (#309, #343): quiet when live, "Reconnecting…" after 3 s down, "Offline. You can't send until you're back." when offline; offline sends fail with "You're offline. Your message wasn't sent." and keep the draft. The line is no longer a live region; screen readers hear "Still reconnecting…" once and "Connected again." on recovery.
+- Connection status on Rooms and Direct (#309, #343): a quiet "Live" that isn't announced, "Reconnecting…" after 3 s down, "Offline. You can't send until you're back." when offline; offline sends fail with "You're offline. Your message wasn't sent." and keep the draft. The line is no longer a live region; screen readers hear "Still reconnecting. New messages will appear once the connection is back." once, at the 30 s backoff cap, and "Connected again." on recovery.
 
 - Error and not-found pages (#344, #345, #348): `public/index.php` answers paths other than `/`, `/index.php` and `/favicon.ico` with a `404` status page (no session started, security headers sent, `no-store`, `noindex`); uncaught page failures and true fatals render a `500` status page with the configured name, after discarding buffered output and stale headers, with 8 MiB extra memory after a fatal (never unlimited). APIs, the CLI and `APP_DEBUG` are unchanged. New `public/not-found.php`; optional Nginx `error_page` documented.
 
 - Empty states with a next step everywhere, and the search privacy notice as one line with Learn more (#346).
 
-- Phones (#347, #349, #350): bottom sheets below 768 px with pinned actions; layouts hold down to 180 CSS px (composer, mention banner, bottom navigation, room header, headings), guarded by reflow and axe tests at 180 and 320 px; Activity notices first; one search scope control on narrow screens; muted page eyebrows; read notices in regular weight. Escape in a dialog from the phone Members sheet no longer closes the sheet.
+- Phones (#347, #349, #350): bottom sheets below 768 px, with pinned actions on confirmation and form sheets; layouts hold down to 180 CSS px (composer, mention banner, bottom navigation, room header, headings), guarded by reflow and axe tests at 180 and 320 px; Activity notices first; one search scope control on narrow screens; muted page eyebrows; read notices in regular weight. Escape in a dialog from the phone Members sheet no longer closes the sheet.
 
 ## [3.12.0] - 2026-11-13
 
