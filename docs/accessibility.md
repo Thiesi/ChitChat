@@ -31,7 +31,7 @@ We do not claim conformance with any WCAG level. The automated checks below use 
 
 - **Messages are read as one sentence:** who sent it (or "You"), what it replies to, the text, the full date and time, "read" on your own direct messages once read, and whether it was edited, carries a file or has reactions (with "including you" where you reacted). The bubble itself shows only the time; the day is in a heading.
 - **The conversation is a list with day headings,** in reading order, the same in rooms and direct messages.
-- **New messages are announced politely, once each,** through a single status region:
+- **New messages are announced politely, once each,** through a single status region, the one announcer for conversation events:
   - A message from someone else reads like "Alex: see you soon" (long text is cut after 140 characters), "Mention from Alex: …", "Ping from Alex: …" or "Alex sent a file: plan.pdf".
   - A burst of more than three is summarised, for example "5 new messages from Alex, Sam and 2 more."
   - Nothing is announced while the tab is in the background; when you come back, one line says how many arrived.
@@ -43,22 +43,23 @@ We do not claim conformance with any WCAG level. The automated checks below use 
 - **Search results:** each result's link names the room or conversation and opens the exact message. The excerpt and the sender follow as its description, and the words you searched for are marked in the excerpt. The scope (All, Rooms, Direct) is a radio group, so the arrow keys move between the choices.
 - Navigation tabs with unread items are read with their visible name first, for example "Activity, 3 unread", so voice-control users can say what they see.
 - A "signed out" line on the sign-in screen, for example after signing out on another device, is also announced.
+- **Errors are announced assertively:** short notices about errors and things that "aren't available any more" go to an assertive region, and form errors use alerts.
 
 ### Colour, contrast and motion
 
 - **Light, dark or system.** The mode follows your operating system unless you choose Light or Dark under You → Appearance. The choice is stored per device.
 - **Colour schemes:** Lantern (the default), Lounge, Dusk, Ember, Rosé, Midnight and **High contrast**.
-- **Contrast floors are checked for every scheme in both modes:** at least 4.5:1 for text and icons that carry meaning, and 3:1 for component boundaries and meaningful non-text marks.
-- **Forced colours** (for example Windows Contrast themes): selected items, the primary action, focus outlines, the current navigation tab and unread badges keep visible system-colour outlines or borders.
+- **Contrast floors are checked for every scheme, in every mode it offers** (Midnight is dark only): at least 4.5:1 for text and icons that carry meaning, and 3:1 for component boundaries and meaningful non-text marks.
+- **Forced colours** (for example Windows Contrast themes): the selected item, the primary action and focus outlines keep visible system-colour outlines or borders.
 - **Reduced motion:** when your system asks for reduced motion, animations, transitions and smooth scrolling are switched off.
-- **Reflow:** core screens fit narrow windows, down to 320 CSS pixels for the conversation, without horizontal page scrolling. Below that width (for example at 200% zoom on a small phone) the room title is cut short and the message box gets cramped; that's a known gap.
-- On touch screens the navigation tabs are at least 48 × 48 pixels.
+- **Reflow:** core screens fit narrow windows down to 180 CSS pixels (for example 200% zoom on a 360-pixel phone) without horizontal page scrolling. On narrow screens a long room title wraps to two lines.
+- **Navigation tabs** are at least 48 pixels tall, and 48 × 48 pixels down to 320 CSS pixels wide.
 
 ## How it is tested
 
 Every change runs these checks in continuous integration:
 
-- **axe-core** with the WCAG 2.0, 2.1 and 2.2 A and AA rule sets, on each screen and on the states that matter (open menus and dialogs, errors, empty and loading states), in light and dark mode. These run in **Chromium, Firefox and WebKit**.
+- **axe-core** with the WCAG 2.0, 2.1 and 2.2 A and AA rule sets, on each screen and on the states that matter (open menus and dialogs, errors, empty and loading states). These run in **Chromium, Firefox and WebKit**, most screens in both light and dark mode; a few run in one mode, and a few checks run in Chromium only.
 - **Accessibility-tree snapshots** check what assistive technology is given for the conversation, the actions menu and the navigation: roles, names and reading order.
 - **Keyboard tests** drive the conversation (one Tab stop, arrows, Home/End, Enter, Escape, loading older history), the menus, the suggestion lists and the emoji picker without a mouse.
 - **A deeper gate** in Chromium checks core surfaces with axe in both modes, reflow without horizontal scrolling, forced-colours affordances and reduced-motion durations. Forced-colours and reduced-motion emulation is only available in Chromium in our test tool.
@@ -68,6 +69,15 @@ Every change runs these checks in continuous integration:
 
 - **No manual testing with screen readers or other assistive technology.** That's the maintainer's decision. Automated checks can't tell whether something is pleasant or efficient to use, only whether certain rules are met.
 - **No conformance audit** against WCAG or any other standard.
+- **Only Chromium** runs the deeper axe gate and the reflow, forced-colours and reduced-motion checks. Forced colours and reduced motion are emulated there, not checked with real Windows Contrast themes.
+- **Not tested at all:** speech input, switch access, screen magnifiers and cognitive accessibility.
+- **Known gaps:**
+  - Short notices disappear after five or six seconds, and they don't pause on hover or focus.
+  - Text spacing (WCAG 1.4.12) isn't checked.
+  - Right-to-left text and layouts aren't tested.
+  - Target size is checked only for the navigation tabs and a few phone controls.
+  - Date fields, such as the date of birth, use the browser's own date control, so how they work depends on the browser.
+- **Outside the web client:** third-party sign-in pages (such as Google or Twitch), e-mail and push notification text, and ChitChat Mobile (a separate project) aren't covered here.
 - Operators who need a formal sign-off for their own installation should arrange their own assessment.
 - If you'd like to test yourself, the optional [assistive-technology checklist](operations/accessibility-review.md) suggests journeys for screen readers, keyboard, zoom, contrast themes and reduced motion. It isn't a release requirement; partial runs are welcome.
 
@@ -78,8 +88,9 @@ Please open an [**Accessibility problem** issue](https://github.com/Thiesi/ChitC
 - your assistive technology and its version, your browser and your operating system;
 - what you were trying to do;
 - what you expected to hear or happen, and what happened instead;
+- whether it happened in the web app or in ChitChat Mobile;
 - optionally, a speech log or transcript.
 
-You don't need to share account details or anyone's messages. If you attach a speech log, please remove anything personal that was read out from your chats first.
+Issues on GitHub are public. You don't need to share account details or anyone's messages. If you attach a speech log, please remove anything personal that was read out from your chats first.
 
 If you can't use GitHub, tell the people who run your ChitChat installation; they can pass the report on.
