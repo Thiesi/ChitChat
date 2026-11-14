@@ -73,7 +73,12 @@ async function fixture(page, { overrides = {} } = {}) {
         saved[2] = { body: request.postDataJSON().body, edited_at: '2026-10-04T10:30:00Z' };
         return { message: states()[1] };
       })(),
-      'rooms/delete-own-message.php': { message: { ...states()[1], body: null, deleted: true, deletion_kind: 'author', can_edit: false, can_delete: false } },
+      // The server knows it's gone, so the page's routine refresh agrees (no flicker back).
+      'rooms/delete-own-message.php': (() => {
+        if (path !== 'rooms/delete-own-message.php') return null;
+        saved[2] = { body: null, deleted: true, deletion_kind: 'author', can_edit: false, can_delete: false };
+        return { message: states()[1] };
+      })(),
       'attachments/metadata.php': { attachments: [] },
       'presence/heartbeat.php': { presence: { room_id: 1, expired: false } },
       'rooms/presence.php': { users: [] },

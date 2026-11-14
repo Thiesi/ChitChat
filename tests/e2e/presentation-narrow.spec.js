@@ -216,7 +216,10 @@ test('180 CSS px: the direct encryption line keeps its words and Learn more in v
   await page.goto('/messages.php?user=2');
   await page.locator('#dm-conversation-list .conversation-button').first().click();
   const line = page.locator('#dm-privacy-notice summary');
-  await expect(line.locator('.privacy-short')).toHaveText('Not end-to-end encrypted');
+  // A separator, so the short words and Learn more don't read as one phrase (#351).
+  await expect(line.locator('.privacy-short')).toHaveText('Not end-to-end encrypted ·');
+  // No resize grip over the end of the placeholder (#351).
+  await expect(page.locator('#dm-message-input')).toHaveCSS('resize', 'none');
   await expect(line.locator('.privacy-more')).toBeInViewport({ ratio: 1 });
   expect(await line.evaluate((node) => node.scrollWidth <= node.clientWidth)).toBe(true);
   await expect(line).toHaveAccessibleName(/Direct messages aren’t end-to-end encrypted\./);
