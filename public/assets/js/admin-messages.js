@@ -221,6 +221,8 @@ function canInspect(user, role) {
 function toast(message, kind = 'info') {
   const node = document.createElement('div');
   node.className = `toast ${kind}`;
+  // The region is polite; only an error interrupts (#369).
+  if (kind === 'error') node.setAttribute('role', 'alert');
   node.textContent = message;
   elements['toast-region'].append(node);
   window.setTimeout(() => node.remove(), 6000);

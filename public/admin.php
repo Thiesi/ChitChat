@@ -239,7 +239,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
     </form>
   </dialog>
 
-  <div id="toast-region" class="toast-region" aria-live="assertive"></div>
+  <div id="toast-region" class="toast-region" aria-live="polite"></div>
   <script type="module" src="/assets/js/admin.js"></script>
   <script type="module" src="/assets/js/admin-dm-link.js"></script>
   <script type="module" src="/assets/js/shell.js"></script>

@@ -799,7 +799,8 @@ async function withButton(button, task) {
 function toast(message, type = 'info') {
   const item = document.createElement('div');
   item.className = `toast ${type}`;
-  item.setAttribute('role', type === 'error' ? 'alert' : 'status');
+  // The region is polite; only an error interrupts (#369).
+  if (type === 'error') item.setAttribute('role', 'alert');
   item.textContent = message;
   elements['toast-region'].append(item);
   window.setTimeout(() => item.remove(), 6000);

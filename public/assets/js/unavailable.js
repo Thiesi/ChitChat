@@ -44,10 +44,9 @@ export function showNotice(text) {
   const region = document.getElementById('toast-region');
   if (!region || !text) return;
   const note = document.createElement('div');
-  // Information, not an error (S8 C): a neutral notice. Announced as before, through the
-  // toast region.
+  // Information, not an error (S8 C): a neutral notice, read by the polite toast region
+  // without interrupting (#369).
   note.className = 'toast notice';
-  note.setAttribute('role', 'alert');
   note.textContent = text;
   region.append(note);
   window.setTimeout(() => note.remove(), 6000);
