@@ -68,6 +68,12 @@ body[data-audience="guest"] .you-member-since { display: none; }
 
 .you-section-link:hover { background: var(--surface); }
 
+/* "Report an accessibility problem" (#219): at the foot of the list, quieter than a section. */
+.you-feedback { margin: 0.5rem 0 0; padding: 0 0.5rem; }
+.you-feedback[hidden] { display: none; }
+.you-feedback a { display: inline-block; padding: 0.7rem 0.75rem; color: var(--text-muted); font-size: 0.875rem; font-weight: 600; line-height: 1.35; text-underline-offset: 0.2em; }
+.you-feedback a:hover { color: var(--text); }
+
 .you-section-link[aria-current="page"] {
   border-color: color-mix(in srgb, var(--signature-text) 30%, var(--field-line));
   background: color-mix(in srgb, var(--signature) 13%, var(--ground));

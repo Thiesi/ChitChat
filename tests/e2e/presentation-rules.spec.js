@@ -301,6 +301,7 @@ test('administrators publish rules and choose whether members agree again', asyn
       'admin/settings/application-name/get.php': { application_name: { default: 'ChitChat', override: null } },
       // Operational settings also loads the sign-in decoration card (#242).
       'admin/settings/sign-in-decoration/get.php': { sign_in_decoration: { value: 'off', options: ['off', 'winter', 'spring', 'celebration'] } },
+      'admin/settings/accessibility-feedback/get.php': { accessibility_feedback: { enabled: true, url: null, default_url: 'https://github.com/Thiesi/ChitChat/issues/new?template=accessibility.yml', effective_url: 'https://github.com/Thiesi/ChitChat/issues/new?template=accessibility.yml' } },
       // #211's card loads beside the policies; this test doesn't look at it.
       'admin/settings/application-icon/get.php': { application_icon: null },
       // The authenticator key card (#204); a server without a key yet.

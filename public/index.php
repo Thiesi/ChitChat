@@ -193,7 +193,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
         <p id="auth-error" class="error-text" role="alert"></p>
       </section>
     </div>
-    <?= \ChitChat\View\PoweredBy::html($config) ?>
+    <?= \ChitChat\View\PoweredBy::html($config, accessibilityFeedback: true) ?>
   </main>
 
   <?= \ChitChat\View\AppShell::open('rooms', 'conversation', 'Skip to conversation', true, config: $config) ?>
@@ -388,6 +388,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <script type="module" src="/assets/js/admin-link.js"></script>
   <script type="module" src="/assets/js/navigation.js"></script>
   <script type="module" src="/assets/js/room-message-mutations.js"></script>
+  <script type="module" src="/assets/js/accessibility-feedback.js"></script>
   <script type="module" src="/assets/js/shell.js"></script>
 </body>
 </html>

@@ -71,6 +71,8 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
           <li data-member-only><a class="you-section-link" href="#privacy" data-section="privacy">Privacy and data</a></li>
           <li data-member-only><a class="you-section-link" href="#account" data-section="account">Account</a></li>
         </ul>
+        <!-- #219: filled from session.php by accessibility-feedback.js; stays hidden when the operator turned it off. -->
+        <p class="you-feedback" data-accessibility-feedback hidden></p>
       </nav>
       <div id="you-session" class="you-session">
         <button id="logout-button" class="secondary-button" type="button"><span data-member-only>Sign out</span><span data-guest-only hidden>Leave</span></button>
@@ -470,6 +472,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <script type="module" src="/assets/js/you.js"></script>
   <script type="module" src="/assets/js/panes.js"></script>
   <script type="module" src="/assets/js/sessions.js"></script>
+  <script type="module" src="/assets/js/accessibility-feedback.js"></script>
   <script type="module" src="/assets/js/shell.js"></script>
 </body>
 </html>

@@ -94,4 +94,4 @@ Please open an [**Accessibility problem** issue](https://github.com/Thiesi/ChitC
 
 Issues on GitHub are public. You don't need to share account details or anyone's messages. If you attach a speech log, please remove anything personal that was read out from your chats first.
 
-If you can't use GitHub, tell the people who run your ChitChat installation; they can pass the report on.
+In the app, **Report an accessibility problem**, on the sign-in screens and at the foot of the list under You, leads to this form, or to the address the people who run your installation chose instead: a page of their own or an email address. The link says where it goes before you follow it. If they've turned it off, or you can't use GitHub, tell them directly; they can pass the report on.

@@ -55,9 +55,10 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
       <p id="restore-account-error" class="error-text" role="alert"></p>
       <a class="quiet-action" href="/">Back to sign in</a>
     </section>
-    <?= \ChitChat\View\PoweredBy::html($config) ?>
+    <?= \ChitChat\View\PoweredBy::html($config, accessibilityFeedback: true) ?>
   </main>
   <script type="module" src="/assets/js/restore-account.js"></script>
   <script type="module" src="/assets/js/password-reveal.js"></script>
+  <script type="module" src="/assets/js/accessibility-feedback.js"></script>
 </body>
 </html>

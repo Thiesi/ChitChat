@@ -60,6 +60,7 @@ async function fixture(page, { current = settings({ username_reservation_days: 3
       'admin/settings/registration-protection/get.php': { registration_protection: { overrides: { rate_limit_max_attempts: null, rate_limit_window_seconds: null, min_fill_seconds: null, proof_of_work_bits: null }, defaults: { rate_limit_max_attempts: 5, rate_limit_window_seconds: 3600, min_fill_seconds: 3, proof_of_work_bits: 16 }, effective: { rate_limit_max_attempts: 5, rate_limit_window_seconds: 3600, min_fill_seconds: 3, proof_of_work_bits: 16 } } },
       'admin/policies.php': { policies: { rules: { source: 'none', markdown: '', url: null, version: 0, updated_at: null }, privacy: { source: 'none', markdown: '', url: null, version: 0, updated_at: null }, legal_notice: { url: null } } },
       'admin/settings/sign-in-decoration/get.php': { sign_in_decoration: { value: 'off', options: ['off', 'winter', 'spring', 'celebration'] } },
+      'admin/settings/accessibility-feedback/get.php': { accessibility_feedback: { enabled: true, url: null, default_url: 'https://github.com/Thiesi/ChitChat/issues/new?template=accessibility.yml', effective_url: 'https://github.com/Thiesi/ChitChat/issues/new?template=accessibility.yml' } },
       'account/notifications/list.php': { notifications: [], unread_count: 0 },
     };
     await route.fulfill({ json: responses[path] ?? {} });

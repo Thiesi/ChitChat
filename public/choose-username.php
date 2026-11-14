@@ -50,8 +50,9 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
 
       <a class="quiet-action" href="/">Back to the conversation</a>
     </section>
-    <?= \ChitChat\View\PoweredBy::html($config) ?>
+    <?= \ChitChat\View\PoweredBy::html($config, accessibilityFeedback: true) ?>
   </main>
   <script type="module" src="/assets/js/choose-username.js"></script>
+  <script type="module" src="/assets/js/accessibility-feedback.js"></script>
 </body>
 </html>

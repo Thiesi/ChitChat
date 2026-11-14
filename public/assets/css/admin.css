@@ -375,3 +375,11 @@
 }
 .decoration-preview .lockup { max-width: 76%; }
 .decoration-preview .lockup-name { font-size: 1.5rem; }
+
+/* Accessibility feedback (#219): where "Report an accessibility problem" leads. */
+.feedback-settings[hidden],
+.feedback-own[hidden] { display: none; }
+.feedback-choices { display: flex; flex-wrap: wrap; gap: 0.4rem 1.25rem; margin: 0; padding: 0; border: 0; }
+.feedback-choices label { display: flex; flex-direction: row; align-items: center; gap: 0.5rem; min-height: 2.75rem; font-weight: 400; }
+.feedback-choices input { width: auto; margin: 0; padding: 0; flex: none; accent-color: var(--steward); }
+.feedback-own { display: grid; gap: 0.3rem; }
