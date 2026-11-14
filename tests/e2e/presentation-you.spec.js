@@ -419,6 +419,19 @@ test('renaming a passkey asks in a form dialog, not window.prompt (S7)', async (
   expect(native).toBe(0);
 });
 
+test('the rename dialog is a bottom sheet at 360 and passes axe there (S7)', async ({ page }) => {
+  await fixture(page, { mfa: mfaOn });
+  await open(page, 360, '/account.php#security');
+  const card = page.locator('#mfa-heading').locator('xpath=ancestor::section[1]');
+  await card.getByRole('button', { name: 'Rename', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Rename this passkey' });
+  await expect(dialog.getByRole('textbox', { name: 'Name' })).toBeFocused();
+  const box = await dialog.boundingBox();
+  expect(Math.round(box.width)).toBe(360);
+  expect(Math.abs(box.y + box.height - page.viewportSize().height)).toBeLessThanOrEqual(1);
+  await axe(page, 'rename sheet 360');
+});
+
 // ---- Phones ----
 
 test('phones: the list first; a section pushes over it, and Back returns to its row', async ({ page }) => {
