@@ -290,14 +290,13 @@
   background: var(--surface);
 }
 
-.dm-composer:focus-within { border-color: var(--signature-text); }
 .dm-composer .primary-button { min-height: 3rem; }
 .dm-composer > .reply-banner { grid-column: 1 / -1; margin-bottom: 0; }
 
 .dm-composer textarea {
   /* One row when empty, growing with the text (autosize.js) up to the max; no grip (#256). */
   min-height: 3rem;
-  max-height: 12rem;
+  max-height: min(12rem, 35dvh);
   resize: none;
   border-color: transparent;
   background: transparent;

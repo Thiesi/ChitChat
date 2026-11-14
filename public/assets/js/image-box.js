@@ -1,4 +1,4 @@
-import { fileGone } from './file-availability.js';
+import { fileGone, markCardFileGone } from './file-availability.js';
 import { FILE_UNAVAILABLE } from './unavailable.js';
 
 // One image box for room and direct-message attachments (#158, built in S1c).
@@ -56,6 +56,7 @@ export function imageBox(attachment, originalUrl) {
       link.dataset.gone = 'true';
       link.removeAttribute('href');
       link.removeAttribute('target');
+      markCardFileGone(link);
     });
   });
   link.append(image);
