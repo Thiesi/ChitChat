@@ -147,6 +147,27 @@ test('a row says what waits in it, from data only: unread, "@", here now with th
   await expect(rooms(page).locator('[aria-current]')).toHaveCount(1);
 });
 
+test('forced colours: the unread count, the quiet count and "@" keep a system-colour border (#378)', async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium', 'Forced-colours emulation is Chromium-only.');
+  await fixture(page);
+  await page.emulateMedia({ forcedColors: 'active' });
+  await open(page);
+  // Backgrounds are dropped in forced colours: without a border a badge is bare digits in the row.
+  for (const [name, badge, text] of [['Garden', '.unread-count', '3'], ['Attic', '.unread-count.quiet', '99+'], ['Garden', '.mention-badge', '@']]) {
+    const element = row(page, name).locator(badge);
+    await expect(element, `${name} ${badge}`).toBeVisible();
+    await expect(element, `${name} ${badge}`).toContainText(text);
+    const border = await element.evaluate((node) => {
+      const style = getComputedStyle(node);
+      return { style: style.borderTopStyle, width: parseFloat(style.borderTopWidth), color: style.borderTopColor, canvas: getComputedStyle(document.body).backgroundColor };
+    });
+    expect(border.style, `${name} ${badge}`).toBe('solid');
+    expect(border.width, `${name} ${badge}`).toBeGreaterThanOrEqual(1);
+    // CanvasText (the text inside a row link is LinkText): it shows on Canvas.
+    expect(border.color, `${name} ${badge}: a system colour that shows on Canvas`).not.toBe(border.canvas);
+  }
+});
+
 test('a plain click switches in the page; a modified click is the browser’s', async ({ page }) => {
   await fixture(page, { notifications: [] });
   await open(page);

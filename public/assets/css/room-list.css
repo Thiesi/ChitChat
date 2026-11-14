@@ -168,7 +168,8 @@
 }
 
 @media (forced-colors: active) {
-  .mention-badge, .unread-count.quiet { border: 1px solid CanvasText; }
+  /* Backgrounds are dropped here, so every badge keeps a border (#378). */
+  .mention-badge, .unread-count { border: 1px solid CanvasText; }
   .room-invitation, .mention-card { border-color: CanvasText; }
   .list-pane .room-button .lantern.glow { outline: 2px solid Highlight; outline-offset: 2px; }
 }
