@@ -6,8 +6,12 @@ namespace ChitChat\Tests\Integration;
 
 use ChitChat\Auth\AuthService;
 use ChitChat\DirectMessage\DirectMessageMutationService;
+use ChitChat\Room\MessageService;
+use ChitChat\Room\RoomService;
 use ChitChat\Tests\Support\PhpHttpFixture;
 use ChitChat\Tests\Support\TemporaryPaths;
+use ChitChat\Tests\Support\TestImages;
+use ChitChat\Upload\AttachmentFileStore;
 
 /**
  * The attachment download endpoints through a real PHP web server: what someone may learn
@@ -30,19 +34,22 @@ final class AttachmentDownloadHttpTest extends DatabaseTestCase
      */
     public function testOutsidersCannotTellADeletedDirectAttachmentFromOneThatNeverExisted(): void
     {
+        if (!function_exists('imagewebp')) {
+            self::markTestSkipped('GD with WebP is unavailable.');
+        }
         $auth = new AuthService($this->pdo, $this->config);
         $sender = $auth->register('Sender', 'a very secure password', '127.0.0.1');
         $recipient = $auth->register('Recipient', 'another secure password', '127.0.0.2');
         $auth->register('Outsider', 'a third safe password', '127.0.0.3');
         $storage = $this->temporaryDirectory(true);
-        $source = $this->temporaryFile("Plain notes for the recipient.\n");
+        $source = $this->temporaryFile(TestImages::jpeg(6));
         $process = $this->startServer($storage);
         try {
             $this->login('sender', 'Sender', 'a very secure password');
             $this->login('recipient', 'Recipient', 'another secure password');
             $this->login('outsider', 'Outsider', 'a third safe password');
             $created = $this->request('sender', '/api/v1/direct-messages/attachments/upload.php',
-                ['recipient_user_id' => (string) $recipient->id, 'file' => new \CURLFile($source, 'text/plain', 'notes.txt')], [], true);
+                ['recipient_user_id' => (string) $recipient->id, 'file' => new \CURLFile($source, 'image/jpeg', 'notes.jpg')], [], true);
             self::assertSame(201, $created['status'], $created['body']);
             $message = $this->json($created)['message'];
             $attachmentId = (int) $this->pdo->query('SELECT id FROM direct_message_attachments WHERE direct_message_id = ' . (int) $message['id'])->fetchColumn();
@@ -54,6 +61,18 @@ final class AttachmentDownloadHttpTest extends DatabaseTestCase
             $missing = $this->request('outsider', $download($neverExisted));
             $this->assertNotFound($missing);
             $this->assertSameAnswer($missing, $this->request('outsider', $download($attachmentId)), 'before deletion');
+            // Even the real validator doesn't help an outsider: no 304, the same 404. The recipient
+            // gets the 304 with it, so the tag is the real one.
+            $sha = (string) $this->pdo->query('SELECT preview_sha256 FROM direct_message_attachments WHERE id = ' . $attachmentId)->fetchColumn();
+            self::assertSame(64, strlen($sha));
+            self::assertSame(304, $this->request('recipient', $download($attachmentId, '&variant=preview'), null, ['If-None-Match' => '"' . $sha . '"'])['status']);
+            foreach (['"' . $sha . '"', 'W/"' . $sha . '"', '*'] as $tag) {
+                $this->assertSameAnswer(
+                    $this->request('outsider', $download($neverExisted, '&variant=preview'), null, ['If-None-Match' => $tag]),
+                    $this->request('outsider', $download($attachmentId, '&variant=preview'), null, ['If-None-Match' => $tag]),
+                    'live, If-None-Match ' . $tag,
+                );
+            }
 
             (new DirectMessageMutationService($this->pdo))->deleteOwn($sender, (int) $message['id'], '127.0.0.1');
 
@@ -65,9 +84,11 @@ final class AttachmentDownloadHttpTest extends DatabaseTestCase
                 );
             }
             foreach (['sender', 'recipient'] as $participant) {
-                $deleted = $this->request($participant, $download($attachmentId));
-                self::assertSame(410, $deleted['status'], $participant . ': ' . $deleted['body']);
-                self::assertSame('attachment_deleted', $this->json($deleted)['error']['code'], $participant);
+                foreach (['', '&variant=preview', '&inline=1'] as $query) {
+                    $deleted = $this->request($participant, $download($attachmentId, $query));
+                    self::assertSame(410, $deleted['status'], $participant . $query . ': ' . $deleted['body']);
+                    self::assertSame('attachment_deleted', $this->json($deleted)['error']['code'], $participant . $query);
+                }
                 // A participant asking for an ID that never existed still gets the plain 404.
                 $this->assertNotFound($this->request($participant, $download($neverExisted)));
             }
@@ -78,6 +99,140 @@ final class AttachmentDownloadHttpTest extends DatabaseTestCase
             proc_close($process);
             $this->removeTemporaryPaths();
         }
+    }
+
+    /**
+     * #357: HEAD on both download endpoints answers exactly like GET (status and headers) with
+     * no body: the same session, visibility (#326, #356), deletion and storage checks, and no
+     * audit rows. Other methods, and HEAD on the metadata endpoints, stay 405.
+     */
+    public function testHeadAnswersExactlyLikeGetWithoutABody(): void
+    {
+        if (!function_exists('imagewebp')) {
+            self::markTestSkipped('GD with WebP is unavailable.');
+        }
+        $auth = new AuthService($this->pdo, $this->config);
+        $root = $auth->register('Root', 'a very secure password', '127.0.0.1');
+        $member = $auth->register('Member', 'another secure password', '127.0.0.2');
+        $auth->register('Other', 'a third safe password', '127.0.0.3');
+        $room = (new RoomService($this->pdo))->create($root, 'head-private', 'Private files', '', 'private', 0, 0, '127.0.0.1');
+        $storage = $this->temporaryDirectory(true);
+        $config = $this->configWith(['attachmentStoragePath' => $storage]);
+        $source = $this->temporaryFile(TestImages::jpeg(6));
+        $process = $this->startServer($storage);
+        try {
+            $this->login('root', 'Root', 'a very secure password');
+            $this->login('member', 'Member', 'another secure password');
+            $this->login('other', 'Other', 'a third safe password');
+            $roomUpload = $this->request('root', '/api/v1/attachments/upload.php',
+                ['room_id' => (string) $room->id, 'file' => new \CURLFile($source, 'image/jpeg', 'photo "one".jpg')], [], true);
+            self::assertSame(201, $roomUpload['status'], $roomUpload['body']);
+            $roomMessage = $this->json($roomUpload)['message'];
+            $roomAttachment = $roomMessage['attachment'];
+            $directUpload = $this->request('root', '/api/v1/direct-messages/attachments/upload.php',
+                ['recipient_user_id' => (string) $member->id, 'file' => new \CURLFile($source, 'image/jpeg', 'portrait.jpg')], [], true);
+            self::assertSame(201, $directUpload['status'], $directUpload['body']);
+            $directId = (int) $this->pdo->query('SELECT id FROM direct_message_attachments WHERE direct_message_id = ' . (int) $this->json($directUpload)['message']['id'])->fetchColumn();
+            $roomPath = '/api/v1/attachments/download.php?id=' . $roomAttachment['id'];
+            $directPath = '/api/v1/direct-messages/attachments/download.php?id=' . $directId;
+            $neverExisted = 1_000_000;
+            $auditBefore = (int) $this->pdo->query('SELECT COUNT(*) FROM audit_log')->fetchColumn();
+
+            $roomPreview = $this->assertHeadMatchesGet('root', $roomPath . '&variant=preview', 200);
+            $directPreview = $this->assertHeadMatchesGet('member', $directPath . '&variant=preview', 200);
+            foreach ([
+                ['root', $roomPath, [], 200],
+                ['root', $roomPath . '&inline=1', [], 200],
+                ['root', $roomPath . '&variant=preview', ['If-None-Match' => $roomPreview['etag']], 304],
+                ['root', $roomPath . '&variant=preview', ['If-None-Match' => '"wrong"'], 200],
+                ['member', $roomPath, [], 404],
+                ['member', $roomPath . '&variant=preview', ['If-None-Match' => $roomPreview['etag']], 404],
+                ['root', '/api/v1/attachments/download.php?id=' . $neverExisted, [], 404],
+                ['root', '/api/v1/attachments/download.php?id=0', [], 400],
+                ['anonymous', $roomPath, [], 401],
+                ['member', $directPath, [], 200],
+                ['root', $directPath . '&variant=preview', ['If-None-Match' => $directPreview['etag']], 304],
+                ['other', $directPath, [], 404],
+                ['other', '/api/v1/direct-messages/attachments/download.php?id=' . $neverExisted, [], 404],
+                ['anonymous', $directPath, [], 401],
+            ] as [$client, $path, $headers, $status]) {
+                $this->assertHeadMatchesGet($client, $path, $status, $headers);
+            }
+
+            self::assertSame($auditBefore, (int) $this->pdo->query('SELECT COUNT(*) FROM audit_log')->fetchColumn(), 'Downloads, GET or HEAD, write no audit rows.');
+
+            // Gone from storage, then deleted: the same 410s, and the same 404 for outsiders.
+            $files = new AttachmentFileStore($config);
+            $key = $this->pdo->query('SELECT storage_key FROM direct_message_attachments WHERE id = ' . $directId)->fetchColumn();
+            self::assertIsString($key);
+            $files->remove($key);
+            $this->assertHeadMatchesGet('member', $directPath, 410, [], 'attachment_storage_missing');
+            $this->assertHeadMatchesGet('other', $directPath, 404);
+            (new MessageService($this->pdo))->delete($root, $roomMessage['id'], '127.0.0.1');
+            // The deletion itself is audited; what follows must add nothing.
+            $auditBefore = (int) $this->pdo->query('SELECT COUNT(*) FROM audit_log')->fetchColumn();
+            $this->assertHeadMatchesGet('root', $roomPath, 410, [], 'attachment_deleted');
+            $this->assertHeadMatchesGet('member', $roomPath, 404);
+
+            // HEAD is no body on the wire, not just a client that stops reading.
+            foreach (['/api/v1/attachments/download.php?id=' . $neverExisted, $directPath] as $path) {
+                self::assertSame('', $this->rawHeadBody($path), $path);
+            }
+            self::assertSame($auditBefore, (int) $this->pdo->query('SELECT COUNT(*) FROM audit_log')->fetchColumn(), 'HEAD writes no audit rows.');
+
+            // Everything else stays as it was.
+            foreach (['POST', 'PUT', 'DELETE'] as $method) {
+                self::assertSame(405, $this->request('root', $roomPath, null, [], false, $method)['status'], $method);
+                self::assertSame(405, $this->request('member', $directPath, null, [], false, $method)['status'], $method);
+            }
+            self::assertSame(405, $this->request('root', '/api/v1/attachments/metadata.php?room_id=' . $room->id . '&message_ids=' . $roomMessage['id'], null, [], false, 'HEAD')['status']);
+            self::assertSame(405, $this->request('member', '/api/v1/direct-messages/attachments/metadata.php?message_ids=1', null, [], false, 'HEAD')['status']);
+        } finally {
+            if (proc_get_status($process)['running']) {
+                proc_terminate($process);
+            }
+            proc_close($process);
+            $this->removeTemporaryPaths();
+        }
+    }
+
+    /**
+     * GET, then HEAD, on the same request: the same status and headers; HEAD has no body.
+     *
+     * @param array<string,string> $headers
+     * @return array<string,string> the GET response's headers
+     */
+    private function assertHeadMatchesGet(string $client, string $path, int $status, array $headers = [], ?string $code = null): array
+    {
+        $get = $this->request($client, $path, null, $headers);
+        $head = $this->request($client, $path, null, $headers, false, 'HEAD');
+        $case = $client . ' ' . $path . ' ' . json_encode($headers);
+        self::assertSame($status, $get['status'], $case . ': ' . $get['body']);
+        self::assertSame($get['status'], $head['status'], $case);
+        self::assertSame('', $head['body'], $case);
+        if ($code !== null) {
+            self::assertSame($code, $this->json($get)['error']['code'], $case);
+        }
+        foreach (['content-type', 'content-length', 'content-disposition', 'cache-control', 'etag',
+            'content-security-policy', 'cross-origin-resource-policy', 'x-content-type-options', 'retry-after'] as $name) {
+            self::assertSame($get['headers'][$name] ?? null, $head['headers'][$name] ?? null, $case . ': ' . $name);
+        }
+        return $get['headers'];
+    }
+
+    /** The bytes after the headers of a HEAD request, read straight off the socket. */
+    private function rawHeadBody(string $path): string
+    {
+        $address = substr($this->baseUrl, strlen('http://'));
+        $socket = stream_socket_client('tcp://' . $address, $errorCode, $errorMessage, 5);
+        self::assertIsResource($socket, $errorMessage);
+        stream_set_timeout($socket, 10);
+        fwrite($socket, 'HEAD ' . $path . " HTTP/1.1\r\nHost: " . $address . "\r\nConnection: close\r\n\r\n");
+        $raw = (string) stream_get_contents($socket);
+        fclose($socket);
+        $end = strpos($raw, "\r\n\r\n");
+        self::assertNotFalse($end, $raw);
+        return substr($raw, $end + 4);
     }
 
     /** @param array{status:int,body:string,headers:array<string,string>} $response */
@@ -149,7 +304,7 @@ final class AttachmentDownloadHttpTest extends DatabaseTestCase
      * @param array<string,string> $headers
      * @return array{status:int,body:string,headers:array<string,string>}
      */
-    private function request(string $client, string $path, ?array $payload = null, array $headers = [], bool $multipart = false): array
+    private function request(string $client, string $path, ?array $payload = null, array $headers = [], bool $multipart = false, string $method = 'GET'): array
     {
         $cookie = $this->cookies[$client] ??= $this->temporaryFile();
         $curl = curl_init($this->baseUrl . $path);
@@ -172,6 +327,11 @@ final class AttachmentDownloadHttpTest extends DatabaseTestCase
             curl_setopt_array($curl, [CURLOPT_POST => true,
                 CURLOPT_POSTFIELDS => $multipart ? $payload : json_encode((object) $payload, JSON_THROW_ON_ERROR)]);
         }
+        if ($method === 'HEAD') {
+            curl_setopt($curl, CURLOPT_NOBODY, true);
+        } elseif ($method !== 'GET' && $payload === null) {
+            curl_setopt($curl, CURLOPT_CUSTOMREQUEST, $method);
+        }
         if ($headers !== []) {
             curl_setopt($curl, CURLOPT_HTTPHEADER, array_map(
                 static fn (string $name, string $value): string => $name . ': ' . $value, array_keys($headers), array_values($headers)));
@@ -180,7 +340,7 @@ final class AttachmentDownloadHttpTest extends DatabaseTestCase
         $status = (int) curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
         self::assertIsString($body, curl_error($curl));
         unset($curl);
-        if (str_contains($received['content-type'] ?? '', 'application/json')) {
+        if ($body !== '' && str_contains($received['content-type'] ?? '', 'application/json')) {
             $decoded = json_decode($body, true, 512, JSON_THROW_ON_ERROR);
             if (is_array($decoded) && is_string($decoded['csrf_token'] ?? null)) {
                 $this->csrf[$client] = $decoded['csrf_token'];

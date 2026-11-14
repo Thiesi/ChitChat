@@ -8,12 +8,22 @@ use JsonException;
 
 final class Request
 {
-    public static function requireMethod(string $method): void
+    /** One of the given methods, or 405. Most endpoints allow one; the downloads allow GET and HEAD (#357). */
+    public static function requireMethod(string $method, string ...$others): void
     {
         $actual = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
-        if ($actual !== strtoupper($method)) {
-            throw new ApiException(405, 'method_not_allowed', 'Method not allowed.');
+        foreach ([$method, ...$others] as $allowed) {
+            if ($actual === strtoupper($allowed)) {
+                return;
+            }
         }
+        throw new ApiException(405, 'method_not_allowed', 'Method not allowed.');
+    }
+
+    /** A HEAD request: the same status and headers as GET, and no body. */
+    public static function isHead(): bool
+    {
+        return strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET')) === 'HEAD';
     }
 
     /** @return array<string, mixed> */

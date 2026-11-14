@@ -12,13 +12,21 @@ final class AttachmentDownloadResponse
      * Authorization, history/age/deletion checks and storage validation are completed
      * by the caller before this method sees a conditional request.
      *
+     * $headersOnly (a HEAD request, #357) sends exactly the same status and headers and never
+     * opens the file. Content-Length is the stored size, which the caller has already checked
+     * against the file on disk. The one difference: if the file vanishes between that check
+     * and the open, GET answers 410 here while HEAD has already said 200.
+     *
      * @param array{path:string,name:string,mime_type:string,size_bytes:int,sha256:string,previewable:bool} $attachment
      */
-    public static function send(array $attachment, bool $inlineRequested, bool $preview): never
+    public static function send(array $attachment, bool $inlineRequested, bool $preview, bool $headersOnly = false): never
     {
-        $stream = @fopen($attachment['path'], 'rb');
-        if ($stream === false) {
-            throw new ApiException(410, 'attachment_storage_missing', 'The attachment file is unavailable.');
+        $stream = null;
+        if (!$headersOnly) {
+            $stream = @fopen($attachment['path'], 'rb');
+            if ($stream === false) {
+                throw new ApiException(410, 'attachment_storage_missing', 'The attachment file is unavailable.');
+            }
         }
         if (session_status() === PHP_SESSION_ACTIVE) {
             session_write_close();
@@ -30,7 +38,9 @@ final class AttachmentDownloadResponse
         if ($preview) {
             header('ETag: "' . $attachment['sha256'] . '"');
             if (self::matches($_SERVER['HTTP_IF_NONE_MATCH'] ?? null, $attachment['sha256'])) {
-                fclose($stream);
+                if ($stream !== null) {
+                    fclose($stream);
+                }
                 http_response_code(304);
                 exit;
             }
@@ -43,6 +53,9 @@ final class AttachmentDownloadResponse
         header('Content-Length: ' . $attachment['size_bytes']);
         header('Content-Disposition: ' . $disposition . '; filename="' . addcslashes($fallback, '"\\') . '"'
             . "; filename*=UTF-8''" . rawurlencode($attachment['name']));
+        if ($stream === null) {
+            exit;
+        }
         fpassthru($stream);
         fclose($stream);
         exit;

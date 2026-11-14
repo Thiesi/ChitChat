@@ -54,7 +54,7 @@ The normal direct-message history and SSE payload remain backward-compatible. Br
 
 ## Download
 
-`GET /api/v1/direct-messages/attachments/download.php?id=14`
+`GET /api/v1/direct-messages/attachments/download.php?id=14` (or `HEAD`, which answers exactly like `GET` with no body and never reads the file; see [attachments](attachments.md#get-apiv1attachmentsdownloadphpid12), #357)
 
 The server rechecks that the authenticated account is the direct-message sender or recipient on every request. Unauthorized callers receive the same HTTP 404 response as an unknown attachment, also when the attachment was deleted: only the sender and recipient get `410 attachment_deleted` (#356).
 

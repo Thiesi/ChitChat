@@ -16,7 +16,7 @@ use ChitChat\Upload\AttachmentVariant;
 $config = require dirname(__DIR__, 5) . '/bootstrap/http.php';
 
 try {
-    Request::requireMethod('GET');
+    Request::requireMethod('GET', 'HEAD');
     $pdo = Database::connect($config);
     $actor = SessionManager::requireUser(new UserRepository($pdo));
     $variant = AttachmentVariant::normalize($_GET['variant'] ?? null);
@@ -26,7 +26,7 @@ try {
         $variant,
     );
 
-    AttachmentDownloadResponse::send($attachment, ($_GET['inline'] ?? null) === '1', $variant === 'preview');
+    AttachmentDownloadResponse::send($attachment, ($_GET['inline'] ?? null) === '1', $variant === 'preview', Request::isHead());
 } catch (ApiException $exception) {
     JsonResponse::send([
         'error' => [
