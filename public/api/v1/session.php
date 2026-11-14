@@ -33,7 +33,8 @@ Endpoint::run($config, static function () use ($config): ApiResult {
         ? (new \ChitChat\Auth\MfaService($pdo, $config))->pendingSession(Request::clientIp())
         : null;
     $statement = $pdo->query(<<<'SQL'
-SELECT registration_enabled::int, direct_message_retention_days, sign_in_decoration
+SELECT registration_enabled::int, direct_message_retention_days, sign_in_decoration,
+       accessibility_feedback_enabled::int, accessibility_feedback_url
 FROM system_settings
 WHERE id = 1
 SQL);
@@ -72,6 +73,13 @@ SQL);
         'guest_access' => (new GuestService($pdo))->available(),
         // The sign-in screen's seasonal decoration: null (off), winter, spring or celebration (#242).
         'sign_in_decoration' => \ChitChat\Admin\SignInDecorationService::toPublic((string) $policy['sign_in_decoration']),
+        // Where "Report an accessibility problem" leads, resolved (#219): the project's issue form
+        // unless the operator saved their own address; null when switched off. Public, because
+        // the problem may be with signing in.
+        'accessibility_feedback' => \ChitChat\Admin\AccessibilityFeedbackService::toPublic(
+            (int) $policy['accessibility_feedback_enabled'] === 1,
+            $policy['accessibility_feedback_url'] === null ? null : (string) $policy['accessibility_feedback_url'],
+        ),
         'registration_enabled' => (int) $policy['registration_enabled'] === 1 && !(new LockdownService($pdo))->status()['enabled'],
         // Public, so the sign-in page can explain a maintenance lockdown.
         'lockdown' => (static function (array $status): array {

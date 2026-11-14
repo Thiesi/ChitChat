@@ -64,6 +64,10 @@ The independent top-level `attachments` policy is documented in
 
 `sign_in_decoration` is `null` (none), `"winter"`, `"spring"` or `"celebration"`: the seasonal decoration a Super-Administrator chose for the signed-out sign-in screen ([system settings](system-settings.md#sign-in-decoration)). It is present in every payload, signed out and signed in. Clients render nothing for `null` and for values they do not recognise, so later options are additive; on older servers a missing field means no decoration.
 
+## Accessibility feedback
+
+`accessibility_feedback` is `{"url": "…"}` or `null`: where "Report an accessibility problem" leads ([system settings](system-settings.md#accessibility-feedback)). The `url` is already resolved: the ChitChat project's issue form unless a Super-Administrator saved their own `https:` page or `mailto:` address. It is `null` only when the link has been switched off. It is present in every payload, signed out, signed in and for guests, because the problem may be with signing in. Clients open it outside the app (a new browser tab with `noopener noreferrer`, or the system's mail app for `mailto:`) and show nothing for `null`. On older servers a missing field means no link.
+
 ## Revision-review privacy disclosure
 
 `privacy.message_revisions` retains its existing fields but corrects

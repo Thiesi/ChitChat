@@ -54,6 +54,8 @@ SET registration_enabled = TRUE,
     backup_max_age_hours = 26,
     maintenance_max_age_hours = NULL,
     sign_in_decoration = 'off',
+    accessibility_feedback_enabled = TRUE,
+    accessibility_feedback_url = NULL,
     updated_at = NOW()
 WHERE id = 1
 SQL);

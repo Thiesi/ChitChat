@@ -106,7 +106,7 @@ Authenticator-app codes need an encryption key for the stored secrets; without o
 
 No cron entry, rc.d script or Apache change is needed. [`totp.md`](totp.md) covers the warned database-key alternative, rotation and escrow; back the key ring up with the instance's secrets, because codes can't be verified without it.
 
-Settings such as the sign-in decoration and the username reservation period are operated in the admin interface and need no host steps.
+Settings such as the sign-in decoration, the username reservation period and where accessibility reports go are operated in the admin interface and need no host steps.
 
 ## Backups
 
