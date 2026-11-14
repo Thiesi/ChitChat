@@ -100,6 +100,26 @@ test.describe('the link', () => {
     expect((await youLink(page).boundingBox()).height).toBeGreaterThanOrEqual(24);
   });
 
+  test('on a phone the hint wraps as one piece, and a long host still fits (#377)', async ({ page }) => {
+    // The visible hint text's line boxes: one line, never "(opens" / "GitHub)".
+    const hintLines = () => page.locator('.you-feedback .feedback-where').evaluate((hint) => {
+      const range = document.createRange();
+      range.selectNodeContents(hint.firstChild);
+      return new Set([...range.getClientRects()].map((rect) => Math.round(rect.top))).size;
+    });
+    await page.setViewportSize({ width: 320, height: 640 });
+    await fixture(page, { user: member });
+    await page.goto('/account.php');
+    await expect(youLink(page)).toBeVisible();
+    expect(await hintLines()).toBe(1);
+
+    await page.unroute('**/api/v1/**');
+    await fixture(page, { user: member, feedback: { url: 'https://accessibility-feedback.support.example-community.org/report' } });
+    await page.reload();
+    await expect(youLink(page)).toHaveAccessibleName(/accessibility-feedback\.support\.example-community\.org/);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  });
+
   test('signed in and switched off, the You list has no link', async ({ page }) => {
     await fixture(page, { user: member, feedback: null });
     await page.goto('/account.php');
