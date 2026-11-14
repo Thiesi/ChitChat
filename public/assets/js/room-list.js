@@ -207,7 +207,10 @@ function group(key, title, items) {
 function row(room, options, mentionedRooms, { join = false, card = false } = {}) {
   const current = options.currentRoomId === room.id;
   const unread = current || !room.member_role ? 0 : (room.unread_count ?? 0);
-  const mentioned = !current && Boolean(room.member_role) && mentionedRooms.has(room.id);
+  // "@": the server's count of unseen mentions in the room (unread_mention_count, #266), or
+  // a mention notification that arrived since the list was fetched (S4a follow-up).
+  const mentioned = !current && Boolean(room.member_role)
+    && ((room.unread_mention_count ?? 0) > 0 || mentionedRooms.has(room.id));
   const readOnly = options.readOnly(room);
   const here = room.member_role ? (room.active_count ?? 0) : 0;
 
