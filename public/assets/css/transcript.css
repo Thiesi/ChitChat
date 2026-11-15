@@ -156,7 +156,11 @@
 .dm-message > .message-header {
   position: absolute;
   z-index: 2;
-  top: -0.85rem;
+  /* Clear of the bubble (Lantern Next L4): with the time out of it a one-line bubble is
+     about 39px tall, and at -0.85rem this toolbar covered its middle, so a hover or a click
+     on the bubble landed on Edit or Delete. It now overlaps the bubble's top edge by a few
+     pixels only. */
+  top: -1.6rem;
   right: 0;
   width: auto;
   padding: 0.15rem;
