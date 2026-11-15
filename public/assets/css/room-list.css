@@ -8,13 +8,13 @@
 .room-group { display: grid; gap: 0.1rem; }
 .room-group[hidden] { display: none; }
 
+/* Section labels (Lantern Next L3): Label type in sentence case, no capitals or tracking. */
 .room-group-heading {
-  margin: 0.6rem 0.6rem 0.2rem;
+  margin: 0.75rem 0.65rem 0.25rem;
   color: var(--text-muted);
-  font-size: 0.72rem;
-  font-weight: 750;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: var(--type-label);
+  font-weight: 600;
+  line-height: var(--leading-tight);
 }
 
 .room-rows { display: grid; gap: 0.1rem; margin: 0; padding: 0; list-style: none; }
@@ -29,10 +29,12 @@
   grid-template-areas: "mark name meta" "mark sub meta";
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  column-gap: 0.65rem;
+  column-gap: 0.75rem;
   row-gap: 0.05rem;
   min-height: 3.5rem;
-  padding: 0.45rem 0.6rem;
+  padding: 0.45rem 0.65rem;
+  border-radius: var(--radius-field);
+  font-size: var(--type-body);
   text-decoration: none;
 }
 
@@ -42,10 +44,11 @@
   grid-area: name;
   align-self: end;
   color: var(--text);
-  font-weight: 650;
+  font-weight: 600;
 }
 
-.room-button.unread .room-name { font-weight: 800; }
+/* Unread or open: the name in bold (with the count, or the lit row and aria-current). */
+.room-button:is(.unread, .active) .room-name { font-weight: 700; }
 
 .room-sub {
   grid-area: sub;
@@ -53,8 +56,8 @@
   min-width: 0;
   overflow: hidden;
   color: var(--text-muted);
-  font-size: 0.8rem;
-  font-weight: 450;
+  font-size: var(--type-label);
+  font-weight: 400;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -62,7 +65,7 @@
 .room-sub.empty { display: none; }
 .room-button:has(.room-sub.empty) .room-name { grid-row: 1 / span 2; align-self: center; }
 
-.room-row-here { color: var(--presence-text); font-weight: 650; }
+.room-row-here { color: var(--presence-text); font-weight: 600; }
 
 .room-row-meta {
   grid-area: meta;
@@ -72,7 +75,7 @@
   gap: 0.25rem;
 }
 
-.room-time { color: var(--text-muted); font-size: 0.72rem; font-weight: 500; white-space: nowrap; }
+.room-time { color: var(--text-muted); font-size: var(--type-caption); font-weight: 400; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .room-button.unread .room-time { color: var(--text); font-weight: 700; }
 
 .room-badges { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 0.25rem; }
@@ -94,10 +97,13 @@
 /* Over 99 the count goes quiet: the number stops mattering. */
 .unread-count.quiet { border: 1px solid var(--line); background: var(--raised); color: var(--text); }
 
-/* The lantern's glow in a row: the ring gap takes the pane's colour. */
+/* The lantern's glow in a row: the ring gap takes the colour the row sits on: the
+   pane's ground, or the lit fill of the selected row (L3). */
+.list-pane .room-button { --glow-gap: var(--ground); }
+.list-pane .room-button.active { --glow-gap: var(--selected); }
 .list-pane .room-button .lantern.glow {
   box-shadow:
-    0 0 0 2px var(--surface),
+    0 0 0 2px var(--glow-gap),
     0 0 0 4px var(--presence),
     0 0 10px 3px color-mix(in srgb, var(--presence) 35%, transparent);
 }
@@ -125,30 +131,35 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 0.6rem;
-  margin: 0 0.6rem 0.25rem;
-  padding: 0.6rem 0.75rem;
-  border: 1px solid color-mix(in srgb, var(--presence-text) 45%, var(--line));
-  border-radius: 0.85rem;
+  margin: 0 0.5rem 0.25rem;
+  padding: 0.5rem 0.5rem 0.5rem 0.75rem;
+  /* A strip, not a box (L3): the honey wash carries it; the transparent border is for forced colours. */
+  border: 1px solid transparent;
+  border-radius: var(--radius-field);
   background: var(--presence-wash);
   color: var(--text);
 }
 
-.mention-card-text { flex: 1 1 9rem; margin: 0; min-width: 0; font-size: 0.86rem; line-height: 1.35; overflow-wrap: break-word; }
+.mention-card-text { flex: 1 1 9rem; margin: 0; min-width: 0; font-size: var(--type-label); line-height: 1.35; overflow-wrap: break-word; }
 
 .mention-card-open {
   margin-left: auto;
   display: inline-grid;
   place-items: center;
   min-height: 2.25rem;
-  padding: 0 0.6rem;
-  border-radius: 0.6rem;
+  padding: 0 0.9rem;
+  /* A pill on the page's surface (L3), like every button; it is a link, so it keeps a
+     boundary that doesn't rely on the wash: the field line, 3:1 on --surface. */
+  border: 1px solid var(--field-line);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
   color: var(--text);
-  font-weight: 750;
-  text-decoration: underline;
-  text-underline-offset: 0.2em;
+  font-size: var(--type-label);
+  font-weight: 600;
+  text-decoration: none;
 }
 
-.mention-card-open:hover { background: color-mix(in srgb, var(--presence) 22%, transparent); }
+.mention-card-open:hover { border-color: var(--text); }
 
 /* ---- Find rooms (phones) ---- */
 

@@ -172,27 +172,52 @@
 .dm-start-row { display: flex; gap: 0.5rem; }
 .dm-start-row input { flex: 1; min-width: 0; }
 .list-section-heading {
-  margin: 0.6rem 0.75rem 0;
+  margin: 0.75rem 0.75rem 0.1rem;
   color: var(--text-muted);
-  font-size: 0.8rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: var(--type-label);
+  font-weight: 600;
+  line-height: var(--leading-tight);
 }
 
 .dm-shell .conversation-list { gap: 0.25rem; overflow: visible; }
 .dm-shell .conversation-button {
   display: flex;
   align-items: center;
-  gap: 0.7rem;
+  gap: 0.75rem;
   min-height: 3.5rem;
   border-color: transparent;
+  border-radius: var(--radius-field);
   background: transparent;
+  font-size: var(--type-body);
 }
-.dm-shell .conversation-button:hover { border-color: transparent; background: var(--surface); }
-.dm-shell .conversation-button.active {
-  border-color: color-mix(in srgb, var(--signature-text) 30%, var(--field-line));
-  background: color-mix(in srgb, var(--signature) 13%, var(--surface));
+.dm-shell .conversation-button:hover { border-color: transparent; background: color-mix(in srgb, var(--text) 6%, transparent); }
+/* The selected row, as in the Rooms list (L3). */
+.dm-shell .conversation-button.active,
+.dm-shell .conversation-button.active:hover {
+  position: relative;
+  border-color: transparent;
+  background: var(--selected);
+  box-shadow: var(--elev-1);
+}
+
+/* ---- The selected row's bar (Lantern Next L3) ----
+   One short bar at the row's start, in Rooms, Direct and You: a shape beside the lit
+   fill, so the selection isn't carried by a tint. Persimmon as text (3:1 or more on
+   the fill in every scheme). */
+:is(.room-button.active, .dm-shell .conversation-button.active, .you-section-link[aria-current="page"])::before {
+  position: absolute;
+  top: 50%;
+  left: 0.2rem;
+  width: 3px;
+  height: 1.4rem;
+  margin-top: -0.7rem;
+  border-radius: 2px;
+  background: var(--signature-text);
+  content: "";
+}
+@media (forced-colors: active) {
+  :is(.room-button.active, .dm-shell .conversation-button.active, .you-section-link[aria-current="page"])::before { background: Highlight; }
+  .dm-shell .conversation-button.active { border: 2px solid Highlight; }
 }
 .conversation-text { display: grid; flex: 1; gap: 0.15rem; min-width: 0; }
 .dm-shell .conversation-button .pebble { width: 2.5rem; height: 2.5rem; }

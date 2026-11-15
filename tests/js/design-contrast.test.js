@@ -181,8 +181,6 @@ test('the derived stewardship tokens meet the floors in every scheme and theme',
 function derivedTokens(tokens, theme) {
   return {
     wash: mix(tokens.signature, tokens.surface, 0.18),
-    // The selected row in the Rooms, Direct and You lists (app.css, panes.css, you.css).
-    selectedRow: mix(tokens.signature, tokens.surface, 0.13),
     toast: theme === 'light' ? tokens.text : tokens.raised,
     onToast: theme === 'light' ? tokens.ground : tokens.text,
   };
@@ -191,13 +189,15 @@ function derivedTokens(tokens, theme) {
 test('the derived Lantern Next roles meet the floors in every scheme and theme', () => {
   const failures = [];
   for (const [key, tokens] of schemes) {
-    const { wash, selectedRow, toast, onToast } = derivedTokens(tokens, key.split('/')[1]);
+    const { wash, toast, onToast } = derivedTokens(tokens, key.split('/')[1]);
+    // The selected row in Rooms, Direct and You is --selected (L3): --surface in light,
+    // --raised in dark. Its text pairs are in PAIRS; its bar is persimmon as text.
+    const selected = key.endsWith('/light') ? tokens.surface : tokens.raised;
     for (const [fg, bg, minimum, why] of [
       [tokens.text, wash, TEXT, 'the current tab’s label on its pill'],
       [tokens['text-muted'], wash, TEXT, 'secondary text on the signature wash'],
-      [tokens.text, selectedRow, TEXT, 'the selected row’s name'],
-      [tokens['text-muted'], selectedRow, TEXT, 'secondary text on the selected row'],
-      [tokens['presence-text'], selectedRow, TEXT, '“here now” on the selected row'],
+      [tokens['presence-text'], selected, TEXT, '“here now” on the selected row'],
+      [tokens['signature-text'], selected, BOUNDARY, 'the selected row’s bar'],
       [onToast, toast, TEXT, 'toast text'],
     ]) {
       const ratio = contrast(fg, bg);
@@ -212,8 +212,10 @@ test('the derived roles in tokens.css are the ones this test computes', () => {
   assert.ok(css.includes('--signature-wash: color-mix(in srgb, var(--signature) 18%, var(--surface));'), '--signature-wash');
   for (const file of ['app.css', 'panes.css', 'you.css']) {
     const sheet = readFileSync(new URL(`../../public/assets/css/${file}`, import.meta.url), 'utf8');
-    assert.ok(sheet.includes('color-mix(in srgb, var(--signature) 13%, var(--surface))'), `${file}: the selected row’s fill`);
+    assert.ok(sheet.includes('background: var(--selected);'), `${file}: the selected row’s fill`);
   }
+  assert.match(css, /:root \{[^}]*--selected: var\(--raised\);/, 'dark --selected');
+  assert.match(css, /:root\[data-theme="light"\] \{[^}]*--selected: var\(--surface\);/, 'light --selected');
   // The stage is --surface, whose text pairs are held above; Midnight keeps it true black.
   assert.ok(css.includes('--stage: var(--surface);'), '--stage');
   assert.ok(css.includes(':root[data-scheme="midnight"]:not([data-theme="light"]) { --stage: var(--ground); }'), 'Midnight’s stage');

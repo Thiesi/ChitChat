@@ -60,13 +60,14 @@ body[data-audience="guest"] .you-member-since { display: none; }
   min-height: 2.75rem;
   padding: 0.45rem 0.75rem;
   border: 1px solid transparent;
-  border-radius: 0.65rem;
+  border-radius: var(--radius-field);
   color: var(--text);
+  font-size: var(--type-body);
   font-weight: 600;
   text-decoration: none;
 }
 
-.you-section-link:hover { background: var(--surface); }
+.you-section-link:hover { background: color-mix(in srgb, var(--text) 6%, transparent); }
 
 /* "Report an accessibility problem" (#219): at the foot of the list, quieter than a section. */
 .you-feedback { margin: 0.5rem 0 0; padding: 0 0.5rem; }
@@ -74,10 +75,14 @@ body[data-audience="guest"] .you-member-since { display: none; }
 .you-feedback a { display: inline-block; padding: 0.7rem 0.75rem; color: var(--text-muted); font-size: 0.875rem; font-weight: 600; line-height: 1.35; text-underline-offset: 0.2em; }
 .you-feedback a:hover { color: var(--text); }
 
-.you-section-link[aria-current="page"] {
-  border-color: color-mix(in srgb, var(--signature-text) 30%, var(--field-line));
-  background: color-mix(in srgb, var(--signature) 13%, var(--surface));
-  box-shadow: inset 3px 0 var(--signature-text);
+/* The selected section, as the selected room (L3): lit fill, one bar (panes.css), bold. */
+.you-section-link[aria-current="page"],
+.you-section-link[aria-current="page"]:hover {
+  position: relative;
+  border-color: transparent;
+  background: var(--selected);
+  box-shadow: var(--elev-1);
+  font-weight: 700;
 }
 
 /* Stewarding keeps its Dusk, as on the rail. */
