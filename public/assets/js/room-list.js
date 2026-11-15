@@ -15,18 +15,23 @@
 //
 // No DOM access at import time, so the pure helpers can be unit-tested.
 
-import { identityHueIndex } from './identity-hue.js';
+import { identityHueIndex, roomInitial } from './identity-hue.js';
 import { formatDateTime } from './datetime.js';
 
 const DAY_MS = 86_400_000;
 
-/** A room's "#" drawn as its lantern; the text stays "# name" for every reader. */
+/**
+ * A room's lantern. Its text stays "#", so "# name" reads the same for every
+ * reader and every test; the letter people see is drawn from data-initial by
+ * the stylesheet (panes.css), with empty alternative text.
+ */
 export function lantern(room) {
   const hash = document.createElement('span');
   hash.className = 'room-hash lantern';
   const hue = identityHueIndex(room.id);
   if (hue !== null) hash.dataset.hue = String(hue);
   hash.textContent = '#';
+  hash.dataset.initial = roomInitial(room.name);
   return hash;
 }
 

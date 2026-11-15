@@ -96,6 +96,44 @@ No new hues. Each resolves from the scheme's own values.
 
 L0 only defines the scales and derived roles. The slices that start using each one record it below.
 
+## L1: controls (#384)
+
+### Buttons
+
+| What | Old | New | Reason |
+|---|---|---|---|
+| Shape | Rounded rectangles (12px) outside sign-in, pills on sign-in | Pills everywhere (`--radius-pill`) | CCM's own rule ("Buttons: full pill"); the web had drifted. |
+| Primary button | Persimmon with a darker 3px lower edge | Flat persimmon, ink label | The lower "lip" read as dated. Hover and press still move the fill to `--signature-hover` (label 8.1:1). |
+| Secondary button | `raised` fill with a `fieldLine` border | No fill, `fieldLine` border, label at 600 | One outline button on any ground. The boundary stays 3:1 against `ground` and `surface`; hover tints it with 7% of `text` (so it shows on any ground, a `raised` card included) and darkens the border to `text`. |
+| Destructive button | Rose outline, 12px corners | Rose outline pill, label at 600 | Same meaning: rose, with wording, never colour alone. |
+| Stewardship primary | Dusk with a darker lower edge | Flat Dusk | As the primary button. |
+| Press | Every button moved down 1px | The button family scales to 0.98, only when motion is welcome | Motion that explains (a press), off under reduced motion. |
+
+### Fields
+
+| What | Old | New | Reason |
+|---|---|---|---|
+| Corner | 12px | `--radius-field` (16px) | CCM's shape table. |
+| Fill | `ground` | `--field`: `surface` in light, `ground` in dark | One rule instead of "paper-tinted inside a white card". The `fieldLine` boundary is unchanged (3.6:1 on white). |
+| Focus | Border plus a 2px outline 2px outside it (two rings) | One ring: the 2px outline sits on the border | Say it once. Still an outline, so forced colours keep it. |
+
+### Badges
+
+One size for the unread count (Rooms, Direct, the navigation) and the "@" mark: 20px, 12px digits at 700 with tabular numerals. Before: 18 to 24px with 10.9 to 12.5px digits at 700 to 800. Meanings unchanged: persimmon with a number for unread, honey with "@" for a mention.
+
+### One avatar for a person
+
+A person without a picture is the same pebble everywhere: their identity hue with ink initials (8.4:1 or more). The members panel, the profile card and You used to draw a pale tinted circle with coloured initials in one of four tones; they now match the conversation and the Direct list. Guests keep the dashed circle. CCM already draws people this way.
+
+### Room initials
+
+| What | Old | New | Reason |
+|---|---|---|---|
+| What a room's lantern shows | "#" for every room | The room's initial: the first grapheme of its name, upper-cased where the script has case; "#" when the name is empty | Rooms differed by colour alone at a glance. Owner decision, 2026-11-15. |
+| Face | system, 700 | Bricolage Grotesque 700 | The lantern is an identity mark, a display role. |
+
+The initial is decorative. On the web the lantern's text stays "#" (zero-size) and the letter is generated content with empty alternative text, so a room is still read and found as "# name". Ink on the identity hue, as before. For CCM: draw the first grapheme (`BreakIterator`), keep the lantern out of the accessibility tree, and leave room names untouched.
+
 ## Still to come
 
-L1 controls · L2 frame · L3 lists · L4 conversation · L5 sign-in family and the mark variants (#227) · L6 Direct, Activity, Search · L7 You · L8 stewardship · L9 overlays, status and motion · L10 handoff. Each adds its section here when it merges.
+L2 frame · L3 lists · L4 conversation · L5 sign-in family and the mark variants (#227) · L6 Direct, Activity, Search · L7 You · L8 stewardship · L9 overlays, status and motion · L10 handoff. Each adds its section here when it merges.

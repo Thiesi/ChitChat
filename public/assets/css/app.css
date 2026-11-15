@@ -31,7 +31,10 @@ button, .secondary-button, input, textarea, select {
   transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
 }
 
-button:not(:disabled):active { transform: translateY(1px); }
+/* A press is a small squeeze (Lantern Next L1): on the button family only, and only when motion is welcome. */
+@media (prefers-reduced-motion: no-preference) {
+  :is(.primary-button, .secondary-button, .danger-button, .join-button):not(:disabled):active { transform: scale(0.98); }
+}
 
 input::placeholder, textarea::placeholder { color: var(--text-muted); opacity: 1; }
 
@@ -137,9 +140,18 @@ button:disabled {
   width: auto;
 }
 
+/* The button family (Lantern Next L1): pills, flat, one outline button. The outline keeps
+   its --field-line boundary (3:1 on every ground); its fill is whatever it sits on. */
 .secondary-button,
-.room-button,
 .join-button {
+  border: 1px solid var(--field-line);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.room-button {
   border: 1px solid var(--field-line);
   border-radius: 0.75rem;
   background: var(--raised);
@@ -176,8 +188,8 @@ input,
 textarea {
   width: 100%;
   border: 1px solid var(--field-line);
-  border-radius: 0.75rem;
-  background: var(--ground);
+  border-radius: var(--radius-field);
+  background: var(--field);
   color: var(--text);
   padding: 0.8rem 0.9rem;
 }
@@ -189,14 +201,20 @@ button:focus-visible {
   outline-offset: 2px;
 }
 
+/* One focus ring on a text field (Lantern Next L1): the outline sits on the field's own
+   border instead of drawing a second ring outside it. Checkboxes, radios and file inputs
+   keep the offset ring. */
+:is(input:not([type="checkbox"], [type="radio"], [type="file"], [type="range"]), textarea, select):focus {
+  outline-offset: -1px;
+}
+
 .primary-button {
   border: 0;
-  border-radius: 0.75rem;
+  border-radius: var(--radius-pill);
   background: var(--signature);
   color: var(--on-signature);
   font-weight: 700;
-  padding: 0.85rem 1rem;
-  box-shadow: 0 3px 0 color-mix(in srgb, var(--signature-text) 60%, var(--ground));
+  padding: 0.85rem 1.25rem;
 }
 
 /* Hover and press move the fill away from the label colour (lighter under a
@@ -204,16 +222,25 @@ button:focus-visible {
 .primary-button:hover:not(:disabled),
 .primary-button:active:not(:disabled) { background: var(--signature-hover); }
 
+/* The hover fill is a tint of the text colour over whatever the button sits on, so it
+   shows on the page, on a card and on a --raised card alike (L1 review). */
 .secondary-button:hover:not(:disabled), .join-button:hover:not(:disabled) {
-  border-color: var(--signature-text);
-  background: color-mix(in srgb, var(--signature) 9%, var(--surface));
+  border-color: var(--text);
+  background: color-mix(in srgb, var(--text) 7%, transparent);
 }
 
 a.secondary-button { display: inline-block; text-decoration: none; text-align: center; }
 
 .secondary-button,
 .join-button {
-  padding: 0.7rem 0.9rem;
+  padding: 0.7rem 1.1rem;
+}
+
+/* Very narrow windows (a 360 phone at 200% is 180 CSS px): the pills give their side
+   padding back, so a label made of one long word still fits its card. */
+@media (max-width: 20rem) {
+  .primary-button { padding-inline: 0.9rem; }
+  .secondary-button, .join-button { padding-inline: 0.7rem; }
 }
 
 .error-text {
@@ -368,15 +395,18 @@ a.secondary-button { display: inline-block; text-decoration: none; text-align: c
   font-size: 0.78rem;
 }
 
+/* One badge (Lantern Next L1): 20px, caption size, tabular digits, in the Rooms list,
+   the Direct list (messages.css), the "@" mark (room-list.css) and the navigation (shell.css). */
 .unread-count {
-  min-width: 1.35rem;
+  min-width: 1.25rem;
   padding: 0 0.35rem;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--signature);
   color: var(--on-signature);
-  font-size: 0.7rem;
-  font-weight: 800;
-  line-height: 1.35rem;
+  font-size: var(--type-caption);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.25rem;
   text-align: center;
 }
 
@@ -392,14 +422,27 @@ a.secondary-button { display: inline-block; text-decoration: none; text-align: c
   border-radius: 50%;
   background: var(--raised);
   color: var(--signature-text);
-  font-size: 0.62rem;
-  font-weight: 750;
-  letter-spacing: 0.03em;
+  font-size: var(--type-caption);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1;
 }
 
 .mini-avatar[data-tone="1"] { color: var(--presence-text); background: color-mix(in srgb, var(--presence) 10%, var(--surface)); }
 .mini-avatar[data-tone="2"] { color: var(--text); background: color-mix(in srgb, var(--signature) 15%, var(--surface)); }
 .mini-avatar[data-tone="3"] { color: var(--text-muted); }
+
+/* One avatar (Lantern Next L1): where the account is known, the pebble people have beside
+   their messages: their identity hue with ink initials. Guests keep the dashed circle. */
+.mini-avatar[data-hue]:not(.guest-avatar) { border-color: transparent; color: var(--hue-ink); }
+.mini-avatar[data-hue="0"]:not(.guest-avatar) { background: var(--hue-0); }
+.mini-avatar[data-hue="1"]:not(.guest-avatar) { background: var(--hue-1); }
+.mini-avatar[data-hue="2"]:not(.guest-avatar) { background: var(--hue-2); }
+.mini-avatar[data-hue="3"]:not(.guest-avatar) { background: var(--hue-3); }
+.mini-avatar[data-hue="4"]:not(.guest-avatar) { background: var(--hue-4); }
+.mini-avatar[data-hue="5"]:not(.guest-avatar) { background: var(--hue-5); }
+.mini-avatar[data-hue="6"]:not(.guest-avatar) { background: var(--hue-6); }
+.mini-avatar[data-hue="7"]:not(.guest-avatar) { background: var(--hue-7); }
 
 .mini-avatar.online::after {
   position: absolute;

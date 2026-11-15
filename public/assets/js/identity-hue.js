@@ -31,6 +31,28 @@ export function identityHueIndex(id) {
   return (id % 8) ^ (Math.floor(id / 2 ** 32) % 8);
 }
 
+let graphemes = null;
+
+/**
+ * The letter a room's lantern shows (Lantern Next L1; web first, recorded for
+ * CCM in docs/design/lantern-next.md): the first character of its name as a
+ * person would count it (one grapheme, so an emoji or an accented letter stays
+ * whole), in upper case where the script has one. "#" when the name is empty.
+ * Decorative: the name beside the lantern is the text.
+ */
+export function roomInitial(name) {
+  const text = String(name ?? '').trim();
+  if (text === '') return '#';
+  let first = null;
+  try {
+    graphemes ??= new Intl.Segmenter(undefined, { granularity: 'grapheme' });
+    first = graphemes.segment(text)[Symbol.iterator]().next().value?.segment ?? null;
+  } catch {
+    first = null;
+  }
+  return (first ?? Array.from(text)[0]).toLocaleUpperCase();
+}
+
 /** The hue for a room or account ID, or null when the ID is unusable. */
 export function identityHue(id) {
   const index = identityHueIndex(id);

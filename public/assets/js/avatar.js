@@ -3,6 +3,8 @@
 // picture where they have one, otherwise decorative initials in a colour
 // tone that is stable for their account.
 
+import { identityHueIndex } from './identity-hue.js';
+
 // Accounts known to have no picture on this page, so they are asked for once.
 const withoutPhoto = new Set();
 
@@ -14,6 +16,18 @@ export function initials(name) {
 export function avatarTone(identity) {
   return Array.from(String(identity ?? 'System'))
     .reduce((value, character) => value + character.codePointAt(0), 0) % 4;
+}
+
+/**
+ * Gives an avatar the person's identity colour (Lantern Next L1), the one their
+ * pebble has beside messages and in ChitChat Mobile, so a person looks the same
+ * in the members list, on their profile card and under You. Without a usable
+ * account ID the avatar keeps its neutral tone.
+ */
+export function setAvatarHue(element, identity) {
+  const hue = identityHueIndex(identity);
+  if (hue === null) delete element.dataset.hue;
+  else element.dataset.hue = String(hue);
 }
 
 export function avatarUrl(userId) {
@@ -63,6 +77,7 @@ export function miniAvatar(name, identity, status = null) {
   }
   avatar.setAttribute('aria-hidden', 'true');
   avatar.dataset.tone = String(avatarTone(identity));
+  setAvatarHue(avatar, identity);
   avatar.textContent = initials(name);
   if (Number.isInteger(identity)) {
     avatar.dataset.avatarUser = String(identity);

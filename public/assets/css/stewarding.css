@@ -16,7 +16,6 @@ body:has(> .app-frame[data-tab="stewarding"]) a:not([class]) { color: var(--stew
 body:has(> .app-frame[data-tab="stewarding"]) .primary-button {
   background: var(--steward);
   color: var(--on-steward);
-  box-shadow: 0 3px 0 color-mix(in srgb, var(--steward) 60%, var(--ground));
 }
 
 body:has(> .app-frame[data-tab="stewarding"]) .primary-button:hover:not(:disabled),

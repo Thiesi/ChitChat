@@ -81,13 +81,13 @@
 .mention-badge {
   display: inline-grid;
   place-items: center;
-  min-width: 1.35rem;
-  height: 1.35rem;
-  border-radius: 999px;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  border-radius: var(--radius-pill);
   background: var(--presence);
   color: var(--hue-ink);
-  font-size: 0.78rem;
-  font-weight: 800;
+  font-size: var(--type-caption);
+  font-weight: 700;
   line-height: 1;
 }
 
