@@ -10,6 +10,12 @@
  * semantic roles keep their meaning in all of them (honey = people, the unsure
  * line = uncertainty, rose = error, Dusk = stewardship). Dark is the base, as
  * before; theme.js sets data-theme and data-scheme before paint.
+ *
+ * Lantern Next (L0, #382; docs/design/lantern-next.md): the web leads Lantern
+ * for this overhaul, so three values differ from that commit on purpose
+ * (light --ground and --raised, dark --outgoing), and the type, shape, space,
+ * elevation and motion scales further down are new. CCM adopts them from
+ * lantern-next.md.
  */
 
 @font-face {
@@ -57,7 +63,7 @@
   --on-signature: #14111C;
   --signature-text: #F06A3B;
   --signature-hover: #F5916D;
-  --outgoing: #8A3A1E;
+  --outgoing: #742F17;
   --on-outgoing: #F2EDF7;
   --presence: #FFB547;
   --presence-text: #FFB547;
@@ -77,9 +83,9 @@
 /* Lantern, light: Persimmon on Paper. */
 :root[data-theme="light"] {
   color-scheme: light;
-  --ground: #FBF7F1;
+  --ground: #F5F0E8;
   --surface: #FFFFFF;
-  --raised: #F3ECE2;
+  --raised: #F1EADF;
   --line: #E6DCCF;
   --field-line: #8C8299;
   --text: #14111C;
@@ -192,7 +198,7 @@
   --unsure-line: #8F5B00;
   --presence-wash: #E1E5FB;
   --steward: #3D52C4;
-  --error: #C0392B;
+  --error: #BD3729; /* a shade deeper than Lounge's: 4.5:1 on this scheme's --raised too (L0) */
 }
 
 /* Ember, dark. */
@@ -365,6 +371,95 @@
   --steward-wash: color-mix(in srgb, var(--steward) 14%, var(--surface));
 }
 :root[data-theme="light"] { --on-steward: var(--surface); }
+
+/* ---- Lantern Next scales (L0, #382) ----
+   One rhythm for every screen: seven type roles, six radii, a 4px spacing
+   scale, three elevations and three durations. Slices L1 onwards replace the
+   one-off values in the other stylesheets with these; nothing here changes a
+   screen by itself. Old and new values, with reasons: docs/design/lantern-next.md. */
+:root {
+  /* Type. Display roles use --display-font, the rest the system stack. Sizes
+     are rem, so browser font settings and zoom apply. Nothing readable is set
+     below --type-caption (12px at the default size). */
+  --type-display-l: clamp(2rem, 1.2rem + 3vw, 3.25rem);
+  --type-display-m: 1.625rem;
+  --type-title: 1.1875rem;
+  --type-message: 1rem;
+  --type-body: 0.9375rem;
+  --type-label: 0.8125rem;
+  --type-caption: 0.75rem;
+  --leading-display: 1.1;
+  --leading-text: 1.45;
+  --leading-tight: 1.3;
+  /* Titles sit a little looser than the installation name (Display L keeps --display-tracking). */
+  --title-tracking: -0.015em;
+
+  /* Shape. Rooms stay 33% squircles and people circles: identity shapes, not tokens. */
+  --radius-1: 0.5rem;        /* chips, menu items, code */
+  --radius-2: 0.75rem;       /* icon buttons, small tiles */
+  --radius-field: 1rem;      /* fields, list rows, cards, popovers */
+  --radius-bubble: 1.25rem;  /* bubbles */
+  --radius-sheet: 1.75rem;   /* sheets, dialogs, the stage */
+  --radius-pill: 999px;      /* buttons, badges, the composer, segmented controls */
+
+  /* Space: a 4px scale. */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-7: 2rem;
+  --space-8: 3rem;
+
+  /* Targets: 44px, 48px for coarse pointers (below). */
+  --target-min: 2.75rem;
+
+  /* Motion. Only transform and opacity move, nothing loops, and every
+     duration is cut to nothing under prefers-reduced-motion (app.css). */
+  --motion-fast: 120ms;   /* hover, press, toggles, menus */
+  --motion-base: 200ms;   /* dialogs, toasts, the segmented thumb */
+  --motion-slow: 280ms;   /* sheets, panes */
+  --ease-out: cubic-bezier(0.2, 0, 0, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+
+  /* Derived colour roles: no new hues, each from the scheme's own values.
+     Dark is the base and the light values follow. Their pairs are checked in
+     tests/js/design-contrast.test.js. */
+  --signature-wash: color-mix(in srgb, var(--signature) 18%, var(--surface)); /* the current tab's pill */
+  --stage: var(--surface);     /* the conversation's own background (Midnight: below) */
+  --selected: var(--raised);   /* the selected list row */
+  --field: var(--ground);      /* field fill */
+  --toast: var(--raised);
+  --on-toast: var(--text);
+
+  /* Elevation, dark: tone and a fine edge carry depth; shadow only under floating layers. */
+  --line-soft: color-mix(in srgb, var(--line) 70%, var(--ground));
+  --elev-1: 0 0 0 1px var(--line-soft);                             /* resting: the stage, a selected row */
+  --elev-2: 0 0 0 1px var(--line), 0 14px 34px rgb(0 0 0 / 0.5);    /* floating: menus, pickers, toasts */
+  --elev-3: 0 0 0 1px var(--line), 0 32px 72px rgb(0 0 0 / 0.65);   /* in front: dialogs, sheets */
+}
+:root[data-theme="light"] {
+  --selected: var(--surface);
+  --field: var(--surface);
+  --toast: var(--text);
+  --on-toast: var(--ground);
+  --elev-1: 0 1px 2px rgb(60 40 20 / 0.07), 0 0 0 1px rgb(60 40 20 / 0.05);
+  --elev-2: 0 2px 6px rgb(60 40 20 / 0.07), 0 14px 34px -8px rgb(60 40 20 / 0.2);
+  --elev-3: 0 8px 20px rgb(20 17 28 / 0.1), 0 32px 72px -16px rgb(20 17 28 / 0.34);
+}
+/* Midnight keeps its large areas true black (CCM's AMOLED rule), the conversation included. */
+:root[data-scheme="midnight"]:not([data-theme="light"]) { --stage: var(--ground); }
+/* High contrast and Midnight: edges, never shadows. */
+:root[data-scheme="contrast"],
+:root[data-scheme="midnight"]:not([data-theme="light"]) {
+  --elev-1: 0 0 0 1px var(--line);
+  --elev-2: 0 0 0 1px var(--field-line);
+  --elev-3: 0 0 0 1px var(--field-line);
+}
+@media (any-pointer: coarse) {
+  :root { --target-min: 3rem; }
+}
 
 /* Scheme picker swatches: each shows its scheme's action colour on its dark ground. */
 .scheme-swatch[data-swatch="lantern"] { background: linear-gradient(135deg, #F06A3B 50%, #14111C 50%); }

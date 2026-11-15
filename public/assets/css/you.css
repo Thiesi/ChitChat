@@ -76,7 +76,7 @@ body[data-audience="guest"] .you-member-since { display: none; }
 
 .you-section-link[aria-current="page"] {
   border-color: color-mix(in srgb, var(--signature-text) 30%, var(--field-line));
-  background: color-mix(in srgb, var(--signature) 13%, var(--ground));
+  background: color-mix(in srgb, var(--signature) 13%, var(--surface));
   box-shadow: inset 3px 0 var(--signature-text);
 }
 

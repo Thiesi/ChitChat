@@ -1,6 +1,6 @@
 # Lantern tokens for the web: mapping from today's CSS
 
-Status: applied by S0 (#167). `public/assets/css/tokens.css` is now the only place colour values live. Direction and decisions: #163 (phase-2 direction, revision 1, owner approval).
+Status: applied by S0 (#167); evolved by Lantern Next from L0 (#382, see the last section). `public/assets/css/tokens.css` is now the only place colour values live. Direction and decisions: #163 (phase-2 direction, revision 1, owner approval).
 
 **Provenance.** Colour values come from Thiesi/ChitChat-Mobile @ `e9eb5b452ba23c316e1962e7993fe09010ff9933`, `docs/design/visual-vocabulary.md`. The CCM icon set comes from the same commit, `docs/design/assets/icons/`, and the identity-hue hash from its "Identity hues" section. Shared values, the mark, the icons and the hash change only through paired PRs in both repositories.
 
@@ -71,3 +71,23 @@ node --test tests/js/identity-hue.test.js tests/js/design-contrast.test.js
 ```
 
 Both run in CI with the other `tests/js` tests. Today they cover Lantern and Midnight. In S0, every variant's block is added to the token file and the same test covers it.
+
+## Lantern Next (from L0, #382)
+
+The premium overhaul (#381) leads Lantern for now, so `tokens.css` differs from the CCM commit above on purpose. Every difference, with old and new values and the reason, is recorded in [lantern-next.md](lantern-next.md); the direction is in [lantern-next-direction.md](lantern-next-direction.md).
+
+L0 changed three Lantern values (light `--ground` and `--raised`, dark `--outgoing`) and one scheme value (Dusk light `--error`), moved the conversation onto `--surface`, and added the scales the later slices use:
+
+| Family | Tokens |
+|---|---|
+| Type | `--type-display-l`, `--type-display-m`, `--type-title`, `--type-message`, `--type-body`, `--type-label`, `--type-caption`, `--leading-display`, `--leading-text`, `--leading-tight`, `--title-tracking` |
+| Shape | `--radius-1`, `--radius-2`, `--radius-field`, `--radius-bubble`, `--radius-sheet`, `--radius-pill` |
+| Space | `--space-1` to `--space-8` (4 to 48px) |
+| Targets | `--target-min` (44px, 48px for coarse pointers) |
+| Elevation | `--elev-1`, `--elev-2`, `--elev-3` (edges only in High contrast and Midnight) |
+| Motion | `--motion-fast`, `--motion-base`, `--motion-slow`, `--ease-out`, `--ease-in` |
+| Derived colour roles | `--stage`, `--signature-wash`, `--selected`, `--field`, `--toast`, `--on-toast`, `--line-soft` |
+
+The shape, target and shadow rows in the "Non-colour tokens" table above were S0's plan; the radius and target tokens first ship here, and `--elev-*` replaces `--shadow`, `--shadow-soft` and `--shadow-strong` as the slices move over.
+
+`design-contrast.test.js` also holds, in every scheme and theme: persimmon text, Dusk, rose and honey text on `--raised`; text and muted text on `--signature-wash`; and toast text.
