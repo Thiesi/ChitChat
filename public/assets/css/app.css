@@ -236,6 +236,13 @@ a.secondary-button { display: inline-block; text-decoration: none; text-align: c
   padding: 0.7rem 1.1rem;
 }
 
+/* Very narrow windows (a 360 phone at 200% is 180 CSS px): the pills give their side
+   padding back, so a label made of one long word still fits its card. */
+@media (max-width: 20rem) {
+  .primary-button { padding-inline: 0.9rem; }
+  .secondary-button, .join-button { padding-inline: 0.7rem; }
+}
+
 .error-text {
   min-height: 1.4rem;
   margin: 0;
