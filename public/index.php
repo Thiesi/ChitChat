@@ -62,16 +62,30 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
       <header class="auth-intro">
         <div class="auth-season" data-season hidden aria-hidden="true"></div>
         <?= \ChitChat\View\Lockup::html($config, 'auth-title') ?>
-        <svg class="auth-art" viewBox="0 0 400 210" aria-hidden="true" focusable="false">
-          <rect class="art-lantern art-h3" x="34" y="58" width="56" height="56" rx="17"/>
-          <rect class="art-lantern art-h5" x="318" y="22" width="42" height="42" rx="13"/>
-          <rect class="art-lantern art-h1" x="270" y="146" width="46" height="46" rx="14"/>
-          <path class="art-bubble" d="M140 30h104a30 30 0 0 1 30 30v26a30 30 0 0 1-30 30H140a30 30 0 0 1-30-30V60a30 30 0 0 1 30-30Z"/>
-          <circle class="art-chit" cx="292" cy="132" r="9"/>
-          <path class="art-lines" d="M142 64h82M142 84h52"/>
-          <circle class="art-pebble art-h6" cx="92" cy="168" r="20"/>
-          <circle class="art-pebble art-h4" cx="146" cy="186" r="11"/>
-          <circle class="art-pebble art-h2" cx="368" cy="110" r="13"/>
+        <!-- Lantern Next L5 (#389): a small conversation in Lantern's own shapes: someone
+             speaks, you answer, someone is typing. Three groups that settle into place once
+             (auth.css); still under reduced motion. Decoration only. -->
+        <svg class="auth-art" viewBox="0 0 400 222" aria-hidden="true" focusable="false">
+          <g class="art-step art-step-1">
+            <circle class="art-pebble art-h3" cx="46" cy="72" r="20"/>
+            <rect class="art-bubble" x="82" y="26" width="196" height="66" rx="22"/>
+            <circle class="art-bubble" cx="78" cy="98" r="6"/>
+            <path class="art-lines" d="M106 50h124M106 70h84"/>
+          </g>
+          <g class="art-step art-step-2">
+            <rect class="art-bubble-out" x="176" y="110" width="170" height="46" rx="22"/>
+            <circle class="art-bubble-out" cx="352" cy="160" r="6"/>
+            <path class="art-lines-out" d="M200 133h112"/>
+            <rect class="art-lantern art-h5" x="326" y="34" width="44" height="44" rx="14"/>
+          </g>
+          <g class="art-step art-step-3">
+            <circle class="art-pebble art-h6" cx="46" cy="196" r="16"/>
+            <rect class="art-bubble" x="78" y="174" width="88" height="42" rx="21"/>
+            <circle class="art-dot" cx="106" cy="195" r="5"/>
+            <circle class="art-dot" cx="122" cy="195" r="5"/>
+            <circle class="art-dot" cx="138" cy="195" r="5"/>
+            <rect class="art-lantern art-h1" x="236" y="176" width="36" height="36" rx="12"/>
+          </g>
         </svg>
         <svg class="auth-band-art" viewBox="0 0 64 40" aria-hidden="true" focusable="false">
           <circle class="art-pebble art-h6" cx="14" cy="24" r="10"/>

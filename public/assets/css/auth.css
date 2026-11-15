@@ -55,7 +55,8 @@
   flex: none;
 }
 
-/* The one honey glow: behind the mark, never baked into it. */
+/* The one honey glow: behind the mark, never baked into it. On the wide sign-in screen it
+   is the lantern's light (Lantern Next L5): wide, soft, and still. */
 .lockup-mark::before {
   position: absolute;
   z-index: -1;
@@ -63,6 +64,13 @@
   border-radius: 50%;
   background: radial-gradient(circle, color-mix(in srgb, var(--presence) 34%, transparent) 0%, transparent 68%);
   content: "";
+}
+.auth-intro .lockup-mark::before {
+  inset: -190%;
+  background: radial-gradient(circle,
+    color-mix(in srgb, var(--presence) 36%, transparent) 0%,
+    color-mix(in srgb, var(--presence) 14%, transparent) 38%,
+    transparent 70%);
 }
 
 .lockup-mark img {
@@ -92,7 +100,24 @@
 .lockup-sub {
   margin: 0;
   color: var(--text-muted);
-  font-size: 0.95rem;
+  font-size: var(--type-label);
+  font-weight: 500;
+}
+
+/* "on ChitChat" is signed with the one-colour mark (the mark family, #227): a renamed
+   installation's own icon and name lead, and ChitChat signs quietly beneath. The mark
+   is drawn as a mask in the text's colour, so it follows every scheme and forced colours;
+   it adds no text. */
+.lockup-sub::before {
+  display: inline-block;
+  width: 1.05em;
+  height: 0.95em;
+  margin-inline-end: 0.35em;
+  vertical-align: -0.12em;
+  background: currentColor;
+  content: "";
+  -webkit-mask: url("/assets/app-icons/lantern-mark-mono.svg") center / contain no-repeat;
+  mask: url("/assets/app-icons/lantern-mark-mono.svg") center / contain no-repeat;
 }
 
 /* Horizontal: the mark beside the name (narrow screens, Restore, step-up). */
@@ -123,9 +148,25 @@
 .art-h5 { fill: var(--hue-5); }
 .art-h6 { fill: var(--hue-6); }
 .art-h7 { fill: var(--hue-7); }
-.art-bubble { fill: var(--raised); stroke: var(--line); stroke-width: 2; }
+.art-bubble { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
+.art-bubble-out { fill: var(--outgoing); }
 .art-chit { fill: var(--signature); }
-.art-lines { fill: none; stroke: var(--text-muted); stroke-width: 6; stroke-linecap: round; }
+.art-dot { fill: var(--presence); }
+.art-lines { fill: none; stroke: var(--text-muted); stroke-width: 6; stroke-linecap: round; opacity: 0.6; }
+.art-lines-out { fill: none; stroke: var(--on-outgoing); stroke-width: 6; stroke-linecap: round; opacity: 0.55; }
+
+/* The conversation settles into place once, a group at a time (a signature moment, owner
+   decision). Transform and opacity only, no loop; when motion isn't welcome these rules
+   don't apply and the drawing is simply there. */
+@keyframes art-settle {
+  from { opacity: 0; transform: translateY(0.6rem); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .auth-art .art-step { animation: art-settle var(--motion-slow) var(--ease-out) backwards; }
+  .auth-art .art-step-1 { animation-delay: 120ms; }
+  .auth-art .art-step-2 { animation-delay: 260ms; }
+  .auth-art .art-step-3 { animation-delay: 400ms; }
+}
 
 /* Seasonal decoration (sign-in-season.js): static drawings around the
    lockup, behind it, out of the way of the name and the card. */
@@ -164,19 +205,43 @@
 .auth-card {
   width: min(100%, 30rem);
   padding: clamp(1.5rem, 3vw, 2.5rem);
-  border: 1px solid var(--line);
-  border-radius: 1.75rem;
+  /* The floating level (L5); the transparent border is what forced colours paint. */
+  border: 1px solid transparent;
+  border-radius: var(--radius-sheet);
   background: var(--surface);
-  box-shadow: var(--shadow);
+  box-shadow: var(--elev-2);
 }
 
 .auth-greeting {
   margin: 0 0 1.25rem;
   font-family: var(--display-font);
-  font-size: 1.6rem;
+  font-size: var(--type-display-m);
   font-weight: 700;
-  line-height: 1.15;
-  letter-spacing: var(--display-tracking);
+  line-height: var(--leading-display);
+  letter-spacing: var(--title-tracking);
+}
+
+/* The second sign-in step (L5): one main button. With an authenticator code on offer the
+   code is the main action and the passkey an outline button; without one the passkey
+   stays the main action. The guest offer waits until the step is finished or cancelled. */
+#mfa-login-panel:has(.totp-entry:not([hidden])) #mfa-login-passkey {
+  border: 1px solid var(--field-line);
+  background: transparent;
+  color: var(--text);
+  font-weight: 600;
+}
+#mfa-login-panel:has(.totp-entry:not([hidden])) #mfa-login-passkey:hover:not(:disabled) {
+  border-color: var(--text);
+  background: color-mix(in srgb, var(--text) 7%, transparent);
+}
+.auth-card:has(#mfa-login-panel:not(.hidden)) .guest-entry { display: none; }
+#mfa-login-title {
+  margin: 0;
+  font-family: var(--display-font);
+  font-size: var(--type-display-m);
+  font-weight: 700;
+  line-height: var(--leading-display);
+  letter-spacing: var(--title-tracking);
 }
 
 /* Reset, recovery key and MFA have their own headings. */
@@ -206,9 +271,9 @@
   grid-template-columns: 1fr 1fr;
   gap: 0.25rem;
   margin-bottom: 1.5rem;
-  padding: 0.3rem;
-  border-radius: 999px;
-  background: var(--ground);
+  padding: 0.25rem;
+  border-radius: var(--radius-pill);
+  background: var(--raised);
 }
 
 .auth-tabs button {
@@ -220,11 +285,14 @@
   color: var(--text);
 }
 
+/* The chosen tab is the lit thumb (L5): the surface at the resting elevation, in bold.
+   Weight and the thumb's shape carry it, not colour; forced colours add a Highlight
+   border (accessibility.css). */
+.auth-tabs button { color: var(--text-muted); font-weight: 500; }
 .auth-tabs button[aria-selected="true"] {
-  border-color: var(--field-line);
   background: var(--surface);
-  box-shadow: 0 2px 5px var(--shadow-soft);
-  color: var(--signature-text);
+  box-shadow: var(--elev-1);
+  color: var(--text);
   font-weight: 700;
 }
 

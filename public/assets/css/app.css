@@ -120,6 +120,20 @@ button:disabled {
   color: inherit;
 }
 
+/* The attribution carries the one-colour mark (the mark family, #227), as a mask in the
+   link's own colour. The documents' and feedback links sit in their own spans. */
+.powered-by > a::before {
+  display: inline-block;
+  width: 1.05em;
+  height: 0.95em;
+  margin-inline-end: 0.3em;
+  vertical-align: -0.12em;
+  background: currentColor;
+  content: "";
+  -webkit-mask: url("/assets/app-icons/lantern-mark-mono.svg") center / contain no-repeat;
+  mask: url("/assets/app-icons/lantern-mark-mono.svg") center / contain no-repeat;
+}
+
 /* The installation's documents (#160), when configured: 44px tall targets. */
 .powered-by .footer-documents a { display: inline-block; padding-block: 0.75rem; font-weight: 600; }
 /* "Report an accessibility problem" on the sign-in screens (#219): the same target as the document links. */
