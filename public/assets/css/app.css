@@ -335,7 +335,8 @@ a.secondary-button { display: inline-block; text-decoration: none; text-align: c
 
 .room-button.active {
   border-color: color-mix(in srgb, var(--signature-text) 30%, var(--field-line));
-  background: color-mix(in srgb, var(--signature) 13%, var(--ground));
+  /* Mixed into --surface, not the page ground (L0): honey and muted text keep 4.5:1 on it. */
+  background: color-mix(in srgb, var(--signature) 13%, var(--surface));
   color: var(--text);
   box-shadow: inset 3px 0 var(--signature-text);
 }
@@ -793,7 +794,9 @@ button.user-name.mention { padding: 0 0.2rem; border-radius: 0.25rem; background
   min-height: 0;
   border: 1px solid var(--line);
   border-radius: 1.5rem;
-  background: var(--ground);
+  /* The stage (Lantern Next L0): the conversation sits on --surface, so --raised bubbles
+     keep their separation and the paper ground is only the frame around it. */
+  background: var(--stage);
   box-shadow: var(--shadow);
 }
 
@@ -1044,7 +1047,7 @@ button.user-name.mention { padding: 0 0.2rem; border-radius: 0.25rem; background
   padding-right: 0.9rem;
   border: 1px solid color-mix(in srgb, var(--presence-text) 45%, var(--line));
   border-radius: 1rem;
-  background: color-mix(in srgb, var(--presence) 9%, var(--ground));
+  background: color-mix(in srgb, var(--presence) 9%, var(--stage));
 }
 
 .message.ping-notice .ping-icon {
@@ -1349,7 +1352,7 @@ button.user-name.mention { padding: 0 0.2rem; border-radius: 0.25rem; background
   min-width: 0;
   padding: 0.75rem clamp(1rem, 3vw, 3rem) 1.25rem;
   border-radius: 0 0 1.5rem 1.5rem;
-  background: var(--ground);
+  background: var(--stage);
 }
 
 .composer {

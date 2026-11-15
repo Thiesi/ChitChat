@@ -49,7 +49,7 @@
 .dm-message-list article:focus-visible {
   outline: 2px solid var(--field-line);
   outline-offset: 2px;
-  box-shadow: 0 0 0 2px var(--ground);
+  box-shadow: 0 0 0 2px var(--stage);
 }
 
 /* Message actions: a menu by the message, a bottom sheet on touch. */

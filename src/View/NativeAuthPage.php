@@ -68,7 +68,7 @@ final class NativeAuthPage
   <script src="/assets/js/theme.js"></script>
   <title>{$e($card['title'])} · {$e($installation)}</title>
   {$favicon}
-  <meta name="theme-color" content="#FBF7F1" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#F5F0E8" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#14111C" media="(prefers-color-scheme: dark)">
   <link rel="stylesheet" href="/assets/css/tokens.css">
   <link rel="stylesheet" href="/assets/css/app.css">

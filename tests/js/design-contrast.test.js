@@ -23,6 +23,12 @@ const PAIRS = [
   ['text-muted', 'ground', TEXT, 'secondary text'],
   ['text-muted', 'surface', TEXT, 'secondary text on cards'],
   ['text-muted', 'raised', TEXT, 'times on incoming bubbles'],
+  // Lantern Next (L0, #382): the conversation sits on --surface and its bubbles, chips and
+  // quiet buttons on --raised, so every text role that can appear there is held to the floor.
+  ['signature-text', 'raised', TEXT, 'links in incoming bubbles and on quiet buttons'],
+  ['steward', 'raised', TEXT, 'stewardship text on quiet chips'],
+  ['error', 'raised', TEXT, 'error text on quiet chips'],
+  ['presence-text', 'raised', TEXT, 'honey text on quiet chips'],
   ['presence-text', 'ground', TEXT, 'honey used as text (ping labels)'],
   ['presence-text', 'surface', TEXT, 'honey used as text on cards'],
   ['on-signature', 'signature', TEXT, 'labels on persimmon (never white)'],
@@ -168,6 +174,51 @@ test('the derived stewardship tokens meet the floors in every scheme and theme',
     }
   }
   assert.deepEqual(failures, []);
+});
+
+// Lantern Next (L0, #382): the derived roles at the end of tokens.css, computed here the way
+// the cascade resolves them (--selected is --surface or --raised, already covered above).
+function derivedTokens(tokens, theme) {
+  return {
+    wash: mix(tokens.signature, tokens.surface, 0.18),
+    // The selected row in the Rooms, Direct and You lists (app.css, panes.css, you.css).
+    selectedRow: mix(tokens.signature, tokens.surface, 0.13),
+    toast: theme === 'light' ? tokens.text : tokens.raised,
+    onToast: theme === 'light' ? tokens.ground : tokens.text,
+  };
+}
+
+test('the derived Lantern Next roles meet the floors in every scheme and theme', () => {
+  const failures = [];
+  for (const [key, tokens] of schemes) {
+    const { wash, selectedRow, toast, onToast } = derivedTokens(tokens, key.split('/')[1]);
+    for (const [fg, bg, minimum, why] of [
+      [tokens.text, wash, TEXT, 'the current tab’s label on its pill'],
+      [tokens['text-muted'], wash, TEXT, 'secondary text on the signature wash'],
+      [tokens.text, selectedRow, TEXT, 'the selected row’s name'],
+      [tokens['text-muted'], selectedRow, TEXT, 'secondary text on the selected row'],
+      [tokens['presence-text'], selectedRow, TEXT, '“here now” on the selected row'],
+      [onToast, toast, TEXT, 'toast text'],
+    ]) {
+      const ratio = contrast(fg, bg);
+      if (ratio < minimum) failures.push(`${key}: ${why} is ${ratio.toFixed(2)}:1, needs ${minimum}:1`);
+    }
+  }
+  assert.deepEqual(failures, []);
+});
+
+test('the derived roles in tokens.css are the ones this test computes', () => {
+  const css = readFileSync(SOURCE, 'utf8');
+  assert.ok(css.includes('--signature-wash: color-mix(in srgb, var(--signature) 18%, var(--surface));'), '--signature-wash');
+  for (const file of ['app.css', 'panes.css', 'you.css']) {
+    const sheet = readFileSync(new URL(`../../public/assets/css/${file}`, import.meta.url), 'utf8');
+    assert.ok(sheet.includes('color-mix(in srgb, var(--signature) 13%, var(--surface))'), `${file}: the selected row’s fill`);
+  }
+  // The stage is --surface, whose text pairs are held above; Midnight keeps it true black.
+  assert.ok(css.includes('--stage: var(--surface);'), '--stage');
+  assert.ok(css.includes(':root[data-scheme="midnight"]:not([data-theme="light"]) { --stage: var(--ground); }'), 'Midnight’s stage');
+  assert.match(css, /:root \{[^}]*--toast: var\(--raised\);\s*--on-toast: var\(--text\);/, 'dark toast');
+  assert.match(css, /:root\[data-theme="light"\] \{[^}]*--toast: var\(--text\);\s*--on-toast: var\(--ground\);/, 'light toast');
 });
 
 test('the persimmon fill exception is real, so it stays a reviewed rule', () => {

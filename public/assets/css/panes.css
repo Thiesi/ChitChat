@@ -158,7 +158,7 @@
 .dm-shell .conversation-button:hover { border-color: transparent; background: var(--surface); }
 .dm-shell .conversation-button.active {
   border-color: color-mix(in srgb, var(--signature-text) 30%, var(--field-line));
-  background: color-mix(in srgb, var(--signature) 13%, var(--ground));
+  background: color-mix(in srgb, var(--signature) 13%, var(--surface));
 }
 .conversation-text { display: grid; flex: 1; gap: 0.15rem; min-width: 0; }
 .dm-shell .conversation-button .pebble { width: 2.5rem; height: 2.5rem; }
@@ -170,7 +170,7 @@
   flex-direction: column;
   border: 1px solid var(--line);
   border-radius: 1.5rem;
-  background: var(--ground);
+  background: var(--stage); /* as the room conversation (L0) */
   box-shadow: var(--shadow);
   overflow: hidden;
 }
