@@ -206,7 +206,7 @@ Tokens: `--motion-fast: 120ms`, `--motion-base: 200ms`, `--motion-slow: 280ms`; 
 | Segmented thumb | 200ms slide | instant |
 | Page to page (rail/bar) | cross-document view transition (`@view-transition { navigation: auto }`), 150ms cross-fade of the page; the rail has its own `view-transition-name` so it holds still. CSS only, no script; unsupported browsers navigate as today | not enabled (inside `@media (prefers-reduced-motion: no-preference)`) |
 
-The global rule in `app.css` that zeroes animation and transition durations under `prefers-reduced-motion: reduce` stays and remains the backstop; new motion is additionally written inside `no-preference` blocks. Typing indicators stay static. The liveliness glow stays static.
+The three duration tokens drop to 0.01ms under `prefers-reduced-motion: reduce` in `tokens.css`, which every page loads (L0, after review: the global rule that zeroes every animation and transition lives in `accessibility.css`, and the stewardship, step-up and status pages do not load that file). That global rule stays as a second backstop where it is loaded; new motion is additionally written inside `no-preference` blocks. Typing indicators stay static. The liveliness glow stays static.
 
 ## 4. Layout and hierarchy per screen
 

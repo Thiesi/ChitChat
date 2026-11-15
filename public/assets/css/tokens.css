@@ -415,8 +415,10 @@
   /* Targets: 44px, 48px for coarse pointers (below). */
   --target-min: 2.75rem;
 
-  /* Motion. Only transform and opacity move, nothing loops, and every
-     duration is cut to nothing under prefers-reduced-motion (app.css). */
+  /* Motion. Only transform and opacity move, and nothing loops. Under
+     prefers-reduced-motion the three durations are cut to nothing below, in
+     this file, because every page loads it (accessibility.css, which also
+     cuts every animation and transition, isn't loaded by all of them). */
   --motion-fast: 120ms;   /* hover, press, toggles, menus */
   --motion-base: 200ms;   /* dialogs, toasts, the segmented thumb */
   --motion-slow: 280ms;   /* sheets, panes */
@@ -459,6 +461,15 @@
 }
 @media (any-pointer: coarse) {
   :root { --target-min: 3rem; }
+}
+/* Reduced motion: whatever is timed with these tokens becomes an instant cut, on every
+   page (tests/js/motion-tokens.test.js). 0.01ms, not 0, so transitionend still fires. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-fast: 0.01ms;
+    --motion-base: 0.01ms;
+    --motion-slow: 0.01ms;
+  }
 }
 
 /* Scheme picker swatches: each shows its scheme's action colour on its dark ground. */

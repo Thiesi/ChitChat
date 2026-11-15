@@ -80,7 +80,7 @@ The last four are CCM's shape table as it stands; the first two are new, for the
 
 In dark themes depth is tone plus a fine edge. High contrast and Midnight use edges only, as CCM's AMOLED rule says.
 
-**Motion.** `--motion-fast` 120ms (hover, press, menus), `--motion-base` 200ms (dialogs, toasts), `--motion-slow` 280ms (sheets, panes); `--ease-out` `cubic-bezier(0.2, 0, 0, 1)` for entering and `--ease-in` `cubic-bezier(0.4, 0, 1, 1)` for leaving. Only transform and opacity move, nothing loops, and with reduced motion every change is an instant cut (CCM: "Remove animations"). CCM's range was 150 to 250ms with standard easing.
+**Motion.** `--motion-fast` 120ms (hover, press, menus), `--motion-base` 200ms (dialogs, toasts), `--motion-slow` 280ms (sheets, panes); `--ease-out` `cubic-bezier(0.2, 0, 0, 1)` for entering and `--ease-in` `cubic-bezier(0.4, 0, 1, 1)` for leaving. Only transform and opacity move, nothing loops, and with reduced motion every change is an instant cut (CCM: "Remove animations"): the three duration tokens themselves drop to 0.01ms under `prefers-reduced-motion: reduce`, in the token file every page loads, so anything timed with them switches off everywhere. CCM's range was 150 to 250ms with standard easing.
 
 ### Derived colour roles
 
