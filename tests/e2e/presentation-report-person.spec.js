@@ -298,7 +298,23 @@ test('moderators review person cases with a blurred picture and person actions',
   await accessible(page);
   await page.screenshot({ path: testInfo.outputPath('moderation-person-case.png'), fullPage: true });
 
-  await page.getByRole('button', { name: 'Show picture' }).click();
+  // "Show picture" lies on the blurred, person-supplied picture: its fill is opaque at rest
+  // and under the pointer, so its label never depends on the picture's colours (axe can't
+  // measure text over an image; found in review of #385).
+  const reveal = page.getByRole('button', { name: 'Show picture' });
+  const fill = () => reveal.evaluate((node) => {
+    const probe = document.createElement('canvas').getContext('2d');
+    probe.fillStyle = getComputedStyle(node).backgroundColor;
+    probe.fillRect(0, 0, 1, 1);
+    return probe.getImageData(0, 0, 1, 1).data[3];
+  });
+  expect(await fill(), 'opaque at rest').toBe(255);
+  await reveal.hover();
+  await page.waitForFunction(() => document.getAnimations().every((animation) => animation.playState !== 'running'));
+  expect(await fill(), 'opaque under the pointer').toBe(255);
+  await page.mouse.move(0, 0);
+
+  await reveal.click();
   await expect(page.getByRole('img', { name: 'Profile picture of Rowan_x when first reported' })).toBeFocused();
   expect(await picture.evaluate((image) => getComputedStyle(image).filter)).toBe('none');
 
