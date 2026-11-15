@@ -147,6 +147,19 @@ The initial is decorative. On the web the lantern's text stays "#" (zero-size) a
 
 For CCM: the phone list panes already show the icon with the name; what to mirror is the Label style for it, Display M for every top-level title, and the stage's edge.
 
+## L3: lists (#387)
+
+| What | Old | New | Reason |
+|---|---|---|---|
+| The selected row (Rooms, Direct, You) | A 13% persimmon wash, a 3px bar along the whole edge and a persimmon-tinted outline | The `--selected` fill (`surface` in light, `raised` in dark) at the resting elevation, one short bar (3 × 22px, persimmon as text), the name at 700 | Say it once. The lit row is the lantern idea in small; the bar and the weight are the cues that aren't colour. |
+| Row names | 650, and 800 when unread | 600, and 700 when unread or selected | Two weights instead of three; unread still has its count. |
+| Row sub-line and time | 12.8px and 11.5px | Label (13px) and Caption (12px, tabular numerals) | The type scale. |
+| Row shape and hover | 10px corners, `surface` on hover | `--radius-field` (16px); hover is a 6% tint of `text` | Hover shows on any ground. |
+| Section labels ("Your rooms", "Other rooms", "Conversations") | 11.5 to 12.8px, 700 to 750, upper case, tracked | Label: 13px, 600, sentence case | Calmer, and kinder to long words and zoom. Changes CCM's "uppercase, +0.02em" label. |
+| The mention notice | A honey box with a honey-brown outline and an underlined bold "Open" | A honey strip without an outline; "Open" is an outlined pill on `surface` | A strip, not a box. The pill keeps a 3:1 boundary of its own. |
+| The glow's gap in a row | Always `surface` | The colour the row sits on: `ground`, or `--selected` for the open room | The ring reads as a ring on both. |
+| Connection state | 13px with an 8.8px dot | Caption (12px) with a 7px dot | It reports; it shouldn't compete with the title. Shape and wording for reconnecting and offline are unchanged. |
+
 ## Still to come
 
 L3 lists · L4 conversation · L5 sign-in family and the mark variants (#227) · L6 Direct, Activity, Search · L7 You · L8 stewardship · L9 overlays, status and motion · L10 handoff. Each adds its section here when it merges.
