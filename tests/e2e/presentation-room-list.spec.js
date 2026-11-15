@@ -147,6 +147,46 @@ test('a row says what waits in it, from data only: unread, "@", here now with th
   await expect(rooms(page).locator('[aria-current]')).toHaveCount(1);
 });
 
+// Lantern Next L1 (#384): the lantern draws the room's initial. Nothing a reader or a test
+// relies on changes: the lantern's own text is still "#", it stays hidden in rows, and the
+// row's name, the visible "# name" and the conversation's heading read as before.
+test('a lantern shows the room’s initial; its text, the row’s name and the heading stay as they were', async ({ page }) => {
+  await fixture(page);
+  await open(page);
+  const lantern = row(page, 'Garden').locator('.lantern');
+  await expect(lantern).toHaveAttribute('data-initial', 'G');
+  await expect(lantern).toHaveAttribute('aria-hidden', 'true');
+  await expect(lantern).toHaveText('#');
+  const drawn = await lantern.evaluate((node) => {
+    const letter = getComputedStyle(node, '::before');
+    return { content: letter.content, size: parseFloat(letter.fontSize), colour: letter.color, face: letter.fontFamily, hash: parseFloat(getComputedStyle(node).fontSize) };
+  });
+  expect(drawn.content).toContain('"G"');
+  // The "#" takes no room; the letter is at least 12px, in the display face, in ink on the hue.
+  expect(drawn.hash).toBe(0);
+  expect(drawn.size).toBeGreaterThanOrEqual(12);
+  expect(drawn.face).toMatch(/Bricolage/);
+  expect(drawn.colour).toBe('rgb(20, 17, 28)');
+  await expect(row(page, 'Garden')).toHaveAccessibleName('Garden, 3 unread, mentions you, 2 here now');
+  await expect(page.locator('.room-button', { hasText: '# Garden' })).toHaveCount(1);
+
+  // The conversation's heading: the same lantern, and the text still "# name".
+  await expect(page.locator('#room-title')).toHaveText('# The living room');
+  await expect(page.locator('#room-title .lantern')).toHaveAttribute('data-initial', 'T');
+  await expect(page.getByRole('heading', { name: '# The living room' })).toHaveCount(1);
+  // The letter sits in the middle of its lantern (within a pixel and a half).
+  const offset = await lantern.evaluate((node) => {
+    const box = node.getBoundingClientRect();
+    const style = getComputedStyle(node, '::before');
+    return { display: getComputedStyle(node).display, align: getComputedStyle(node).alignItems, justify: getComputedStyle(node).justifyContent, height: box.height, line: parseFloat(style.lineHeight) || parseFloat(style.fontSize) };
+  });
+  // A flex box (blockified to "flex" inside the row's grid), so the zero-size "#" takes no row of its own.
+  expect(offset.display).toMatch(/flex$/);
+  expect(offset.align).toBe('center');
+  expect(offset.justify).toBe('center');
+  expect(offset.line).toBeLessThanOrEqual(offset.height);
+});
+
 test('forced colours: the unread count, the quiet count and "@" keep a system-colour border (#378)', async ({ page, browserName }) => {
   test.skip(browserName !== 'chromium', 'Forced-colours emulation is Chromium-only.');
   await fixture(page);
