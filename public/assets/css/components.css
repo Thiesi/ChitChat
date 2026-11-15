@@ -339,6 +339,11 @@ form:has(.attachment-selection > button:not(.hidden)) .attachment-button {
   opacity: 0.55;
 }
 
+/* As the other pills at 180 CSS px (app.css). */
+@media (max-width: 20rem) {
+  .danger-button { padding-inline: 0.7rem; }
+}
+
 /* Google and Twitch buttons carry their logo before the text. The doubled
    class outranks a.secondary-button and similar display rules. */
 .has-provider-icon.has-provider-icon {

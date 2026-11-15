@@ -115,7 +115,8 @@
   .activity-item .activity-icon { display: none; }
   .activity-body .privacy-notification-header { flex-wrap: wrap; gap: 0.1rem 0.6rem; }
   .activity-kind { min-width: 0; overflow-wrap: break-word; }
-  .activity-body .privacy-notification-actions > * { max-width: 100%; white-space: normal; }
+  /* A label that is one long word ("conversation") breaks inside rather than widening the page. */
+  .activity-body .privacy-notification-actions > * { max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
 
 }
 
