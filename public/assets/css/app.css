@@ -475,10 +475,10 @@ a.secondary-button { display: inline-block; text-decoration: none; text-align: c
   display: flex;
   min-height: 0;
   flex-direction: column;
-  border: 1px solid var(--line);
-  border-radius: 1.5rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sheet);
   background: var(--surface);
-  box-shadow: var(--shadow);
+  box-shadow: var(--elev-1);
   overflow-y: auto;
 }
 
@@ -828,12 +828,14 @@ button.user-name.mention { padding: 0 0.2rem; border-radius: 0.25rem; background
   grid-template-rows: auto minmax(0, 1fr) auto;
   min-width: 0;
   min-height: 0;
-  border: 1px solid var(--line);
-  border-radius: 1.5rem;
-  /* The stage (Lantern Next L0): the conversation sits on --surface, so --raised bubbles
-     keep their separation and the paper ground is only the frame around it. */
+  /* The stage (Lantern Next L0, L2): the conversation sits on --surface, so --raised
+     bubbles keep their separation and the paper ground is only the frame around it. Its
+     edge is the resting elevation, not a line and a heavy shadow; the transparent border
+     is there for forced colours, which drop the shadow and paint the border instead. */
+  border: 1px solid transparent;
+  border-radius: var(--radius-sheet);
   background: var(--stage);
-  box-shadow: var(--shadow);
+  box-shadow: var(--elev-1);
 }
 
 .room-header {
@@ -842,7 +844,7 @@ button.user-name.mention { padding: 0 0.2rem; border-radius: 0.25rem; background
   gap: 1rem;
   padding: 0.9rem 1rem 0.9rem 2rem;
   border-bottom: 1px solid var(--line);
-  border-radius: 1.5rem 1.5rem 0 0;
+  border-radius: calc(var(--radius-sheet) - 1px) calc(var(--radius-sheet) - 1px) 0 0;
   background: var(--surface);
 }
 
@@ -1387,7 +1389,7 @@ button.user-name.mention { padding: 0 0.2rem; border-radius: 0.25rem; background
   position: relative;
   min-width: 0;
   padding: 0.75rem clamp(1rem, 3vw, 3rem) 1.25rem;
-  border-radius: 0 0 1.5rem 1.5rem;
+  border-radius: 0 0 calc(var(--radius-sheet) - 1px) calc(var(--radius-sheet) - 1px);
   background: var(--stage);
 }
 

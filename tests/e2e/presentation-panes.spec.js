@@ -219,17 +219,30 @@ test('phone: a deep link to a room starts on its conversation', async ({ page })
   await expect(page.getByRole('button', { name: 'Back to rooms' })).toBeVisible();
 });
 
-test('the installation’s icon and name stay in view: the rail on wide screens, the list on phones', async ({ page }) => {
+// Lantern Next L2 (#386, owner decision): the rail keeps the icon only, and the name heads
+// the list pane at every width (it was hidden there on wide screens, where the rail showed
+// it at 11px in two clamped lines). The rail's brand keeps the name as text for screen
+// readers, so the old assertions on its text still hold; what changed is where it is seen.
+test('the installation’s icon and name stay in view: the icon on the rail, the name on the list, both on phones’ lists', async ({ page }) => {
   await fixture(page);
   await openRooms(page, 1280);
   const railBrand = bar(page).locator('.app-nav-brand');
   await expect(railBrand).toBeVisible();
   await expect(railBrand).toHaveText('ChitChat');
   await expect(railBrand.locator('img')).toHaveAttribute('alt', '');
+  await expect(railBrand.locator('img')).toBeVisible();
+  // The name is in the rail for assistive technology only: it takes no room there.
+  const railName = await railBrand.locator('span').evaluate((node) => { const box = node.getBoundingClientRect(); return { width: box.width, height: box.height, display: getComputedStyle(node).display }; });
+  expect(railName.display).not.toBe('none');
+  expect(railName.width).toBeLessThanOrEqual(1);
+  expect(railName.height).toBeLessThanOrEqual(1);
   await expect(page).toHaveTitle(/ChitChat/);
   // Plain text, not a link: the navigation's destinations are unchanged.
   await expect(railBrand.locator('a')).toHaveCount(0);
-  await expect(list(page).locator('.list-pane-brand')).toBeHidden();
+  // The name is seen at the top of the list, without the icon (the rail beside it has that).
+  await expect(list(page).locator('.list-pane-brand')).toBeVisible();
+  await expect(list(page).locator('.list-pane-brand')).toHaveText('ChitChat');
+  await expect(list(page).locator('.list-pane-brand img')).toBeHidden();
 
   await openRooms(page, 900);
   await expect(bar(page).locator('.app-nav-brand')).toBeVisible();
@@ -238,6 +251,7 @@ test('the installation’s icon and name stay in view: the rail on wide screens,
   await expect(bar(page).locator('.app-nav-brand')).toBeHidden();
   await expect(list(page).locator('.list-pane-brand')).toBeVisible();
   await expect(list(page).locator('.list-pane-brand')).toHaveText('ChitChat');
+  await expect(list(page).locator('.list-pane-brand img')).toBeVisible();
   await openDirect(page, 360);
   await expect(page.locator('#dm-list-pane .list-pane-brand')).toHaveText('ChitChat');
   await expect(page).toHaveTitle(/ChitChat/);

@@ -35,7 +35,10 @@ test('Super-Administrator renames the installation and every page presents the n
 
     await page.goto('/');
     await expect(page).toHaveTitle(name);
-    // The installation's name heads the rail (S2c; the list pane's title is the tab).
+    // The installation's name heads the list pane, where people see it (Lantern Next L2,
+    // #386); the rail's brand shows the icon and keeps the name as text for screen readers.
+    await expect(page.locator('#sidebar .list-pane-brand')).toBeVisible();
+    await expect(page.locator('#sidebar .list-pane-brand')).toHaveText(name);
     await expect(page.locator('#app-nav .app-nav-brand')).toHaveText(name);
     await expect(page.locator('meta[name="application-name"]')).toHaveAttribute('content', name);
 
