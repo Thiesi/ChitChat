@@ -282,21 +282,22 @@
   grid-area: 3 / 1;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 0.75rem;
-  align-items: center;
-  margin: 0.75rem 1.5rem 1.25rem;
-  padding: 0.65rem;
+  gap: 0.35rem;
+  align-items: end;
+  margin: 0.5rem 1.5rem 1rem;
+  padding: 0.3rem;
   border: 1px solid var(--field-line);
   border-radius: 1.25rem;
-  background: var(--surface);
+  background: var(--field);
 }
 
-.dm-composer .primary-button { min-height: 3rem; margin-right: 0.2rem; }
+.dm-composer .primary-button { min-height: var(--target-min); margin-right: 0; }
 .dm-composer > .reply-banner { grid-column: 1 / -1; margin-bottom: 0; }
 
 .dm-composer textarea {
   /* One row when empty, growing with the text (autosize.js) up to the max; no grip (#256). */
-  min-height: 3rem;
+  min-height: 2.75rem;
+  padding-block: 0.6rem;
   max-height: min(12rem, 35dvh);
   resize: none;
   border-color: transparent;

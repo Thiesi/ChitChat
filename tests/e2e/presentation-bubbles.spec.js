@@ -168,6 +168,103 @@ test('images reserve their space, use the rendition, and fall back once to the o
   expect(accepted).toEqual([true, false, false, false, false]);
 });
 
+// Lantern Next L4 (#388, owner decision): bubbles hold words. A run shows its time once;
+// every message keeps its exact time in the page as <time datetime>, in its own text,
+// and draws it again under the pointer and when the arrow keys reach it.
+const drawn = (locator) => locator.evaluate((node) => { const box = node.getBoundingClientRect(); return box.width > 2 && box.height > 2; });
+
+test('a run shows its time once; every message keeps its <time>, and shows it on hover and on keyboard focus', async ({ page }) => {
+  await fixture(page);
+  await openRoom(page);
+  await page.mouse.move(0, 0);
+
+  // In the page for every message, follow-on messages included: a real <time datetime> with
+  // the short time as its text and the full moment as its title.
+  for (const id of [1, 2, 3, 4, 5]) {
+    const time = message(page, id).locator('.message-bubble > time.message-time');
+    await expect(time).toHaveCount(1);
+    await expect(time).toHaveAttribute('datetime', /^2026-10-04T08:0\d:00/);
+    await expect(time).toHaveText(/\d{1,2}:\d{2}/);
+    await expect(time).toHaveAttribute('title', /2026|26/);
+    // Not display: none or visibility: hidden, so it stays in the accessibility tree.
+    expect(await time.evaluate((node) => { const style = getComputedStyle(node); return style.display !== 'none' && style.visibility !== 'hidden'; })).toBe(true);
+  }
+
+  // Someone else's run: the time beside the name that starts it, as a copy for the eye only.
+  const runTime = message(page, 1).locator('.message-header .message-run-time');
+  await expect(runTime).toBeVisible();
+  await expect(runTime).toHaveAttribute('aria-hidden', 'true');
+  await expect(runTime).toHaveText(await message(page, 1).locator('time.message-time').innerText());
+  await expect(message(page, 2).locator('.message-run-time')).toBeHidden();
+  await expect(message(page, 4).locator('.message-run-time')).toBeHidden();
+  // No time is drawn in their bubbles at rest.
+  expect(await drawn(message(page, 1).locator('time.message-time'))).toBe(false);
+  expect(await drawn(message(page, 2).locator('time.message-time'))).toBe(false);
+
+  // Your own run: no name line, so its last bubble's time is drawn under it; the first isn't.
+  expect(await drawn(message(page, 4).locator('time.message-time'))).toBe(false);
+  expect(await drawn(message(page, 5).locator('time.message-time'))).toBe(true);
+  const under = await message(page, 5).evaluate((node) => {
+    const bubble = node.querySelector('.message-bubble').getBoundingClientRect();
+    const time = node.querySelector('time.message-time').getBoundingClientRect();
+    return { below: time.top >= bubble.bottom - 1, inside: time.right <= bubble.right + 1 && time.left >= bubble.left - 1 };
+  });
+  expect(under).toEqual({ below: true, inside: true });
+
+  // Under the pointer the message's own time is drawn, on the bubble, without moving anything.
+  // (Hovering may scroll the list, so positions are compared within the conversation.)
+  const layout = () => page.evaluate(() => {
+    const top = (id) => document.querySelector(`#message-list article[data-message-id="${id}"]`).getBoundingClientRect();
+    return { gap: Math.round(top(3).top - top(2).bottom), height: Math.round(top(2).height), width: Math.round(top(2).width), scroll: document.querySelector('#message-list').scrollHeight };
+  });
+  const before = await layout();
+  await message(page, 2).locator('.message-bubble').hover();
+  expect(await drawn(message(page, 2).locator('time.message-time'))).toBe(true);
+  expect(await layout()).toEqual(before);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
+  await page.mouse.move(0, 0);
+  expect(await drawn(message(page, 2).locator('time.message-time'))).toBe(false);
+
+  // The conversation is one Tab stop; the arrow keys move through it. The message they
+  // reach draws its time, and the one they leave stops.
+  await page.locator('#message-list article[tabindex="0"]').focus();
+  const current = async () => page.evaluate(() => document.activeElement?.closest('article')?.dataset.messageId ?? null);
+  for (let step = 0; step < 12 && (await current()) !== '2'; step += 1) await page.keyboard.press('ArrowUp');
+  expect(await current()).toBe('2');
+  expect(await drawn(message(page, 2).locator('time.message-time'))).toBe(true);
+  await page.keyboard.press('ArrowUp');
+  expect(await current()).toBe('1');
+  expect(await drawn(message(page, 1).locator('time.message-time'))).toBe(true);
+  expect(await drawn(message(page, 2).locator('time.message-time'))).toBe(false);
+
+  const result = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
+  expect(result.violations.map(({ id, nodes }) => ({ id, targets: nodes.map(({ target }) => target) })), 'a focused message with its time chip').toEqual([]);
+});
+
+test('direct messages keep a <time> too: under each run’s last bubble, and on hover for the rest', async ({ page }) => {
+  await fixture(page);
+  await page.goto('/messages.php?user=2');
+  const list = page.locator('#dm-message-list');
+  await expect(list.locator('article.dm-message .message-bubble')).toHaveCount(5);
+  await page.mouse.move(0, 0);
+  const dm = (id) => list.locator(`article[data-message-id="${id}"]`);
+  for (const id of [1, 2, 3, 4, 5]) {
+    const time = dm(id).locator('.dm-message-meta > time.dm-message-time');
+    await expect(time).toHaveCount(1);
+    await expect(time).toHaveAttribute('datetime', /^2026-10-0\dT/);
+    await expect(time).toHaveText(/\d{1,2}:\d{2}/);
+  }
+  const ends = await list.locator('article.dm-message').evaluateAll((nodes) => nodes.map((node) => {
+    const box = node.querySelector('.dm-message-meta').getBoundingClientRect();
+    return { run: node.dataset.run, drawn: box.width > 2 && box.height > 2 };
+  }));
+  // Drawn at rest exactly where a run ends.
+  for (const { run, drawn: shown } of ends) expect(shown, run).toBe(run === 'end' || run === 'single');
+  const middle = list.locator('article.dm-message:not([data-run="end"]):not([data-run="single"])').first();
+  await middle.locator('.message-bubble').hover();
+  expect(await drawn(middle.locator('.dm-message-meta'))).toBe(true);
+});
+
 test('direct messages use the same bubbles', async ({ page }) => {
   await fixture(page);
   await page.goto('/messages.php?user=2');

@@ -336,3 +336,116 @@
   .message-bubble { border: 1px solid CanvasText; }
   .message-bubble::after { border: 1px solid CanvasText; }
 }
+
+/* ---------- Lantern Next L4 (#388): bubbles hold words ----------
+   A run shows its time once: beside the name that starts someone else's run in a room
+   (app.js draws that copy, hidden from assistive technology), or under the run's last
+   bubble for your own messages and in direct conversations. Every message still carries
+   its own time in its bubble (<time datetime>, in its accessible text, with the full
+   moment as its title): it is taken out of sight, not out of the page, and comes back as
+   a small chip on the bubble's edge under the pointer, when focus is inside the message,
+   and when the arrow keys reach it. */
+.message-list,
+.dm-message-list { --stage-muted: var(--text-muted); }
+
+.message-run-time {
+  margin-inline-start: 0.1rem;
+  color: var(--text-muted);
+  font-size: var(--type-caption);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+/* The name line keeps one height and one line: its actions are invisible until the
+   pointer or focus is on the message, so until then they take no room beside the name
+   and the time (at 360 CSS px they pushed "More" onto a second line); when they show,
+   the time's copy steps aside for them, and the bubble's own chip gives the exact time. */
+.message[data-run]:is([data-run="start"], [data-run="single"]):not(.mine) > .message-header { min-height: 1.75rem; align-items: center; }
+.message[data-run]:is([data-run="start"], [data-run="single"]):not(.mine):not(:hover, :focus-within) > .message-header > :is(.message-react-button, .message-reply-button, .message-mutation-actions, .message-more-button) { position: absolute; }
+.message[data-run]:is(:hover, :focus-within) .message-run-time { display: none; }
+
+/* The copy belongs to the name line of someone else's run; nowhere else. */
+.message[data-run="middle"] .message-run-time,
+.message[data-run="end"] .message-run-time,
+.message.mine .message-run-time,
+.message:not([data-run]) .message-run-time { display: none; }
+
+/* Out of sight, still in the page and in the accessibility tree. */
+.message[data-run] .message-bubble > .message-time,
+.dm-message .message-bubble > .dm-message-meta {
+  position: absolute;
+  float: none;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  font-size: var(--type-caption);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+/* The run's own time, under its last bubble: your messages in rooms, both sides in Direct. */
+.message.mine:is([data-run="single"], [data-run="end"]) .message-bubble,
+.dm-message:is([data-run="single"], [data-run="end"]) .message-bubble { margin-bottom: 1.3rem; }
+.message.mine:is([data-run="single"], [data-run="end"]) .message-bubble > .message-time,
+.dm-message:is([data-run="single"], [data-run="end"]) .message-bubble > .dm-message-meta {
+  top: calc(100% + 0.25rem);
+  inset-inline-start: 0.6rem;
+  width: auto;
+  height: auto;
+  overflow: visible;
+  clip-path: none;
+  color: var(--stage-muted);
+}
+.message.mine:is([data-run="single"], [data-run="end"]) .message-bubble > .message-time,
+.dm-message.outgoing:is([data-run="single"], [data-run="end"]) .message-bubble > .dm-message-meta {
+  inset-inline: auto 0.6rem;
+}
+
+/* Any other message's time: a chip on the bubble's lower edge, on hover and on focus
+   (the pointer, a control inside the message, or the arrow keys on the message itself).
+   It overlaps; it never moves the conversation or widens the page. */
+.message[data-run]:not(.mine:is([data-run="single"], [data-run="end"])):is(:hover, :focus, :focus-within) .message-bubble > .message-time,
+.dm-message:not([data-run="single"], [data-run="end"]):is(:hover, :focus, :focus-within) .message-bubble > .dm-message-meta {
+  z-index: 1;
+  bottom: -0.6rem;
+  inset-inline-end: 0.6rem;
+  width: auto;
+  height: auto;
+  padding: 0 0.45rem;
+  overflow: visible;
+  clip-path: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--stage-muted);
+  box-shadow: var(--elev-1);
+}
+.message[data-run]:not(.mine):is(:hover, :focus, :focus-within) .message-bubble > .message-time,
+.dm-message:not(.outgoing, [data-run="single"], [data-run="end"]):is(:hover, :focus, :focus-within) .message-bubble > .dm-message-meta {
+  inset-inline: 0.6rem auto;
+}
+
+/* Bubbles a little closer to their words, now that no time floats inside them. */
+.message-bubble { padding: 0.5rem 0.85rem; border-radius: var(--radius-bubble); }
+
+/* A message arriving live rises into place (transcript.js marks it). Only when motion is
+   welcome; under reduced motion the rule doesn't apply at all, and --motion-base is cut. */
+@keyframes message-arrive {
+  from { opacity: 0; transform: translateY(0.5rem); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  /* "backwards" only: once it has arrived the item carries no transform, like every other. */
+  :is(.message-list, .dm-message-list) > li.arriving { animation: message-arrive var(--motion-base) var(--ease-out) backwards; }
+}
+
+/* The composer (L4): one slim row when empty, a pill that keeps its corner as it grows. */
+.composer, .dm-composer { border-radius: 1.65rem; }
+.send-round {
+  width: var(--target-min);
+  min-width: var(--target-min);
+  height: var(--target-min);
+  min-height: var(--target-min);
+}

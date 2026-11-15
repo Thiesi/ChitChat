@@ -160,6 +160,35 @@ For CCM: the phone list panes already show the icon with the name; what to mirro
 | The glow's gap in a row | Always `surface` | The colour the row sits on: `ground`, or `--selected` for the open room | The ring reads as a ring on both. |
 | Connection state | 13px with an 8.8px dot | Caption (12px) with a 7px dot | It reports; it shouldn't compete with the title. Shape and wording for reconnecting and offline are unchanged. |
 
+## L4: the conversation (#388)
+
+### Times: bubbles hold words
+
+| What | Old | New | Reason |
+|---|---|---|---|
+| A message's time | Inside every bubble, floated at its end | Once per run: beside the name that starts someone else's run in a room; under the run's last bubble for your own messages and on both sides in Direct | Owner decision, 2026-11-15. Within a run the messages are minutes apart; the bubble is for words. |
+| The other messages' times | Always drawn | Kept in the page for every message as `<time datetime>` in its own accessible text (title: the full moment); drawn as a small chip on the bubble's lower edge under the pointer, when focus is inside the message, and when the arrow keys reach it | Nothing is lost: screen readers read sender, text, time as before, and sighted keyboard and pointer users get the exact time where they look. The chip overlaps; it never moves the conversation or widens the page. |
+| Direct message time | Text in a `<span>` | A real `<time datetime>` inside it | The same contract as rooms. |
+
+For CCM: show the run's time at the name (incoming) or under the last bubble (outgoing); keep each bubble's time in its accessibility description ("sender, text, time", A-06) and reveal it on long-press or focus.
+
+### Header, bubbles, composer
+
+| What | Old | New | Reason |
+|---|---|---|---|
+| Conversation title | 26px, with a 14.4px sub-line | Title (19px, Bricolage 700) with a Label sub-line | The conversation's name leads its own stage without shouting over it. |
+| Bubble padding and corner | 8.8 × 14.4px, 20px | 8 × 13.6px, `--radius-bubble` (20px) | A little closer to the words, now that no time floats inside. |
+| Composer | 80px tall when empty, 20px corners, a soft shadow, `surface` fill | One slim row (about 50px), a pill that keeps a 26px corner as it grows, the `--field` fill, no shadow; Send is `--target-min` round | A field like every other field. |
+| Composer hint | One long line, always | "Enter sends · Shift+Enter adds a line · Type / for commands"; the rest ("/help for formatting", attachments' caption) is in the page for every reader and drawn while the composer has focus | One short hint; the full help stays reachable. |
+| Emoji picker | A line and the all-purpose shadow | `--elev-2`, `--radius-field` | The floating level. |
+
+### Signature moments
+
+| What | Old | New | Reason |
+|---|---|---|---|
+| A message arriving live | Appears | Rises 8px and fades in over `--motion-base` (200ms, ease-out), once. Only messages appended live to a conversation already on screen: never the first fill, a room switch or older history | Motion that explains a change of state (owner decision: bolder here). Under reduced motion the rule doesn't apply and the token is cut, so it is an instant change. |
+| The empty room | A small outlined bubble and a muted 26px line | CCM's empty-room drawing, larger and lit: a dashed bubble ("someone could speak here") with its persimmon chit in a still honey glow; the words in Display M, in ink | An empty state that invites (J-03). Static, drawn from Lantern's shapes only. |
+
 ## Still to come
 
 L3 lists · L4 conversation · L5 sign-in family and the mark variants (#227) · L6 Direct, Activity, Search · L7 You · L8 stewardship · L9 overlays, status and motion · L10 handoff. Each adds its section here when it merges.
