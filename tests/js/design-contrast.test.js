@@ -214,6 +214,9 @@ test('the derived roles in tokens.css are the ones this test computes', () => {
     const sheet = readFileSync(new URL(`../../public/assets/css/${file}`, import.meta.url), 'utf8');
     assert.ok(sheet.includes('color-mix(in srgb, var(--signature) 13%, var(--surface))'), `${file}: the selected row’s fill`);
   }
+  // The stage is --surface, whose text pairs are held above; Midnight keeps it true black.
+  assert.ok(css.includes('--stage: var(--surface);'), '--stage');
+  assert.ok(css.includes(':root[data-scheme="midnight"]:not([data-theme="light"]) { --stage: var(--ground); }'), 'Midnight’s stage');
   assert.match(css, /:root \{[^}]*--toast: var\(--raised\);\s*--on-toast: var\(--text\);/, 'dark toast');
   assert.match(css, /:root\[data-theme="light"\] \{[^}]*--toast: var\(--text\);\s*--on-toast: var\(--ground\);/, 'light toast');
 });
