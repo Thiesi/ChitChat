@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { IDENTITY_HUES, identityHue, identityHueIndex } from '../../public/assets/js/identity-hue.js';
+import { IDENTITY_HUES, identityHue, identityHueIndex, roomInitial } from '../../public/assets/js/identity-hue.js';
 
 // The shared vectors, copied verbatim from Thiesi/ChitChat-Mobile @ e9eb5b4,
 // docs/design/visual-vocabulary.md ("Identity hues"). CCM pins the same ones,
@@ -40,4 +40,25 @@ test('unusable IDs give no hue instead of a wrong one', () => {
     assert.equal(identityHueIndex(id), null, String(id));
     assert.equal(identityHue(id), null, String(id));
   }
+});
+
+// Lantern Next L1 (#384): a room's lantern shows its initial. Web first; recorded
+// for CCM in docs/design/lantern-next.md.
+test('a room’s initial is its first character as a person counts it, in upper case', () => {
+  for (const [name, initial] of [
+    ['Garden', 'G'],
+    ['  the living room', 'T'],
+    ['éclair', 'É'],
+    ['日本語', '日'],
+    ['42 things', '4'],
+    ['🌿 Greenhouse', '🌿'],
+    ['👨‍👩‍👧 family', '👨‍👩‍👧'],
+    ['école', 'É'],
+  ]) {
+    assert.equal(roomInitial(name), initial, name);
+  }
+});
+
+test('a room without a usable name keeps "#"', () => {
+  for (const name of ['', '   ', null, undefined]) assert.equal(roomInitial(name), '#', String(name));
 });

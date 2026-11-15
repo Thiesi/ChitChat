@@ -2,7 +2,7 @@ import { ApiError, apiGet, apiPost, isPageLeft, setCsrfToken } from './api.js';
 import { applicationName } from './application-name.js';
 import { nameButton } from './name-menu.js';
 import { formatDateTime } from './datetime.js';
-import { identityHueIndex } from './identity-hue.js';
+import { identityHueIndex, roomInitial } from './identity-hue.js';
 import { initials } from './avatar.js';
 import { listTime } from './room-list.js';
 import { queryTerms, renderHighlighted } from './search-highlight.js';
@@ -224,6 +224,7 @@ function resultMark(result) {
   if (result.kind === 'room' && result.room) {
     mark.className = 'search-mark lantern';
     mark.textContent = '#';
+    mark.dataset.initial = roomInitial(result.room.name);
     const hue = identityHueIndex(result.room.id);
     if (hue !== null) mark.dataset.hue = String(hue);
   } else if (result.kind === 'direct' && result.peer) {

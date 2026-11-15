@@ -74,6 +74,25 @@
 .list-pane .lantern { width: 2.25rem; height: 2.25rem; margin-right: 0.15rem; }
 .room-heading .lantern { margin-right: 0.45rem; font-family: inherit; font-size: 1.05rem; letter-spacing: 0; vertical-align: 0.1em; }
 
+/* A room's lantern shows its initial (Lantern Next L1). The element's text stays "#"
+   (zero-size, like the nav's unread count in shell.css), so "# name" is unchanged for
+   screen readers, copy and tests; the letter is generated content with empty
+   alternative text (the plain declaration is the fallback for engines without it).
+   Ink on the identity hue, 8.4:1 or more on every hue. */
+/* Flex, not the base grid: the zero-size "#" would otherwise take a grid row of its own
+   and push the letter off centre. */
+.lantern.lantern[data-initial] { display: inline-flex; align-items: center; justify-content: center; font-size: 0; }
+.room-heading .lantern.lantern[data-initial] { vertical-align: middle; }
+.lantern[data-initial]::before {
+  content: attr(data-initial);
+  content: attr(data-initial) / "";
+  font-family: var(--display-font);
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1;
+}
+
 :is(.lantern, .pebble)[data-hue="0"] { background: var(--hue-0); color: var(--hue-ink); }
 :is(.lantern, .pebble)[data-hue="1"] { background: var(--hue-1); color: var(--hue-ink); }
 :is(.lantern, .pebble)[data-hue="2"] { background: var(--hue-2); color: var(--hue-ink); }

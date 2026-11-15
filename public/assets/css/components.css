@@ -1,8 +1,8 @@
 select {
   width: 100%;
   border: 1px solid var(--field-line);
-  border-radius: 0.75rem;
-  background: var(--ground);
+  border-radius: var(--radius-field);
+  background: var(--field);
   color: var(--text);
   padding: 0.8rem 0.9rem;
 }
@@ -318,12 +318,13 @@ form:has(.attachment-selection > button:not(.hidden)) .attachment-button {
 }
 
 .danger-button {
-  padding: 0.7rem 0.9rem;
+  padding: 0.7rem 1.1rem;
   border: 1px solid var(--error);
-  border-radius: 0.75rem;
+  border-radius: var(--radius-pill);
   background: transparent;
   color: var(--error);
   font: inherit;
+  font-weight: 600;
   cursor: pointer;
 }
 

@@ -2,7 +2,7 @@
 // browser, and upload the crop. The server re-encodes whatever arrives, so
 // the crop is a convenience, not a security boundary.
 import { ApiError, apiGet, apiPost, apiUpload } from './api.js';
-import { attachPhoto, avatarTone, initials, refreshPhoto } from './avatar.js';
+import { attachPhoto, avatarTone, initials, refreshPhoto, setAvatarHue } from './avatar.js';
 import { withProviderIcon } from './provider-icons.js';
 import { formatDateTime } from './datetime.js';
 import { pageLifetime } from './page-lifetime.js';
@@ -211,6 +211,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   if (!user) return;
   preview.textContent = initials(user.username);
   preview.dataset.tone = String(avatarTone(user.id));
+  setAvatarHue(preview, user.id);
   preview.dataset.avatarUser = String(user.id);
   attachPhoto(preview, user.id);
   await showState();

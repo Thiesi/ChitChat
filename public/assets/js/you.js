@@ -2,7 +2,7 @@
 // old account menu held lives here now: the picture and name, Sounds next
 // to the alert settings, and Sign out at the end. Guests get a short You:
 // their name, Appearance, an invitation to create an account, and Leave.
-import { attachPhoto, avatarTone, initials } from './avatar.js';
+import { attachPhoto, avatarTone, initials, setAvatarHue } from './avatar.js';
 import { announcePreference, setAnnouncePreference } from './announce-preference.js';
 import { setSoundEnabled, soundEnabled } from './attention.js';
 import { markGuestAvatar } from './guest.js';
@@ -64,6 +64,7 @@ async function start() {
     avatar.classList.add('mini-avatar');
     avatar.textContent = initials(user.username);
     avatar.dataset.tone = String(avatarTone(user.id));
+    if (!guest) setAvatarHue(avatar, user.id);
     if (guest) {
       markGuestAvatar(avatar);
     } else {

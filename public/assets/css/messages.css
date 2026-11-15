@@ -170,15 +170,16 @@
 
 .unread-badge {
   display: inline-grid;
-  min-width: 1.5rem;
-  height: 1.5rem;
+  min-width: 1.25rem;
+  height: 1.25rem;
   padding: 0 0.35rem;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--signature);
   color: var(--ground);
   place-items: center;
-  font-size: 0.72rem;
-  font-weight: 800;
+  font-size: var(--type-caption);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 
 .conversation-preview {
