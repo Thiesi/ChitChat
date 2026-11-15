@@ -222,9 +222,11 @@ button:focus-visible {
 .primary-button:hover:not(:disabled),
 .primary-button:active:not(:disabled) { background: var(--signature-hover); }
 
+/* The hover fill is a tint of the text colour over whatever the button sits on, so it
+   shows on the page, on a card and on a --raised card alike (L1 review). */
 .secondary-button:hover:not(:disabled), .join-button:hover:not(:disabled) {
   border-color: var(--text);
-  background: var(--raised);
+  background: color-mix(in srgb, var(--text) 7%, transparent);
 }
 
 a.secondary-button { display: inline-block; text-decoration: none; text-align: center; }

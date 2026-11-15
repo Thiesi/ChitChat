@@ -104,7 +104,7 @@ L0 only defines the scales and derived roles. The slices that start using each o
 |---|---|---|---|
 | Shape | Rounded rectangles (12px) outside sign-in, pills on sign-in | Pills everywhere (`--radius-pill`) | CCM's own rule ("Buttons: full pill"); the web had drifted. |
 | Primary button | Persimmon with a darker 3px lower edge | Flat persimmon, ink label | The lower "lip" read as dated. Hover and press still move the fill to `--signature-hover` (label 8.1:1). |
-| Secondary button | `raised` fill with a `fieldLine` border | No fill, `fieldLine` border, label at 600 | One outline button on any ground. The boundary stays 3:1 against `ground` and `surface`; hover fills it with `raised` and darkens the border to `text`. |
+| Secondary button | `raised` fill with a `fieldLine` border | No fill, `fieldLine` border, label at 600 | One outline button on any ground. The boundary stays 3:1 against `ground` and `surface`; hover tints it with 7% of `text` (so it shows on any ground, a `raised` card included) and darkens the border to `text`. |
 | Destructive button | Rose outline, 12px corners | Rose outline pill, label at 600 | Same meaning: rose, with wording, never colour alone. |
 | Stewardship primary | Dusk with a darker lower edge | Flat Dusk | As the primary button. |
 | Press | Every button moved down 1px | The button family scales to 0.98, only when motion is welcome | Motion that explains (a press), off under reduced motion. |
