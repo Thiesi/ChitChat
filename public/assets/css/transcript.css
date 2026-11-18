@@ -174,15 +174,19 @@
 .message[data-run] .message-more-button,
 .dm-message .message-header,
 .dm-message > .message-mutation-actions,
-:is(.message[data-run], .dm-message) .reaction-add-button { opacity: 0; transition: opacity 0.12s ease; }
+/* At rest the actions are transparent and take no click or tap (Lantern Next L4): a floating
+   toolbar sits over the bubble above it, and a tap meant for that bubble must reach it. They
+   stay in the accessibility tree, as before. The pointer, focus inside the message and the
+   arrow keys bring them back; touch has the actions sheet (transcript-keys.js). */
+:is(.message[data-run], .dm-message) .reaction-add-button { opacity: 0; pointer-events: none; transition: opacity 0.12s ease; }
 .message[data-run]:is(:hover, :focus-within) .message-react-button,
 :is(.message[data-run], .dm-message):is(:hover, :focus-within) .reaction-add-button,
 .message[data-run]:is(:hover, :focus-within) .message-reply-button,
 .message[data-run]:is(:hover, :focus-within) .message-mutation-actions,
 .message[data-run]:is(:hover, :focus-within) .message-more-button,
 .dm-message:is(:hover, :focus-within) .message-header,
-.dm-message:is(:hover, :focus-within) > .message-mutation-actions { opacity: 1; }
-.message[data-run]:is([data-run="middle"], [data-run="end"], .mine):not(:hover, :focus-within) > .message-header { background: transparent; box-shadow: none; }
+.dm-message:is(:hover, :focus-within) > .message-mutation-actions { opacity: 1; pointer-events: auto; }
+.message[data-run]:is([data-run="middle"], [data-run="end"], .mine):not(:hover, :focus-within) > .message-header { background: transparent; box-shadow: none; pointer-events: none; }
 /* A reaction bar with nothing in it takes no room, unless its picker is open. */
 :is(.message[data-run], .dm-message) .reaction-bar:not(:has(.reaction-button)):not(:has(.reaction-picker:not([hidden]))) { display: none; }
 
@@ -361,11 +365,11 @@
   white-space: nowrap;
 }
 /* The name line keeps one height and one line: its actions are invisible until the
-   pointer or focus is on the message, so until then they take no room beside the name and catch no clicks (out of flow they would lie over the name)
+   pointer or focus is on the message, so until then they take no room beside the name: they wait, out of flow, at the line's end (never over the name), taking no clicks
    and the time (at 360 CSS px they pushed "More" onto a second line); when they show,
    the time's copy steps aside for them, and the bubble's own chip gives the exact time. */
-.message[data-run]:is([data-run="start"], [data-run="single"]):not(.mine) > .message-header { min-height: 1.75rem; align-items: center; }
-.message[data-run]:is([data-run="start"], [data-run="single"]):not(.mine):not(:hover, :focus-within) > .message-header > :is(.message-react-button, .message-reply-button, .message-mutation-actions, .message-more-button) { position: absolute; pointer-events: none; }
+.message[data-run]:is([data-run="start"], [data-run="single"]):not(.mine) > .message-header { position: relative; min-height: 1.75rem; align-items: center; }
+.message[data-run]:is([data-run="start"], [data-run="single"]):not(.mine):not(:hover, :focus-within) > .message-header > :is(.message-react-button, .message-reply-button, .message-mutation-actions, .message-more-button) { position: absolute; inset-block-start: 0; inset-inline-end: 0; }
 .message[data-run]:is(:hover, :focus-within) .message-run-time { display: none; }
 
 /* The copy belongs to the name line of someone else's run; nowhere else. */

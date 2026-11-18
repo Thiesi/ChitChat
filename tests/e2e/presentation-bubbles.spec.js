@@ -251,6 +251,23 @@ for (const width of [320, 180]) {
     await fixture(page);
     await openRoom(page);
     const first = page.locator('#message-list article.message:is([data-run="start"], [data-run="single"]):not(.mine)').first();
+    // At rest no message's hidden toolbar lies in the way of another's bubble: the point at each
+    // bubble's middle is never a toolbar. (CI's WebKit at 320: the next
+    // message's transparent toolbar took the tap and opened its own Reply.)
+    const strays = await page.evaluate(() => {
+      const list = document.getElementById('message-list').getBoundingClientRect();
+      return [...document.querySelectorAll('#message-list article.message .message-bubble')].flatMap((bubble) => {
+        const box = bubble.getBoundingClientRect();
+        const x = box.left + box.width / 2;
+        const y = box.top + box.height / 2;
+        if (y < list.top || y > Math.min(list.bottom, innerHeight)) return [];
+        const at = document.elementFromPoint(x, y);
+        const own = bubble.closest('article');
+        // Only toolbars are meant: at 180px other things (a picture's own controls) may sit there.
+        return at?.closest('.message-header') ? [own.dataset.messageId] : [];
+      });
+    });
+    expect(strays).toEqual([]);
     // Touch doesn't depend on hover or on a tap moving focus: a tap on the bubble opens the
     // message's actions as a sheet (transcript-keys.js), Reply among them.
     await first.locator('.message-bubble').first().tap();

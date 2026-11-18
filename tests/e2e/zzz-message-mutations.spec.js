@@ -53,6 +53,8 @@ async function selectPeer(page, username) {
 
 // S7 (#173): editing happens in the bubble, deleting asks in a styled dialog.
 async function editInPlace(message, value) {
+  // Lantern Next L4 (#388): a message's actions take no clicks until the pointer or focus is on it.
+  await message.hover();
   await message.getByRole('button', { name: 'Edit' }).click();
   const box = message.getByRole('textbox', { name: /^Edit/ });
   await expect(box).toBeFocused();
@@ -118,6 +120,8 @@ test('authors edit and delete room and direct messages for everyone', async ({ b
     await expect(adminRoomMessage).toContainText(editedRoomText, { timeout: 20_000 });
     await expect(memberRoomMessage.locator('.message-edited-indicator')).toHaveText('edited');
 
+    // Lantern Next L4 (#388): a message's actions take no clicks until the pointer or focus is on it.
+    await memberRoomMessage.hover();
     await memberRoomMessage.getByRole('button', { name: 'Delete' }).click();
     await confirmDialog(memberChat);
     await expect(memberRoomMessage.locator('.message-body')).toHaveText('Message deleted by its author.');
@@ -148,6 +152,8 @@ test('authors edit and delete room and direct messages for everyone', async ({ b
     await expect(memberDirectMessage.locator('.dm-message-body')).toHaveText(editedDirectText);
     await expect(adminDirectMessage).toContainText(editedDirectText, { timeout: 20_000 });
 
+    // Lantern Next L4 (#388): a message's actions take no clicks until the pointer or focus is on it.
+    await memberDirectMessage.hover();
     await memberDirectMessage.getByRole('button', { name: 'Delete for everyone' }).click();
     await confirmDialog(memberMessages);
     await expect(memberDirectMessage.locator('.dm-message-body')).toHaveText('Message deleted by sender.');
@@ -167,6 +173,8 @@ test('authors edit and delete room and direct messages for everyone', async ({ b
     expect(href).not.toBeNull();
     expect((await adminContext.request.get(href)).status()).toBe(200);
 
+    // Lantern Next L4 (#388): a message's actions take no clicks until the pointer or focus is on it.
+    await attachmentMessage.hover();
     await attachmentMessage.getByRole('button', { name: 'Delete for everyone' }).click();
     await confirmDialog(memberMessages);
     await expect(attachmentMessage.locator('.dm-message-body')).toHaveText('Message deleted by sender.');

@@ -53,6 +53,8 @@ async function stableMessage(page, selector, text) {
 }
 
 async function addReaction(messageLocator, emoji) {
+  // Lantern Next L4 (#388): a message's actions take no clicks until the pointer or focus is on it.
+  await messageLocator.hover();
   await messageLocator.getByRole('button', { name: 'Add reaction' }).click();
   await messageLocator.getByRole('button', { name: `React with ${emoji}` }).click();
 }

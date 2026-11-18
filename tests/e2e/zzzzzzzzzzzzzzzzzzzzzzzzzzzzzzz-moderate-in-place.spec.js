@@ -48,6 +48,8 @@ test('a moderator deletes someone else\'s message right in the chat', async ({ b
     // Held by its ID: once deleted, the text it was found by is gone.
     const messageId = await rootPage.locator('.message', { hasText: text }).getAttribute('data-message-id');
     const message = rootPage.locator(`.message[data-message-id="${messageId}"]`);
+    // Lantern Next L4 (#388): a message's actions take no clicks until the pointer or focus is on it.
+    await message.hover();
     await message.getByRole('button', { name: 'Delete' }).click();
     const dialog = rootPage.getByRole('dialog', { name: 'Delete this message?' });
     await expect(dialog).toContainText(text);
@@ -146,6 +148,8 @@ test('acting on a report in the moderation queue closes the case', async ({ brow
 
     // Someone reports it...
     const reported = rootPage.locator('.message', { hasText: text });
+    // Lantern Next L4 (#388): a message's actions take no clicks until the pointer or focus is on it.
+    await reported.hover();
     await reported.getByRole('button', { name: 'Report', exact: true }).click();
     const reportDialog = rootPage.getByRole('dialog', { name: /Report/ });
     await reportDialog.locator('#message-report-category').selectOption('spam');
