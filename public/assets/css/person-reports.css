@@ -71,7 +71,13 @@
 .person-evidence-picture img { display: block; width: 8rem; height: 8rem; object-fit: cover; filter: blur(16px); transform: scale(1.1); }
 .person-evidence-picture.revealed img { filter: none; transform: none; }
 .person-evidence-picture img:focus-visible { outline: 2px solid var(--steward); outline-offset: -2px; }
+/* "Show picture" sits on the blurred picture a person supplied, so its fill is never
+   see-through (the outline button's own fill and hover tint are, L1): the label always has
+   the surface behind it, at rest and under the pointer, whatever the picture's colours. */
 .person-evidence-reveal { position: absolute; }
+.secondary-button.person-evidence-reveal,
+.secondary-button.person-evidence-reveal:hover:not(:disabled) { background: var(--surface); }
+.secondary-button.person-evidence-reveal:hover:not(:disabled) { background: color-mix(in srgb, var(--text) 7%, var(--surface)); }
 .person-evidence-facts { display: grid; grid-template-columns: auto 1fr; gap: 0.3rem 0.9rem; margin: 0; }
 .person-evidence-facts dt { color: var(--text-muted); }
 .person-evidence-facts dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }

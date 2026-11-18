@@ -210,6 +210,8 @@ for (const width of [1280, 320, 180]) {
       await brand.locator('span').evaluate((node, name) => { node.textContent = name; }, LONG_NAME);
       await page.mouse.move(0, 0);
       await expect(brand).toHaveText(LONG_NAME);
+      // A label, not a heading and not a link (the visual lead's ruling on #381): real text in a <p>.
+      expect(await brand.evaluate((node) => ({ tag: node.tagName, link: node.closest('a') !== null || node.querySelector('a') !== null, role: node.getAttribute('role') }))).toEqual({ tag: 'P', link: false, role: null });
       expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth), 'no sideways scrolling').toBeLessThanOrEqual(0);
       const box = await brand.locator('span').evaluate((node) => {
         const range = document.createRange();
