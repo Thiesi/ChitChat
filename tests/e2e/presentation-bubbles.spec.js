@@ -241,6 +241,90 @@ test('a run shows its time once; every message keeps its <time>, and shows it on
   expect(result.violations.map(({ id, nodes }) => ({ id, targets: nodes.map(({ target }) => target) })), 'a focused message with its time chip').toEqual([]);
 });
 
+// Lantern Next L4 (#388; review of #392): the name line's actions take no clicks until the
+// pointer or focus is on the message. So a tap on the bubble, and the keyboard, must each
+// bring Reply within reach, down to 180 CSS px, in every engine.
+for (const width of [320, 180]) {
+  test(`a tap on a bubble brings Reply within reach, and Reply opens the reply banner (${width}px)`, async ({ browser }) => {
+    const context = await browser.newContext({ hasTouch: true, viewport: { width, height: 720 } });
+    const page = await context.newPage();
+    await fixture(page);
+    await openRoom(page);
+    const first = page.locator('#message-list article.message:is([data-run="start"], [data-run="single"]):not(.mine)').first();
+    // Touch doesn't depend on hover or on a tap moving focus: a tap on the bubble opens the
+    // message's actions as a sheet (transcript-keys.js), Reply among them.
+    await first.locator('.message-bubble').first().tap();
+    const sheet = page.locator('.message-menu-sheet');
+    await expect(sheet).toBeVisible();
+    const reply = sheet.getByRole('menuitem', { name: 'Reply' });
+    await expect(reply).toBeVisible();
+    expect(await reply.evaluate((node) => { const box = node.getBoundingClientRect(); const at = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2); return box.left >= 0 && box.right <= innerWidth + 0.5 && box.bottom <= innerHeight + 0.5 && box.height >= 44 && Boolean(at) && node.contains(at); })).toBe(true);
+    await reply.tap();
+    await expect(page.locator('#reply-banner')).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await context.close();
+  });
+
+  test(`the arrow keys, Tab and Enter reach Reply on a run’s first message (${width}px)`, async ({ page }) => {
+    await fixture(page);
+    await page.setViewportSize({ width, height: 720 });
+    await openRoom(page);
+    const first = page.locator('#message-list article.message:is([data-run="start"], [data-run="single"]):not(.mine)').first();
+    const id = await first.getAttribute('data-message-id');
+    await page.locator('#composer-input').focus();
+    for (let step = 0; step < 4; step += 1) {
+      await page.keyboard.press('Shift+Tab');
+      if (await page.evaluate(() => Boolean(document.activeElement?.closest('#message-list')))) break;
+    }
+    for (let step = 0; step < 12; step += 1) {
+      if (await page.evaluate(() => document.activeElement?.dataset.messageId) === id) break;
+      await page.keyboard.press('ArrowUp');
+    }
+    await expect(first).toBeFocused();
+    const reply = first.locator('.message-header .message-reply-button');
+    for (let step = 0; step < 8; step += 1) {
+      await page.keyboard.press('Tab');
+      if (await reply.evaluate((node) => node === document.activeElement)) break;
+    }
+    await expect(reply).toBeFocused();
+    await expect(reply).toBeVisible();
+    await expect(reply).toHaveCSS('opacity', '1');
+    await page.keyboard.press('Enter');
+    await expect(page.locator('#reply-banner')).toBeVisible();
+  });
+}
+
+// The floating toolbar sits above its bubble; on the conversation's topmost message it must
+// still lie inside the scrolling list, or its top would be cut off.
+for (const width of [1280, 320]) {
+  test(`the topmost direct message’s toolbar is not cut off by the list (${width}px)`, async ({ page }) => {
+    await fixture(page);
+    await page.setViewportSize({ width, height: 720 });
+    await page.goto('/messages.php?user=2');
+    const list = page.locator('#dm-message-list');
+    // Phones open on the list of conversations: open this one as a person would.
+    if (width < 768) await page.locator('#dm-conversation-list .conversation-button').first().click();
+    await expect(list.locator('article.dm-message .message-bubble')).toHaveCount(5);
+    await list.evaluate((node) => { node.scrollTop = 0; });
+    const top = list.locator('article.dm-message').first();
+    await top.focus();
+    await page.waitForFunction(() => document.getAnimations().every((animation) => animation.playState !== 'running'));
+    const toolbar = top.locator('.message-header');
+    await expect(toolbar).toBeVisible();
+    const boxes = await top.evaluate((node) => {
+      const bar = node.querySelector('.message-header').getBoundingClientRect();
+      let scroller = node.parentElement;
+      while (scroller && !/auto|scroll|hidden|clip/.test(getComputedStyle(scroller).overflowY)) scroller = scroller.parentElement;
+      const clip = scroller.getBoundingClientRect();
+      const at = document.elementFromPoint(bar.left + bar.width / 2, bar.top + 1);
+      return { above: clip.top - bar.top, opacity: getComputedStyle(node.querySelector('.message-header')).opacity, hit: Boolean(at) && node.querySelector('.message-header').contains(at) };
+    });
+    expect(boxes.opacity).toBe('1');
+    expect(boxes.above).toBeLessThanOrEqual(0);
+    expect(boxes.hit).toBe(true);
+  });
+}
+
 test('direct messages keep a <time> too: under each run’s last bubble, and on hover for the rest', async ({ page }) => {
   await fixture(page);
   await page.goto('/messages.php?user=2');
@@ -299,6 +383,11 @@ for (const theme of ['light', 'dark']) {
     await expect(page.locator('#dm-conversation-list .conversation-button').first()).toBeAttached();
     if ((page.viewportSize()?.width ?? 1280) < 768) await page.locator('#dm-conversation-list .conversation-button').first().click();
     await expect(page.locator('#dm-message-list article[data-message-id="4"] .message-edited-indicator')).toBeVisible();
+    // The pointer that opened the conversation lies where a message now is, and that message's
+    // toolbar fades in under it (seen in WebKit: Reply measured mid-fade). Nobody reads it
+    // half-shown: move the pointer off and wait until every toolbar has settled, shown or not.
+    await page.mouse.move(0, 0);
+    await expect.poll(() => page.locator('#dm-message-list .message-header').evaluateAll((nodes) => nodes.every((node) => ['0', '1'].includes(getComputedStyle(node).opacity)))).toBe(true);
     const dms = await new AxeBuilder({ page }).include('#dm-message-list').withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
     expect(dms.violations).toEqual([]);
   });
