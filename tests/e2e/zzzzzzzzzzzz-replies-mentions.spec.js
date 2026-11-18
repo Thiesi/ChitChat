@@ -67,9 +67,6 @@ test('participants reply to and mention each other, with a working notification 
     await expect(memberPage.locator('article.message', { hasText: originalText }))
       .toBeVisible({ timeout: 20_000 });
     const memberViewOfOriginal = await stableMessage(memberPage, 'article.message', originalText);
-    // Lantern Next L4 (#388): the name line's actions take no room and no clicks until the
-    // pointer or focus is on the message, as a person's would be before reaching Reply.
-    await memberViewOfOriginal.hover();
     await memberViewOfOriginal.getByRole('button', { name: 'Reply' }).click();
     await expect(memberPage.locator('#reply-banner')).toBeVisible();
     await expect(memberPage.locator('#reply-banner-text')).toContainText('Replying to RootE2E');
