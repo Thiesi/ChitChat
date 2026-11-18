@@ -127,6 +127,8 @@ test.describe.serial('ChitChat accessibility checks', () => {
 
     const reportButton = page.getByRole('button', { name: 'Report', exact: true }).first();
     await expect(reportButton).toBeVisible({ timeout: 15_000 });
+    // Lantern Next L4 (#388): a message's actions take no clicks until the pointer or focus is on it.
+    await reportButton.locator('xpath=ancestor::article[1]').hover();
     await reportButton.click();
     await expect(page.locator('#message-report-dialog')).toBeVisible();
     await expectAccessibleStructure(page);

@@ -179,7 +179,7 @@ For CCM: show the run's time at the name (incoming) or under the last bubble (ou
 | Conversation title | 26px, with a 14.4px sub-line | Title (19px, Bricolage 700) with a Label sub-line | The conversation's name leads its own stage without shouting over it. |
 | Bubble padding and corner | 8.8 × 14.4px, 20px | 8 × 13.6px, `--radius-bubble` (20px) | A little closer to the words, now that no time floats inside. |
 | Composer | 80px tall when empty, 20px corners, a soft shadow, `surface` fill | One slim row (about 50px), a pill that keeps a 26px corner as it grows, the `--field` fill, no shadow; Send is `--target-min` round | A field like every other field. |
-| Composer hint | One long line, always | "Enter sends · Shift+Enter adds a line · Type / for commands"; the rest ("/help for formatting", attachments' caption) is in the page for every reader and drawn while the composer has focus | One short hint; the full help stays reachable. |
+| Composer hint | One long line, always | "Enter sends · Shift+Enter adds a line · Type / for commands"; the rest ("/help for formatting", attachments' caption) is in the page for every reader and drawn while there is text in the field (not on focus alone: a line that leaves with focus moves the conversation under a click) | One short hint; the full help stays reachable. |
 | Emoji picker | A line and the all-purpose shadow | `--elev-2`, `--radius-field` | The floating level. |
 
 ### Signature moments

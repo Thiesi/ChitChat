@@ -142,6 +142,8 @@ for (const theme of ['dark', 'light']) {
     await expect(page.locator('.emoji-picker')).toBeVisible();
     await noOverflow(page);
     await page.locator('#emoji-button').click();
+    // Lantern Next L4 (#388): a message's actions take no clicks until the pointer or focus is on it.
+    await page.locator('article.message').last().hover();
     await page.locator('.message-reply-button').last().click();
     await expect(page.locator('#reply-banner')).toBeVisible();
     await expect(page.locator('#send-button')).toBeInViewport();
@@ -161,6 +163,8 @@ for (const theme of ['dark', 'light']) {
     await noOverflow(page);
     await accessible(page);
 
+    // Lantern Next L4 (#388): a message's actions take no clicks until the pointer or focus is on it.
+    await page.locator('.dm-message').last().hover();
     await page.locator('.dm-message .message-reply-button').last().click();
     await expect(page.locator('#dm-reply-banner')).toBeVisible();
     await noOverflow(page);

@@ -190,6 +190,8 @@ for (const [code, status, extra, sentence] of [
 test('message reports keep their own wording', async ({ page }) => {
   await fixture(page);
   await page.goto('/');
+  // Lantern Next L4 (#388): a message's actions take no clicks until the pointer or focus is on it.
+  await page.locator('.message').first().hover();
   await page.locator('.message').first().getByRole('button', { name: 'Report', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Report message' });
   await expect(dialog).toContainText('Moderators see a copy of this message only, not the rest of the conversation.');

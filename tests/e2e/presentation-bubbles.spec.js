@@ -241,6 +241,150 @@ test('a run shows its time once; every message keeps its <time>, and shows it on
   expect(result.violations.map(({ id, nodes }) => ({ id, targets: nodes.map(({ target }) => target) })), 'a focused message with its time chip').toEqual([]);
 });
 
+// Lantern Next L4 (#388; review of #392): the name line's actions take no clicks until the
+// pointer or focus is on the message. So a tap on the bubble, and the keyboard, must each
+// bring Reply within reach, down to 180 CSS px, in every engine.
+for (const width of [320, 180]) {
+  test(`a tap on a bubble brings Reply within reach, and Reply opens the reply banner (${width}px)`, async ({ browser }) => {
+    const context = await browser.newContext({ hasTouch: true, viewport: { width, height: 720 } });
+    const page = await context.newPage();
+    await fixture(page);
+    await openRoom(page);
+    const first = page.locator('#message-list article.message:is([data-run="start"], [data-run="single"]):not(.mine)').first();
+    // At rest no message's hidden toolbar lies in the way of another's bubble: the point at each
+    // bubble's middle is never a toolbar. (CI's WebKit at 320: the next
+    // message's transparent toolbar took the tap and opened its own Reply.)
+    const strays = await page.evaluate(() => {
+      const list = document.getElementById('message-list').getBoundingClientRect();
+      return [...document.querySelectorAll('#message-list article.message .message-bubble')].flatMap((bubble) => {
+        const box = bubble.getBoundingClientRect();
+        const x = box.left + box.width / 2;
+        const y = box.top + box.height / 2;
+        if (y < list.top || y > Math.min(list.bottom, innerHeight)) return [];
+        const at = document.elementFromPoint(x, y);
+        const own = bubble.closest('article');
+        // Only toolbars are meant: at 180px other things (a picture's own controls) may sit there.
+        return at?.closest('.message-header') ? [own.dataset.messageId] : [];
+      });
+    });
+    expect(strays).toEqual([]);
+    // Touch doesn't depend on hover or on a tap moving focus: a tap on the bubble opens the
+    // message's actions as a sheet (transcript-keys.js), Reply among them.
+    await first.locator('.message-bubble').first().tap();
+    const sheet = page.locator('.message-menu-sheet');
+    await expect(sheet).toBeVisible();
+    const reply = sheet.getByRole('menuitem', { name: 'Reply' });
+    await expect(reply).toBeVisible();
+    expect(await reply.evaluate((node) => { const box = node.getBoundingClientRect(); const at = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2); return box.left >= 0 && box.right <= innerWidth + 0.5 && box.bottom <= innerHeight + 0.5 && box.height >= 44 && Boolean(at) && node.contains(at); })).toBe(true);
+    await reply.tap();
+    await expect(page.locator('#reply-banner')).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await context.close();
+  });
+
+  test(`the arrow keys, Tab and Enter reach Reply on a run’s first message (${width}px)`, async ({ page }) => {
+    await fixture(page);
+    await page.setViewportSize({ width, height: 720 });
+    await openRoom(page);
+    const first = page.locator('#message-list article.message:is([data-run="start"], [data-run="single"]):not(.mine)').first();
+    const id = await first.getAttribute('data-message-id');
+    await page.locator('#composer-input').focus();
+    for (let step = 0; step < 4; step += 1) {
+      await page.keyboard.press('Shift+Tab');
+      if (await page.evaluate(() => Boolean(document.activeElement?.closest('#message-list')))) break;
+    }
+    for (let step = 0; step < 12; step += 1) {
+      if (await page.evaluate(() => document.activeElement?.dataset.messageId) === id) break;
+      await page.keyboard.press('ArrowUp');
+    }
+    await expect(first).toBeFocused();
+    const reply = first.locator('.message-header .message-reply-button');
+    for (let step = 0; step < 8; step += 1) {
+      await page.keyboard.press('Tab');
+      if (await reply.evaluate((node) => node === document.activeElement)) break;
+    }
+    await expect(reply).toBeFocused();
+    await expect(reply).toBeVisible();
+    await expect(reply).toHaveCSS('opacity', '1');
+    await page.keyboard.press('Enter');
+    await expect(page.locator('#reply-banner')).toBeVisible();
+  });
+}
+
+// Lantern Next L4 (#388; review of #392): a mouse goes from a bubble to its floating toolbar
+// along a real path and the click lands, with the composer focused as it is after sending.
+// Two things broke this in CI's journeys: a hint line that left with the composer's focus
+// moved the conversation between the click's press and its release; and the toolbar must
+// stay within reach while the pointer travels to it.
+async function travel(page, from, to) {
+  // Bring the message to the middle of the list first: a pointer can't reach what is scrolled away.
+  await from.evaluate((node) => node.scrollIntoView({ block: 'center' }));
+  const start = await from.boundingBox();
+  await page.mouse.move(start.x + start.width / 2, start.y + start.height / 2);
+  const end = await to.boundingBox();
+  await page.mouse.move(end.x + end.width / 2, end.y + end.height / 2, { steps: 14 });
+  await page.mouse.down();
+  await page.mouse.up();
+}
+for (const width of [1280, 900]) {
+  test(`a mouse travels from a bubble to Edit and to React, and the click lands (${width}px)`, async ({ page }) => {
+    await fixture(page);
+    await page.setViewportSize({ width, height: 760 });
+    await openRoom(page);
+    // By id: once it is being edited the message has no Edit button to be found by.
+    const own = message(page, 5);
+    const other = page.locator('#message-list article.message:is([data-run="middle"], [data-run="end"]):not(.mine)').first();
+    await expect(own.getByRole('button', { name: 'Edit' })).toBeAttached();
+
+    // The conversation holds still when focus leaves the composer: nothing under a pointer moves.
+    await page.locator('#composer-input').focus();
+    const place = () => own.locator('.message-bubble').first().evaluate((node) => Math.round(node.getBoundingClientRect().top));
+    const focused = await place();
+    await page.locator('#composer-input').blur();
+    expect(await place()).toBe(focused);
+
+    await page.locator('#composer-input').focus();
+    await travel(page, other.locator('.message-bubble').first(), other.locator('.message-react-button'));
+    await expect(other.locator('.reaction-picker')).toBeVisible();
+    await page.keyboard.press('Escape');
+
+    await page.locator('#composer-input').focus();
+    await travel(page, own.locator('.message-bubble').first(), own.getByRole('button', { name: 'Edit' }));
+    await expect(own.getByRole('textbox', { name: /^Edit/ })).toBeFocused();
+  });
+}
+
+// The floating toolbar sits above its bubble; on the conversation's topmost message it must
+// still lie inside the scrolling list, or its top would be cut off.
+for (const width of [1280, 320]) {
+  test(`the topmost direct message’s toolbar is not cut off by the list (${width}px)`, async ({ page }) => {
+    await fixture(page);
+    await page.setViewportSize({ width, height: 720 });
+    await page.goto('/messages.php?user=2');
+    const list = page.locator('#dm-message-list');
+    // Phones open on the list of conversations: open this one as a person would.
+    if (width < 768) await page.locator('#dm-conversation-list .conversation-button').first().click();
+    await expect(list.locator('article.dm-message .message-bubble')).toHaveCount(5);
+    await list.evaluate((node) => { node.scrollTop = 0; });
+    const top = list.locator('article.dm-message').first();
+    await top.focus();
+    await page.waitForFunction(() => document.getAnimations().every((animation) => animation.playState !== 'running'));
+    const toolbar = top.locator('.message-header');
+    await expect(toolbar).toBeVisible();
+    const boxes = await top.evaluate((node) => {
+      const bar = node.querySelector('.message-header').getBoundingClientRect();
+      let scroller = node.parentElement;
+      while (scroller && !/auto|scroll|hidden|clip/.test(getComputedStyle(scroller).overflowY)) scroller = scroller.parentElement;
+      const clip = scroller.getBoundingClientRect();
+      const at = document.elementFromPoint(bar.left + bar.width / 2, bar.top + 1);
+      return { above: clip.top - bar.top, opacity: getComputedStyle(node.querySelector('.message-header')).opacity, hit: Boolean(at) && node.querySelector('.message-header').contains(at) };
+    });
+    expect(boxes.opacity).toBe('1');
+    expect(boxes.above).toBeLessThanOrEqual(0);
+    expect(boxes.hit).toBe(true);
+  });
+}
+
 test('direct messages keep a <time> too: under each run’s last bubble, and on hover for the rest', async ({ page }) => {
   await fixture(page);
   await page.goto('/messages.php?user=2');
@@ -299,6 +443,11 @@ for (const theme of ['light', 'dark']) {
     await expect(page.locator('#dm-conversation-list .conversation-button').first()).toBeAttached();
     if ((page.viewportSize()?.width ?? 1280) < 768) await page.locator('#dm-conversation-list .conversation-button').first().click();
     await expect(page.locator('#dm-message-list article[data-message-id="4"] .message-edited-indicator')).toBeVisible();
+    // The pointer that opened the conversation lies where a message now is, and that message's
+    // toolbar fades in under it (seen in WebKit: Reply measured mid-fade). Nobody reads it
+    // half-shown: move the pointer off and wait until every toolbar has settled, shown or not.
+    await page.mouse.move(0, 0);
+    await expect.poll(() => page.locator('#dm-message-list .message-header').evaluateAll((nodes) => nodes.every((node) => ['0', '1'].includes(getComputedStyle(node).opacity)))).toBe(true);
     const dms = await new AxeBuilder({ page }).include('#dm-message-list').withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
     expect(dms.violations).toEqual([]);
   });
