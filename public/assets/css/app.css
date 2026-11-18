@@ -1471,7 +1471,10 @@ button.user-name.mention { padding: 0 0.2rem; border-radius: 0.25rem; background
   font-size: var(--type-caption);
 }
 /* One short hint (Lantern Next L4). The rest of the keyboard help stays in the page for
-   every reader, out of sight until the composer has focus, when it is useful. */
+   every reader, out of sight until there is text in the field, when it is useful. Not
+   "while the composer has focus": the hint can wrap, and a line that goes away the moment
+   focus leaves moves the conversation between a click's press and its release, so the
+   click on a message's Edit or React landed beside it. */
 .composer-help-more {
   position: absolute;
   width: 1px;
@@ -1480,7 +1483,7 @@ button.user-name.mention { padding: 0 0.2rem; border-radius: 0.25rem; background
   clip-path: inset(50%);
   white-space: nowrap;
 }
-.composer-wrap:focus-within .composer-help-more {
+.composer-wrap:has(#composer-input:not(:placeholder-shown)) .composer-help-more {
   position: static;
   width: auto;
   height: auto;

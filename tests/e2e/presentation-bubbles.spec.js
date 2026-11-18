@@ -311,6 +311,49 @@ for (const width of [320, 180]) {
   });
 }
 
+// Lantern Next L4 (#388; review of #392): a mouse goes from a bubble to its floating toolbar
+// along a real path and the click lands, with the composer focused as it is after sending.
+// Two things broke this in CI's journeys: a hint line that left with the composer's focus
+// moved the conversation between the click's press and its release; and the toolbar must
+// stay within reach while the pointer travels to it.
+async function travel(page, from, to) {
+  // Bring the message to the middle of the list first: a pointer can't reach what is scrolled away.
+  await from.evaluate((node) => node.scrollIntoView({ block: 'center' }));
+  const start = await from.boundingBox();
+  await page.mouse.move(start.x + start.width / 2, start.y + start.height / 2);
+  const end = await to.boundingBox();
+  await page.mouse.move(end.x + end.width / 2, end.y + end.height / 2, { steps: 14 });
+  await page.mouse.down();
+  await page.mouse.up();
+}
+for (const width of [1280, 900]) {
+  test(`a mouse travels from a bubble to Edit and to React, and the click lands (${width}px)`, async ({ page }) => {
+    await fixture(page);
+    await page.setViewportSize({ width, height: 760 });
+    await openRoom(page);
+    // By id: once it is being edited the message has no Edit button to be found by.
+    const own = message(page, 5);
+    const other = page.locator('#message-list article.message:is([data-run="middle"], [data-run="end"]):not(.mine)').first();
+    await expect(own.getByRole('button', { name: 'Edit' })).toBeAttached();
+
+    // The conversation holds still when focus leaves the composer: nothing under a pointer moves.
+    await page.locator('#composer-input').focus();
+    const place = () => own.locator('.message-bubble').first().evaluate((node) => Math.round(node.getBoundingClientRect().top));
+    const focused = await place();
+    await page.locator('#composer-input').blur();
+    expect(await place()).toBe(focused);
+
+    await page.locator('#composer-input').focus();
+    await travel(page, other.locator('.message-bubble').first(), other.locator('.message-react-button'));
+    await expect(other.locator('.reaction-picker')).toBeVisible();
+    await page.keyboard.press('Escape');
+
+    await page.locator('#composer-input').focus();
+    await travel(page, own.locator('.message-bubble').first(), own.getByRole('button', { name: 'Edit' }));
+    await expect(own.getByRole('textbox', { name: /^Edit/ })).toBeFocused();
+  });
+}
+
 // The floating toolbar sits above its bubble; on the conversation's topmost message it must
 // still lie inside the scrolling list, or its top would be cut off.
 for (const width of [1280, 320]) {

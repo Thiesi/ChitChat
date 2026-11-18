@@ -187,6 +187,20 @@
 .dm-message:is(:hover, :focus-within) .message-header,
 .dm-message:is(:hover, :focus-within) > .message-mutation-actions { opacity: 1; pointer-events: auto; }
 .message[data-run]:is([data-run="middle"], [data-run="end"], .mine):not(:hover, :focus-within) > .message-header { background: transparent; box-shadow: none; pointer-events: none; }
+/* A floating toolbar sits above its message, so a mouse on its way there can leave the
+   message for a moment (a slanting path from a bubble at one side to a toolbar at the
+   other). For a short while after the pointer leaves, the toolbar's own box can still be
+   hovered, which brings the message, and so the toolbar, back. Its buttons take no click
+   in that while: nothing unseen can be pressed. Only where a pointer can hover: a tap
+   never meets it. */
+@media (hover: hover) {
+  .message[data-run]:is([data-run="middle"], [data-run="end"], .mine):not(:hover, :focus-within) > .message-header,
+  .dm-message:not(:hover, :focus-within) > .message-header {
+    transition: opacity 0.12s ease, pointer-events 0s 0.4s;
+    transition-behavior: allow-discrete;
+  }
+}
+.dm-message:not(:hover, :focus-within) > .message-header :is(button, a) { pointer-events: none; }
 /* A reaction bar with nothing in it takes no room, unless its picker is open. */
 :is(.message[data-run], .dm-message) .reaction-bar:not(:has(.reaction-button)):not(:has(.reaction-picker:not([hidden]))) { display: none; }
 
@@ -339,6 +353,14 @@
   .dm-message > .message-mutation-actions,
   .message[data-run] .message-react-button,
   :is(.message[data-run], .dm-message) .reaction-add-button { transition: none; }
+}
+/* The moment a toolbar's box stays hoverable (above) is not motion; it stays. */
+@media (prefers-reduced-motion: reduce) and (hover: hover) {
+  .message[data-run]:is([data-run="middle"], [data-run="end"], .mine):not(:hover, :focus-within) > .message-header,
+  .dm-message:not(:hover, :focus-within) > .message-header {
+    transition: pointer-events 0s 0.4s;
+    transition-behavior: allow-discrete;
+  }
 }
 @media (forced-colors: active) {
   .message-bubble { border: 1px solid CanvasText; }
