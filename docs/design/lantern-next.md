@@ -139,7 +139,7 @@ The initial is decorative. On the web the lantern's text stays "#" (zero-size) a
 | What | Old | New | Reason |
 |---|---|---|---|
 | Installation name on wide screens | Under the rail's icon, 11px, clamped to two lines | At the top of every list pane and page, above the title, as a Label (13px, 600, muted); it wraps to as many lines as it needs | Owner decision. Operators name their installation; a long name needs room and must never be cut or scroll the page. The rail keeps the name as text for screen readers. |
-| The rail | `surface` with a line beside it and a hairline under the brand | The page's own `ground`, no lines, 76px wide; the installation's icon in a 22% rounded frame with a fine edge | The quiet frame: navigation is paper and ink. The edge keeps a dark icon visible on a dark rail. |
+| The rail | `surface` with a line beside it and a hairline under the brand | The page's own `ground`, no lines, 84px wide as before (every item takes the whole rail and its label wraps inside it rather than spilling out); the installation's icon in a 22% rounded frame with a fine edge | The quiet frame: navigation is paper and ink. The edge keeps a dark icon visible on a dark rail. |
 | Any installation icon | Shown as given | Unchanged: shown as given, never recoloured or masked | Operators set their own icon. |
 | The stage's edge | A `line` border plus the all-purpose shadow, 24px corners | `--elev-1` and `--radius-sheet` (28px) | Depth by the resting elevation, not a line and a heavy shadow. In forced colours the transparent border is painted, so the edge stays. |
 | List and page titles | 26 to 52px in two weights, depending on the page | Display M (26px, Bricolage 700) on every list pane and page | One page header everywhere. |

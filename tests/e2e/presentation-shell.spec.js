@@ -76,6 +76,37 @@ async function openRooms(page) {
   await expect(nav(page)).toBeVisible();
 }
 
+// Lantern Next L2 (#386; review of #390): every rail label lies inside the rail, the bold
+// current one and the long "Stewarding" included. Text that spills past the window's left
+// edge can't be scrolled into view, so this also holds with WCAG 1.4.12's text spacing.
+test('the rail keeps every label inside it, also with wider text spacing', async ({ page }) => {
+  await fixture(page, { user: { ...member, roles: ['admin'] } });
+  await page.setViewportSize({ width: 1280, height: 860 });
+  const labels = () => page.evaluate(() => {
+    const rail = document.getElementById('app-nav').getBoundingClientRect();
+    return [...document.querySelectorAll('#app-nav .app-nav-label')].filter((node) => node.getClientRects().length > 0).map((node) => {
+      const range = document.createRange();
+      range.selectNodeContents(node);
+      const text = range.getBoundingClientRect();
+      const item = node.closest('.app-nav-item').getBoundingClientRect();
+      return { name: node.textContent.trim().slice(0, 12), inRail: text.left >= rail.left - 0.5 && text.right <= rail.right + 0.5, inItem: text.left >= item.left - 0.5 && text.right <= item.right + 0.5, inWindow: text.left >= 0 };
+    });
+  });
+  // Stewarding is the current tab on its own pages, so its label is bold there: the widest case.
+  for (const path of ['/', '/admin.php']) {
+    await page.goto(path);
+    await expect(nav(page)).toBeVisible();
+    await expect(tab(page, 'Stewarding')).toBeVisible();
+    await page.evaluate(() => document.fonts.ready);
+    const plain = await labels();
+    expect(plain.map((label) => label.name)).toContain('Stewarding');
+    for (const label of plain) expect(label, `${path} ${label.name}`).toMatchObject({ inRail: true, inItem: true, inWindow: true });
+    // Through the CSSOM: the page's style-src 'self' refuses an injected style element.
+    await page.evaluate(() => { for (const node of document.querySelectorAll('#app-nav, #app-nav *')) { node.style.setProperty('letter-spacing', '0.12em', 'important'); node.style.setProperty('word-spacing', '0.16em', 'important'); node.style.setProperty('line-height', '1.5', 'important'); } });
+    for (const label of await labels()) expect(label, `${path} ${label.name} with text spacing`).toMatchObject({ inRail: true, inItem: true, inWindow: true });
+  }
+});
+
 test('members get Rooms · Direct · Activity · You, with the current page marked', async ({ page }) => {
   await fixture(page);
   await openRooms(page);
