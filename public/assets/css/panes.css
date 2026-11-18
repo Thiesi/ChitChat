@@ -250,9 +250,10 @@
 .dm-shell .dm-heading { display: grid; flex: 1; gap: 0.2rem; min-width: 0; }
 .dm-shell .conversation-header h2 {
   font-family: var(--display-font);
-  font-size: 1.65rem;
-  font-weight: 400;
-  letter-spacing: var(--display-tracking);
+  font-size: var(--type-title);
+  font-weight: 700;
+  letter-spacing: var(--title-tracking);
+  line-height: var(--leading-tight);
 }
 .dm-shell .conversation-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 /* "More actions" is for phones only; wider screens show the actions in the row. */

@@ -1292,6 +1292,14 @@ function buildMessageElement(message, run = 'single') {
 
   header.append(author);
   if (fromGuest) header.append(guestBadge());
+  // Bubbles hold words (Lantern Next L4): the run's time is drawn once, beside the name
+  // that starts someone else's run. This copy is for the eye only; every message keeps
+  // its own <time datetime> in its bubble, for screen readers, hover and keyboard focus.
+  const runTime = document.createElement('span');
+  runTime.className = 'message-run-time';
+  runTime.setAttribute('aria-hidden', 'true');
+  runTime.textContent = time.textContent;
+  header.append(runTime);
 
   if (canReplyInCurrentRoom() && !message.deleted) {
     const replyButton = document.createElement('button');

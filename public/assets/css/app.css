@@ -867,39 +867,60 @@ button.user-name.mention { padding: 0 0.2rem; border-radius: 0.25rem; background
 
 .room-heading h2 {
   font-family: var(--display-font);
-  font-size: 1.65rem;
-  font-weight: 400;
-  letter-spacing: var(--display-tracking);
+  font-size: var(--type-title);
+  font-weight: 700;
+  letter-spacing: var(--title-tracking);
+  line-height: var(--leading-tight);
 }
 .room-header > .room-heading { min-width: 0; overflow-wrap: anywhere; }
 
 .room-heading p {
-  margin-top: 0.25rem;
+  margin-top: 0.15rem;
   color: var(--text-muted);
-  font-size: 0.9rem;
+  font-size: var(--type-label);
 }
 
+/* The empty room invites the first message (Lantern Next L4, a signature moment): a
+   dashed bubble where someone could speak, with its persimmon chit, in a still honey
+   glow, drawn from Lantern's own shapes. Decoration only: the words say it. */
 .empty-state {
   display: grid;
   padding: 2rem;
   place-items: center;
-  color: var(--text-muted);
+  color: var(--text);
   text-align: center;
+  text-wrap: balance;
   align-content: center;
-  gap: 1.5rem;
+  gap: 1.75rem;
   font-family: var(--display-font);
-  font-size: 1.65rem;
+  font-size: var(--type-display-m);
+  font-weight: 700;
+  letter-spacing: var(--title-tracking);
+  line-height: var(--leading-display);
 }
 
-.empty-state::before {
+/* The bubble and its chit share the first grid cell; the words take the next row. */
+.empty-state::before,
+.empty-state::after {
+  grid-area: 1 / 1;
   content: "";
-  width: 4rem;
-  height: 3rem;
-  margin: auto;
-  border: 2px solid var(--signature-text);
-  border-radius: 1.25rem 1.25rem 1.25rem 0.25rem;
-  background: color-mix(in srgb, var(--signature) 8%, transparent);
-  box-shadow: 0.75rem -0.75rem 0 var(--raised);
+}
+.empty-state::before {
+  width: 6.5rem;
+  height: 4.5rem;
+  margin: 1.5rem auto 0;
+  border: 2px dashed var(--field-line);
+  border-radius: var(--radius-bubble);
+  background: var(--stage);
+  box-shadow: 0 0 3.25rem 1.75rem color-mix(in srgb, var(--presence) 22%, transparent);
+}
+.empty-state::after {
+  align-self: end;
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 50%;
+  background: var(--signature);
+  transform: translate(-3.9rem, 0.55rem);
 }
 
 .message-list {
@@ -1398,7 +1419,7 @@ button.user-name.mention { padding: 0 0.2rem; border-radius: 0.25rem; background
 .composer-wrap {
   position: relative;
   min-width: 0;
-  padding: 0.75rem clamp(1rem, 3vw, 3rem) 1.25rem;
+  padding: 0.5rem clamp(1rem, 3vw, 3rem) 1rem;
   border-radius: 0 0 calc(var(--radius-sheet) - 1px) calc(var(--radius-sheet) - 1px);
   background: var(--stage);
 }
@@ -1406,33 +1427,35 @@ button.user-name.mention { padding: 0 0.2rem; border-radius: 0.25rem; background
 .composer {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 0.75rem;
-  align-items: center;
+  gap: 0.35rem;
+  align-items: end;
   max-width: 56rem;
   margin-inline: auto;
-  padding: 0.65rem;
+  /* One slim row when empty (Lantern Next L4): a field with the field's fill and boundary,
+     and no shadow of its own. */
+  padding: 0.3rem;
   border: 1px solid var(--field-line);
   border-radius: 1.25rem;
-  background: var(--surface);
-  box-shadow: 0 5px 20px var(--shadow-soft);
+  background: var(--field);
 }
 
 /* One focus ring (S8 B): the composer's border, 2px, while its message field has focus.
    The field draws none of its own; attach, emoji and Send keep their own rings. */
 :is(.composer, .dm-composer):has(textarea:focus) {
   border-color: var(--signature-text);
-  box-shadow: 0 0 0 1px var(--signature-text), 0 5px 20px var(--shadow-soft);
+  box-shadow: 0 0 0 1px var(--signature-text);
 }
 :is(.composer, .dm-composer) textarea:focus { outline: none; }
 /* Forced colours drop box-shadow, so there the field keeps its own system-colour outline. */
 @media (forced-colors: active) {
   :is(.composer, .dm-composer) textarea:focus { outline: 2px solid CanvasText; }
 }
-.composer .primary-button { min-height: 3rem; margin-right: 0.2rem; }
+.composer .primary-button { min-height: var(--target-min); margin-right: 0; }
 
 .composer textarea {
   /* One row when empty, growing with the text (autosize.js) up to the max; no grip (#256). */
-  min-height: 3rem;
+  min-height: 2.75rem;
+  padding-block: 0.6rem;
   /* At zoom the cap is a third of the screen at most, so the conversation stays in view (S8). */
   max-height: min(10rem, 35dvh);
   resize: none;
@@ -1442,9 +1465,31 @@ button.user-name.mention { padding: 0 0.2rem; border-radius: 0.25rem; background
 
 .composer-help {
   max-width: 56rem;
-  margin: 0.65rem auto 0;
+  margin: 0.5rem auto 0;
+  padding-inline: 0.9rem;
   color: var(--text-muted);
-  font-size: 0.72rem;
+  font-size: var(--type-caption);
+}
+/* One short hint (Lantern Next L4). The rest of the keyboard help stays in the page for
+   every reader, out of sight until there is text in the field, when it is useful. Not
+   "while the composer has focus": the hint can wrap, and a line that goes away the moment
+   focus leaves moves the conversation between a click's press and its release, so the
+   click on a message's Edit or React landed beside it. */
+.composer-help-more {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.composer-wrap:has(#composer-input:not(:placeholder-shown)) .composer-help-more {
+  position: static;
+  width: auto;
+  height: auto;
+  overflow: visible;
+  clip-path: none;
+  white-space: normal;
 }
 
 .composer-wrap > .reply-banner { max-width: 56rem; margin-inline: auto; }

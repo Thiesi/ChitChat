@@ -45,6 +45,8 @@ async function selectPeer(page, username) {
 }
 
 async function submitReport(page, article, category, details) {
+  // Lantern Next L4 (#388): a message's actions take no clicks until the pointer or focus is on it.
+  await article.hover();
   await article.getByRole('button', { name: 'Report', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: /Report/ });
   await expect(dialog).toBeVisible();

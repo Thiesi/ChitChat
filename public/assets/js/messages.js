@@ -535,7 +535,13 @@ function buildMessage(message, run = 'single') {
   meta.className = 'dm-message-meta';
   const read = message.outgoing && message.read_at ? ' · read' : '';
   // The day heading carries the date and the transcript reads the sender; the bubble shows the time.
-  meta.textContent = `${formatDateTime(message.created_at, { dateStyle: null, timeStyle: 'short' })}${read}`;
+  // A real <time datetime> (Lantern Next L4), as in rooms, so the exact moment is in the
+  // message's own text for every reader, also where the bubble doesn't draw it.
+  const stamp = document.createElement('time');
+  stamp.className = 'dm-message-time';
+  stamp.dateTime = message.created_at;
+  stamp.textContent = formatDateTime(message.created_at, { dateStyle: null, timeStyle: 'short' });
+  meta.append(stamp, read);
   meta.title = formatDateTime(message.created_at);
 
   const actions = document.createElement('span');

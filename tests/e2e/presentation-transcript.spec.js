@@ -127,6 +127,40 @@ test('the transcript is a quiet list with day headings, in rooms and direct mess
   await expect(dms.getByRole('heading', { level: 3 }).first()).toHaveText('October 3, 2026');
 });
 
+// Lantern Next L4 (#388): a message that arrives live rises into place. Only that message,
+// only when motion is welcome, and never the first fill of the conversation.
+test('a live message arrives with an entrance; the first fill has none; reduced motion has none at all', async ({ page, browser }) => {
+  await fixture(page);
+  await openRoom(page);
+  await expect(page.locator('#message-list > li.arriving')).toHaveCount(0);
+
+  await emitRoom(page, roomMessage(6, rowan, 'Saturday works.'));
+  const arrived = page.locator('#message-list > li:has(> article[data-message-id="6"])');
+  await expect(arrived).toHaveClass(/\barriving\b/);
+  await expect(page.locator('#message-list > li.arriving')).toHaveCount(1);
+  const motion = await arrived.evaluate((node) => { const style = getComputedStyle(node); return { name: style.animationName, seconds: parseFloat(style.animationDuration), count: style.animationIterationCount }; });
+  expect(motion.name).toBe('message-arrive');
+  expect(motion.seconds).toBeGreaterThan(0.05);
+  expect(motion.seconds).toBeLessThanOrEqual(0.3);
+  expect(motion.count).toBe('1');
+  // It ends where every other message is: fully there, not moved.
+  await page.waitForFunction(() => document.getAnimations().every((animation) => animation.playState !== 'running'));
+  expect(await arrived.evaluate((node) => { const style = getComputedStyle(node); return [style.opacity, style.transform]; })).toEqual(['1', 'none']);
+
+  // Reduced motion: the same arrival is an instant cut (no animation applies).
+  const context = await browser.newContext({ reducedMotion: 'reduce' });
+  const calm = await context.newPage();
+  await fixture(calm);
+  await openRoom(calm);
+  await emitRoom(calm, roomMessage(6, rowan, 'Saturday works.'));
+  const still = calm.locator('#message-list > li:has(> article[data-message-id="6"])');
+  await expect(still).toHaveCount(1);
+  const reduced = await still.evaluate((node) => { const style = getComputedStyle(node); return { name: style.animationName, seconds: parseFloat(style.animationDuration) || 0 }; });
+  expect(reduced.name === 'none' || reduced.seconds <= 0.001).toBe(true);
+  expect(await calm.evaluate(() => document.getAnimations().length)).toBe(0);
+  await context.close();
+});
+
 test('arrivals and reactions update the list in place, keeping existing message nodes', async ({ page }) => {
   await fixture(page);
   await openRoom(page);
