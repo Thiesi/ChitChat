@@ -33,7 +33,7 @@
   gap: 0.25rem;
 }
 
-.conversation-time { color: var(--text-muted); font-size: 0.72rem; font-weight: 500; white-space: nowrap; }
+.conversation-time { color: var(--text-muted); font-size: var(--type-caption); font-weight: 400; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .conversation-button.unread .conversation-time { color: var(--text); font-weight: 700; }
 
 /* Blocked, Unavailable, Account closed: a quiet line instead of the last message. */
