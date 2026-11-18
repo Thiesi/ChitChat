@@ -193,6 +193,51 @@ for (const width of [180, 320]) {
   });
 }
 
+// Lantern Next L2 (#386, owner decision): the installation's name heads every list pane,
+// at every width; the rail keeps the icon only. Operators choose the name, so a very long
+// one must wrap in full (never clipped, never scrolling the page sideways), on wide
+// screens and at 320 and 180. The name is server-rendered; here it is swapped in the page.
+const LONG_NAME = 'The Riverside Neighbours and Friends of the Old Mill Community Hall';
+for (const width of [1280, 320, 180]) {
+  for (const [path, pane, title] of [['/', '#sidebar', 'Rooms'], ['/messages.php', '#dm-list-pane', 'Direct'], ['/account.php', '#you-list', 'You']]) {
+    test(`${width} CSS px: a very long installation name wraps above “${title}” without sideways scrolling`, async ({ page }) => {
+      await page.setViewportSize({ width, height: width === 1280 ? 900 : Math.round(width * 2.1) });
+      await page.addInitScript(() => localStorage.setItem('chitchat-new-look-seen', '1'));
+      await fixture(page);
+      await page.goto(path);
+      const brand = page.locator(`${pane} .list-pane-brand`);
+      await expect(brand).toBeVisible();
+      await brand.locator('span').evaluate((node, name) => { node.textContent = name; }, LONG_NAME);
+      await page.mouse.move(0, 0);
+      await expect(brand).toHaveText(LONG_NAME);
+      // A label, not a heading and not a link (the visual lead's ruling on #381): real text in a <p>.
+      expect(await brand.evaluate((node) => ({ tag: node.tagName, link: node.closest('a') !== null || node.querySelector('a') !== null, role: node.getAttribute('role') }))).toEqual({ tag: 'P', link: false, role: null });
+      expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth), 'no sideways scrolling').toBeLessThanOrEqual(0);
+      const box = await brand.locator('span').evaluate((node) => {
+        const range = document.createRange();
+        range.selectNodeContents(node);
+        const text = range.getBoundingClientRect();
+        const own = node.getBoundingClientRect();
+        const style = getComputedStyle(node);
+        return { textRight: text.right, textBottom: text.bottom, right: own.right, bottom: own.bottom, lines: Math.round(own.height / parseFloat(style.lineHeight)), clipped: node.scrollWidth > node.clientWidth + 1, viewport: window.innerWidth };
+      });
+      // Every word is drawn inside the name's own box and inside the window: nothing is cut off.
+      expect(box.clipped, 'the name is not clipped').toBe(false);
+      expect(box.textRight).toBeLessThanOrEqual(box.right + 1);
+      expect(box.textBottom).toBeLessThanOrEqual(box.bottom + 1);
+      expect(box.right).toBeLessThanOrEqual(box.viewport);
+      expect(box.lines, 'it wraps').toBeGreaterThan(1);
+      // The pane's own title follows it, in view, and is still the page's first heading.
+      const heading = page.locator(`${pane} .list-title`);
+      await expect(heading).toHaveText(title);
+      await expect(heading).toBeVisible();
+      expect(await page.evaluate((selector) => document.querySelector(`${selector} .list-pane-brand`).compareDocumentPosition(document.querySelector(`${selector} .list-title`)) & Node.DOCUMENT_POSITION_FOLLOWING, pane)).toBeTruthy();
+      const result = await new AxeBuilder({ page }).withTags(WCAG).analyze();
+      expect(result.violations, result.violations.map((violation) => `${violation.id} ${violation.nodes.map((node) => node.target).join(' ')}`).join('; ')).toEqual([]);
+    });
+  }
+}
+
 // S7h (CCM J-read S1, S4): notices and results come first on small screens.
 for (const [width, height] of [[360, 780], [640, 450], [180, 390]]) {
   test(`${width}×${height}: Activity's first notice starts in the first view; search brings its results up`, async ({ page }) => {

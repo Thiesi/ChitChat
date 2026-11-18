@@ -33,15 +33,30 @@
 .list-title {
   margin: 0;
   font-family: var(--display-font);
-  font-size: 1.85rem;
-  font-weight: 400;
-  letter-spacing: var(--display-tracking);
-  line-height: 1.1;
+  font-size: var(--type-display-m);
+  font-weight: 700;
+  letter-spacing: var(--title-tracking);
+  line-height: var(--leading-display);
   overflow-wrap: anywhere;
 }
 
-/* Phones have no rail, so the installation's icon and name head the list. */
-.list-pane-brand { display: none; }
+/* The installation's name heads every list pane (Lantern Next L2, owner decision): on
+   wide screens the rail beside it shows the icon, so here it is the name alone; phones
+   have no rail, so the icon comes with it (below). A long name wraps, to as many lines
+   as it needs, and never scrolls the page sideways. */
+.list-pane-brand {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+  min-width: 0;
+  margin: 0 0 0.2rem;
+  color: var(--text-muted);
+  font-size: var(--type-label);
+  font-weight: 600;
+  line-height: var(--leading-tight);
+}
+.list-pane-brand img { display: none; flex: none; width: 1.5rem; height: 1.5rem; border-radius: 22%; object-fit: cover; }
+.list-pane-brand span { min-width: 0; overflow-wrap: anywhere; }
 
 .list-pane-actions { display: flex; flex: none; align-items: center; gap: 0.15rem; }
 .list-pane-actions .header-button { color: var(--text-muted); }
@@ -187,10 +202,11 @@
   min-width: 0;
   min-height: 0;
   flex-direction: column;
-  border: 1px solid var(--line);
-  border-radius: 1.5rem;
-  background: var(--stage); /* as the room conversation (L0) */
-  box-shadow: var(--shadow);
+  /* The stage (L2), as the room conversation: see .chat-main in app.css. */
+  border: 1px solid transparent;
+  border-radius: var(--radius-sheet);
+  background: var(--stage);
+  box-shadow: var(--elev-1);
   overflow: hidden;
 }
 
@@ -343,18 +359,11 @@
   .drawer-toggle .toggle-list { display: none; }
   .drawer-toggle .toggle-back { display: block; }
 
-  .list-pane-brand {
-    display: flex;
-    align-items: center;
-    gap: 0.45rem;
-    margin: 0 0 0.35rem;
-    min-width: 0;
-    color: var(--text-muted);
-    font-size: 0.85rem;
-    font-weight: 700;
-  }
-  .list-pane-brand img { width: 1.5rem; height: 1.5rem; flex: none; border-radius: 22%; object-fit: cover; }
-  .list-pane-brand span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* No rail here, so the icon comes with the name; the name is centred on the icon while
+     it fits on one line and wraps beside it when it doesn't. */
+  .list-pane-brand { margin-bottom: 0.35rem; }
+  .list-pane-brand img { display: block; box-shadow: 0 0 0 1px var(--line); }
+  .list-pane-brand span { align-self: center; }
 
   .list-pane .room-button { min-height: 3.25rem; font-size: 1rem; }
   .list-pane .lantern { width: 2.5rem; height: 2.5rem; }

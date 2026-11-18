@@ -110,6 +110,31 @@ async function noSideScroll(page) {
 
 // ---- Rooms ----
 
+// Lantern Next L2 (#386): the stage's edge is the resting elevation, a shadow, which forced
+// colours drop. Its transparent border is painted there instead, so the conversation panes
+// keep a solid edge that shows on Canvas (review note on #390).
+test('forced colours: the room and direct conversation panes keep a solid edge', async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium', 'Forced-colours emulation is Chromium-only.');
+  await fixture(page);
+  await page.emulateMedia({ forcedColors: 'active' });
+  const edge = (selector) => page.locator(selector).evaluate((node) => {
+    const style = getComputedStyle(node);
+    return { style: style.borderTopStyle, width: parseFloat(style.borderTopWidth), color: style.borderTopColor, canvas: getComputedStyle(document.body).backgroundColor };
+  });
+  await openRooms(page, 1280);
+  const room = await edge('.chat-main');
+  expect(room.style).toBe('solid');
+  expect(room.width).toBeGreaterThanOrEqual(1);
+  expect(room.color).not.toBe(room.canvas);
+  expect(room.color).not.toBe('rgba(0, 0, 0, 0)');
+  await openDirect(page, 1280);
+  const direct = await edge('.dm-shell .conversation-main');
+  expect(direct.style).toBe('solid');
+  expect(direct.width).toBeGreaterThanOrEqual(1);
+  expect(direct.color).not.toBe(direct.canvas);
+  expect(direct.color).not.toBe('rgba(0, 0, 0, 0)');
+});
+
 test('desktop: the Rooms list sits beside the conversation, with lanterns and no direct messages', async ({ page }) => {
   await fixture(page);
   await openRooms(page);
@@ -219,17 +244,30 @@ test('phone: a deep link to a room starts on its conversation', async ({ page })
   await expect(page.getByRole('button', { name: 'Back to rooms' })).toBeVisible();
 });
 
-test('the installation’s icon and name stay in view: the rail on wide screens, the list on phones', async ({ page }) => {
+// Lantern Next L2 (#386, owner decision): the rail keeps the icon only, and the name heads
+// the list pane at every width (it was hidden there on wide screens, where the rail showed
+// it at 11px in two clamped lines). The rail's brand keeps the name as text for screen
+// readers, so the old assertions on its text still hold; what changed is where it is seen.
+test('the installation’s icon and name stay in view: the icon on the rail, the name on the list, both on phones’ lists', async ({ page }) => {
   await fixture(page);
   await openRooms(page, 1280);
   const railBrand = bar(page).locator('.app-nav-brand');
   await expect(railBrand).toBeVisible();
   await expect(railBrand).toHaveText('ChitChat');
   await expect(railBrand.locator('img')).toHaveAttribute('alt', '');
+  await expect(railBrand.locator('img')).toBeVisible();
+  // The name is in the rail for assistive technology only: it takes no room there.
+  const railName = await railBrand.locator('span').evaluate((node) => { const box = node.getBoundingClientRect(); return { width: box.width, height: box.height, display: getComputedStyle(node).display }; });
+  expect(railName.display).not.toBe('none');
+  expect(railName.width).toBeLessThanOrEqual(1);
+  expect(railName.height).toBeLessThanOrEqual(1);
   await expect(page).toHaveTitle(/ChitChat/);
   // Plain text, not a link: the navigation's destinations are unchanged.
   await expect(railBrand.locator('a')).toHaveCount(0);
-  await expect(list(page).locator('.list-pane-brand')).toBeHidden();
+  // The name is seen at the top of the list, without the icon (the rail beside it has that).
+  await expect(list(page).locator('.list-pane-brand')).toBeVisible();
+  await expect(list(page).locator('.list-pane-brand')).toHaveText('ChitChat');
+  await expect(list(page).locator('.list-pane-brand img')).toBeHidden();
 
   await openRooms(page, 900);
   await expect(bar(page).locator('.app-nav-brand')).toBeVisible();
@@ -238,6 +276,7 @@ test('the installation’s icon and name stay in view: the rail on wide screens,
   await expect(bar(page).locator('.app-nav-brand')).toBeHidden();
   await expect(list(page).locator('.list-pane-brand')).toBeVisible();
   await expect(list(page).locator('.list-pane-brand')).toHaveText('ChitChat');
+  await expect(list(page).locator('.list-pane-brand img')).toBeVisible();
   await openDirect(page, 360);
   await expect(page.locator('#dm-list-pane .list-pane-brand')).toHaveText('ChitChat');
   await expect(page).toHaveTitle(/ChitChat/);

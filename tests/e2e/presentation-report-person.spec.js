@@ -304,6 +304,8 @@ test('moderators review person cases with a blurred picture and person actions',
   const reveal = page.getByRole('button', { name: 'Show picture' });
   const fill = () => reveal.evaluate((node) => {
     const probe = document.createElement('canvas').getContext('2d');
+    // Start from transparent: a colour the canvas can't parse leaves this in place and fails the check.
+    probe.fillStyle = 'rgba(0,0,0,0)';
     probe.fillStyle = getComputedStyle(node).backgroundColor;
     probe.fillRect(0, 0, 1, 1);
     return probe.getImageData(0, 0, 1, 1).data[3];
