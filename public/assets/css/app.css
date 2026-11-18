@@ -121,7 +121,9 @@ button:disabled {
 }
 
 /* The attribution carries the one-colour mark (the mark family, #227), as a mask in the
-   link's own colour. The documents' and feedback links sit in their own spans. */
+   link's own colour. The documents' and feedback links sit in their own spans. Forced
+   colours would repaint the mask's fill as the page's background and the mark would
+   vanish, so there it opts out and takes the system's link colour itself. */
 .powered-by > a::before {
   display: inline-block;
   width: 1.05em;
@@ -132,6 +134,9 @@ button:disabled {
   content: "";
   -webkit-mask: url("/assets/app-icons/lantern-mark-mono.svg") center / contain no-repeat;
   mask: url("/assets/app-icons/lantern-mark-mono.svg") center / contain no-repeat;
+}
+@media (forced-colors: active) {
+  .powered-by > a::before { forced-color-adjust: none; background: LinkText; }
 }
 
 /* The installation's documents (#160), when configured: 44px tall targets. */

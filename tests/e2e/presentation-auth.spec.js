@@ -312,6 +312,39 @@ test('the second sign-in step has one main button and no guest offer', async ({ 
   await expect(page.locator('[data-guest-entry]')).toBeHidden();
 });
 
+// The mark family (#227; review of #395): the one-colour mark that signs "Powered by
+// ChitChat" is a mask over a filled box. Forced colours repaint fills as the page's
+// background, which would erase it, so there it takes the system's link colour itself.
+test('forced colours: the one-colour mark beside the attribution is still drawn', async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium', 'Forced colours are emulated in Chromium.');
+  await fixture(page);
+  await open(page);
+  const link = page.locator('#auth-shell .powered-by > a').first();
+  await expect(link).toBeVisible();
+  const mark = () => link.evaluate((node) => {
+    const paint = (value) => { const probe = document.createElement('canvas').getContext('2d'); probe.fillStyle = 'rgba(0,0,0,0)'; probe.fillStyle = value; probe.fillRect(0, 0, 1, 1); return [...probe.getImageData(0, 0, 1, 1).data].join(','); };
+    const before = getComputedStyle(node, '::before');
+    let ground = 'rgba(0, 0, 0, 0)';
+    for (let parent = node; parent && paint(ground).endsWith(',0'); parent = parent.parentElement) ground = getComputedStyle(parent).backgroundColor;
+    return { fill: paint(before.backgroundColor), text: paint(getComputedStyle(node).color), ground: paint(ground), mask: before.maskImage || before.webkitMaskImage, width: parseFloat(before.width), height: parseFloat(before.height), adjust: before.forcedColorAdjust };
+  });
+  const plain = await mark();
+  expect(plain.mask).toContain('lantern-mark-mono.svg');
+  expect(plain.fill).toBe(plain.text);
+  expect(plain.width).toBeGreaterThan(8);
+
+  await page.emulateMedia({ forcedColors: 'active' });
+  const forced = await mark();
+  expect(forced.adjust).toBe('none');
+  expect(forced.mask).toContain('lantern-mark-mono.svg');
+  // Opaque, the link's own (system) colour, and not the colour of what it sits on.
+  expect(forced.fill.endsWith(',255')).toBe(true);
+  expect(forced.fill).toBe(forced.text);
+  expect(forced.fill).not.toBe(forced.ground);
+  expect(forced.width).toBeGreaterThan(8);
+  expect(forced.height).toBeGreaterThan(8);
+});
+
 // The order by keyboard on the sign-in form is deliberate: the password, its show/hide
 // button, "Forgot password?", then Sign in (review criteria on #381).
 test('by keyboard: password, show password, Forgot password?, Sign in', async ({ page }) => {
