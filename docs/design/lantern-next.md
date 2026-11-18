@@ -160,6 +160,20 @@ For CCM: the phone list panes already show the icon with the name; what to mirro
 | The glow's gap in a row | Always `surface` | The colour the row sits on: `ground`, or `--selected` for the open room | The ring reads as a ring on both. |
 | Connection state | 13px with an 8.8px dot | Caption (12px) with a 7px dot | It reports; it shouldn't compete with the title. Shape and wording for reconnecting and offline are unchanged. |
 
+## L5: the sign-in family and the mark family (#389, #227)
+
+| What | Old | New | Reason |
+|---|---|---|---|
+| The sign-in drawing | Loose lanterns, pebbles and one bubble | A small conversation in Lantern's shapes: someone speaks, you answer, someone is typing (three still honey dots), with two room lanterns. Its three groups settle into place once (`--motion-slow`, 120 to 400ms apart) | A signature moment (owner decision). It shows what the product is. Decoration only; static under reduced motion. |
+| The glow on the wide sign-in screen | One honey glow just behind the mark | The lantern's light: wider and softer, two stops, still | The lockup is the hero. It never pulses and is never baked into the mark. |
+| The sign-in card | A line and the all-purpose shadow | `--elev-2`, `--radius-sheet`; the greeting in Display M | The floating level. |
+| Sign in / Register | A pill inside a pill with an outline; the chosen tab in persimmon text | A segmented control: `raised` track, the chosen tab a `surface` thumb at `--elev-1` in bold ink | Weight and the thumb's shape carry the choice, not colour. |
+| The second sign-in step | Two persimmon buttons when an authenticator code is on offer, the guest offer above it, a system-face heading | One main button (the code; the passkey is an outline button), no guest offer until the step ends, the heading in Display M | CCM's own rule: one persimmon button per screen. |
+| The mark family | One file | Named versions with rules: primary, paper, one colour (also reversed), small sizes, the lockup with the name, the renamed-installation lockup, the glow on signed-out pages. See [mark.md](mark.md) | #227, approved 2026-11-15. |
+| "on ChitChat" and "Powered by ChitChat" | Text only | Signed with the one-colour mark, drawn in the text's colour | A renamed installation's icon and name lead; ChitChat signs quietly. |
+
+For CCM: the one-colour mark is the monochrome launcher layer's geometry; the welcome screen may take the wider glow and the conversation drawing.
+
 ## Still to come
 
 L3 lists · L4 conversation · L5 sign-in family and the mark variants (#227) · L6 Direct, Activity, Search · L7 You · L8 stewardship · L9 overlays, status and motion · L10 handoff. Each adds its section here when it merges.
