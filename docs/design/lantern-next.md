@@ -188,6 +188,7 @@ For CCM: show the run's time at the name (incoming) or under the last bubble (ou
 |---|---|---|---|
 | A message arriving live | Appears | Rises 8px and fades in over `--motion-base` (200ms, ease-out), once. Only messages appended live to a conversation already on screen: never the first fill, a room switch or older history | Motion that explains a change of state (owner decision: bolder here). Under reduced motion the rule doesn't apply and the token is cut, so it is an instant change. |
 | The empty room | A small outlined bubble and a muted 26px line | CCM's empty-room drawing, larger and lit: a dashed bubble ("someone could speak here") with its persimmon chit in a still honey glow; the words in Display M, in ink | An empty state that invites (J-03). Static, drawn from Lantern's shapes only. |
+
 ## L5: the sign-in family and the mark family (#389, #227)
 
 | What | Old | New | Reason |
