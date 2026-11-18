@@ -361,11 +361,11 @@
   white-space: nowrap;
 }
 /* The name line keeps one height and one line: its actions are invisible until the
-   pointer or focus is on the message, so until then they take no room beside the name
+   pointer or focus is on the message, so until then they take no room beside the name and catch no clicks (out of flow they would lie over the name)
    and the time (at 360 CSS px they pushed "More" onto a second line); when they show,
    the time's copy steps aside for them, and the bubble's own chip gives the exact time. */
 .message[data-run]:is([data-run="start"], [data-run="single"]):not(.mine) > .message-header { min-height: 1.75rem; align-items: center; }
-.message[data-run]:is([data-run="start"], [data-run="single"]):not(.mine):not(:hover, :focus-within) > .message-header > :is(.message-react-button, .message-reply-button, .message-mutation-actions, .message-more-button) { position: absolute; }
+.message[data-run]:is([data-run="start"], [data-run="single"]):not(.mine):not(:hover, :focus-within) > .message-header > :is(.message-react-button, .message-reply-button, .message-mutation-actions, .message-more-button) { position: absolute; pointer-events: none; }
 .message[data-run]:is(:hover, :focus-within) .message-run-time { display: none; }
 
 /* The copy belongs to the name line of someone else's run; nowhere else. */
