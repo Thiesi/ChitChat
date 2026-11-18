@@ -110,6 +110,31 @@ async function noSideScroll(page) {
 
 // ---- Rooms ----
 
+// Lantern Next L2 (#386): the stage's edge is the resting elevation, a shadow, which forced
+// colours drop. Its transparent border is painted there instead, so the conversation panes
+// keep a solid edge that shows on Canvas (review note on #390).
+test('forced colours: the room and direct conversation panes keep a solid edge', async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium', 'Forced-colours emulation is Chromium-only.');
+  await fixture(page);
+  await page.emulateMedia({ forcedColors: 'active' });
+  const edge = (selector) => page.locator(selector).evaluate((node) => {
+    const style = getComputedStyle(node);
+    return { style: style.borderTopStyle, width: parseFloat(style.borderTopWidth), color: style.borderTopColor, canvas: getComputedStyle(document.body).backgroundColor };
+  });
+  await openRooms(page, 1280);
+  const room = await edge('.chat-main');
+  expect(room.style).toBe('solid');
+  expect(room.width).toBeGreaterThanOrEqual(1);
+  expect(room.color).not.toBe(room.canvas);
+  expect(room.color).not.toBe('rgba(0, 0, 0, 0)');
+  await openDirect(page, 1280);
+  const direct = await edge('.dm-shell .conversation-main');
+  expect(direct.style).toBe('solid');
+  expect(direct.width).toBeGreaterThanOrEqual(1);
+  expect(direct.color).not.toBe(direct.canvas);
+  expect(direct.color).not.toBe('rgba(0, 0, 0, 0)');
+});
+
 test('desktop: the Rooms list sits beside the conversation, with lanterns and no direct messages', async ({ page }) => {
   await fixture(page);
   await openRooms(page);

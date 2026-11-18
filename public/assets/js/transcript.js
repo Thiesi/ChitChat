@@ -31,6 +31,11 @@ export function reconcile(list, items) {
     else child.remove();
   }
 
+  // A message that arrives live is appended to a list that already shows messages: it gets
+  // the "arriving" class for its entrance (transcript.css; nothing moves under reduced
+  // motion). Not the first fill, a room switch or older history, which insert before
+  // what is there or into an empty list.
+  const populated = existing.size > 0;
   let cursor = list.firstElementChild;
   const placed = new Set();
   for (const item of items) {
@@ -38,6 +43,7 @@ export function reconcile(list, items) {
     if (placed.has(item.key)) continue;
     placed.add(item.key);
     let li = existing.get(item.key);
+    const created = !li;
     if (li) {
       existing.delete(item.key);
       if (li.dataset.signature !== item.signature) {
@@ -58,6 +64,7 @@ export function reconcile(list, items) {
       li.append(item.build());
     }
     li.className = item.className ?? 'transcript-item';
+    if (created && populated && cursor === null && item.key.startsWith('m:')) li.classList.add('arriving');
     if (li !== cursor) list.insertBefore(li, cursor);
     cursor = li.nextElementSibling;
   }
