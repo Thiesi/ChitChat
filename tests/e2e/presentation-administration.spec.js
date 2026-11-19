@@ -118,7 +118,8 @@ test('quiet cards and rows keep an edge, and a system-colour edge in forced colo
   await fixture(page);
   await open(page);
   await page.locator('#admin-tabs').getByRole('button', { name: 'Rooms' }).click();
-  await expect(page.locator('.admin-card .admin-list-item').first()).toBeVisible();
+  // Wait for a row that follows another: the rule between rows is what is read below.
+  await expect(page.locator('.admin-card .admin-list-item + .admin-list-item').first()).toBeVisible();
   const edges = () => page.evaluate(() => {
     const paint = (value) => { const probe = document.createElement('canvas').getContext('2d'); probe.fillStyle = 'rgba(0,0,0,0)'; probe.fillStyle = value; probe.fillRect(0, 0, 1, 1); return [...probe.getImageData(0, 0, 1, 1).data].join(','); };
     const system = (keyword) => { const probe = document.createElement('span'); probe.style.cssText = 'forced-color-adjust: none; color: ' + keyword; document.body.append(probe); const value = paint(getComputedStyle(probe).color); probe.remove(); return value; };
