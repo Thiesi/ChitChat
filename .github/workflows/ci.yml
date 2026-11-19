@@ -205,6 +205,11 @@ jobs:
           source tests/stabilization/nginx-php-fpm.sh
           start_nginx_php_fpm "$RUNNER_TEMP/chitchat-server" 32
           curl --fail --retry 30 --retry-delay 1 --retry-all-errors http://localhost:8080/ready.php
+          # The documented revalidation header for stylesheets and scripts (#411).
+          for asset in css/app.css js/app.js; do
+            headers="$(curl --fail --silent --show-error --head "http://localhost:8080/assets/$asset")"
+            grep -qi '^cache-control: no-cache' <<<"$headers" || { echo "No Cache-Control: no-cache on /assets/$asset"; echo "$headers"; exit 1; }
+          done
       - name: Run browser end-to-end tests
         run: npm run test:e2e -- --project="${{ matrix.project }}"
       - name: Make server logs readable

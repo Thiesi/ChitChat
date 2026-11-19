@@ -37,6 +37,13 @@ RewriteEngine On
 RewriteCond %{DOCUMENT_ROOT}%{REQUEST_URI} !-f
 RewriteRule "^/\.well-known/assetlinks\.json$" "/assetlinks.php" [PT,L]
 
+# Stylesheets and scripts: browsers keep them but revalidate (ETag or
+# modification time) before each use, so nobody runs old CSS or JavaScript with
+# the new pages after an upgrade. Without this, browsers may reuse them for hours.
+<LocationMatch "^/assets/(css|js)/">
+	Header set Cache-Control "no-cache"
+</LocationMatch>
+
 # Server-wide "Header always set X-Frame-Options ..." lines replace the value
 # ChitChat sends. If your server sets one, restore ChitChat's own value here.
 Header always set X-Frame-Options DENY

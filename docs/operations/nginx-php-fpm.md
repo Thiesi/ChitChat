@@ -128,10 +128,21 @@ server {
     location ~ /\. {
         deny all;
     }
+
+    # Stylesheets and scripts: browsers keep them but revalidate on every use.
+    location ~ ^/assets/(css|js)/ {
+        add_header Cache-Control "no-cache";
+        try_files $uri /index.php?$query_string;
+    }
 }
 ```
 
 The exact SSE location must take precedence over the general PHP location. ChitChat also sends `X-Accel-Buffering: no`, but the explicit Nginx directives are retained because proxy behavior must not depend solely on an upstream response header.
+
+**Stylesheets and scripts are revalidated.** With `Cache-Control: no-cache`, browsers keep `/assets/css/` and `/assets/js/` but check each file against its `ETag` before using it. After an upgrade, nobody runs old CSS or JavaScript with the new pages, and an unchanged file costs only a `304`. Without the header, browsers guess how long a file stays fresh and can reuse an old one for hours. Some details of the location:
+- It's a regex placed after the dotfile deny, so that deny still wins. A `^~ /assets/` prefix would skip every regex location, the deny included.
+- A missing file still gets ChitChat's own 404 page.
+- An `add_header` in a location replaces every `add_header` the server block would otherwise pass down (HSTS, for example). If your server block sets headers that way, repeat them in this location.
 
 **Optional, a friendlier 404 for a missing `*.php` address.** Unknown paths already reach ChitChat through `try_files` and get its own "There's nothing here" page with status `404`. An address ending in `.php` that doesn't exist stops at `try_files $uri =404` and gets Nginx's plain page instead. To show ChitChat's page there too, add one line to the general PHP location:
 
