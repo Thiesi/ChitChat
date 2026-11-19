@@ -227,6 +227,18 @@ A note on Activity's rows (L6): the row's link is stretched over the whole row, 
 | The colour scheme | A row of bare swatches with names; the chosen one ringed in persimmon with a bold name | Each scheme is a chip (44px tall): swatch and name. The chosen one has a full ring in ink, its name in bold and a tick on its swatch | Named radios as before; the choice is told by more than colour, and each is a proper target. |
 | In forced colours | The ring only | The chip's border in `Highlight`, the tick in `HighlightText` on `Highlight` | The choice stays visible. |
 
+## L8: stewardship (#399)
+
+| What | Old | New | Reason |
+|---|---|---|---|
+| Cards on Administration, Operational settings, System status, the Moderation queue, direct-message inspection and revision review | A line, corners from 12 to 16px, the all-purpose shadow on some | `--radius-sheet`, `--line-soft`, `--elev-1`, the same on every page | One card. Stewardship reads as part of the same product, in its Dusk frame. |
+| Rows inside a card (members, invitations) | Each a bordered box inside the card | Rows with a soft rule between them | No boxes within boxes. |
+| Small labels ("ChitChat", "Reported person · from …", "Evidence at first report") | Upper-case, tracked | Label type in sentence case | As the lists' section labels (L3). |
+| The page's tabs (Users, Rooms, Audit) | In an outlined box | On a quiet `raised` track; the chosen tab keeps its steward edge and wash | Fewer lines; the choice still has a shape. |
+| Cases in the queue | Field-line boxes | Rows with the field corner and a soft edge; the open case keeps its steward edge and wash | Rows. |
+
+Unchanged on purpose: the steward accent on actions, links and focus (S6), the sensitive-access notice, rose for destructive actions, and every text field's boundary. In forced colours the cards, the rules between rows, the tabs' track and the cases take system-colour edges.
+
 ## Still to come
 
-L8 stewardship · L9 overlays, status and motion · L10 handoff. Each adds its section here when it merges.
+L9 overlays, status and motion · L10 handoff. Each adds its section here when it merges.
