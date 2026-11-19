@@ -169,6 +169,61 @@ test('the header says "N here now" with the lantern\'s glow once presence is kno
   await expect(page.locator('#members-toggle')).toHaveAccessibleName('Members, 2 online');
 });
 
+// The glow's soft halo is never cut square: on a narrow header the title clamps the room's
+// name, not the lantern, so nothing between the lantern and the page clips within the
+// halo's reach. 544 is the narrow header's widest; large default text reaches it on desktops.
+// A long name clamps to two lines and never squeezes the lantern, down to 320.
+const LONG_NAME = 'The living room where everyone gathers after a long day of work and stays far too late';
+test("the lantern's halo is whole, and a long name never squeezes it", async ({ page }) => {
+  await fixture(page, { present: [{ id: 2, username: 'Rowan' }, { id: 3, username: 'Sam' }] });
+  let name = 'The living room';
+  await page.route('**/api/v1/rooms/list.php', (route) => route.fulfill({ json: { rooms: [{ ...rooms[0], name }, rooms[1]] } }));
+  let size = null;
+  for (const [width, long] of [[1280, false], [544, false], [390, false], [390, true], [320, true]]) {
+    name = long ? LONG_NAME : 'The living room';
+    const label = `${width}${long ? ' long' : ''}`;
+    await page.setViewportSize({ width, height: 860 });
+    await page.goto('/?room_id=1');
+    const title = page.locator('#room-title');
+    const lantern = title.locator('.lantern');
+    await expect(lantern).toHaveClass(/glow/);
+    // The title still reads "# name".
+    await expect(title).toHaveText(`# ${name}`);
+    await expect(lantern).toBeVisible();
+    const measured = await lantern.evaluate((node) => {
+      const r = node.getBoundingClientRect();
+      // The halo reaches as far as its widest shadow's blur plus spread.
+      const reach = Math.max(...getComputedStyle(node).boxShadow.split(/,(?![^(]*\))/).map((shadow) => {
+        const px = (shadow.match(/-?[\d.]+px/g) ?? []).map(parseFloat);
+        return px.length >= 4 ? px[2] + px[3] : 0;
+      }));
+      const cuts = [];
+      for (let el = node.parentElement; el; el = el.parentElement) {
+        const style = getComputedStyle(el);
+        if (style.overflowX === 'visible' && style.overflowY === 'visible' && !/paint|strict|content/.test(style.contain)) continue;
+        const box = el.getBoundingClientRect();
+        const left = box.left + el.clientLeft;
+        const top = box.top + el.clientTop;
+        const cut = Math.max(left - (r.left - reach), top - (r.top - reach), r.right + reach - (left + el.clientWidth), r.bottom + reach - (top + el.clientHeight));
+        if (cut > 0.5) cuts.push(`${el.tagName.toLowerCase()}${el.id ? `#${el.id}` : ''} cuts ${cut.toFixed(1)}px of a ${reach}px halo`);
+      }
+      return { cuts, size: [Math.round(r.width * 10) / 10, Math.round(r.height * 10) / 10] };
+    });
+    expect(measured.cuts, label).toEqual([]);
+    // Unsqueezed: the same size as on the wide desktop header, where nothing presses on it.
+    size ??= measured.size;
+    expect(measured.size, label).toEqual(size);
+    if (width <= 544) {
+      // Only the name clips, and it stops at two lines: a long one is cut with room to spare.
+      const clamp = await title.locator('.room-title-name').evaluate((node) => {
+        const style = getComputedStyle(node);
+        return { overflow: style.overflowY, lines: Math.round(node.clientHeight / parseFloat(style.lineHeight)), cut: node.scrollHeight > node.clientHeight + 1 };
+      });
+      expect(clamp, label).toEqual({ overflow: 'hidden', lines: long ? 2 : 1, cut: long });
+    }
+  }
+});
+
 test('tablet: the list opens over the conversation; Escape, close and the backdrop return focus', async ({ page }) => {
   await fixture(page);
   await openRooms(page, 900);
