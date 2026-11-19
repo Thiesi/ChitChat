@@ -255,6 +255,18 @@ A command named in a toast keeps its chip on the toast's own colours (a 16% mix 
 
 Carried to L10 (#404): the page-to-page cross-fade (cross-document view transitions) that the direction planned for the frame, whose reduced-motion cut is already in place; and the remaining empty states and the status pages.
 
+## L10: the other empty places, the status pages, page to page (#404)
+
+| What | Old | New | Reason |
+|---|---|---|---|
+| An empty Direct conversation | A muted centred line | The empty room's drawing (the dashed bubble, its chit, a still honey glow) with the next step in Display M | A signature moment (owner decision); the same care as the empty room (L4). |
+| An Activity with nothing new | A bold line and a button, at the start of the card | The drawing, "You're all caught up." in Title type, and the way back as a button beneath, centred | The same. |
+| A search with nothing to show | A muted status line | The drawing with the status line beneath in Title type, centred. It is the same element with the same `status` role; with results it is a plain status line again | The same. |
+| The status pages (not found, unavailable) | A card with a line and the all-purpose shadow; the installation's name upper-case; the heading in Bricolage 400 | `--radius-sheet`, `--line-soft`, `--elev-2`; the name a Label in sentence case; the heading bold; the empty bubble and its chit above it | The same care, by stylesheet alone: the pages' markup, their lack of script and their small footprint (#344, #348) are untouched. |
+| Going from page to page | A hard cut | A 150ms cross-fade of the page in browsers that can do it between documents (`@view-transition`), with the rail holding still. Declared only under `prefers-reduced-motion: no-preference` | The direction's frame. No script, no request; browsers without it cut as before. |
+
+The drawing gives way on narrow screens (24rem and below), where the words need its room. In forced colours it is drawn in `CanvasText` without its glow.
+
 ## Still to come
 
-L10 handoff. Each adds its section here when it merges.
+The handoff. Each adds its section here when it merges.
