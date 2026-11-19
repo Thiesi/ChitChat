@@ -5,6 +5,7 @@ import { checkDownloadsBeforeOpening } from './file-availability.js';
 // A gone file's download link says so instead of opening the server's error (#334).
 checkDownloadsBeforeOpening();
 import { FILE_NOT_SENT, errorText, failedSending } from './unavailable.js';
+import { refocusComposer } from './refocus.js';
 
 const elements = {};
 let enhancementQueued = false;
@@ -82,7 +83,7 @@ async function submitAttachment(event) {
     }
   } finally {
     setBusy(false);
-    elements['dm-message-input'].focus();
+    refocusComposer(elements['dm-message-input'], elements['dm-send']);
   }
 }
 

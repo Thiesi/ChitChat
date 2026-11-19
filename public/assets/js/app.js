@@ -34,6 +34,7 @@ import { renderSeason } from './sign-in-season.js';
 import { renamedUser, renameInMessages, renameInPings } from './renames.js';
 import { startUsernameGate, stopUsernameGate } from './username-gate.js';
 import { autosize } from './autosize.js';
+import { refocusComposer } from './refocus.js';
 
 const registrationChallenge = createRegistrationChallenge();
 const guestChallenge = createRegistrationChallenge('/api/v1/guest/challenge.php');
@@ -1497,7 +1498,7 @@ async function submitMessage(event) {
     handleApiFailure(error, MESSAGE_NOT_SENT);
   } finally {
     elements['send-button'].disabled = false;
-    elements['composer-input'].focus();
+    refocusComposer(elements['composer-input'], elements['send-button']);
   }
 }
 
