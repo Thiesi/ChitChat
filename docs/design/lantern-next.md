@@ -216,6 +216,17 @@ For CCM: the one-colour mark is the monochrome launcher layer's geometry; the we
 
 For CCM: the Direct header's actions sit behind one "More" control; Activity rows are whole-row targets with a separate "mark read" control at the end.
 
+A note on Activity's rows (L6): the row's link is stretched over the whole row, so anything else that should take a click inside a notice (a second link in its words, say) must be raised above it the way the tick is (`position: relative; z-index: 1`). Today the server's notice text carries no links.
+
+## L7: You (#397)
+
+| What | Old | New | Reason |
+|---|---|---|---|
+| A section's title | Bricolage 400 at up to 42px | Display M (26px), 700; phones keep their smaller size | One page header: a title, not a poster. It matches the list's own title. |
+| Settings cards | A 24px corner, a line and the all-purpose shadow; headings at 21.6px | `--radius-sheet`, `--line-soft`, `--elev-1`; headings in Title type; `--space-4` between cards | The resting level. Cards recede; their contents lead. |
+| The colour scheme | A row of bare swatches with names; the chosen one ringed in persimmon with a bold name | Each scheme is a chip (44px tall): swatch and name. The chosen one has a full ring in ink, its name in bold and a tick on its swatch | Named radios as before; the choice is told by more than colour, and each is a proper target. |
+| In forced colours | The ring only | The chip's border in `Highlight`, the tick in `HighlightText` on `Highlight` | The choice stays visible. |
+
 ## Still to come
 
-L7 You · L8 stewardship · L9 overlays, status and motion · L10 handoff. Each adds its section here when it merges.
+L8 stewardship · L9 overlays, status and motion · L10 handoff. Each adds its section here when it merges.

@@ -340,6 +340,87 @@ test('announce new messages: All, Only messages to me, Off; saved on this device
   expect(await page.evaluate(() => localStorage.getItem('chitchat.announce'))).toBeNull();
 });
 
+// Lantern Next L7 (#397): the colour schemes are named radios in one group, and the chosen
+// one is told by more than colour: a full ring, its name in bold and a tick on its swatch.
+// In forced colours the ring and the tick take system colours.
+test('colour schemes are named radios; the chosen one has a ring, a bold name and a tick', async ({ page, browserName }) => {
+  await fixture(page);
+  for (const width of [1280, 320, 180]) {
+    // A fresh load each time: going to the same address again only changes the hash.
+    await page.goto('about:blank');
+    await open(page, width, '/account.php#appearance');
+    const group = page.locator('#account-shell').getByRole('radiogroup', { name: 'Colour scheme' });
+    await expect(group.getByRole('radio')).toHaveCount(7);
+    for (const name of ['Lantern', 'Lounge', 'Dusk', 'Ember', 'Rosé', 'Midnight, ChitChat web’s own', 'High contrast']) await expect(group.getByRole('radio', { name, exact: true })).toHaveCount(1);
+    const look = (name) => group.locator('.scheme-option', { has: page.getByRole('radio', { name, exact: true }) }).evaluate((option) => {
+      const style = getComputedStyle(option);
+      const swatch = option.querySelector('.scheme-swatch');
+      const tick = getComputedStyle(swatch, '::after');
+      const box = option.getBoundingClientRect();
+      return {
+        ring: style.boxShadow !== 'none', weight: Number(getComputedStyle(option.querySelector('.scheme-name')).fontWeight),
+        tick: tick.content !== 'none' && (tick.maskImage || tick.webkitMaskImage || '').includes('check.svg') && parseFloat(tick.width) >= 12,
+        tall: box.height >= 44, inWindow: box.left >= 0 && box.right <= innerWidth + 0.5,
+      };
+    });
+    await group.getByRole('radio', { name: 'Dusk', exact: true }).check();
+    await expect(page.locator('html')).toHaveAttribute('data-scheme', 'dusk');
+    expect(await look('Dusk'), `${width}`).toEqual({ ring: true, weight: 700, tick: true, tall: true, inWindow: true });
+    expect(await look('Ember'), `${width}`).toMatchObject({ ring: false, tick: false, tall: true, inWindow: true });
+    expect((await look('Ember')).weight).toBeLessThan(700);
+    // The arrow keys move the choice, as in any radio group.
+    await group.getByRole('radio', { name: 'Dusk', exact: true }).focus();
+    await page.keyboard.press('ArrowRight');
+    await expect(group.getByRole('radio', { name: 'Ember', exact: true })).toBeChecked();
+    expect(await look('Ember'), `${width}`).toMatchObject({ ring: true, weight: 700, tick: true });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${width}`).toBe(true);
+    await group.getByRole('radio', { name: 'Lantern', exact: true }).check();
+  }
+
+  if (browserName !== 'chromium') return;
+  await page.goto('about:blank');
+  await open(page, 1280, '/account.php#appearance');
+  await page.emulateMedia({ forcedColors: 'active' });
+  const forced = await page.locator('#account-shell .scheme-option:has(input:checked)').evaluate((option) => {
+    // A colour as the browser paints it, and a stack of colours painted one over the other.
+    const over = (...values) => {
+      const probe = document.createElement('canvas').getContext('2d', { willReadFrequently: true });
+      for (const value of values) { probe.fillStyle = 'rgba(0,0,0,0)'; probe.fillStyle = value; probe.fillRect(0, 0, 1, 1); }
+      return [...probe.getImageData(0, 0, 1, 1).data];
+    };
+    const swatch = option.querySelector('.scheme-swatch');
+    const badge = getComputedStyle(swatch, '::before');
+    const tick = getComputedStyle(swatch, '::after');
+    // What the system's own colours are here, read from a probe that opts out the same way.
+    const system = (keyword) => { const probe = document.createElement('span'); probe.style.cssText = 'forced-color-adjust: none; background-color: ' + keyword; document.body.append(probe); const value = getComputedStyle(probe).backgroundColor; probe.remove(); return value; };
+    // What the badge sits on: the chip's own background, or the nearest one behind it.
+    let ground = 'rgba(0, 0, 0, 0)';
+    for (let node = option; node && over(ground)[3] === 0; node = node.parentElement) ground = getComputedStyle(node).backgroundColor;
+    return {
+      border: parseFloat(getComputedStyle(option).borderTopWidth), adjust: tick.forcedColorAdjust, size: parseFloat(badge.width),
+      css: { badge: badge.backgroundColor, tick: tick.backgroundColor, highlight: system('Highlight'), highlightText: system('HighlightText'), ground },
+      badge: over(badge.backgroundColor), tick: over(tick.backgroundColor), highlight: over(system('Highlight')), highlightText: over(system('HighlightText')),
+      groundAlone: over(ground), badgeOnGround: over(ground, badge.backgroundColor), tickOnBadge: over(ground, badge.backgroundColor, tick.backgroundColor),
+    };
+  });
+  // Every failure below prints the colours as the browser reports them.
+  const seen = JSON.stringify(forced.css);
+  expect(forced.border, seen).toBeGreaterThanOrEqual(2);
+  expect(forced.adjust, seen).toBe('none');
+  expect(forced.size, seen).toBeGreaterThanOrEqual(12);
+  // The badge is the system's Highlight and the tick its HighlightText: a pair made to be read together.
+  expect(forced.badge, seen).toEqual(forced.highlight);
+  expect(forced.tick, seen).toEqual(forced.highlightText);
+  // And they can be seen: the badge is not transparent, it changes the pixel it is painted
+  // on, and the tick changes the pixel again.
+  expect(forced.badge[3], seen).toBeGreaterThan(0);
+  expect(forced.badgeOnGround, seen).not.toEqual(forced.groundAlone);
+  expect(forced.tickOnBadge, seen).not.toEqual(forced.badgeOnGround);
+  // For the record (PR #398): what this browser gives the system colours in forced colours.
+  test.info().annotations.push({ type: 'forced colours', description: seen });
+  console.log('forced colours on You:', seen);
+});
+
 test('settings copy is one line; the rest waits behind a named Learn more', async ({ page }) => {
   await fixture(page);
   await open(page, 1280, '/account.php#security');
