@@ -507,6 +507,8 @@ test('the rename dialog is a bottom sheet at 360 and passes axe there (S7)', asy
   await card.getByRole('button', { name: 'Rename', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Rename this passkey' });
   await expect(dialog.getByRole('textbox', { name: 'Name' })).toBeFocused();
+  // The sheet rises into place (Lantern Next L9): measure where it rests.
+  await page.waitForFunction(() => document.getAnimations().every((animation) => animation.playState !== 'running'));
   const box = await dialog.boundingBox();
   expect(Math.round(box.width)).toBe(360);
   expect(Math.abs(box.y + box.height - page.viewportSize().height)).toBeLessThanOrEqual(1);

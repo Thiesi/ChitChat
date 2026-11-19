@@ -179,11 +179,6 @@ function writeCache(key, value) {
 }
 
 /**
- * The bottom bar leaves while the on-screen keyboard is up, so the composer
- * keeps its room. CSS covers a focused text field; this covers keyboards that
- * stay open without one (the visual viewport shrinks well below the window).
- */
-/**
  * Toasts sit at the bottom, above whatever is fixed there: the composer in a
  * conversation, the bottom bar on phones (Lantern Next L9). CSS can't know
  * the composer's height (it grows with its text), so it is measured into
@@ -209,6 +204,11 @@ function watchToastClearance() {
   update();
 }
 
+/**
+ * The bottom bar leaves while the on-screen keyboard is up, so the composer
+ * keeps its room. CSS covers a focused text field; this covers keyboards that
+ * stay open without one (the visual viewport shrinks well below the window).
+ */
 function watchKeyboard() {
   const viewport = window.visualViewport;
   if (!viewport) return;

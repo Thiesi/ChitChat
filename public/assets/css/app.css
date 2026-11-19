@@ -1545,7 +1545,10 @@ button.user-name.mention { padding: 0 0.2rem; border-radius: 0.25rem; background
 }
 
 .toast :is(a, code) { color: inherit; }
+/* A command named in a toast keeps its chip, but on the toast's own colours: the page's code
+   chip is `raised`, which under a light theme's dark toast left light text on a light chip. */
 .toast code {
+  background: color-mix(in srgb, var(--on-toast) 16%, transparent);
   white-space: nowrap;
 }
 

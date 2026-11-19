@@ -139,7 +139,10 @@ for (const theme of ['light', 'dark']) {
       const plain = Object.assign(document.createElement('div'), { className: 'toast', textContent: 'Message edited.' });
       const error = Object.assign(document.createElement('div'), { className: 'toast error', textContent: 'Your edit wasn’t saved.' });
       error.setAttribute('role', 'alert');
-      region.append(plain, error);
+      // As app.js writes a toast that names a command: the command in <code>.
+      const command = Object.assign(document.createElement('div'), { className: 'toast' });
+      command.append('Type ', Object.assign(document.createElement('code'), { textContent: '/help' }), ' for the commands.');
+      region.append(plain, error, command);
     });
     const measure = (below) => page.evaluate((selector) => {
       const region = document.getElementById('toast-region');
@@ -160,7 +163,7 @@ for (const theme of ['light', 'dark']) {
       };
     }, below);
     const settled = () => page.waitForFunction(() => document.getAnimations().every((animation) => animation.playState !== 'running'));
-    const expected = { live: 'polite', role: null, regionEvents: 'none', inWindow: true, clear: true, lowHalf: true, takesClick: false, events: ['none', 'none'], page: true };
+    const expected = { live: 'polite', role: null, regionEvents: 'none', inWindow: true, clear: true, lowHalf: true, takesClick: false, events: ['none', 'none', 'none'], page: true };
 
     // Wide: in a conversation, above the composer.
     await openRoom(page);

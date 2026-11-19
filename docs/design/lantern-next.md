@@ -247,11 +247,13 @@ Unchanged on purpose: the steward accent on actions, links and focus (S6), the s
 | Where the toasts stop | Fixed 1rem from the top | `shell.js` measures what is fixed at the bottom (the composer, which grows with its text, or the bottom bar) into `--toast-clear` | They never cover the composer or the bar. |
 | Toasts and assistive technology | The region is polite; error toasts are alerts | Unchanged | #369, #372. |
 | Dialogs | A 24px corner, a line, the all-purpose shadow | `--radius-sheet`, `--line-soft`, `--elev-3` | The top level. |
-| How dialogs and sheets arrive | Dialogs appeared; phone sheets faded in from 60% | The backdrop dims in over 200ms; the box itself neither fades nor moves | A fading box is measured half-drawn by contrast tools (and is hard to read for a moment); a moving one is measured mid-flight by zoom tools. |
+| How dialogs and sheets arrive | Dialogs appeared; phone sheets faded in from 60% | A dialog settles 8px into place and a phone's sheet rises 24px from the bottom edge, over `--motion-base`, while the backdrop dims in over 200ms. The box never fades. With reduced motion nothing moves | A signature moment (owner decision). A fading box is hard to read for a moment and is measured half-drawn by contrast tools, so the box moves instead. |
 | A toast arriving | Appeared | Rises 12px over `--motion-base`, without fading | Readable from its first frame. |
 | Reduced motion | The motion tokens are cut in `tokens.css`; every other animation and transition is cut in `accessibility.css`, which the stewardship and status pages don't load | Both cuts are in `tokens.css`, which every page loads, with page-to-page view transitions included | No page is left out. |
 
-Not built: the page-to-page cross-fade (cross-document view transitions) that the direction planned for the frame. It changes how every page arrives, so it wants a slice and a review of its own rather than a late addition; the reduced-motion cut for it is already in place. Empty states beyond the empty room (L4) and the status pages keep their present look.
+A command named in a toast keeps its chip on the toast's own colours (a 16% mix of `--on-toast`), not the page's `raised` chip.
+
+Carried to L10 (#404): the page-to-page cross-fade (cross-document view transitions) that the direction planned for the frame, whose reduced-motion cut is already in place; and the remaining empty states and the status pages.
 
 ## Still to come
 
