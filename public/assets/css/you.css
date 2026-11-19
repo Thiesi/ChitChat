@@ -179,3 +179,65 @@ body[data-audience="guest"] .you-member-since { display: none; }
 @media (forced-colors: active) {
   .you-section-link[aria-current="page"] { border: 2px solid Highlight; }
 }
+
+/* ---- Lantern Next L7 (#397): settings as quiet sections on the scales ---- */
+
+/* A section's title is Display M: a page header, not a poster. */
+.you-section-title { font-weight: 700; letter-spacing: var(--title-tracking); line-height: var(--leading-tight); }
+/* (Phones keep their own, smaller size above.) */
+@media (min-width: 48rem) {
+  .you-section-title { font-size: var(--type-display-m); }
+}
+/* Cards sit at the resting elevation with the sheet corner and a soft edge; their headings
+   are Title type. */
+#account-shell .account-card {
+  gap: var(--space-4);
+  padding: clamp(1.1rem, 3vw, 1.5rem);
+  border-color: var(--line-soft);
+  border-radius: var(--radius-sheet);
+  box-shadow: var(--elev-1);
+}
+#account-shell .account-card + .account-card { margin-top: var(--space-4); }
+#account-shell .account-card h2 { font-family: var(--display-font); font-size: var(--type-title); font-weight: 700; letter-spacing: var(--title-tracking); line-height: var(--leading-tight); }
+#account-shell .account-details { border-color: var(--line-soft); border-radius: var(--radius-field); }
+
+/* The colour scheme is a set of named radios, each a chip: its swatch, then its name. The
+   chosen one is told by more than colour: a full ring in ink, its name in bold, and a tick
+   on its swatch. */
+#account-shell .scheme-picker { gap: var(--space-2); }
+#account-shell .scheme-option {
+  min-height: var(--target-min);
+  max-width: 100%;
+  padding: 0.3rem 0.85rem 0.3rem 0.5rem;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-pill);
+  overflow-wrap: anywhere;
+}
+#account-shell .scheme-option:hover { background: color-mix(in srgb, var(--text) 6%, transparent); }
+#account-shell .scheme-option:has(input:checked) { border-color: var(--text); background: var(--surface); box-shadow: inset 0 0 0 1px var(--text); }
+#account-shell .scheme-option:has(input:checked) .scheme-swatch { outline: none; }
+#account-shell .scheme-option:has(input:focus-visible) { outline: 2px solid var(--signature-text); outline-offset: 2px; }
+#account-shell .scheme-option:has(input:focus-visible) .scheme-swatch { outline: none; }
+#account-shell .scheme-swatch { position: relative; }
+#account-shell .scheme-option:has(input:checked) .scheme-swatch::before,
+#account-shell .scheme-option:has(input:checked) .scheme-swatch::after {
+  position: absolute;
+  inset-block-end: -0.35rem;
+  inset-inline-end: -0.4rem;
+  width: 0.95rem;
+  height: 0.95rem;
+  border-radius: 50%;
+  content: "";
+}
+#account-shell .scheme-option:has(input:checked) .scheme-swatch::before { background: var(--text); box-shadow: 0 0 0 1.5px var(--surface); }
+#account-shell .scheme-option:has(input:checked) .scheme-swatch::after {
+  background: var(--surface);
+  -webkit-mask: url("/assets/icons/check.svg") center / 0.7rem no-repeat;
+  mask: url("/assets/icons/check.svg") center / 0.7rem no-repeat;
+}
+@media (forced-colors: active) {
+  #account-shell .scheme-option { border-color: ButtonText; }
+  #account-shell .scheme-option:has(input:checked) { border: 2px solid Highlight; }
+  #account-shell .scheme-option:has(input:checked) .scheme-swatch::before { forced-color-adjust: none; background: Highlight; box-shadow: none; }
+  #account-shell .scheme-option:has(input:checked) .scheme-swatch::after { forced-color-adjust: none; background: HighlightText; }
+}
