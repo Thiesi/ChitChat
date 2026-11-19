@@ -1,6 +1,6 @@
 # Lantern Next: every brand-level change, for ChitChat Mobile
 
-Status: living record, updated in the slice that makes each change (tracking: #381). The reasoning behind the whole overhaul is in [lantern-next-direction.md](lantern-next-direction.md).
+Status: complete for the web's overhaul (slices L0 to L10, tracking: #381, finished 2026-11). Everything below is shipped on `main`. The reasoning behind the whole overhaul is in [lantern-next-direction.md](lantern-next-direction.md); the [handoff](#handoff-for-chitchat-mobile) at the end says what to adopt first, what the web did not build, and what is still open.
 
 **Who this is for.** ChitChat Mobile's own visual overhaul starts from this document, not from the Lantern values in its repository (`docs/design/overhaul-handoff.md` there, "First read"). For this run the owner suspended the paired-PR rule: the web leads, and CCM adopts later. Until then web and app differ on purpose.
 
@@ -267,6 +267,51 @@ Carried to L10 (#404): the page-to-page cross-fade (cross-document view transiti
 
 The drawing gives way on narrow screens (24rem and below), where the words need its room. In forced colours it is drawn in `CanvasText` without its glow.
 
-## Still to come
+## Handoff, for ChitChat Mobile
 
-The handoff. Each adds its section here when it merges.
+The web's overhaul is finished. This section is the short way in for CCM's own run.
+
+### What to adopt, in this order
+
+1. **The values and the scales (L0).** Three colour values changed (`ground` and `raised` in light, `outgoing` in dark); the type, radius, space, motion and elevation scales are new. Everything later is built from them. The conversation sits on `surface`, except in AMOLED black.
+2. **The controls (L1):** one button family, calmer fields with a 3:1 boundary, one badge, one avatar, room initials in place of "#".
+3. **The frame and the lists (L2, L3):** the installation's name above each list, Display M for top-level titles, the one selected-row mark (the lit fill and the short bar).
+4. **The conversation (L4):** times once per run with every message's time kept for assistive technology; the slim composer; the arriving message; the empty room's drawing.
+5. **The sign-in family and the mark family (L5).** See the mark family below.
+6. **Direct, Activity, Search, You, stewardship (L6 to L8):** one "More" control in Direct; whole-row notices with a separate "mark read" control; colour schemes as chips with a tick; the same quiet card everywhere.
+7. **Overlays and motion (L9, L10):** toasts at the bottom, clear of the composer; dialogs that settle and sheets that rise without fading; the drawing on every empty place.
+
+The lines marked "For CCM" in the sections above say how each of these translates. "Web only" marks what CCM need not mirror.
+
+### The mark family
+
+Approved by the owner on 2026-11-15 as the answer to #227; the full text and the rules are in [mark.md](mark.md). The geometry is CCM's own (`docs/design/app-mark.md` there) and did not change. Two files are new on the web:
+
+| Version | File | What it is | For CCM |
+|---|---|---|---|
+| **Paper** | `public/assets/app-icons/lantern-mark-paper.svg` | The primary mark on a paper tile: persimmon bubble and chit, ink eyes (`#14111C`), on `#F5F0E8`, the new light `ground`. Same 108-unit canvas and safe zone as the primary. For light documents and print. **Not** an installation icon preset | New to CCM. Its tile is the new light `ground` value, so it only matches a light screen once CCM has adopted L0's `ground`. Not a launcher icon. |
+| **One colour** | `public/assets/app-icons/lantern-mark-mono.svg` | The bubble with its eyes cut out, and the chit, in a single colour. Drawn in the text's colour wherever the mark signs ("on ChitChat", "Powered by ChitChat"); in forced colours it takes the system's text or link colour | CCM's monochrome launcher layer (`ic_launcher_monochrome.xml` at ChitChat Mobile `ed28929`); nothing new is asked of the app. |
+
+The primary mark, the small sizes, the lockup with the name, the renamed-installation lockup and the glow are unchanged or described in mark.md.
+
+### What holds the design in place
+
+- `tests/js/design-contrast.test.js`: every contrast figure in this document, in every scheme.
+- `tests/js/motion-tokens.test.js`: the motion tokens, the reduced-motion cut on every page, and where the page cross-fade is declared.
+- `tests/js/css-literals.test.js`: colour literals only in `tokens.css`. `tests/js/css-structure.test.js` checks the stylesheets' structure.
+- The mocked browser specs (`tests/e2e/presentation-*.spec.js`) hold the behaviour each section describes: names and roles, keyboard paths, forced colours, reflow to 180 CSS px, and axe at 1280 and 360.
+- Six screenshot baselines (Lantern dark, Chromium on Linux), regenerated only from CI's own images.
+
+### Planned but not built, and why
+
+- **Hash links for Administration's tabs.** Suggested for L8; not done. The tabs stay in-page.
+- **Three new glyphs** (chevron, plus, horizontal more) for `public/assets/icons/`. Not needed in the end: the existing `more.svg` and inline drawings served. Nothing to record for CCM.
+- **A full redesign of Search's header and notice.** L6 made the form a bar and the results rows; the header card and the notice above it keep their earlier look.
+
+### Open items
+
+- **#394: do a message's name-line actions open by tap on a real touch device?** Not settled. During L4 a tap on "More" failed to open the menu in Chromium's touch emulation, but that was in an experimental layout that moved the button between touch and click, and it was dropped. As shipped, touch reaches a message's actions through the sheet that a tap on the bubble opens, which is tested. Browser emulation can't settle the rest: **it needs a check on a real phone**, iOS Safari above all.
+- **One screenshot baseline is behind what ships.** `admin-rooms-desktop` was drawn before L8 restored the rose edge on the "Delete this room" card, so it shows that one card's edge soft where the page ships it rose. The difference is a one-pixel edge inside the comparison's allowance, so the comparison passes and CI, which draws an image only for a failing comparison, has had nothing to regenerate from. Left as it is by the technical lead's decision; the next slice that moves that baseline will pick it up.
+- **An axe sweep that did not finish locally.** L10's sweep over all 13 scheme and theme combinations was stopped when the machine ran short of memory, after Direct and most of the empty Activity (all clean). The empty Search and the not-found page were swept only in Lantern light and dark (clean). CI's axe runs passed. The colours involved are tokens swept in every scheme by earlier slices.
+- **`zzzzzzzzzzzz-replies-mentions` in WebKit** timed out in CI during L4 and L8 (#402); addressed by #405 (main's WebKit runs are being watched).
+- **The pictures.** Each slice's before-and-after pictures are on the pictures-only branch `pr-assets/lantern-next`, linked from the slices' pull requests at fixed commits. No single final capture set was taken at the end (the machine was short of memory); the per-slice sets are the record. The branch is never merged and is kept as the record, so those links keep working.

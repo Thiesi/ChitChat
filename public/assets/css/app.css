@@ -1803,7 +1803,7 @@ button.user-name.mention { padding: 0 0.2rem; border-radius: 0.25rem; background
    button, in the page's own face, not the display face of the words above it. */
 .activity-empty:not(.hidden) { justify-items: center; }
 .activity-empty:not(.hidden) p { font-weight: 700; }
-.activity-empty:not(.hidden) .secondary-button { min-height: var(--target-min); font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; letter-spacing: normal; }
+.activity-empty:not(.hidden) .secondary-button { min-height: var(--target-min); font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 1rem; letter-spacing: normal; }
 /* Where the words need the room (narrow phones, large text), the picture gives way. */
 @media (max-width: 24rem) {
   .dm-empty-state:not(.hidden),
