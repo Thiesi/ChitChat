@@ -125,6 +125,74 @@ async function startEditing(scope) {
   await expect(editBox(scope)).toBeFocused();
 }
 
+// Lantern Next L9 (#401): toasts sit at the bottom, above the composer or the phone's bottom
+// bar, and take no clicks. The region is polite; an error is told by its sign too. These
+// toasts are put into the page's own region by the test: what is checked is where the
+// stylesheet and the shell put them, in light and dark.
+for (const theme of ['light', 'dark']) {
+  test(`${theme}: toasts sit at the bottom, clear of the composer and the bar, and take no clicks`, async ({ page }) => {
+    await page.addInitScript((choice) => localStorage.setItem('chitchat-theme', choice), theme);
+    await fixture(page);
+    const show = () => page.evaluate(() => {
+      const region = document.getElementById('toast-region');
+      region.replaceChildren();
+      const plain = Object.assign(document.createElement('div'), { className: 'toast', textContent: 'Message edited.' });
+      const error = Object.assign(document.createElement('div'), { className: 'toast error', textContent: 'Your edit wasn’t saved.' });
+      error.setAttribute('role', 'alert');
+      region.append(plain, error);
+    });
+    const measure = (below) => page.evaluate((selector) => {
+      const region = document.getElementById('toast-region');
+      const toasts = [...region.querySelectorAll('.toast')].map((node) => {
+        const box = node.getBoundingClientRect();
+        const at = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+        return { left: box.left, right: box.right, bottom: box.bottom, top: box.top, takesClick: Boolean(at) && (at === node || node.contains(at)), events: getComputedStyle(node).pointerEvents };
+      });
+      const under = document.querySelector(selector).getBoundingClientRect();
+      const sign = getComputedStyle(region.querySelector('.toast.error'), '::before');
+      return {
+        live: region.getAttribute('aria-live'), role: region.getAttribute('role'), regionEvents: getComputedStyle(region).pointerEvents,
+        inWindow: toasts.every((toast) => toast.left >= 0 && toast.right <= innerWidth + 0.5 && toast.top >= 0),
+        clear: toasts.every((toast) => toast.bottom <= under.top + 0.5), lowHalf: toasts.every((toast) => toast.top > innerHeight / 2),
+        takesClick: toasts.some((toast) => toast.takesClick), events: toasts.map((toast) => toast.events),
+        sign: { mask: sign.maskImage || sign.webkitMaskImage || '', width: parseFloat(sign.width) },
+        page: document.documentElement.scrollWidth <= innerWidth,
+      };
+    }, below);
+    const settled = () => page.waitForFunction(() => document.getAnimations().every((animation) => animation.playState !== 'running'));
+    const expected = { live: 'polite', role: null, regionEvents: 'none', inWindow: true, clear: true, lowHalf: true, takesClick: false, events: ['none', 'none'], page: true };
+
+    // Wide: in a conversation, above the composer.
+    await openRoom(page);
+    await show();
+    await settled();
+    const wide = await measure('#composer-wrap');
+    expect(wide).toMatchObject(expected);
+    expect(wide.sign.mask).toContain('error.svg');
+    expect(wide.sign.width).toBeGreaterThan(8);
+    // What the toast covers still takes the click.
+    await page.mouse.move(0, 0);
+    const result = await new AxeBuilder({ page }).include('#toast-region').withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
+    expect(result.violations.map(({ id }) => id)).toEqual([]);
+
+    // Phone: on the list, above the bottom bar; in a conversation, above the composer.
+    await page.setViewportSize({ width: 360, height: 760 });
+    await page.goto('/');
+    await expect(page.locator('#app-nav')).toBeVisible();
+    await show();
+    await settled();
+    expect(await measure('#app-nav')).toMatchObject(expected);
+    await page.locator('#room-list .room-button').first().click();
+    await expect(page.locator('#composer-wrap')).toBeVisible();
+    await show();
+    await settled();
+    expect(await measure('#composer-wrap')).toMatchObject(expected);
+    // The composer grows; the toasts keep clear of it.
+    await page.locator('#composer-input').fill('one\ntwo\nthree\nfour\nfive');
+    await expect.poll(async () => (await measure('#composer-wrap')).clear).toBe(true);
+  });
+}
+
 test('room: Edit opens a text box in the bubble; Enter saves, and focus returns to Edit', async ({ page }) => {
   let native = 0;
   page.on('dialog', (dialog) => { native += 1; void dialog.dismiss(); });

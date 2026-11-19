@@ -63,11 +63,22 @@ select:focus {
 .room-dialog {
   width: min(32rem, calc(100vw - 2rem));
   padding: 0;
-  border: 1px solid var(--line);
-  border-radius: 1.5rem;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-sheet);
   background: var(--surface);
   color: var(--text);
-  box-shadow: var(--shadow);
+  box-shadow: var(--elev-3);
+}
+/* A dialog or a sheet arrives with its backdrop: the page behind dims over a moment (Lantern
+   Next L9). The box itself neither fades nor moves: a fading box is measured half-drawn by
+   contrast tools, and a moving one mid-flight by zoom tools. The time is written out because
+   ::backdrop does not inherit custom properties in every browser; the rule only exists where
+   motion is welcome. */
+@media (prefers-reduced-motion: no-preference) {
+  dialog:is(.room-dialog, .step-up-dialog)[open]::backdrop { animation: backdrop-in 200ms ease-out; }
+}
+@keyframes backdrop-in {
+  from { opacity: 0; }
 }
 
 .room-dialog::backdrop {
@@ -431,8 +442,8 @@ form:has(.attachment-selection > button:not(.hidden)) .attachment-button {
     overflow-y: auto;
     border-width: 1px 0 0;
     border-radius: 1.5rem 1.5rem 0 0;
-    /* A fade only: a moving box would be measured mid-flight (by people's zoom tools and by tests). */
-    animation: sheet-in 0.14s ease-out;
+    /* The sheet itself is still (Lantern Next L9): it used to fade in from 60%, and was
+       measured half-drawn by contrast checks. Its backdrop dims in instead (above). */
   }
 
   /* A title that fits a narrow sheet in two lines rather than four. */
@@ -458,7 +469,3 @@ form:has(.attachment-selection > button:not(.hidden)) .attachment-button {
   }
 }
 
-@keyframes sheet-in {
-  from { opacity: 0.6; }
-  to { opacity: 1; }
-}

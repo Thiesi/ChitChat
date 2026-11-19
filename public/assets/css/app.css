@@ -1513,36 +1513,69 @@ button.user-name.mention { padding: 0 0.2rem; border-radius: 0.25rem; background
 
 .composer-wrap > .reply-banner { max-width: 56rem; margin-inline: auto; }
 
+/* Toasts (Lantern Next L9) sit at the bottom, in the middle, above whatever is fixed there:
+   the composer or the phone's bottom bar (shell.js measures it into --toast-clear). They
+   are dark on light themes and raised on dark ones (--toast, --on-toast), at the floating
+   elevation. A toast has nothing to press, so it never takes a click: what lies under it
+   stays usable for its few seconds. The region stays polite; only an error toast is an
+   alert (the scripts set that), and an error is told by its sign as well as its edge. */
 .toast-region {
   position: fixed;
   z-index: 10;
-  top: 1rem;
-  right: 1rem;
+  inset-block-end: calc(var(--toast-clear, 0px) + 1rem + env(safe-area-inset-bottom, 0px));
+  inset-inline: 0;
   display: grid;
-  width: min(24rem, calc(100vw - 2rem));
-  gap: 0.6rem;
+  width: min(26rem, calc(100vw - 2rem));
+  margin-inline: auto;
+  justify-items: center;
+  gap: var(--space-2);
+  pointer-events: none;
 }
 
 .toast {
-  padding: 0.85rem 1rem;
-  border: 1px solid var(--line);
-  border-radius: 0.8rem;
-  background: var(--raised);
-  box-shadow: var(--shadow);
+  max-width: 100%;
+  padding: 0.7rem 1rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-field);
+  background: var(--toast);
+  color: var(--on-toast);
+  box-shadow: var(--elev-2);
+  overflow-wrap: anywhere;
+  pointer-events: none;
 }
 
+.toast :is(a, code) { color: inherit; }
 .toast code {
   white-space: nowrap;
 }
 
-.toast.error {
-  border-color: var(--error);
+/* An error: the warning sign before its words (a shape, not only a colour) and a rose edge. */
+.toast.error { border-color: var(--error); }
+.toast.error::before {
+  display: inline-block;
+  width: 1.05em;
+  height: 1.05em;
+  margin-inline-end: 0.45em;
+  background: currentColor;
+  vertical-align: -0.16em;
+  content: "";
+  -webkit-mask: url("/assets/icons/error.svg") center / contain no-repeat;
+  mask: url("/assets/icons/error.svg") center / contain no-repeat;
 }
 
-/* A level-1 notice (S8 C): "isn't available any more" is information, not an error, so it
-   keeps the neutral line and no colour of its own. It has nothing to press, so clicks pass
-   through it to the header controls it may cover for its few seconds. */
-.toast.notice { pointer-events: none; }
+/* A toast rises into place; it moves but never fades, so it is readable (and measurable)
+   from its first frame. */
+@media (prefers-reduced-motion: no-preference) {
+  .toast { animation: toast-in var(--motion-base) var(--ease-out); }
+}
+@keyframes toast-in {
+  from { transform: translateY(0.75rem); }
+}
+
+@media (forced-colors: active) {
+  .toast { border-color: CanvasText; }
+  .toast.error::before { forced-color-adjust: none; background: CanvasText; }
+}
 
 /* Too narrow for a third column: the members panel overlays the chat. */
 @media (max-width: 64rem) {
