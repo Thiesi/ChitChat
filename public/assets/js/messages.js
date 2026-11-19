@@ -23,6 +23,7 @@ import { startUsernameGate } from './username-gate.js';
 import { LONG_OUTAGE_NOTICE, RECOVERED_NOTICE, keepEventStream, sessionProbe } from './realtime-stream.js';
 import { createConnectionStatus } from './connection-status.js';
 import { autosize } from './autosize.js';
+import { refocusComposer } from './refocus.js';
 
 let transcriptKeys = null;
 const state = {
@@ -664,7 +665,7 @@ async function sendMessage(event) {
     handleApiFailure(error, MESSAGE_NOT_SENT);
   } finally {
     elements['dm-send'].disabled = false;
-    if (state.relationship?.messaging_available) elements['dm-message-input'].focus();
+    if (state.relationship?.messaging_available) refocusComposer(elements['dm-message-input'], elements['dm-send']);
   }
 }
 
