@@ -59,6 +59,12 @@ test('participants reply to and mention each other, with a working notification 
     await expect(rootPage.locator('#room-title')).toHaveText('# General E2E');
     await memberPage.locator('.room-button', { hasText: '# General E2E' }).click();
     await expect(memberPage.locator('#room-title')).toHaveText('# General E2E');
+    // Both rooms were already open, and choosing one again reloads it (#402). Wait for those
+    // loads to land before the next message arrives, so the transcript isn't redrawn under
+    // the pointer between the hover and Reply.
+    for (const viewer of [rootPage, memberPage]) {
+      await expect(viewer.locator('#message-list article.message').first()).toBeVisible();
+    }
 
     await rootPage.locator('#composer-input').fill(originalText);
     await rootPage.locator('#composer-input').press('Enter');
