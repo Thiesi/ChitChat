@@ -111,6 +111,55 @@ test('actions take the steward accent; destructive ones stay rose', async ({ pag
 
 // ---- Users ----
 
+// Lantern Next L8 (#399): cards lose their hard line and inner rows their boxes. What takes
+// the line's place still has an edge: a soft one normally, and the system's own in forced
+// colours, for cards, the rules between rows and the tabs' track alike.
+test('quiet cards and rows keep an edge, and a system-colour edge in forced colours', async ({ page, browserName }) => {
+  await fixture(page);
+  await open(page);
+  await page.locator('#admin-tabs').getByRole('button', { name: 'Rooms' }).click();
+  // Wait for a row that follows another: the rule between rows is what is read below.
+  await expect(page.locator('.admin-card .admin-list-item + .admin-list-item').first()).toBeVisible();
+  const edges = () => page.evaluate(() => {
+    const paint = (value) => { const probe = document.createElement('canvas').getContext('2d'); probe.fillStyle = 'rgba(0,0,0,0)'; probe.fillStyle = value; probe.fillRect(0, 0, 1, 1); return [...probe.getImageData(0, 0, 1, 1).data].join(','); };
+    const system = (keyword) => { const probe = document.createElement('span'); probe.style.cssText = 'forced-color-adjust: none; color: ' + keyword; document.body.append(probe); const value = paint(getComputedStyle(probe).color); probe.remove(); return value; };
+    const card = getComputedStyle(document.querySelector('.admin-card:not(.danger-card):not(.lockdown-card)'));
+    const rows = [...document.querySelectorAll('.admin-card .admin-list-item')];
+    const second = rows.find((row) => row.previousElementSibling?.classList.contains('admin-list-item'));
+    const row = getComputedStyle(second);
+    const tabs = getComputedStyle(document.getElementById('admin-tabs'));
+    return {
+      card: { width: parseFloat(card.borderTopWidth), colour: paint(card.borderTopColor) },
+      row: { width: parseFloat(row.borderTopWidth), colour: paint(row.borderTopColor), sides: parseFloat(row.borderLeftWidth) + parseFloat(row.borderRightWidth) + parseFloat(row.borderBottomWidth) },
+      tabs: { width: parseFloat(tabs.borderTopWidth), colour: paint(tabs.borderTopColor) },
+      danger: paint(getComputedStyle(document.querySelector('.admin-card.danger-card')).borderTopColor),
+      canvasText: system('CanvasText'),
+    };
+  });
+  const plain = await edges();
+  // A card has a visible edge; a row inside it has a rule above it and no box.
+  expect(plain.card.width).toBeGreaterThanOrEqual(1);
+  expect(plain.card.colour.endsWith(',0')).toBe(false);
+  expect(plain.row.width).toBeGreaterThanOrEqual(1);
+  expect(plain.row.colour.endsWith(',0')).toBe(false);
+  expect(plain.row.sides).toBe(0);
+  // The card that holds a destructive action keeps its own (rose) edge, not the soft one.
+  expect(plain.danger).not.toBe(plain.card.colour);
+  expect(plain.danger.endsWith(',0')).toBe(false);
+
+  test.skip(browserName !== 'chromium', 'Forced colours are emulated in Chromium.');
+  await page.emulateMedia({ forcedColors: 'active' });
+  // Buttons ease their border colour (160ms): read once the change of mode has settled.
+  await page.waitForFunction(() => document.getAnimations().every((animation) => animation.playState !== 'running'));
+  const forced = await edges();
+  const seen = JSON.stringify(forced);
+  for (const part of ['card', 'row', 'tabs']) {
+    expect(forced[part].width, `${part} ${seen}`).toBeGreaterThanOrEqual(1);
+    expect(forced[part].colour, `${part} ${seen}`).toBe(forced.canvasText);
+    expect(forced[part].colour.endsWith(',0'), `${part} ${seen}`).toBe(false);
+  }
+});
+
 test('Sign out everywhere, Ban and Reset password ask in the styled dialog; Cancel posts nothing', async ({ page }) => {
   const requests = await fixture(page);
   let native = 0;

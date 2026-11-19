@@ -51,3 +51,62 @@ body:has(> .app-frame[data-tab="stewarding"]) .inspection-user-button:hover { bo
 .steward-notice p { margin: 0; }
 
 .steward-notice h2 { font-size: 1rem; }
+
+/* ---- Lantern Next L8 (#399): quiet cards and rows inside the Dusk frame ---- */
+
+/* Cards recede: the sheet corner, a soft edge and the resting elevation, on every
+   stewardship page alike. The steward accent, the notices and the rose of destructive
+   actions are untouched. */
+body:has(> .app-frame[data-tab="stewarding"]) :is(.admin-card, .admin-empty, .audit-entry, .moderation-header, .moderation-notice, .moderation-queue, .moderation-detail, .status-card, .revision-review-form, .revision-review-context, .revision-card, .inspection-form) {
+  border-color: var(--line-soft);
+  border-radius: var(--radius-sheet);
+  box-shadow: var(--elev-1);
+}
+/* A card that holds a destructive action keeps its rose edge, and the lockdown card its
+   warning edge (admin.css): the soft edge above must not wash them out. */
+body:has(> .app-frame[data-tab="stewarding"]) .lockdown-card { border-color: color-mix(in srgb, var(--unsure-line) 45%, var(--line)); }
+body:has(> .app-frame[data-tab="stewarding"]) .admin-card.danger-card { border-color: color-mix(in srgb, var(--error) 45%, var(--line)); }
+/* Rows inside a card are rows, not boxes within boxes: a soft rule between them. */
+body:has(> .app-frame[data-tab="stewarding"]) .admin-card .admin-list-item {
+  padding: var(--space-3) 0;
+  border: 0;
+  border-block-start: 1px solid var(--line-soft);
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+body:has(> .app-frame[data-tab="stewarding"]) .admin-card .admin-list-item:first-child { border-block-start: 0; padding-block-start: 0; }
+/* Small labels above a title are Label type in sentence case, as in the lists (L3). */
+body:has(> .app-frame[data-tab="stewarding"]) :is(.admin-eyebrow, .moderation-eyebrow, .messages-eyebrow, .moderation-person-evidence h3) { font-size: var(--type-label); font-weight: 600; letter-spacing: 0; text-transform: none; }
+/* The page's tabs sit on a quiet track; the chosen one keeps its steward edge. */
+body:has(> .app-frame[data-tab="stewarding"]) .admin-tabs { border-color: transparent; border-radius: var(--radius-field); background: var(--raised); }
+/* Cases in the queue are rows with the field corner; the open one keeps its steward edge. */
+body:has(> .app-frame[data-tab="stewarding"]) .moderation-case-button:not(.active) { border-color: var(--line-soft); }
+body:has(> .app-frame[data-tab="stewarding"]) .moderation-case-button { border-radius: var(--radius-field); }
+.steward-notice { border-radius: var(--radius-field); }
+/* The open case is told by more than its colour (WCAG 1.4.1): the short bar at its start,
+   the same mark the lists use for the selected row (L3), with its steward edge and wash. */
+body:has(> .app-frame[data-tab="stewarding"]) .moderation-case-button { position: relative; }
+body:has(> .app-frame[data-tab="stewarding"]) .moderation-case-button.active::before {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-start: 0.3rem;
+  width: 3px;
+  height: 1.375rem;
+  border-radius: 2px;
+  background: var(--steward);
+  transform: translateY(-50%);
+  content: "";
+}
+@media (forced-colors: active) {
+  /* The steward edge becomes ButtonText like every other case's, so the open one takes
+     the system's Highlight, thicker, and its bar too. */
+  body:has(> .app-frame[data-tab="stewarding"]) .moderation-case-button.active { border: 2px solid Highlight; }
+  body:has(> .app-frame[data-tab="stewarding"]) .moderation-case-button.active::before { forced-color-adjust: none; background: Highlight; }
+}
+@media (forced-colors: active) {
+  body:has(> .app-frame[data-tab="stewarding"]) :is(.admin-card, .admin-empty, .audit-entry, .moderation-header, .moderation-notice, .moderation-queue, .moderation-detail, .status-card, .revision-review-form, .revision-review-context, .revision-card, .inspection-form) { border-color: CanvasText; }
+  body:has(> .app-frame[data-tab="stewarding"]) .admin-card .admin-list-item { border-block-start-color: CanvasText; }
+  body:has(> .app-frame[data-tab="stewarding"]) .admin-tabs { border-color: CanvasText; }
+  body:has(> .app-frame[data-tab="stewarding"]) .moderation-case-button:not(.active) { border-color: ButtonText; }
+}
