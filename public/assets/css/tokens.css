@@ -470,6 +470,22 @@
     --motion-base: 0.01ms;
     --motion-slow: 0.01ms;
   }
+  /* And whatever is timed with a literal instead (older rules), on every page too (Lantern
+     Next L9): accessibility.css says the same, but the stewardship and status pages don't
+     load it. Page-to-page view transitions are cut the same way, should a page use them. */
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation-duration: 0.01ms !important;
+  }
 }
 
 /* Scheme picker swatches: each shows its scheme's action colour on its dark ground. */

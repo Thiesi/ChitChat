@@ -63,11 +63,30 @@ select:focus {
 .room-dialog {
   width: min(32rem, calc(100vw - 2rem));
   padding: 0;
-  border: 1px solid var(--line);
-  border-radius: 1.5rem;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-sheet);
   background: var(--surface);
   color: var(--text);
-  box-shadow: var(--shadow);
+  box-shadow: var(--elev-3);
+}
+/* How a dialog arrives (Lantern Next L9; a signature moment): it settles a little into place
+   while the page behind dims. A phone's sheet rises from the bottom edge instead (below). The
+   box moves but never fades: a fading box is hard to read for a moment and is measured
+   half-drawn by contrast tools. All of it only where motion is welcome; with reduced motion
+   nothing moves. The backdrop's time is written out because ::backdrop does not inherit
+   custom properties in every browser. */
+@media (prefers-reduced-motion: no-preference) {
+  dialog:is(.room-dialog, .step-up-dialog)[open] { animation: dialog-in var(--motion-base) var(--ease-out); }
+  dialog:is(.room-dialog, .step-up-dialog)[open]::backdrop { animation: backdrop-in 200ms ease-out; }
+}
+@keyframes dialog-in {
+  from { transform: translateY(0.5rem); }
+}
+@keyframes sheet-in {
+  from { transform: translateY(1.5rem); }
+}
+@keyframes backdrop-in {
+  from { opacity: 0; }
 }
 
 .room-dialog::backdrop {
@@ -431,8 +450,10 @@ form:has(.attachment-selection > button:not(.hidden)) .attachment-button {
     overflow-y: auto;
     border-width: 1px 0 0;
     border-radius: 1.5rem 1.5rem 0 0;
-    /* A fade only: a moving box would be measured mid-flight (by people's zoom tools and by tests). */
-    animation: sheet-in 0.14s ease-out;
+    /* The sheet rises from the edge it belongs to (Lantern Next L9). It used to fade in from
+       60% and was measured half-drawn by contrast checks; it no longer fades. The timing
+       comes from the dialog rule above, so with reduced motion it is still. */
+    animation-name: sheet-in;
   }
 
   /* A title that fits a narrow sheet in two lines rather than four. */
@@ -458,7 +479,3 @@ form:has(.attachment-selection > button:not(.hidden)) .attachment-button {
   }
 }
 
-@keyframes sheet-in {
-  from { opacity: 0.6; }
-  to { opacity: 1; }
-}

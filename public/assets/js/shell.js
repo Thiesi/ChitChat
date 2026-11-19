@@ -27,6 +27,7 @@ if (frame && nav) {
   // Signing in, out or starting a guest visit happens in place on the Rooms page.
   window.addEventListener('chitchat:session-changed', () => { void start(); });
   watchKeyboard();
+  watchToastClearance();
   void start();
 }
 
@@ -175,6 +176,32 @@ function writeCache(key, value) {
   } catch {
     // Without storage the room list is asked again on the next page.
   }
+}
+
+/**
+ * Toasts sit at the bottom, above whatever is fixed there: the composer in a
+ * conversation, the bottom bar on phones (Lantern Next L9). CSS can't know
+ * the composer's height (it grows with its text), so it is measured into
+ * --toast-clear, which app.css adds to the toast region's offset.
+ */
+function watchToastClearance() {
+  const candidates = () => [nav, document.getElementById('composer-wrap'), document.getElementById('dm-composer')].filter(Boolean);
+  const update = () => {
+    let clear = 0;
+    for (const node of candidates()) {
+      const box = node.getBoundingClientRect();
+      // Only what is shown and sits at the bottom of the window (the stage has a margin under it).
+      if (box.width === 0 || box.height === 0 || box.bottom < window.innerHeight * 0.8 || box.height > window.innerHeight * 0.6) continue;
+      clear = Math.max(clear, window.innerHeight - box.top);
+    }
+    document.documentElement.style.setProperty('--toast-clear', `${Math.round(clear)}px`);
+  };
+  if ('ResizeObserver' in window) {
+    const observer = new ResizeObserver(update);
+    for (const node of candidates()) observer.observe(node);
+  }
+  window.addEventListener('resize', update);
+  update();
 }
 
 /**

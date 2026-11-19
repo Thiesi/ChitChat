@@ -160,6 +160,36 @@ test('quiet cards and rows keep an edge, and a system-colour edge in forced colo
   }
 });
 
+// Lantern Next L9 (#401): reduced motion holds on the stewardship pages too, which don't load
+// accessibility.css. Every transition and animation a control has is 0.001s or less, and
+// opening a dialog runs none.
+test('reduced motion: no transition or animation longer than 0.001s, also when a dialog opens', async ({ browser }) => {
+  const context = await browser.newContext({ reducedMotion: 'reduce', viewport: { width: 1280, height: 860 } });
+  const page = await context.newPage();
+  await fixture(page);
+  await open(page);
+  await page.locator('#admin-tabs').getByRole('button', { name: 'Rooms' }).click();
+  await expect(page.locator('#room-delete')).toBeVisible();
+  const longest = () => page.evaluate(() => {
+    const seconds = (list) => Math.max(0, ...list.split(',').map((value) => (value.trim().endsWith('ms') ? parseFloat(value) / 1000 : parseFloat(value))));
+    let worst = 0;
+    for (const node of document.querySelectorAll('button, a, input, select, textarea, dialog, .admin-card, .toast')) {
+      for (const pseudo of [null, '::before', '::after']) {
+        const style = getComputedStyle(node, pseudo);
+        worst = Math.max(worst, seconds(style.transitionDuration), style.animationName === 'none' ? 0 : seconds(style.animationDuration));
+      }
+    }
+    return worst;
+  });
+  expect(await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches)).toBe(true);
+  expect(await longest()).toBeLessThanOrEqual(0.001);
+  await page.locator('#room-delete').click();
+  await expect(page.getByRole('dialog', { name: 'Delete #Garden?' })).toBeVisible();
+  expect(await longest()).toBeLessThanOrEqual(0.001);
+  expect(await page.evaluate(() => document.getAnimations().filter((animation) => animation.playState === 'running').length)).toBe(0);
+  await context.close();
+});
+
 test('Sign out everywhere, Ban and Reset password ask in the styled dialog; Cancel posts nothing', async ({ page }) => {
   const requests = await fixture(page);
   let native = 0;
