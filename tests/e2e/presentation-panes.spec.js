@@ -518,6 +518,27 @@ test('on the Direct page the rail\'s Direct badge follows a new message and read
   await expect(direct().locator('[data-badge="direct"]')).toBeHidden();
 });
 
+// Lantern Next L10 (#404): a conversation with nothing in it yet has the empty room's drawing
+// and says what to do next, in the display face. The words are the element's own text.
+test('an empty Direct conversation has the drawing and its next step', async ({ page }) => {
+  await fixture(page);
+  await page.route('**/api/v1/direct-messages/history.php?**', (route) => route.fulfill({ json: { messages: [], has_more: false } }));
+  await page.setViewportSize({ width: 1280, height: 860 });
+  await page.goto('/messages.php?with=2');
+  await expect(page.locator('#dm-peer-name')).toHaveText('Rowan');
+  const empty = page.locator('#dm-empty-state');
+  await expect(empty).toBeVisible();
+  await expect(empty).not.toHaveText('');
+  const look = await empty.evaluate((node) => {
+    const before = getComputedStyle(node, '::before');
+    const style = getComputedStyle(node);
+    return { drawn: before.content !== 'none' && before.display !== 'none' && parseFloat(before.width) > 40, centred: style.textAlign === 'center', display: style.fontFamily.includes('Bricolage'), size: parseFloat(style.fontSize) };
+  });
+  expect(look).toMatchObject({ drawn: true, centred: true, display: true });
+  expect(look.size).toBeGreaterThanOrEqual(24);
+  await axe(page, 'empty Direct conversation');
+});
+
 // ---- The Direct header on phones (J-read finding, 2026-11-12) ----
 
 test('phones: the Direct header stays one row, with Report and Block behind "More actions"', async ({ page }) => {

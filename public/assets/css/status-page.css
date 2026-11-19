@@ -62,3 +62,48 @@
   .status-page-body { padding: 0.75rem 0.5rem; }
   .status-page { padding: 1.25rem 1rem; border-radius: 1.1rem; }
 }
+
+/* ---- Lantern Next L10 (#404): the same care as the rest ---- */
+
+/* Stylesheet only: the page's markup, its lack of script and its small footprint (#344, #348)
+   are untouched. The card takes the sheet corner, a soft edge and the floating elevation; the
+   installation's name is a Label in sentence case; the heading is in the display face's
+   bold. Above it, the empty bubble with its chit: nothing here, said in Lantern's shapes. */
+.status-page {
+  position: relative;
+  border-color: var(--line-soft);
+  border-radius: var(--radius-sheet);
+  box-shadow: var(--elev-2);
+}
+.status-page::before,
+.status-page::after { display: block; content: ""; }
+.status-page::before {
+  width: 4.5rem;
+  height: 3rem;
+  margin: 0.25rem 0 1.5rem;
+  border: 2px dashed var(--field-line);
+  border-radius: var(--radius-bubble);
+  background: var(--stage);
+  box-shadow: 0 0 2.25rem 1.1rem color-mix(in srgb, var(--presence) 22%, transparent);
+}
+.status-page::after {
+  position: absolute;
+  inset-block-start: calc(2rem + 0.25rem + 3rem + 0.2rem);
+  inset-inline-start: calc(1.75rem - 0.15rem);
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: var(--signature);
+}
+.status-page-eyebrow { font-size: var(--type-label); font-weight: 600; letter-spacing: 0; text-transform: none; }
+.status-page h1 { font-weight: 700; letter-spacing: var(--title-tracking); }
+@media (max-width: 24rem) {
+  .status-page { border-radius: var(--radius-field); }
+  .status-page::before,
+  .status-page::after { display: none; }
+}
+@media (forced-colors: active) {
+  .status-page { border-color: CanvasText; }
+  .status-page::before { border-color: CanvasText; box-shadow: none; }
+  .status-page::after { forced-color-adjust: none; background: CanvasText; }
+}

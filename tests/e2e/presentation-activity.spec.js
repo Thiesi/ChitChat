@@ -235,6 +235,14 @@ test('an empty feed: "You’re all caught up," with a way back to Rooms', async 
   await fixture(page, { feed: [] });
   await open(page);
   await expect(page.getByText('You’re all caught up.')).toBeVisible();
+  // Lantern Next L10 (#404): the empty feed has the empty room's drawing above its words,
+  // and its way back is still a link in the page's own face.
+  const empty = await page.locator('#privacy-notifications-empty').evaluate((node) => {
+    const before = getComputedStyle(node, '::before');
+    const link = node.querySelector('a');
+    return { drawn: before.content !== 'none' && before.display !== 'none' && parseFloat(before.width) > 40, centred: getComputedStyle(node).textAlign === 'center', linkFace: getComputedStyle(link).fontFamily === getComputedStyle(document.body).fontFamily, linkTall: link.getBoundingClientRect().height >= 44 };
+  });
+  expect(empty).toEqual({ drawn: true, centred: true, linkFace: true, linkTall: true });
   await expect(page.getByRole('link', { name: 'Back to Rooms' })).toHaveAttribute('href', '/');
 });
 

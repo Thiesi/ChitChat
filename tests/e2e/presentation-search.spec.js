@@ -76,6 +76,33 @@ async function axe(page, label) {
   expect(result.violations, `${label}: ${result.violations.map((violation) => `${violation.id} ${violation.nodes.map((node) => node.target).join(' ')}`).join('; ')}`).toEqual([]);
 }
 
+// Lantern Next L10 (#404): with nothing to show, the status line is the page's empty state,
+// with the empty room's drawing above it. It is the same element with the same role; once
+// there are results it is a plain status line again.
+test('with nothing to show, the status line is an empty state with the drawing; with results it is plain', async ({ page }) => {
+  await fixture(page);
+  await open(page);
+  const status = page.locator('#message-search-status');
+  const look = () => status.evaluate((node) => {
+    const before = getComputedStyle(node, '::before');
+    const style = getComputedStyle(node);
+    return { drawn: before.content !== 'none' && before.display !== 'none' && parseFloat(before.width) > 40, centred: style.textAlign === 'center', role: node.getAttribute('role'), live: node.getAttribute('aria-live') };
+  });
+  await expect(status).toHaveText('Enter at least two characters to search.');
+  expect(await look()).toEqual({ drawn: true, centred: true, role: 'status', live: 'polite' });
+  await axe(page, 'empty search');
+  await search(page, 'garden');
+  await expect(results(page).first()).toBeVisible();
+  expect(await look()).toEqual({ drawn: false, centred: false, role: 'status', live: 'polite' });
+  // Narrow: the words have the room; the picture gives way and nothing sticks out.
+  for (const width of [320, 180]) {
+    await open(page, width);
+    await expect(status).toBeVisible();
+    expect((await look()).drawn, `${width}`).toBe(false);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${width}`).toBe(true);
+  }
+});
+
 test('result rows: the mark, the place as the link to the message, the time, the sender', async ({ page }) => {
   await fixture(page);
   await open(page);
