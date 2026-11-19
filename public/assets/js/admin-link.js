@@ -52,7 +52,17 @@ window.addEventListener('DOMContentLoaded', () => {
   };
 
   window.addEventListener('chitchat:session-changed', schedule);
-  new MutationObserver(schedule).observe(shell, { attributes: true, attributeFilter: ['class'] });
+  // Only signing in or out (the shell shown or hidden) can change the setting's answer. The
+  // shell's layout classes change on every resize across a breakpoint (panes.js rewrites
+  // list-open even when it's absent), and each refetch could be cut off by leaving the page,
+  // which WebKit reports as an error (#367).
+  let shellHidden = shell.classList.contains('hidden');
+  new MutationObserver(() => {
+    const hidden = shell.classList.contains('hidden');
+    if (hidden === shellHidden) return;
+    shellHidden = hidden;
+    schedule();
+  }).observe(shell, { attributes: true, attributeFilter: ['class'] });
   new MutationObserver(schedule).observe(currentUser, { childList: true, subtree: true });
   schedule();
 });
