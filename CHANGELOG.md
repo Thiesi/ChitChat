@@ -6,6 +6,22 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ## [Unreleased]
 
+## [3.15.0] - 2026-11-19
+
+Lantern Next, the web client's visual overhaul (L0 to L10), and five fixes. No database migrations, no configuration changes, no API changes, and nobody is signed out. See the [`v3.15.0` release notes](docs/releases/v3.15.0.md).
+
+- Lantern Next (#381): deeper light paper and a conversation "stage" (#383); one button family, one focus ring on fields, one badge size, one avatar, room initials (#385); a quiet icon-only rail, the installation name heading every list, one page header (#390); one lit selected row, sentence-case labels (#391); a run's time shown once with every message's exact time kept, actions that take no room until hovered or focused, a slimmer composer, arriving messages rising into place, the empty room (#392); the sign-in hero, a segmented Sign in / Register, one main button on the second step, the one-colour mark in "on ChitChat" and "Powered by ChitChat" (#395, #227); one "More actions" menu in Direct, Activity notices as rows, a quiet search bar (#396); You's sections and scheme chips with a tick (#398); quiet cards and rows on the stewardship pages (#400); toasts at the bottom, settling dialogs and rising sheets, reduced motion on every page (#403); the other empty places, the status pages, a page-to-page cross-fade (#406); `docs/design/lantern-next.md` as the handoff for ChitChat Mobile (#407).
+
+- A late send or upload no longer pulls keyboard focus back to the message box, in Rooms and Direct (#322, #408).
+
+- Choosing a room again supersedes a load still in flight, so the room is drawn once (#402, #405).
+
+- Resizing no longer refetches the session; the Register tab asks again only on signing in or out (#367, #409).
+
+- Forced colours: the ordinary unread counts keep a border, and the current tab and unread badges are tested and claimed (#378, #380).
+
+- The accessibility feedback hint wraps as one piece on phones (#377, #379).
+
 ## [3.14.0] - 2026-11-14
 
 Privacy fixes for direct messages and room links, a configurable "Report an accessibility problem" link, polite screen-reader notices, clear notices for gone rooms and files, lock-manager waits on System status, and web polish. One forward-only migration (`0061`), so back up before upgrading. **Contract change** for callers outside a direct message (two error codes), plus additive API changes. No configuration changes, and nobody is signed out. See the [`v3.14.0` release notes](docs/releases/v3.14.0.md).
