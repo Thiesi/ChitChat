@@ -132,6 +132,11 @@ http {
         location ~ /\\. {
             deny all;
         }
+
+        location ~ ^/assets/(css|js)/ {
+            add_header Cache-Control "no-cache";
+            try_files \$uri /index.php?\$query_string;
+        }
     }
 }
 EOF
