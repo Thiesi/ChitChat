@@ -17,7 +17,8 @@ async function selectDirectMessagePeer(page, username) {
   await page.getByRole('button', { name: 'Search', exact: true }).click();
   await page.locator('.dm-user-button', { hasText: username }).click();
   await expect(page.locator('#dm-peer-name')).toHaveText(username);
-  await expect(page.locator('#dm-block-toggle')).toBeVisible();
+  // Lantern Next L6 (#393): Report and Block open from "More actions" at every width.
+  await expect(page.locator('#dm-more-toggle')).toBeVisible();
 }
 
 async function login(page, account) {

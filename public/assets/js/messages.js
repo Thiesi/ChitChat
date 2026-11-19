@@ -296,6 +296,7 @@ function renderRelationship() {
   // The menu's items say who they act on, in their own text (Lantern Next L6): "Report
   // Rowan…" opens a dialog, hence the ellipsis; Block and Unblock act at once.
   if (user) elements['dm-report-person'].textContent = `Report ${user.username}…`;
+  document.getElementById('dm-more-toggle')?.setAttribute('aria-label', user ? `More actions for ${user.username}` : 'More actions');
   if (!user || !relationship) {
     elements['dm-block-toggle'].classList.add('hidden');
     elements['dm-composer'].classList.add('hidden');

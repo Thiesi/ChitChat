@@ -34,7 +34,8 @@ async function selectDirectMessagePeer(page, username) {
   await page.getByRole('button', { name: 'Search', exact: true }).click();
   await page.locator('.dm-user-button', { hasText: username }).click();
   await expect(page.locator('#dm-peer-name')).toHaveText(username);
-  await expect(page.locator('#dm-block-toggle')).toBeVisible();
+  // Lantern Next L6 (#393): Report and Block open from "More actions" at every width.
+  await expect(page.locator('#dm-more-toggle')).toBeVisible();
 }
 
 // S6b (#172): saving can first ask one styled question (guest access off, nonzero retention,
@@ -252,8 +253,10 @@ test.describe.serial('ChitChat browser release checks', () => {
       await expect(memberMessages.locator('.dm-message-body', { hasText: privateReply })).toBeVisible();
 
       memberBlockedAdminId = (await (await adminContext.request.get('/api/v1/session.php')).json()).user.id;
+      await memberMessages.locator('#dm-more-toggle').click();
       await memberMessages.locator('#dm-block-toggle').click();
-      await expect(memberMessages.locator('#dm-block-toggle')).toHaveText('Unblock user');
+      // The item names the person it acts on (L6): "Block <name>", then "Unblock <name>".
+      await expect(memberMessages.locator('#dm-block-toggle')).toHaveText(/^Unblock \S/);
       await expect(memberMessages.locator('#dm-peer-status')).toContainText('You blocked this user');
       await expect(memberMessages.locator('#dm-composer')).toBeHidden();
       await expect(memberMessages.locator('.dm-message-body', { hasText: privateReply })).toBeVisible();
@@ -265,8 +268,9 @@ test.describe.serial('ChitChat browser release checks', () => {
       await expect(adminMessages.locator('#dm-composer')).toBeHidden();
       await expect(memberMessages.locator('.dm-message-body', { hasText: blockedText })).toHaveCount(0);
 
+      await memberMessages.locator('#dm-more-toggle').click();
       await memberMessages.locator('#dm-block-toggle').click();
-      await expect(memberMessages.locator('#dm-block-toggle')).toHaveText('Block user');
+      await expect(memberMessages.locator('#dm-block-toggle')).toHaveText(/^Block \S/);
       await expect(memberMessages.locator('#dm-composer')).toBeVisible();
       memberBlockedAdminId = null;
 
