@@ -80,6 +80,26 @@ body:has(> .app-frame[data-tab="stewarding"]) .admin-tabs { border-color: transp
 body:has(> .app-frame[data-tab="stewarding"]) .moderation-case-button:not(.active) { border-color: var(--line-soft); }
 body:has(> .app-frame[data-tab="stewarding"]) .moderation-case-button { border-radius: var(--radius-field); }
 .steward-notice { border-radius: var(--radius-field); }
+/* The open case is told by more than its colour (WCAG 1.4.1): the short bar at its start,
+   the same mark the lists use for the selected row (L3), with its steward edge and wash. */
+body:has(> .app-frame[data-tab="stewarding"]) .moderation-case-button { position: relative; }
+body:has(> .app-frame[data-tab="stewarding"]) .moderation-case-button.active::before {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-start: 0.3rem;
+  width: 3px;
+  height: 1.375rem;
+  border-radius: 2px;
+  background: var(--steward);
+  transform: translateY(-50%);
+  content: "";
+}
+@media (forced-colors: active) {
+  /* The steward edge becomes ButtonText like every other case's, so the open one takes
+     the system's Highlight, thicker, and its bar too. */
+  body:has(> .app-frame[data-tab="stewarding"]) .moderation-case-button.active { border: 2px solid Highlight; }
+  body:has(> .app-frame[data-tab="stewarding"]) .moderation-case-button.active::before { forced-color-adjust: none; background: Highlight; }
+}
 @media (forced-colors: active) {
   body:has(> .app-frame[data-tab="stewarding"]) :is(.admin-card, .admin-empty, .audit-entry, .moderation-header, .moderation-notice, .moderation-queue, .moderation-detail, .status-card, .revision-review-form, .revision-review-context, .revision-card, .inspection-form) { border-color: CanvasText; }
   body:has(> .app-frame[data-tab="stewarding"]) .admin-card .admin-list-item { border-block-start-color: CanvasText; }

@@ -144,6 +144,8 @@ test('quiet cards and rows keep an edge, and a system-colour edge in forced colo
 
   test.skip(browserName !== 'chromium', 'Forced colours are emulated in Chromium.');
   await page.emulateMedia({ forcedColors: 'active' });
+  // Buttons ease their border colour (160ms): read once the change of mode has settled.
+  await page.waitForFunction(() => document.getAnimations().every((animation) => animation.playState !== 'running'));
   const forced = await edges();
   const seen = JSON.stringify(forced);
   for (const part of ['card', 'row', 'tabs']) {

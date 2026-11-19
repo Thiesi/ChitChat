@@ -235,7 +235,7 @@ A note on Activity's rows (L6): the row's link is stretched over the whole row, 
 | Rows inside a card (members, invitations) | Each a bordered box inside the card | Rows with a soft rule between them | No boxes within boxes. |
 | Small labels ("ChitChat", "Reported person · from …", "Evidence at first report") | Upper-case, tracked | Label type in sentence case | As the lists' section labels (L3). |
 | The page's tabs (Users, Rooms, Audit) | In an outlined box | On a quiet `raised` track; the chosen tab keeps its steward edge and wash | Fewer lines; the choice still has a shape. |
-| Cases in the queue | Field-line boxes | Rows with the field corner and a soft edge; the open case keeps its steward edge and wash | Rows. |
+| Cases in the queue | Field-line boxes; the open case told by its steward edge and wash alone | Rows with the field corner and a soft edge. The open case keeps its steward edge and wash and gains the short bar at its start (the lists' selected-row mark, L3); in forced colours it takes a 2px `Highlight` border | Rows. The open case is told by more than colour (it was colour alone). |
 
 Unchanged on purpose: the steward accent on actions, links and focus (S6), the sensitive-access notice, rose for destructive actions, and every text field's boundary. In forced colours the cards, the rules between rows, the tabs' track and the cases take system-colour edges.
 

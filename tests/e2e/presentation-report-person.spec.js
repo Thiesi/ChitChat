@@ -290,6 +290,54 @@ test('moderators review person cases with a blurred picture and person actions',
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto('/moderation.php');
   await expect(page.locator('.moderation-case-button').first()).toContainText('Person: Rowan · # The living room');
+
+  // Lantern Next L8 (#399; review of #400): the open case is told by more than colour. It
+  // has the short bar at its start (and says so to assistive technology with aria-pressed);
+  // the others have none. In forced colours it takes Highlight, thicker; the others ButtonText.
+  await expect(page.locator('.moderation-case-button')).toHaveCount(2);
+  await expect(page.locator('.moderation-case-button[aria-pressed="true"]')).toHaveCount(1);
+  const cases = () => page.evaluate(() => {
+    const paint = (value) => { const probe = document.createElement('canvas').getContext('2d'); probe.fillStyle = 'rgba(0,0,0,0)'; probe.fillStyle = value; probe.fillRect(0, 0, 1, 1); return [...probe.getImageData(0, 0, 1, 1).data]; };
+    const over = (...values) => { const probe = document.createElement('canvas').getContext('2d'); for (const value of values) { probe.fillStyle = 'rgba(0,0,0,0)'; probe.fillStyle = value; probe.fillRect(0, 0, 1, 1); } return [...probe.getImageData(0, 0, 1, 1).data]; };
+    const system = (keyword) => { const probe = document.createElement('span'); probe.style.cssText = 'forced-color-adjust: none; color: ' + keyword; document.body.append(probe); const value = getComputedStyle(probe).color; probe.remove(); return value; };
+    const read = (button) => {
+      const style = getComputedStyle(button);
+      const bar = getComputedStyle(button, '::before');
+      const drawn = bar.content !== 'none' && bar.content !== 'normal';
+      return {
+        open: button.getAttribute('aria-pressed') === 'true', border: parseFloat(style.borderTopWidth), edge: paint(style.borderTopColor),
+        bar: drawn ? { width: parseFloat(bar.width), height: parseFloat(bar.height), colour: paint(bar.backgroundColor), seen: over(style.backgroundColor, bar.backgroundColor).join(',') !== over(style.backgroundColor).join(',') } : null,
+      };
+    };
+    return { cases: [...document.querySelectorAll('.moderation-case-button')].map(read), highlight: paint(system('Highlight')), buttonText: paint(system('ButtonText')) };
+  });
+  const plain = await cases();
+  const open = plain.cases.find((entry) => entry.open);
+  const other = plain.cases.find((entry) => !entry.open);
+  expect(open.bar, JSON.stringify(plain)).not.toBeNull();
+  expect(open.bar.width).toBeGreaterThanOrEqual(3);
+  expect(open.bar.height).toBeGreaterThanOrEqual(16);
+  expect(open.bar.colour[3]).toBeGreaterThan(0);
+  expect(open.bar.seen).toBe(true);
+  expect(other.bar).toBeNull();
+  if (testInfo.project.name === 'chromium') {
+    await page.emulateMedia({ forcedColors: 'active' });
+    // Buttons ease their border colour (160ms): read once the change of mode has settled.
+    await page.waitForFunction(() => document.getAnimations().every((animation) => animation.playState !== 'running'));
+    const forced = await cases();
+    const seen = JSON.stringify(forced);
+    const forcedOpen = forced.cases.find((entry) => entry.open);
+    const forcedOther = forced.cases.find((entry) => !entry.open);
+    expect(forcedOpen.edge, seen).toEqual(forced.highlight);
+    expect(forcedOpen.border, seen).toBeGreaterThanOrEqual(2);
+    expect(forcedOpen.bar.colour, seen).toEqual(forced.highlight);
+    expect(forcedOpen.bar.colour[3], seen).toBeGreaterThan(0);
+    expect(forcedOther.edge, seen).toEqual(forced.buttonText);
+    expect(forcedOther.border, seen).toBeGreaterThanOrEqual(1);
+    expect(forcedOther.edge, seen).not.toEqual(forced.highlight);
+    await page.emulateMedia({ forcedColors: 'none' });
+  }
+
   await page.getByRole('radio', { name: 'People' }).check();
   await expect(page.locator('.moderation-case-button')).toHaveCount(1);
 
