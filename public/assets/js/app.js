@@ -799,7 +799,12 @@ function renderRoomHeader() {
   const roomLantern = lantern(room);
   // Presence may already be known (presence.js); keep its glow on the new lantern.
   roomLantern.classList.toggle('glow', document.getElementById('room-here')?.hidden === false);
-  elements['room-title'].replaceChildren(roomLantern, ` ${room.name}`);
+  // The name has its own element so a narrow header can clamp it without clipping the
+  // lantern's halo; the title's text stays "# name".
+  const name = document.createElement('span');
+  name.className = 'room-title-name';
+  name.textContent = ` ${room.name}`;
+  elements['room-title'].replaceChildren(roomLantern, name);
   setHeaderSearch(room);
   renderLeave(room);
   const details = [];

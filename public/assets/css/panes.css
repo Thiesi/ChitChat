@@ -404,8 +404,6 @@
   /* Room details give way on narrow headers; "N here now" stays. */
   .room-heading p.room-meta-line { display: flex; margin-top: 0.1rem; font-size: 0.82rem; }
   .room-meta-line #room-info { display: none; }
-  /* The title clips for its ellipsis; room inside the clip keeps the glow whole. */
-  .room-heading h2 { margin: -0.5rem; padding: 0.5rem; }
 }
 
 @media (any-pointer: coarse) {

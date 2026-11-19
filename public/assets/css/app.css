@@ -1632,8 +1632,11 @@ button.user-name.mention { padding: 0 0.2rem; border-radius: 0.25rem; background
   .room-button { padding: 0.65rem 0.75rem; font-size: 0.95rem; }
 
   .room-header { gap: 0.35rem; padding: 0.5rem 0.5rem 0.5rem 0.4rem; border-radius: 0; }
-  /* Two lines before it truncates (S8). */
-  .room-heading h2 { display: -webkit-box; overflow: hidden; font-size: 1.25rem; line-height: 1.2; overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
+  /* Two lines before it truncates (S8). Only the name clips: the lantern sits outside the
+     clip, so its presence halo stays whole. */
+  .room-heading h2 { display: flex; align-items: center; font-size: 1.25rem; line-height: 1.2; }
+  .room-heading h2 .lantern { flex: none; }
+  .room-heading h2 .room-title-name { display: -webkit-box; min-width: 0; overflow: hidden; overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
   .header-actions { gap: 0.1rem; }
   .header-button { min-width: 2.75rem; height: 2.75rem; padding: 0 0.45rem; }
   .header-divider, .header-search { display: none; }
