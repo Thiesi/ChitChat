@@ -62,6 +62,10 @@ body:has(> .app-frame[data-tab="stewarding"]) :is(.admin-card, .admin-empty, .au
   border-radius: var(--radius-sheet);
   box-shadow: var(--elev-1);
 }
+/* A card that holds a destructive action keeps its rose edge, and the lockdown card its
+   warning edge (admin.css): the soft edge above must not wash them out. */
+body:has(> .app-frame[data-tab="stewarding"]) .lockdown-card { border-color: color-mix(in srgb, var(--unsure-line) 45%, var(--line)); }
+body:has(> .app-frame[data-tab="stewarding"]) .admin-card.danger-card { border-color: color-mix(in srgb, var(--error) 45%, var(--line)); }
 /* Rows inside a card are rows, not boxes within boxes: a soft rule between them. */
 body:has(> .app-frame[data-tab="stewarding"]) .admin-card .admin-list-item {
   padding: var(--space-3) 0;

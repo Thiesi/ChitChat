@@ -123,7 +123,7 @@ test('quiet cards and rows keep an edge, and a system-colour edge in forced colo
   const edges = () => page.evaluate(() => {
     const paint = (value) => { const probe = document.createElement('canvas').getContext('2d'); probe.fillStyle = 'rgba(0,0,0,0)'; probe.fillStyle = value; probe.fillRect(0, 0, 1, 1); return [...probe.getImageData(0, 0, 1, 1).data].join(','); };
     const system = (keyword) => { const probe = document.createElement('span'); probe.style.cssText = 'forced-color-adjust: none; color: ' + keyword; document.body.append(probe); const value = paint(getComputedStyle(probe).color); probe.remove(); return value; };
-    const card = getComputedStyle(document.querySelector('.admin-card'));
+    const card = getComputedStyle(document.querySelector('.admin-card:not(.danger-card):not(.lockdown-card)'));
     const rows = [...document.querySelectorAll('.admin-card .admin-list-item')];
     const second = rows.find((row) => row.previousElementSibling?.classList.contains('admin-list-item'));
     const row = getComputedStyle(second);
@@ -132,6 +132,7 @@ test('quiet cards and rows keep an edge, and a system-colour edge in forced colo
       card: { width: parseFloat(card.borderTopWidth), colour: paint(card.borderTopColor) },
       row: { width: parseFloat(row.borderTopWidth), colour: paint(row.borderTopColor), sides: parseFloat(row.borderLeftWidth) + parseFloat(row.borderRightWidth) + parseFloat(row.borderBottomWidth) },
       tabs: { width: parseFloat(tabs.borderTopWidth), colour: paint(tabs.borderTopColor) },
+      danger: paint(getComputedStyle(document.querySelector('.admin-card.danger-card')).borderTopColor),
       canvasText: system('CanvasText'),
     };
   });
@@ -142,6 +143,9 @@ test('quiet cards and rows keep an edge, and a system-colour edge in forced colo
   expect(plain.row.width).toBeGreaterThanOrEqual(1);
   expect(plain.row.colour.endsWith(',0')).toBe(false);
   expect(plain.row.sides).toBe(0);
+  // The card that holds a destructive action keeps its own (rose) edge, not the soft one.
+  expect(plain.danger).not.toBe(plain.card.colour);
+  expect(plain.danger.endsWith(',0')).toBe(false);
 
   test.skip(browserName !== 'chromium', 'Forced colours are emulated in Chromium.');
   await page.emulateMedia({ forcedColors: 'active' });
