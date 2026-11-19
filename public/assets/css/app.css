@@ -1740,3 +1740,87 @@ button.user-name.mention { padding: 0 0.2rem; border-radius: 0.25rem; background
 @media (hover: none) and (pointer: coarse) {
   .composer-help { display: none; }
 }
+
+/* ---- Lantern Next L10 (#404): the other empty places ---- */
+
+/* An empty Direct conversation, an Activity with nothing new and a search that found
+   nothing (message-search.js marks that outcome; the prompt, "Searching…" and an error stay
+   a plain line) take the empty room's drawing (L4): the dashed bubble where words could be, its
+   persimmon chit and a still honey glow, with the words beneath in the display face. It is
+   decoration: the words say it, and they are the same elements with the same roles as
+   before (the search line is still the page's status). */
+.dm-empty-state:not(.hidden),
+.activity-empty:not(.hidden),
+.message-search-status[data-outcome="none"] {
+  display: grid;
+  padding: 2rem 1rem;
+  place-items: center;
+  align-content: center;
+  gap: 1.25rem;
+  color: var(--text);
+  text-align: center;
+  text-wrap: balance;
+  font-family: var(--display-font);
+  font-size: var(--type-title);
+  font-weight: 700;
+  letter-spacing: var(--title-tracking);
+  line-height: var(--leading-tight);
+  overflow-wrap: break-word;
+}
+/* An empty conversation is the stage itself, like the empty room: its words are Display M. */
+.dm-empty-state:not(.hidden) { font-size: var(--type-display-m); line-height: var(--leading-display); }
+.dm-empty-state:not(.hidden)::before,
+.activity-empty:not(.hidden)::before,
+.message-search-status[data-outcome="none"]::before,
+.dm-empty-state:not(.hidden)::after,
+.activity-empty:not(.hidden)::after,
+.message-search-status[data-outcome="none"]::after {
+  grid-area: 1 / 1;
+  content: "";
+}
+.dm-empty-state:not(.hidden)::before,
+.activity-empty:not(.hidden)::before,
+.message-search-status[data-outcome="none"]::before {
+  width: 5.5rem;
+  height: 3.75rem;
+  margin: 1.25rem auto 0;
+  border: 2px dashed var(--field-line);
+  border-radius: var(--radius-bubble);
+  background: var(--stage);
+  box-shadow: 0 0 2.75rem 1.5rem color-mix(in srgb, var(--presence) 22%, transparent);
+}
+.dm-empty-state:not(.hidden)::after,
+.activity-empty:not(.hidden)::after,
+.message-search-status[data-outcome="none"]::after {
+  align-self: end;
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+  background: var(--signature);
+  transform: translate(-3.3rem, 0.5rem);
+}
+/* Activity's empty state keeps its way back, as a button under the words. The button is a
+   button, in the page's own face, not the display face of the words above it. */
+.activity-empty:not(.hidden) { justify-items: center; }
+.activity-empty:not(.hidden) p { font-weight: 700; }
+.activity-empty:not(.hidden) .secondary-button { min-height: var(--target-min); font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; letter-spacing: normal; }
+/* Where the words need the room (narrow phones, large text), the picture gives way. */
+@media (max-width: 24rem) {
+  .dm-empty-state:not(.hidden),
+  .activity-empty:not(.hidden),
+  .message-search-status[data-outcome="none"] { padding: 1rem 0.5rem; gap: 0.75rem; }
+  .dm-empty-state:not(.hidden)::before,
+  .activity-empty:not(.hidden)::before,
+  .message-search-status[data-outcome="none"]::before,
+  .dm-empty-state:not(.hidden)::after,
+  .activity-empty:not(.hidden)::after,
+  .message-search-status[data-outcome="none"]::after { display: none; }
+}
+@media (forced-colors: active) {
+  .dm-empty-state:not(.hidden)::before,
+  .activity-empty:not(.hidden)::before,
+  .message-search-status[data-outcome="none"]::before { border-color: CanvasText; box-shadow: none; }
+  .dm-empty-state:not(.hidden)::after,
+  .activity-empty:not(.hidden)::after,
+  .message-search-status[data-outcome="none"]::after { forced-color-adjust: none; background: CanvasText; }
+}

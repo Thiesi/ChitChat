@@ -504,6 +504,17 @@
 .icon-swatch-chip[data-swatch="paper"] { background: #FBF7F1; }
 .icon-tab-light { background: #F1ECE4; color: #1D1A24; }
 .icon-tab-dark { background: #24202E; color: #F3EFE8; }
+/* Page to page (Lantern Next L10): going from one page to another is a short cross-fade of
+   the whole page instead of a hard cut, in browsers that can do it between documents; the
+   others cut as before. The rail has a name of its own (shell.css), so it holds still while
+   the page changes behind it. Only where motion is welcome: with reduced motion there is no
+   transition at all, and the cut above would end one at once in any case. */
+@media (prefers-reduced-motion: no-preference) {
+  @view-transition { navigation: auto; }
+  ::view-transition-old(root),
+  ::view-transition-new(root) { animation-duration: 150ms; }
+}
+
 /* Authenticator setup (#204): a QR code scans reliably only as dark modules
    on a light ground with a quiet zone, so it keeps black on white in every
    scheme and theme. */

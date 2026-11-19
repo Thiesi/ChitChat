@@ -74,6 +74,22 @@ test('reduced motion also cuts literal animations, transitions and view transiti
   assert.ok(value && seconds(value) <= 0.001, `view transitions are ${value}`);
 });
 
+// Lantern Next L10 (#404): the page-to-page cross-fade exists only where motion is welcome,
+// and is short.
+test('the page cross-fade is declared only under prefers-reduced-motion: no-preference', () => {
+  const welcome = block(tokens, '@media (prefers-reduced-motion: no-preference)');
+  assert.ok(welcome, 'tokens.css has a no-preference block');
+  assert.match(welcome, /@view-transition\s*\{\s*navigation:\s*auto;\s*\}/, 'the cross-fade is in it');
+  const outside = tokens.replace(welcome, '');
+  assert.doesNotMatch(outside, /@view-transition/, 'and nowhere else in tokens.css');
+  const value = /::view-transition-new\(root\)\s*\{\s*animation-duration:\s*([^;]+);/.exec(welcome)?.[1];
+  assert.ok(value && seconds(value) <= 0.2, `it lasts ${value}`);
+  for (const file of readdirSync(CSS).filter((name) => name.endsWith('.css') && name !== 'tokens.css')) {
+    const css = readFileSync(new URL(file, CSS), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+    assert.doesNotMatch(css, /@view-transition/, `${file} declares none`);
+  }
+});
+
 test('no other stylesheet sets a motion duration, so the cut can’t be undone', () => {
   const setters = [];
   for (const file of readdirSync(CSS).filter((name) => name.endsWith('.css') && name !== 'tokens.css')) {

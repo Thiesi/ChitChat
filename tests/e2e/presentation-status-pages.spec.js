@@ -43,6 +43,29 @@ for (const [scheme, theme] of [['lantern', 'light'], ['lantern', 'dark'], ['dusk
   });
 }
 
+// Lantern Next L10 (#404): the status page has the same care as the rest, by stylesheet
+// alone. Its markup is as it was: no script of its own beyond the theme, no image, and the
+// drawing is two pseudo-elements that give way on a narrow screen.
+test('the 404 has its drawing and its quiet card, and is still markup and stylesheets only', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto('/no-such-page');
+  const card = page.locator('main.status-page');
+  await expect(card).toBeVisible();
+  const look = () => card.evaluate((node) => {
+    const before = getComputedStyle(node, '::before');
+    const eyebrow = getComputedStyle(node.querySelector('.status-page-eyebrow'));
+    return { drawn: before.content !== 'none' && before.display !== 'none' && parseFloat(before.width) > 40, eyebrow: eyebrow.textTransform, images: document.images.length, scripts: [...document.scripts].map((script) => new URL(script.src).pathname), inline: [...document.scripts].filter((script) => !script.src).length };
+  });
+  expect(await look()).toEqual({ drawn: true, eyebrow: 'none', images: 0, scripts: ['/assets/js/theme.js'], inline: 0 });
+  await expect(card.getByRole('heading', { level: 1 })).toBeVisible();
+  await expect(card.getByRole('link', { name: 'Go to Rooms' })).toBeVisible();
+  for (const width of [320, 180]) {
+    await page.setViewportSize({ width, height: 800 });
+    expect((await look()).drawn, `${width}`).toBe(false);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${width}`).toBe(true);
+  }
+});
+
 test('the 404 carries the security headers and no-store; HEAD answers 404 too; // is the chat (#345)', async ({ page, baseURL }) => {
   const response = await page.request.get('/no-such-page', { headers: { Accept: 'text/html' } });
   expect(response.status()).toBe(404);

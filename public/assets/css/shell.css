@@ -32,6 +32,8 @@ body:not(:has(.app-frame.has-nav)) .skip-link { display: none; }
 .app-nav {
   display: flex;
   z-index: 20;
+  /* Holds still across the page-to-page cross-fade (tokens.css, L10). */
+  view-transition-name: app-nav;
   background: var(--surface);
   color: var(--text-muted);
 }

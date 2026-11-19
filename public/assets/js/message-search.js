@@ -158,6 +158,9 @@ async function runSearch({ replace, offset = 0 }) {
   state.loading = true;
   setBusy(true);
   clearError();
+  // The empty-state drawing belongs to "nothing matches" alone (Lantern Next L10): not to
+  // the prompt, not while searching, and not to an error.
+  delete elements['message-search-status'].dataset.outcome;
   elements['message-search-status'].textContent = replace ? 'Searching…' : 'Loading more results…';
 
   try {
@@ -185,6 +188,7 @@ async function runSearch({ replace, offset = 0 }) {
     elements['message-search-more'].classList.toggle('hidden', !response.has_more);
 
     if (state.resultCount === 0) {
+      elements['message-search-status'].dataset.outcome = 'none';
       // The door is always open: say what to try next.
       if (room) {
         elements['message-search-status'].textContent = `Nothing in # ${room.name} matches “${state.query}”. Try fewer words, or search everywhere.`;
