@@ -6,6 +6,18 @@ The project uses semantic versioning. Release-candidate versions are pre-release
 
 ## [Unreleased]
 
+## [3.15.1] - 2026-11-19
+
+A bug-fix update with no database migration, configuration change or API change; nobody is signed out. See the [`v3.15.1` release notes](docs/releases/v3.15.1.md).
+
+### Fixed
+
+- The room lantern's presence halo is no longer cut square on the narrow conversation header, which large default text also brings to desktop windows (#414).
+
+### Operator notes
+
+- The Nginx and Apache guides recommend `Cache-Control: no-cache` for `/assets/css/` and `/assets/js/`, so browsers revalidate stylesheets and scripts instead of reusing old ones for hours after an upgrade; CI's Nginx server sends it and checks it (#411, #413).
+
 ## [3.15.0] - 2026-11-19
 
 Lantern Next, the web client's visual overhaul (L0 to L10), and five fixes. No database migrations, no configuration changes, no API changes, and nobody is signed out. See the [`v3.15.0` release notes](docs/releases/v3.15.0.md).
