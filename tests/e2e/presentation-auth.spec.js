@@ -274,6 +274,119 @@ test('MFA after a password: the authenticator code first, then passkey, then a r
   await axe(page, 'MFA panel');
 });
 
+// Lantern Next L5 (#389): the second sign-in step has one main button, and the guest offer
+// waits. With an authenticator code on offer the code is the filled action and the passkey
+// an outline button; without one the passkey stays the filled action.
+test('the second sign-in step has one main button and no guest offer', async ({ page }) => {
+  const filled = (locator) => locator.evaluate((node) => {
+    const probe = document.createElement('canvas').getContext('2d');
+    probe.fillStyle = 'rgba(0,0,0,0)';
+    probe.fillStyle = getComputedStyle(node).backgroundColor;
+    probe.fillRect(0, 0, 1, 1);
+    return probe.getImageData(0, 0, 1, 1).data[3] === 255;
+  });
+  const signIn = async (methods) => {
+    await page.unrouteAll({ behavior: 'ignoreErrors' });
+    await fixture(page, { overrides: { 'login.php': { mfa_required: true, methods } } });
+    await open(page);
+    await page.locator('#login-username').fill('Jamie');
+    await page.locator('#login-password').fill('a long secret phrase');
+    await page.locator('#login-form .primary-button').click();
+    await expect(page.locator('#mfa-login-panel')).toBeVisible();
+    await page.mouse.move(0, 0);
+    await page.waitForFunction(() => document.getAnimations().every((animation) => animation.playState !== 'running'));
+  };
+
+  await signIn(['totp', 'passkey', 'recovery_code']);
+  const panel = page.locator('#mfa-login-panel');
+  expect(await filled(panel.getByRole('button', { name: 'Use code' }))).toBe(true);
+  expect(await filled(panel.getByRole('button', { name: 'Use passkey' }))).toBe(false);
+  // The outline keeps a real border, so the passkey button is still a button to the eye and in forced colours.
+  expect(await panel.getByRole('button', { name: 'Use passkey' }).evaluate((node) => parseFloat(getComputedStyle(node).borderTopWidth))).toBeGreaterThanOrEqual(1);
+  await expect(page.locator('[data-guest-entry]')).toBeHidden();
+  await expect(page.getByRole('heading', { name: 'Complete sign-in' })).toBeVisible();
+  await axe(page, 'second step with an authenticator code');
+
+  await signIn(['passkey', 'recovery_code']);
+  expect(await filled(panel.getByRole('button', { name: 'Use passkey' }))).toBe(true);
+  await expect(page.locator('[data-guest-entry]')).toBeHidden();
+});
+
+// The mark family (#227; review of #395): the one-colour mark that signs "Powered by
+// ChitChat" is a mask over a filled box. Forced colours repaint fills as the page's
+// background, which would erase it, so there it takes the system's link colour itself.
+test('forced colours: the one-colour mark beside the attribution is still drawn', async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium', 'Forced colours are emulated in Chromium.');
+  await fixture(page);
+  await open(page);
+  const link = page.locator('#auth-shell .powered-by > a').first();
+  await expect(link).toBeVisible();
+  const mark = () => link.evaluate((node) => {
+    const paint = (value) => { const probe = document.createElement('canvas').getContext('2d'); probe.fillStyle = 'rgba(0,0,0,0)'; probe.fillStyle = value; probe.fillRect(0, 0, 1, 1); return [...probe.getImageData(0, 0, 1, 1).data].join(','); };
+    const before = getComputedStyle(node, '::before');
+    let ground = 'rgba(0, 0, 0, 0)';
+    for (let parent = node; parent && paint(ground).endsWith(',0'); parent = parent.parentElement) ground = getComputedStyle(parent).backgroundColor;
+    return { fill: paint(before.backgroundColor), text: paint(getComputedStyle(node).color), ground: paint(ground), mask: before.maskImage || before.webkitMaskImage, width: parseFloat(before.width), height: parseFloat(before.height), adjust: before.forcedColorAdjust };
+  });
+  const plain = await mark();
+  expect(plain.mask).toContain('lantern-mark-mono.svg');
+  expect(plain.fill).toBe(plain.text);
+  expect(plain.width).toBeGreaterThan(8);
+
+  await page.emulateMedia({ forcedColors: 'active' });
+  const forced = await mark();
+  expect(forced.adjust).toBe('none');
+  expect(forced.mask).toContain('lantern-mark-mono.svg');
+  // Opaque, the link's own (system) colour, and not the colour of what it sits on.
+  expect(forced.fill.endsWith(',255')).toBe(true);
+  expect(forced.fill).toBe(forced.text);
+  expect(forced.fill).not.toBe(forced.ground);
+  expect(forced.width).toBeGreaterThan(8);
+  expect(forced.height).toBeGreaterThan(8);
+});
+
+// The order by keyboard on the sign-in form is deliberate: the password, its show/hide
+// button, "Forgot password?", then Sign in (review criteria on #381).
+test('by keyboard: password, show password, Forgot password?, Sign in', async ({ page }) => {
+  await fixture(page);
+  await open(page);
+  await page.locator('#login-password').focus();
+  const stops = [];
+  for (let step = 0; step < 3; step += 1) {
+    await page.keyboard.press('Tab');
+    stops.push(await page.evaluate(() => document.activeElement?.id || document.activeElement?.textContent?.trim()));
+  }
+  expect(stops[1]).toBe('forgot-password-link');
+  expect(stops[2]).toBe('Sign in');
+  expect(stops[0]).not.toBe('forgot-password-link');
+});
+
+// The sign-in drawing settles into place once (a signature moment). It is decoration: hidden
+// from assistive technology, and with reduced motion nothing animates at all.
+test('the sign-in drawing settles once, and not at all with reduced motion', async ({ page, browser }) => {
+  await fixture(page);
+  await page.setViewportSize({ width: 1280, height: 860 });
+  await open(page);
+  await expect(page.locator('.auth-art')).toHaveAttribute('aria-hidden', 'true');
+  const steps = await page.locator('.auth-art .art-step').evaluateAll((nodes) => nodes.map((node) => { const style = getComputedStyle(node); return { name: style.animationName, seconds: parseFloat(style.animationDuration), count: style.animationIterationCount }; }));
+  expect(steps).toHaveLength(3);
+  for (const step of steps) {
+    expect(step.name).toBe('art-settle');
+    expect(step.count).toBe('1');
+    expect(step.seconds).toBeLessThanOrEqual(0.3);
+  }
+  await page.waitForFunction(() => document.getAnimations().every((animation) => animation.playState !== 'running'));
+  expect(await page.locator('.auth-art .art-step').evaluateAll((nodes) => nodes.map((node) => getComputedStyle(node).opacity))).toEqual(['1', '1', '1']);
+
+  const context = await browser.newContext({ reducedMotion: 'reduce', viewport: { width: 1280, height: 860 } });
+  const calm = await context.newPage();
+  await fixture(calm);
+  await open(calm);
+  expect(await calm.evaluate(() => document.getAnimations().length)).toBe(0);
+  expect(await calm.locator('.auth-art .art-step').evaluateAll((nodes) => nodes.map((node) => getComputedStyle(node).animationName))).toEqual(['none', 'none', 'none']);
+  await context.close();
+});
+
 // Every state in light, dark and one variant (Lounge), at 1280 and 360px.
 for (const [theme, scheme, season] of [['light', 'lantern', null], ['dark', 'lantern', 'winter'], ['light', 'lounge', 'spring'], ['dark', 'lounge', 'celebration']]) {
   test(`${theme} ${scheme}: sign-in, register and restore pass axe at 1280 and 360px${season ? ` with ${season}` : ''}`, async ({ page }, testInfo) => {

@@ -189,6 +189,20 @@ For CCM: show the run's time at the name (incoming) or under the last bubble (ou
 | A message arriving live | Appears | Rises 8px and fades in over `--motion-base` (200ms, ease-out), once. Only messages appended live to a conversation already on screen: never the first fill, a room switch or older history | Motion that explains a change of state (owner decision: bolder here). Under reduced motion the rule doesn't apply and the token is cut, so it is an instant change. |
 | The empty room | A small outlined bubble and a muted 26px line | CCM's empty-room drawing, larger and lit: a dashed bubble ("someone could speak here") with its persimmon chit in a still honey glow; the words in Display M, in ink | An empty state that invites (J-03). Static, drawn from Lantern's shapes only. |
 
+## L5: the sign-in family and the mark family (#389, #227)
+
+| What | Old | New | Reason |
+|---|---|---|---|
+| The sign-in drawing | Loose lanterns, pebbles and one bubble | A small conversation in Lantern's shapes: someone speaks, you answer, someone is typing (three still honey dots), with two room lanterns. Its three groups settle into place once (`--motion-slow`, 120 to 400ms apart) | A signature moment (owner decision). It shows what the product is. Decoration only; static under reduced motion. |
+| The glow on the wide sign-in screen | One honey glow just behind the mark | The lantern's light: wider and softer, two stops, still | The lockup is the hero. It never pulses and is never baked into the mark. |
+| The sign-in card | A line and the all-purpose shadow | `--elev-2`, `--radius-sheet`; the greeting in Display M | The floating level. |
+| Sign in / Register | A pill inside a pill with an outline; the chosen tab in persimmon text | A segmented control: `raised` track, the chosen tab a `surface` thumb at `--elev-1` in bold ink | Weight and the thumb's shape carry the choice, not colour. |
+| The second sign-in step | Two persimmon buttons when an authenticator code is on offer, the guest offer above it, a system-face heading | One main button (the code; the passkey is an outline button), no guest offer until the step ends, the heading in Display M | CCM's own rule: one persimmon button per screen. |
+| The mark family | One file | Named versions with rules: primary, paper, one colour (also reversed), small sizes, the lockup with the name, the renamed-installation lockup, the glow on signed-out pages. See [mark.md](mark.md) | #227, approved 2026-11-15. |
+| "on ChitChat" and "Powered by ChitChat" | Text only | Signed with the one-colour mark, drawn in the text's colour | A renamed installation's icon and name lead; ChitChat signs quietly. |
+
+For CCM: the one-colour mark is the monochrome launcher layer's geometry; the welcome screen may take the wider glow and the conversation drawing.
+
 ## Still to come
 
 L3 lists · L4 conversation · L5 sign-in family and the mark variants (#227) · L6 Direct, Activity, Search · L7 You · L8 stewardship · L9 overlays, status and motion · L10 handoff. Each adds its section here when it merges.

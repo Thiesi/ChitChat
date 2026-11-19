@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="20 25 62 55" width="248" height="220" role="img" aria-label="ChitChat Lantern mark, one colour">
+  <!-- The one-colour Lantern mark (mark family, #227): the bubble with its eyes cut out, and the chit.
+       Geometry from lantern-mark.svg; used as a mask or with fill="currentColor" so it takes the text colour. -->
+  <path fill-rule="evenodd" d="M39,30 H53 A14,14 0 0 1 67,44 V50 A14,14 0 0 1 53,64 H39 A14,14 0 0 1 25,50 V44 A14,14 0 0 1 39,30 Z M39,43.5 A3.5,3.5 0 1 0 39,50.5 A3.5,3.5 0 1 0 39,43.5 Z M53,43.5 A3.5,3.5 0 1 0 53,50.5 A3.5,3.5 0 1 0 53,43.5 Z"/>
+  <circle cx="72" cy="70" r="5"/>
+</svg>
