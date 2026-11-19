@@ -382,21 +382,43 @@ test('colour schemes are named radios; the chosen one has a ring, a bold name an
   await open(page, 1280, '/account.php#appearance');
   await page.emulateMedia({ forcedColors: 'active' });
   const forced = await page.locator('#account-shell .scheme-option:has(input:checked)').evaluate((option) => {
-    const paint = (value) => { const probe = document.createElement('canvas').getContext('2d'); probe.fillStyle = 'rgba(0,0,0,0)'; probe.fillStyle = value; probe.fillRect(0, 0, 1, 1); return [...probe.getImageData(0, 0, 1, 1).data].join(','); };
+    // A colour as the browser paints it, and a stack of colours painted one over the other.
+    const over = (...values) => {
+      const probe = document.createElement('canvas').getContext('2d', { willReadFrequently: true });
+      for (const value of values) { probe.fillStyle = 'rgba(0,0,0,0)'; probe.fillStyle = value; probe.fillRect(0, 0, 1, 1); }
+      return [...probe.getImageData(0, 0, 1, 1).data];
+    };
     const swatch = option.querySelector('.scheme-swatch');
     const badge = getComputedStyle(swatch, '::before');
     const tick = getComputedStyle(swatch, '::after');
     // What the system's own colours are here, read from a probe that opts out the same way.
-    const system = (keyword) => { const probe = document.createElement('span'); probe.style.cssText = 'forced-color-adjust: none; background-color: ' + keyword; document.body.append(probe); const value = paint(getComputedStyle(probe).backgroundColor); probe.remove(); return value; };
-    return { border: parseFloat(getComputedStyle(option).borderTopWidth), badge: paint(badge.backgroundColor), tick: paint(tick.backgroundColor), adjust: tick.forcedColorAdjust, highlight: system('Highlight'), highlightText: system('HighlightText'), size: parseFloat(badge.width) };
+    const system = (keyword) => { const probe = document.createElement('span'); probe.style.cssText = 'forced-color-adjust: none; background-color: ' + keyword; document.body.append(probe); const value = getComputedStyle(probe).backgroundColor; probe.remove(); return value; };
+    // What the badge sits on: the chip's own background, or the nearest one behind it.
+    let ground = 'rgba(0, 0, 0, 0)';
+    for (let node = option; node && over(ground)[3] === 0; node = node.parentElement) ground = getComputedStyle(node).backgroundColor;
+    return {
+      border: parseFloat(getComputedStyle(option).borderTopWidth), adjust: tick.forcedColorAdjust, size: parseFloat(badge.width),
+      css: { badge: badge.backgroundColor, tick: tick.backgroundColor, highlight: system('Highlight'), highlightText: system('HighlightText'), ground },
+      badge: over(badge.backgroundColor), tick: over(tick.backgroundColor), highlight: over(system('Highlight')), highlightText: over(system('HighlightText')),
+      groundAlone: over(ground), badgeOnGround: over(ground, badge.backgroundColor), tickOnBadge: over(ground, badge.backgroundColor, tick.backgroundColor),
+    };
   });
-  expect(forced.border).toBeGreaterThanOrEqual(2);
-  expect(forced.adjust).toBe('none');
+  // Every failure below prints the colours as the browser reports them.
+  const seen = JSON.stringify(forced.css);
+  expect(forced.border, seen).toBeGreaterThanOrEqual(2);
+  expect(forced.adjust, seen).toBe('none');
+  expect(forced.size, seen).toBeGreaterThanOrEqual(12);
   // The badge is the system's Highlight and the tick its HighlightText: a pair made to be read together.
-  expect(forced.badge).toBe(forced.highlight);
-  expect(forced.tick).toBe(forced.highlightText);
-  expect(forced.tick).not.toBe(forced.badge);
-  expect(forced.size).toBeGreaterThanOrEqual(12);
+  expect(forced.badge, seen).toEqual(forced.highlight);
+  expect(forced.tick, seen).toEqual(forced.highlightText);
+  // And they can be seen: the badge is not transparent, it changes the pixel it is painted
+  // on, and the tick changes the pixel again.
+  expect(forced.badge[3], seen).toBeGreaterThan(0);
+  expect(forced.badgeOnGround, seen).not.toEqual(forced.groundAlone);
+  expect(forced.tickOnBadge, seen).not.toEqual(forced.badgeOnGround);
+  // For the record (PR #398): what this browser gives the system colours in forced colours.
+  test.info().annotations.push({ type: 'forced colours', description: seen });
+  console.log('forced colours on You:', seen);
 });
 
 test('settings copy is one line; the rest waits behind a named Learn more', async ({ page }) => {
