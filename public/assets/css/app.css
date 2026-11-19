@@ -1743,14 +1743,15 @@ button.user-name.mention { padding: 0 0.2rem; border-radius: 0.25rem; background
 
 /* ---- Lantern Next L10 (#404): the other empty places ---- */
 
-/* An empty Direct conversation, an Activity with nothing new and a search with nothing to
-   show take the empty room's drawing (L4): the dashed bubble where words could be, its
+/* An empty Direct conversation, an Activity with nothing new and a search that found
+   nothing (message-search.js marks that outcome; the prompt, "Searching…" and an error stay
+   a plain line) take the empty room's drawing (L4): the dashed bubble where words could be, its
    persimmon chit and a still honey glow, with the words beneath in the display face. It is
    decoration: the words say it, and they are the same elements with the same roles as
    before (the search line is still the page's status). */
 .dm-empty-state:not(.hidden),
 .activity-empty:not(.hidden),
-.message-search-status:has(+ section > .message-search-results:empty) {
+.message-search-status[data-outcome="none"] {
   display: grid;
   padding: 2rem 1rem;
   place-items: center;
@@ -1770,16 +1771,16 @@ button.user-name.mention { padding: 0 0.2rem; border-radius: 0.25rem; background
 .dm-empty-state:not(.hidden) { font-size: var(--type-display-m); line-height: var(--leading-display); }
 .dm-empty-state:not(.hidden)::before,
 .activity-empty:not(.hidden)::before,
-.message-search-status:has(+ section > .message-search-results:empty)::before,
+.message-search-status[data-outcome="none"]::before,
 .dm-empty-state:not(.hidden)::after,
 .activity-empty:not(.hidden)::after,
-.message-search-status:has(+ section > .message-search-results:empty)::after {
+.message-search-status[data-outcome="none"]::after {
   grid-area: 1 / 1;
   content: "";
 }
 .dm-empty-state:not(.hidden)::before,
 .activity-empty:not(.hidden)::before,
-.message-search-status:has(+ section > .message-search-results:empty)::before {
+.message-search-status[data-outcome="none"]::before {
   width: 5.5rem;
   height: 3.75rem;
   margin: 1.25rem auto 0;
@@ -1790,7 +1791,7 @@ button.user-name.mention { padding: 0 0.2rem; border-radius: 0.25rem; background
 }
 .dm-empty-state:not(.hidden)::after,
 .activity-empty:not(.hidden)::after,
-.message-search-status:has(+ section > .message-search-results:empty)::after {
+.message-search-status[data-outcome="none"]::after {
   align-self: end;
   width: 0.6rem;
   height: 0.6rem;
@@ -1807,19 +1808,19 @@ button.user-name.mention { padding: 0 0.2rem; border-radius: 0.25rem; background
 @media (max-width: 24rem) {
   .dm-empty-state:not(.hidden),
   .activity-empty:not(.hidden),
-  .message-search-status:has(+ section > .message-search-results:empty) { padding: 1rem 0.5rem; gap: 0.75rem; }
+  .message-search-status[data-outcome="none"] { padding: 1rem 0.5rem; gap: 0.75rem; }
   .dm-empty-state:not(.hidden)::before,
   .activity-empty:not(.hidden)::before,
-  .message-search-status:has(+ section > .message-search-results:empty)::before,
+  .message-search-status[data-outcome="none"]::before,
   .dm-empty-state:not(.hidden)::after,
   .activity-empty:not(.hidden)::after,
-  .message-search-status:has(+ section > .message-search-results:empty)::after { display: none; }
+  .message-search-status[data-outcome="none"]::after { display: none; }
 }
 @media (forced-colors: active) {
   .dm-empty-state:not(.hidden)::before,
   .activity-empty:not(.hidden)::before,
-  .message-search-status:has(+ section > .message-search-results:empty)::before { border-color: CanvasText; box-shadow: none; }
+  .message-search-status[data-outcome="none"]::before { border-color: CanvasText; box-shadow: none; }
   .dm-empty-state:not(.hidden)::after,
   .activity-empty:not(.hidden)::after,
-  .message-search-status:has(+ section > .message-search-results:empty)::after { forced-color-adjust: none; background: CanvasText; }
+  .message-search-status[data-outcome="none"]::after { forced-color-adjust: none; background: CanvasText; }
 }

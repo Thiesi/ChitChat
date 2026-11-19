@@ -76,28 +76,66 @@ async function axe(page, label) {
   expect(result.violations, `${label}: ${result.violations.map((violation) => `${violation.id} ${violation.nodes.map((node) => node.target).join(' ')}`).join('; ')}`).toEqual([]);
 }
 
-// Lantern Next L10 (#404): with nothing to show, the status line is the page's empty state,
-// with the empty room's drawing above it. It is the same element with the same role; once
-// there are results it is a plain status line again.
-test('with nothing to show, the status line is an empty state with the drawing; with results it is plain', async ({ page }) => {
+// Lantern Next L10 (#404; review of #406): a search that found nothing is the page's empty
+// state, with the empty room's drawing above its status line. Only that outcome: the prompt,
+// "Searching…", results and an error stay a plain line, so the drawing never flickers and
+// never presents an error as "nothing here". It is always the same element and role.
+test('the drawing shows for "nothing matches" only: not for the prompt, while searching, with results or on an error', async ({ page }) => {
   await fixture(page);
+  // This test answers the search itself: held back, then with results, none, or a failure.
+  let answer = { json: { results: RESULTS(), has_more: false, next_offset: null } };
+  let release = () => {};
+  let hold = false;
+  await page.route('**/api/v1/search/messages.php', async (route) => {
+    if (hold) await new Promise((resolve) => { release = resolve; });
+    await route.fulfill(answer);
+  });
   await open(page);
   const status = page.locator('#message-search-status');
   const look = () => status.evaluate((node) => {
     const before = getComputedStyle(node, '::before');
-    const style = getComputedStyle(node);
-    return { drawn: before.content !== 'none' && before.display !== 'none' && parseFloat(before.width) > 40, centred: style.textAlign === 'center', role: node.getAttribute('role'), live: node.getAttribute('aria-live') };
+    return { drawn: before.content !== 'none' && before.display !== 'none' && parseFloat(before.width) > 40, centred: getComputedStyle(node).textAlign === 'center', role: node.getAttribute('role'), live: node.getAttribute('aria-live') };
   });
+  const plain = { drawn: false, centred: false, role: 'status', live: 'polite' };
+  const empty = { drawn: true, centred: true, role: 'status', live: 'polite' };
+
   await expect(status).toHaveText('Enter at least two characters to search.');
-  expect(await look()).toEqual({ drawn: true, centred: true, role: 'status', live: 'polite' });
-  await axe(page, 'empty search');
+  expect(await look()).toEqual(plain);
+
+  // Nothing matches: the drawing.
+  answer = { json: { results: [], has_more: false, next_offset: null } };
+  await search(page, 'zebra');
+  await expect(status).toContainText('Nothing matches “zebra”.');
+  expect(await look()).toEqual(empty);
+  await axe(page, 'a search that found nothing');
+
+  // Searching again: plain while it runs (the list is empty then too), and plain with results.
+  answer = { json: { results: RESULTS(), has_more: false, next_offset: null } };
+  hold = true;
   await search(page, 'garden');
+  await expect(status).toHaveText('Searching…');
+  expect(await look()).toEqual(plain);
+  hold = false;
+  release();
   await expect(results(page).first()).toBeVisible();
-  expect(await look()).toEqual({ drawn: false, centred: false, role: 'status', live: 'polite' });
+  expect(await look()).toEqual(plain);
+
+  // Nothing again, then a failure: an error is never drawn as "nothing here".
+  answer = { json: { results: [], has_more: false, next_offset: null } };
+  await search(page, 'zebra');
+  await expect(status).toContainText('Nothing matches');
+  expect(await look()).toEqual(empty);
+  answer = { status: 500, json: { error: { code: 'server_error', message: 'Search is unavailable.' } } };
+  await search(page, 'garden');
+  await expect(status).toHaveText('Search could not be completed.');
+  expect(await look()).toEqual(plain);
+
   // Narrow: the words have the room; the picture gives way and nothing sticks out.
+  answer = { json: { results: [], has_more: false, next_offset: null } };
   for (const width of [320, 180]) {
     await open(page, width);
-    await expect(status).toBeVisible();
+    await search(page, 'zebra');
+    await expect(status).toContainText('Nothing matches');
     expect((await look()).drawn, `${width}`).toBe(false);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${width}`).toBe(true);
   }
