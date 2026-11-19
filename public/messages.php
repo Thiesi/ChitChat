@@ -81,13 +81,13 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
           <h2 id="dm-peer-name" class="conversation-title" tabindex="-1">Choose a conversation</h2>
           <p id="dm-peer-status" class="messages-muted">Search for a user or choose an existing conversation.</p>
         </div>
-        <!-- Phones: Report and Block behind "More actions", so the header stays one row (dm-more.js). -->
-        <button id="dm-more-toggle" class="header-button dm-more-toggle" type="button" aria-label="More actions" aria-expanded="false" aria-controls="dm-actions" hidden>
+        <!-- Report and Block open from "More actions" at every width, so the header stays one row (dm-more.js). -->
+        <button id="dm-more-toggle" class="header-button dm-more-toggle" type="button" aria-label="More actions" aria-haspopup="menu" aria-expanded="false" aria-controls="dm-actions" hidden>
           <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><circle cx="5.5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="18.5" cy="12" r="1.8"/></svg>
         </button>
-        <div id="dm-actions" class="conversation-actions">
-          <button id="dm-report-person" class="secondary-button hidden" type="button">Report</button>
-          <button id="dm-block-toggle" class="secondary-button dm-block-toggle hidden" type="button">Block user</button>
+        <div id="dm-actions" class="conversation-actions" role="menu" aria-label="More actions">
+          <button id="dm-report-person" class="message-menu-item hidden" type="button" role="menuitem" tabindex="-1">Report…</button>
+          <button id="dm-block-toggle" class="message-menu-item dm-block-toggle hidden" type="button" role="menuitem" tabindex="-1">Block</button>
         </div>
       </header>
       <!-- One line, with the detail a click away (#163 voice). -->
