@@ -227,6 +227,9 @@ test('phones get the dialog as a bottom sheet', async ({ page }, testInfo) => {
   await openRowansCard(page);
   await page.locator('#name-menu').getByRole('button', { name: 'Report Rowan' }).click();
   const dialog = page.getByRole('dialog', { name: 'Report Rowan' });
+  await expect(dialog).toBeVisible();
+  // The sheet rises into place (Lantern Next L9): measure where it rests.
+  await page.waitForFunction(() => document.getAnimations().every((animation) => animation.playState !== 'running'));
   const box = await dialog.boundingBox();
   expect(Math.round(box.width)).toBe(360);
   expect(Math.round(box.y + box.height)).toBe(740);

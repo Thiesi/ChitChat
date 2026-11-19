@@ -149,7 +149,9 @@ for (const [scheme, theme] of [['lantern', 'light'], ['lantern', 'dark'], ['dusk
     await page.locator('#members-toggle').click();
     await panel(page).getByRole('button', { name: 'Leave room…' }).click();
     await expect(page.getByRole('dialog', { name: 'Leave Kitchen?' })).toBeVisible();
-    await page.waitForTimeout(250);
+    // Measure the sheet once it has arrived (it was a fixed 250ms wait; a slow run could
+    // still catch the old sheet mid-fade). Since L9 the sheet moves but doesn't fade.
+    await page.waitForFunction(() => document.getAnimations().every((animation) => animation.playState !== 'running'));
     const result = await new AxeBuilder({ page }).include('dialog').withTags(WCAG).analyze();
     expect(result.violations, `dialog: ${result.violations.map((violation) => violation.id).join(', ')}`).toEqual([]);
   });

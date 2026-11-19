@@ -53,6 +53,27 @@ test('reduced motion cuts every motion duration to 0.001s or less, in tokens.css
   }
 });
 
+// Lantern Next L9 (#401): rules timed with a literal instead of a token, and page-to-page
+// view transitions, are cut on every page too. accessibility.css says the same, but the
+// stewardship and status pages don't load it.
+test('reduced motion also cuts literal animations, transitions and view transitions, in tokens.css', () => {
+  const reduced = block(tokens, '@media (prefers-reduced-motion: reduce)');
+  const everything = block(reduced, '*,');
+  assert.ok(everything, 'a rule for every element and pseudo-element');
+  assert.match(reduced, /\*,\s*\*::before,\s*\*::after\s*\{/, 'it covers ::before and ::after');
+  for (const property of ['animation-duration', 'transition-duration']) {
+    const value = new RegExp(`${property}:\\s*([^;!]+)\\s*!important;`).exec(everything)?.[1];
+    assert.ok(value, `${property} is cut, with !important`);
+    assert.ok(seconds(value) <= 0.001, `${property} is ${value}`);
+  }
+  assert.match(everything, /animation-iteration-count:\s*1\s*!important;/, 'nothing loops');
+  const transitions = block(reduced, '::view-transition-group(*)');
+  assert.ok(transitions, 'a rule for view transitions');
+  for (const part of ['::view-transition-group(*)', '::view-transition-old(*)', '::view-transition-new(*)']) assert.ok(reduced.includes(part), part);
+  const value = /animation-duration:\s*([^;!]+)\s*!important;/.exec(transitions)?.[1];
+  assert.ok(value && seconds(value) <= 0.001, `view transitions are ${value}`);
+});
+
 test('no other stylesheet sets a motion duration, so the cut can’t be undone', () => {
   const setters = [];
   for (const file of readdirSync(CSS).filter((name) => name.endsWith('.css') && name !== 'tokens.css')) {
