@@ -613,8 +613,15 @@ async function readCurrentRoomMentions() {
   }
 }
 
+// Each choice of a room supersedes any still loading (#402). The same room can be chosen
+// more than once while the page settles (sign-in's own choice, a room-list refresh, a
+// click), and each would otherwise clear the transcript and redraw it when its load lands,
+// under a reader's pointer and scroll position.
+let roomSelection = 0;
+
 async function selectRoom(chosen) {
   let room = chosen;
+  const selection = ++roomSelection;
   // The previous room's "N here now" and glow never carry over; presence for this room fills them in.
   const here = document.getElementById('room-here');
   if (here && state.currentRoom?.id !== chosen?.id) {
@@ -630,6 +637,7 @@ async function selectRoom(chosen) {
       handleApiFailure(error);
     }
   }
+  if (selection !== roomSelection) return;
   state.currentRoom = room;
   resetAnnouncements();
   transcriptKeys?.reset();
@@ -652,14 +660,15 @@ async function selectRoom(chosen) {
   renderRoomHeader();
   renderMessages();
   await presence.enterCurrentRoom(true);
+  if (selection !== roomSelection) return;
 
   if (!canReadHistory(room)) {
     showEmptyState('Join this private room to view its history.');
     return;
   }
 
-  await loadMessages({ replace: true, pings: fetchPings(room) });
-  if (state.currentRoom?.id !== room.id) return;
+  await loadMessages({ replace: true, pings: fetchPings(room), selection });
+  if (state.currentRoom?.id !== room.id || selection !== roomSelection) return;
   // Open at the first unread message when there is one, else at the end.
   const divider = elements['message-list'].querySelector('.new-messages-divider');
   if (divider) elements['message-list'].scrollTop = Math.max(0, divider.offsetTop - 16);
@@ -977,7 +986,9 @@ async function joinRoom(room, button) {
   }
 }
 
-async function loadMessages({ replace = false, beforeId = null, pings = null } = {}) {
+async function loadMessages({ replace = false, beforeId = null, pings = null, selection = null } = {}) {
+  // A load for a choice of room that a later choice has replaced draws nothing (#402).
+  const superseded = () => selection !== null && selection !== roomSelection;
   const room = state.currentRoom;
   if (!room) {
     return;
@@ -999,14 +1010,14 @@ async function loadMessages({ replace = false, beforeId = null, pings = null } =
     }
 
     const response = await apiGet(`/api/v1/rooms/messages.php?${parameters.toString()}`);
-    if (state.currentRoom?.id !== room.id) {
+    if (state.currentRoom?.id !== room.id || superseded()) {
       return;
     }
 
     const incoming = Array.isArray(response.messages) ? response.messages : [];
     if (pings) {
       const loaded = await pings;
-      if (state.currentRoom?.id !== room.id) return;
+      if (state.currentRoom?.id !== room.id || superseded()) return;
       state.pings = loaded;
     }
     if (replace) {
