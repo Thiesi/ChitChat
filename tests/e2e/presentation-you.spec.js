@@ -386,13 +386,17 @@ test('colour schemes are named radios; the chosen one has a ring, a bold name an
     const swatch = option.querySelector('.scheme-swatch');
     const badge = getComputedStyle(swatch, '::before');
     const tick = getComputedStyle(swatch, '::after');
-    return { border: parseFloat(getComputedStyle(option).borderTopWidth), badge: paint(badge.backgroundColor), tick: paint(tick.backgroundColor), adjust: tick.forcedColorAdjust };
+    // What the system's own colours are here, read from a probe that opts out the same way.
+    const system = (keyword) => { const probe = document.createElement('span'); probe.style.cssText = 'forced-color-adjust: none; background-color: ' + keyword; document.body.append(probe); const value = paint(getComputedStyle(probe).backgroundColor); probe.remove(); return value; };
+    return { border: parseFloat(getComputedStyle(option).borderTopWidth), badge: paint(badge.backgroundColor), tick: paint(tick.backgroundColor), adjust: tick.forcedColorAdjust, highlight: system('Highlight'), highlightText: system('HighlightText'), size: parseFloat(badge.width) };
   });
   expect(forced.border).toBeGreaterThanOrEqual(2);
   expect(forced.adjust).toBe('none');
-  expect(forced.badge.endsWith(',255')).toBe(true);
-  expect(forced.tick.endsWith(',255')).toBe(true);
+  // The badge is the system's Highlight and the tick its HighlightText: a pair made to be read together.
+  expect(forced.badge).toBe(forced.highlight);
+  expect(forced.tick).toBe(forced.highlightText);
   expect(forced.tick).not.toBe(forced.badge);
+  expect(forced.size).toBeGreaterThanOrEqual(12);
 });
 
 test('settings copy is one line; the rest waits behind a named Learn more', async ({ page }) => {
