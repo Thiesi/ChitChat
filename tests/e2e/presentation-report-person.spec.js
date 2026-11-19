@@ -204,7 +204,9 @@ test('direct messages: report from the conversation header, reviewed globally', 
   await fixture(page, { requests });
   await page.goto('/messages.php?with=2');
   await expect(page.locator('.dm-message').first()).toBeVisible();
-  await page.getByRole('button', { name: 'Report Rowan' }).click();
+  // Lantern Next L6 (#393): Report opens from the header's "More actions" menu.
+  await page.getByRole('button', { name: 'More actions for Rowan' }).click();
+  await page.getByRole('menuitem', { name: 'Report Rowan…' }).click();
   const dialog = page.getByRole('dialog', { name: 'Report Rowan' });
   await expect(dialog).toContainText('Global moderators review this report.');
   await dialog.getByRole('button', { name: 'Report', exact: true }).click();
@@ -212,7 +214,10 @@ test('direct messages: report from the conversation header, reviewed globally', 
   expect(requests.find((entry) => entry.path === 'reports/user.php').body.context).toBeNull();
   await page.getByRole('button', { name: 'Block direct messages' }).click();
   await page.getByRole('button', { name: 'Done' }).click();
-  await expect(page.getByRole('button', { name: 'Unblock Rowan' })).toBeVisible();
+  // The header's menu now offers Unblock (L6: the item lives in "More actions").
+  await page.getByRole('button', { name: 'More actions for Rowan' }).click();
+  await expect(page.getByRole('menuitem', { name: 'Unblock Rowan' })).toBeVisible();
+  await page.keyboard.press('Escape');
   await accessible(page);
 });
 

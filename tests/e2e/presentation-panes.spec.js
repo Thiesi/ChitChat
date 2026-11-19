@@ -291,7 +291,7 @@ test('guests see the members-only card in the Rooms list and no search', async (
 
 // ---- Direct ----
 
-test('desktop Direct: the conversation list with pebbles, then a header with report, block and the privacy line', async ({ page }) => {
+test('desktop Direct: the conversation list with pebbles, then a header with More actions and the privacy line', async ({ page }) => {
   await fixture(page);
   await openDirect(page);
   const pane = page.getByRole('region', { name: 'Direct' });
@@ -307,8 +307,14 @@ test('desktop Direct: the conversation list with pebbles, then a header with rep
   await expect(page.locator('#dm-peer-pebble')).toHaveAttribute('data-hue', '2');
   await expect(page.locator('#dm-peer-pebble')).toHaveText('RO');
   await expect(page.locator('#dm-message-list .dm-message')).toHaveCount(2);
-  await expect(page.locator('#dm-report-person')).toBeVisible();
-  await expect(page.locator('#dm-block-toggle')).toBeVisible();
+  // Report and Block are one click away, behind "More actions" (Lantern Next L6; owner decision).
+  const moreActions = page.locator('#dm-conversation .conversation-header').getByRole('button', { name: 'More actions for Rowan' });
+  await expect(moreActions).toBeVisible();
+  await moreActions.click();
+  await expect(page.getByRole('menuitem', { name: 'Report Rowan…' })).toBeVisible();
+  await expect(page.getByRole('menuitem', { name: 'Block Rowan' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#dm-block-toggle')).toBeHidden();
 
   const privacy = page.locator('#dm-privacy-notice');
   await expect(privacy).toContainText('aren’t end-to-end encrypted');
@@ -522,7 +528,7 @@ test('phones: the Direct header stays one row, with Report and Block behind "Mor
   await page.locator('.conversation-button', { hasText: 'Rowan' }).click();
   const header = page.locator('#dm-conversation .conversation-header');
   // Scoped: each message has its own "More actions" too.
-  const more = header.getByRole('button', { name: 'More actions' });
+  const more = header.getByRole('button', { name: 'More actions for Rowan' });
   await expect(more).toBeVisible();
   await expect(page.locator('#dm-report-person')).toBeHidden();
   await expect(page.locator('#dm-block-toggle')).toBeHidden();
@@ -535,7 +541,7 @@ test('phones: the Direct header stays one row, with Report and Block behind "Mor
 
   await more.click();
   await expect(more).toHaveAttribute('aria-expanded', 'true');
-  await expect(page.getByRole('button', { name: 'Report Rowan' })).toBeFocused();
+  await expect(page.getByRole('menuitem', { name: 'Report Rowan…' })).toBeFocused();
   await expect(page.locator('#dm-block-toggle')).toBeVisible();
   await page.mouse.move(0, 0);
   const result = await new AxeBuilder({ page }).include('#dm-conversation').withTags(WCAG).analyze();
@@ -547,20 +553,92 @@ test('phones: the Direct header stays one row, with Report and Block behind "Mor
 
   // Choosing an action closes the menu and does it.
   await more.click();
-  await page.getByRole('button', { name: 'Report Rowan' }).click();
+  await page.getByRole('menuitem', { name: 'Report Rowan…' }).click();
   await expect(page.getByRole('dialog', { name: 'Report Rowan' })).toBeVisible();
   await expect(more).toHaveAttribute('aria-expanded', 'false');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
-test('wider screens keep Report and Block in the header row, with no "More actions"', async ({ page }) => {
-  await fixture(page);
-  for (const width of [1280, 900]) {
+// Lantern Next L6 (#393; owner decision): one "More actions" menu at every width, the same
+// control phones have had since #257, never a second one. A menu button in full: it says it
+// has a menu and whether it is open; the items are menu items; the arrow keys, Home and End
+// move between them; Escape closes and returns to the button; choosing an item closes and
+// does it; and it works down to 180 CSS px.
+for (const width of [1280, 900, 360, 180]) {
+  test(`Direct: Report and Block open from one "More actions" menu, by keyboard too (${width}px)`, async ({ page }) => {
+    await fixture(page);
+    await page.route('**/api/v1/users/profile.php?**', (route) => route.fulfill({ json: { profile: { id: 2, username: 'Rowan', has_avatar: false, ignored: false, can_report: true } } }));
+    await page.route('**/api/v1/direct-messages/block.php', (route) => route.fulfill({ json: { relationship: { blocked_by_me: true, messaging_available: false } } }));
     await page.setViewportSize({ width, height: 860 });
     await page.goto('/messages.php?with=2');
     await expect(page.locator('#dm-peer-name')).toHaveText('Rowan');
-    await expect(page.locator('#dm-more-toggle')).toBeHidden();
-    await expect(page.locator('#dm-report-person')).toBeVisible();
-    await expect(page.locator('#dm-block-toggle')).toBeVisible();
-  }
-});
+    const header = page.locator('#dm-conversation .conversation-header');
+    // One such button in the header, and no Report or Block beside it.
+    await expect(header.getByRole('button', { name: /More actions/ })).toHaveCount(1);
+    const more = header.getByRole('button', { name: 'More actions for Rowan' });
+    await expect(more).toBeVisible();
+    await expect(more).toHaveAttribute('aria-haspopup', 'menu');
+    await expect(more).toHaveAttribute('aria-expanded', 'false');
+    await expect(page.locator('#dm-report-person')).toBeHidden();
+    await expect(page.locator('#dm-block-toggle')).toBeHidden();
+    const target = await more.boundingBox();
+    expect(Math.min(target.width, target.height)).toBeGreaterThanOrEqual(44);
+
+    const menu = page.getByRole('menu', { name: 'More actions' });
+    const report = menu.getByRole('menuitem', { name: 'Report Rowan…' });
+    const block = menu.getByRole('menuitem', { name: 'Block Rowan' });
+    await more.focus();
+    await page.keyboard.press('Enter');
+    await expect(more).toHaveAttribute('aria-expanded', 'true');
+    await expect(menu).toBeVisible();
+    await expect(menu.getByRole('menuitem')).toHaveCount(2);
+    await expect(report).toBeFocused();
+    await page.keyboard.press('ArrowDown');
+    await expect(block).toBeFocused();
+    await page.keyboard.press('ArrowDown');
+    await expect(report).toBeFocused();
+    await page.keyboard.press('ArrowUp');
+    await expect(block).toBeFocused();
+    await page.keyboard.press('Home');
+    await expect(report).toBeFocused();
+    await page.keyboard.press('End');
+    await expect(block).toBeFocused();
+    // The menu lies inside the window, its items whole and at least 44px tall.
+    const fits = await menu.evaluate((node) => {
+      const box = node.getBoundingClientRect();
+      const items = [...node.querySelectorAll('[role="menuitem"]')].map((item) => item.getBoundingClientRect());
+      return { inWindow: box.left >= 0 && box.right <= innerWidth + 0.5 && box.bottom <= innerHeight, tall: items.every((item) => item.height >= 44), inside: items.every((item) => item.left >= box.left - 0.5 && item.right <= box.right + 0.5), page: document.documentElement.scrollWidth <= innerWidth };
+    });
+    expect(fits).toEqual({ inWindow: true, tall: true, inside: true, page: true });
+    await page.mouse.move(0, 0);
+    const result = await new AxeBuilder({ page }).include('#dm-conversation').withTags(WCAG).analyze();
+    expect(result.violations).toEqual([]);
+
+    await page.keyboard.press('Escape');
+    await expect(menu).toBeHidden();
+    await expect(more).toHaveAttribute('aria-expanded', 'false');
+    await expect(more).toBeFocused();
+    // Arrow down on the button opens the menu too; Tab closes it and moves on.
+    await page.keyboard.press('ArrowDown');
+    await expect(report).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(menu).toBeHidden();
+
+    // Choosing Report opens its dialog; closing the dialog returns to the button.
+    await more.click();
+    await report.click();
+    const dialog = page.getByRole('dialog', { name: 'Report Rowan' });
+    await expect(dialog).toBeVisible();
+    await expect(menu).toBeHidden();
+    await page.keyboard.press('Escape');
+    await expect(dialog).toBeHidden();
+    await expect(more).toBeFocused();
+
+    // Blocking acts at once; the item then offers Unblock.
+    await more.click();
+    await block.click();
+    await expect(menu).toBeHidden();
+    await more.click();
+    await expect(menu.getByRole('menuitem', { name: 'Unblock Rowan' })).toBeVisible();
+  });
+}

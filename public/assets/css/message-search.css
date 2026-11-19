@@ -394,3 +394,22 @@
   .message-search-form .search-scope-select-field:not([hidden]) { display: grid; gap: 0.4rem; }
   .message-search-form { gap: 0.6rem; padding: 0.75rem; }
 }
+
+/* ---- Lantern Next L6 (#393): one quiet search bar, results as rows ---- */
+
+/* The form is a bar on the page, not a card: the field, the scope and the button on one
+   line where they fit. */
+.message-search-form { padding: 0; border: 0; background: none; box-shadow: none; }
+/* Scope chips: the chosen one is a lit chip in bold ink with a full ring; the others are
+   quiet. Weight and the ring carry the choice, not a colour. */
+.message-search-form .search-scope-chip { border-color: var(--line-soft); background: transparent; color: var(--text-muted); font-weight: 600; }
+.search-scope-chip:has(input:checked) { border-color: var(--text); background: var(--surface); color: var(--text); font-weight: 700; box-shadow: inset 0 0 0 1px var(--text); }
+/* Results are rows: the field corner, a soft edge, no shadow of their own. */
+.message-search-result { border-color: var(--line-soft); border-radius: var(--radius-field); box-shadow: none; }
+@media (max-width: 34rem) {
+  .message-search-form { padding: 0 0.75rem; }
+}
+@media (forced-colors: active) {
+  .message-search-result { border-color: CanvasText; }
+  .message-search-form .search-scope-chip { border-color: ButtonText; }
+}

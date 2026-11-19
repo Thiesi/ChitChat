@@ -203,6 +203,19 @@ For CCM: show the run's time at the name (incoming) or under the last bubble (ou
 
 For CCM: the one-colour mark is the monochrome launcher layer's geometry; the welcome screen may take the wider glow and the conversation drawing.
 
+## L6: Direct, Activity, Search (#393)
+
+| What | Old | New | Reason |
+|---|---|---|---|
+| Report and Block in Direct | Two outlined buttons in the header on wide screens; a "More actions" menu on phones | One "More actions for <name>" menu at every width: a 44px button, a menu at the floating elevation with the field corner, items "Report <name>…" and "Block <name>" / "Unblock <name>" | Owner decision. The header keeps one row and the conversation leads; the actions are one click away. One control, not two. |
+| The menu's behaviour | A disclosure | A menu button: `aria-haspopup="menu"`, `aria-expanded`, `role="menu"` and `menuitem`s; arrow keys, Home, End; Escape returns to the button; a dialog opened from an item returns there too | The pattern people who use a keyboard or a screen reader expect. |
+| An Activity notice | An outlined card with one or two outlined buttons | A quiet row: no outline, the field corner, a hover tint. A row with somewhere to go is one link you can click anywhere (its link stretched over the row); "Mark as read" is a round 44px tick at the row's end, named with the notice it marks | Rows, not cards. No control is nested in another. |
+| Unread in Activity | A dot in the row's corner and bold words | A dot before the words and bold words; "Unread:" for screen readers as before | The corner now holds the tick. |
+| Activity day headings | Upper-case tracked | Label type in sentence case | As the lists' section labels (L3). |
+| Search | A card holding the field, the scope and the button; result cards with shadows; the chosen scope in persimmon | A bar on the page (no card); the chosen scope a lit chip in bold ink with a full ring; results as rows with a soft edge and the field corner | One quiet bar. The chosen scope is carried by weight and the ring, not by colour. |
+
+For CCM: the Direct header's actions sit behind one "More" control; Activity rows are whole-row targets with a separate "mark read" control at the end.
+
 ## Still to come
 
-L3 lists · L4 conversation · L5 sign-in family and the mark variants (#227) · L6 Direct, Activity, Search · L7 You · L8 stewardship · L9 overlays, status and motion · L10 handoff. Each adds its section here when it merges.
+L7 You · L8 stewardship · L9 overlays, status and motion · L10 handoff. Each adds its section here when it merges.

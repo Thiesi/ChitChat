@@ -9,12 +9,5 @@
   flex: 0 0 auto;
 }
 
-.dm-block-toggle[data-blocked="false"] {
-  border-color: var(--unsure-line);
-}
-
-.dm-block-toggle[data-blocked="true"] {
-  border-color: var(--signature-text);
-}
 
 /* Phones keep the header to one row: the actions sit behind "More actions" (panes.css, dm-more.js). */

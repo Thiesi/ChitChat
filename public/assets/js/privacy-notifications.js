@@ -128,6 +128,7 @@ const ICON_PATHS = {
   shield: ['M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z'],
   info: ['M12 16v-4', 'M12 8h.01', 'M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z'],
   person: ['M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2', 'M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0z'],
+  check: ['M5 12.5l4.5 4.5L19 7.5'],
 };
 
 function strokeIcon(name) {
@@ -237,14 +238,18 @@ function renderNotification(notification) {
     }
   }
 
+  // A row is one link you can click anywhere (Lantern Next L6): the link is a real link with
+  // its own words, stretched over the row by the stylesheet. "Mark as read" is a separate
+  // control beside it, never inside it, and sits above the stretched link.
   const hasUnreadAction = !notification.read && Number.isInteger(notification.id);
   const hasLink = typeof notification.link === 'string' && notification.link !== '' && presentation.action !== null;
-  if (hasUnreadAction || hasLink) {
+  let readButton = null;
+  if (hasLink) {
     const actions = document.createElement('div');
     actions.className = 'privacy-notification-actions';
-    if (hasLink) {
+    {
       const link = document.createElement('a');
-      link.className = 'secondary-button';
+      link.className = 'activity-link';
       link.href = notification.link;
       link.textContent = presentation.action;
       // "View message" alone is ambiguous in a list of them; the lead says which.
@@ -265,19 +270,25 @@ function renderNotification(notification) {
       }
       actions.append(link);
     }
-    if (hasUnreadAction) {
-      const button = document.createElement('button');
-      button.className = 'secondary-button';
-      button.type = 'button';
-      button.textContent = 'Mark as read';
-      button.setAttribute('aria-describedby', lead.id);
-      button.addEventListener('click', () => markOneRead(notification.id, item, button));
-      actions.append(button);
-    }
     body.append(actions);
+    item.classList.add('activity-item-linked');
+  }
+  if (hasUnreadAction) {
+    const button = document.createElement('button');
+    button.className = 'activity-read-button';
+    button.type = 'button';
+    // Named with the notice it marks, so a list of these is never a list of the same words.
+    button.setAttribute('aria-label', `Mark as read: ${leadsWithMessage ? messageText : titleText}`);
+    button.title = 'Mark as read';
+    const tick = strokeIcon('check');
+    tick.setAttribute('aria-hidden', 'true');
+    button.append(tick);
+    button.addEventListener('click', () => markOneRead(notification.id, item, button));
+    readButton = button;
   }
 
   item.append(kindIcon(presentation.icon, notification), body);
+  if (readButton) item.append(readButton);
   return item;
 }
 
@@ -285,9 +296,7 @@ function renderNotification(notification) {
 function markItemRead(item) {
   item.classList.remove('privacy-notification-unread');
   item.querySelector('.activity-unread-label')?.remove();
-  for (const button of item.querySelectorAll('.privacy-notification-actions button')) button.remove();
-  const actions = item.querySelector('.privacy-notification-actions');
-  if (actions && actions.childElementCount === 0) actions.remove();
+  item.querySelector('.activity-read-button')?.remove();
 }
 
 async function markOneRead(id, item, button) {

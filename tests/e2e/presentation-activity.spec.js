@@ -151,6 +151,58 @@ test('unread items carry a dot and say "Unread"; Mark as read keeps the link', a
   await expect(page.locator('#privacy-notifications-status')).toHaveText('2 unread notifications.');
 });
 
+// Lantern Next L6 (#393): a notice with somewhere to go is one row you can click anywhere.
+// Its link is a real link, stretched over the row; "Mark as read" is a separate control
+// above it, named with the notice it marks. Nothing interactive is nested in anything.
+test('a row is one link you can click anywhere; the tick is its own named control', async ({ page }) => {
+  await fixture(page);
+  await open(page);
+  const mention = item(page, 60);
+  await expect(mention).toHaveClass(/activity-item-linked/);
+  expect(await page.locator('#privacy-notifications-list').evaluate((list) => list.querySelectorAll('a a, a button, button a, button button, a [role="button"], button [role="link"]').length)).toBe(0);
+
+  // Anywhere on the row is the link: its corners, its words, its time.
+  const hits = await mention.evaluate((row) => {
+    const link = row.querySelector('.privacy-notification-actions a');
+    const box = row.getBoundingClientRect();
+    const at = (x, y) => { const node = document.elementFromPoint(x, y); return Boolean(node) && (node === link || link.contains(node)); };
+    const words = row.querySelector('.activity-lead').getBoundingClientRect();
+    const time = row.querySelector('time').getBoundingClientRect();
+    return { corner: at(box.left + 4, box.top + 4), bottom: at(box.left + 4, box.bottom - 4), words: at(words.left + 12, words.top + words.height / 2), time: at(time.left + 2, time.top + time.height / 2) };
+  });
+  expect(hits).toEqual({ corner: true, bottom: true, words: true, time: true });
+
+  // The tick: named with its notice, at least 24px (44 here), and itself under the pointer.
+  const tick = mention.getByRole('button', { name: 'Mark as read: Jonas mentioned you in “Board games night”.' });
+  await expect(tick).toBeVisible();
+  const tickBox = await tick.boundingBox();
+  expect(Math.min(tickBox.width, tickBox.height)).toBeGreaterThanOrEqual(24);
+  expect(await tick.evaluate((node) => { const box = node.getBoundingClientRect(); const at = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2); return Boolean(at) && node.contains(at); })).toBe(true);
+  // Every tick has its own name.
+  const names = await page.getByRole('button', { name: /^Mark as read: / }).evaluateAll((nodes) => nodes.map((node) => node.getAttribute('aria-label')));
+  expect(names.length).toBeGreaterThan(1);
+  expect(new Set(names).size).toBe(names.length);
+  // Pressing it marks the notice read and goes nowhere.
+  const before = page.url();
+  await tick.click();
+  await expect(mention).not.toHaveClass(/privacy-notification-unread/);
+  expect(page.url()).toBe(before);
+
+  // By keyboard the row's link shows its focus on the whole row.
+  // Reached with the keyboard: back from the next row's tick onto its link.
+  const ping = item(page, 59);
+  await ping.getByRole('button', { name: /^Mark as read: / }).focus();
+  await page.keyboard.press('Shift+Tab');
+  await expect(ping.getByRole('link', { name: 'View ping' })).toBeFocused();
+  const ring = await ping.locator('.privacy-notification-actions a').evaluate((node) => { const style = getComputedStyle(node, '::after'); return { style: style.outlineStyle, width: parseFloat(style.outlineWidth) }; });
+  expect(ring.style).not.toBe('none');
+  expect(ring.width).toBeGreaterThanOrEqual(2);
+
+  // A notice with nowhere to go is not a link and doesn't pretend to be one.
+  await expect(item(page, 55)).not.toHaveClass(/activity-item-linked/);
+  await expect(item(page, 55).getByRole('link')).toHaveCount(0);
+});
+
 test('Mark all as read clears every dot and keeps the links', async ({ page }) => {
   const posts = await fixture(page);
   await open(page);

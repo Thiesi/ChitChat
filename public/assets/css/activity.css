@@ -8,25 +8,61 @@
 
 .activity-day { display: grid; gap: 0.6rem; }
 
+/* Day headings are Label type in sentence case, like the lists' section labels (L3). */
 .activity-day-heading {
   margin: 0;
+  padding-inline: 0.25rem;
   color: var(--text-muted);
-  font-size: 0.78rem;
-  font-weight: 750;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: var(--type-label);
+  font-weight: 600;
 }
 
 .activity-items { display: grid; gap: 0.5rem; margin: 0; padding: 0; list-style: none; }
 
-/* An item: the mark, then the words and actions. */
+/* An item is a row (Lantern Next L6): the mark, the words, and at the end the tick that
+   marks it read. A row with somewhere to go is one link you can click anywhere: its link
+   is stretched over the row, and the tick sits above it as its own control (nothing is
+   nested in anything). Rows are quiet: no outline, a hover tint, the field corner. */
 .privacy-notification.activity-item {
   position: relative;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: start;
   gap: 0.85rem;
   padding: 0.85rem 1rem;
+  border-color: transparent;
+  border-radius: var(--radius-field);
 }
+.activity-item-linked:hover { background: color-mix(in srgb, var(--text) 6%, var(--raised)); }
+.activity-link {
+  color: var(--signature-text);
+  font-size: var(--type-label);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+.activity-link::after { position: absolute; inset: 0; border-radius: inherit; content: ""; }
+/* The focus ring is drawn on the whole row, which is what the link covers. */
+.activity-link:focus-visible { outline: none; }
+.activity-link:focus-visible::after { outline: 2px solid var(--signature-text); outline-offset: 2px; }
+.activity-read-button {
+  position: relative;
+  z-index: 1;
+  display: inline-grid;
+  width: var(--target-min);
+  height: var(--target-min);
+  margin: -0.4rem -0.5rem -0.4rem 0;
+  place-items: center;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.activity-read-button svg { width: 1.2rem; height: 1.2rem; }
+.activity-read-button:hover { border-color: var(--field-line); background: var(--surface); color: var(--text); }
+.activity-read-button:focus-visible { outline: 2px solid var(--signature-text); outline-offset: 2px; }
+.activity-read-button:disabled { cursor: progress; opacity: 0.6; }
 
 .activity-body { display: grid; gap: 0.35rem; min-width: 0; }
 
@@ -44,20 +80,18 @@
 
 .activity-body .privacy-notification-actions { justify-content: flex-start; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.25rem; }
 
-/* Unread: a dot in the signature colour, replacing the old thick edge. */
-.privacy-notification-unread.activity-item { border-inline-start: 1px solid var(--line); }
-.privacy-notification-unread.activity-item::after {
-  position: absolute;
-  top: 1rem;
-  right: 1rem;
-  width: 0.6rem;
-  height: 0.6rem;
+/* Unread: a dot in the signature colour before the words (with their weight, below). */
+.privacy-notification-unread.activity-item { border-inline-start: 1px solid transparent; }
+.privacy-notification-unread .activity-lead::before {
+  display: inline-block;
+  width: 0.55rem;
+  height: 0.55rem;
+  margin-inline-end: 0.45rem;
   border-radius: 50%;
   background: var(--signature-text);
+  vertical-align: 0.08em;
   content: "";
 }
-/* Room for the dot on every item, so times line up whether read or not. */
-.activity-item .privacy-notification-header { padding-inline-end: 1.1rem; }
 
 /* ---- Marks ---- */
 
@@ -104,14 +138,16 @@
 
 @media (forced-colors: active) {
   .activity-icon { border: 1px solid CanvasText; }
-  .privacy-notification-unread.activity-item::after { background: Highlight; forced-color-adjust: none; }
+  .privacy-notification-unread .activity-lead::before { background: Highlight; forced-color-adjust: none; }
+  .privacy-notification.activity-item { border-color: CanvasText; }
+  .activity-read-button { border-color: ButtonText; }
 }
 
 /* Narrow phones and large text (S7g): the kind and the time share a line only while
    they fit, and the actions wrap instead of running off the screen. */
 @media (max-width: 24rem) {
   /* The kind's mark is decoration (the kind is in the words): the words get the row. */
-  .privacy-notification.activity-item { grid-template-columns: minmax(0, 1fr); padding: 0.65rem; }
+  .privacy-notification.activity-item { grid-template-columns: minmax(0, 1fr) auto; padding: 0.65rem; }
   .activity-item .activity-icon { display: none; }
   .activity-body .privacy-notification-header { flex-wrap: wrap; gap: 0.1rem 0.6rem; }
   .activity-kind { min-width: 0; overflow-wrap: break-word; }

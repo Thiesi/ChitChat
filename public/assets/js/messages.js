@@ -293,7 +293,10 @@ function renderRelationship() {
   const user = state.selectedUser;
   const relationship = state.relationship;
   elements['dm-report-person'].classList.toggle('hidden', !user || !relationship);
-  if (user) elements['dm-report-person'].setAttribute('aria-label', `Report ${user.username}`);
+  // The menu's items say who they act on, in their own text (Lantern Next L6): "Report
+  // Rowan…" opens a dialog, hence the ellipsis; Block and Unblock act at once.
+  if (user) elements['dm-report-person'].textContent = `Report ${user.username}…`;
+  document.getElementById('dm-more-toggle')?.setAttribute('aria-label', user ? `More actions for ${user.username}` : 'More actions');
   if (!user || !relationship) {
     elements['dm-block-toggle'].classList.add('hidden');
     elements['dm-composer'].classList.add('hidden');
@@ -305,8 +308,7 @@ function renderRelationship() {
   const button = elements['dm-block-toggle'];
   button.classList.remove('hidden');
   button.dataset.blocked = blockedByMe ? 'true' : 'false';
-  button.textContent = blockedByMe ? 'Unblock user' : 'Block user';
-  button.setAttribute('aria-label', `${blockedByMe ? 'Unblock' : 'Block'} ${user.username}`);
+  button.textContent = `${blockedByMe ? 'Unblock' : 'Block'} ${user.username}`;
 
   if (available && state.mutedEverywhere) {
     // Muted everywhere: history stays readable, sending waits for the mute to end.
