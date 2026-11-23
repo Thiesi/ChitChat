@@ -12,6 +12,16 @@ select:focus {
   outline-offset: 2px;
 }
 
+/* A select that can't be used looks it, not only its note (#417's setting before the app is
+   on Google Play): a dashed edge, which forced colours keep, on the ground rather than the
+   field's fill, with muted words. */
+select:disabled {
+  border-style: dashed;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
 .optional-label {
   color: var(--text-muted);
   font-size: 0.78rem;
@@ -479,3 +489,12 @@ form:has(.attachment-selection > button:not(.hidden)) .attachment-button {
   }
 }
 
+
+/* ChitChat for Android (#417): Google's badge, unmodified, with the clear space its art
+   carries; the trademark line beneath, on a line of its own. */
+.play-badge { display: inline-block; border-radius: 0.6rem; line-height: 0; }
+.play-badge img { display: block; width: auto; height: 3.75rem; }
+.play-trademark { display: block; color: var(--text-muted); font-size: var(--type-caption); line-height: 1.4; }
+/* On Android only: open an installed app with this server. A 44px tall target. */
+.android-app-open { display: block; font-size: var(--type-label); }
+.android-app-open a { display: inline-flex; align-items: center; min-height: var(--target-min); font-weight: 600; }

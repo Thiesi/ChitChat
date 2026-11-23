@@ -475,6 +475,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <script type="module" src="/assets/js/panes.js"></script>
   <script type="module" src="/assets/js/sessions.js"></script>
   <script type="module" src="/assets/js/accessibility-feedback.js"></script>
+  <script type="module" src="/assets/js/android-app.js"></script>
   <script type="module" src="/assets/js/shell.js"></script>
 </body>
 </html>

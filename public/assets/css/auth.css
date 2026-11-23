@@ -418,3 +418,17 @@
 /* #256: a field's hint ("at least 12 characters") on its own line under the label, as the
    birth date's already wraps, instead of running into the label. */
 .auth-card label .optional-label { display: block; margin-top: 0.15rem; }
+
+/* #417: "Also on Android" under the card, quiet, and apart from the footer line below it. */
+.auth-android-app {
+  display: grid;
+  justify-items: center;
+  gap: 0.25rem;
+  max-width: 28rem;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--type-label);
+  text-align: center;
+}
+.auth-android-app[hidden] { display: none; }
+.auth-android-app .android-app-lead { font-weight: 600; }

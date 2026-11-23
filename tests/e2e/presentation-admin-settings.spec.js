@@ -211,6 +211,24 @@ test('the frame: the save is a steward primary, not a danger button; the notice 
 
 // ---- System status ----
 
+// #417: until ChitChat for Android is on Google Play, its setting can't be changed. The select
+// says so by its look as well as its note: a dashed edge (kept in forced colours) and muted
+// words, where every usable select has a solid edge.
+test('the ChitChat for Android setting looks unavailable, not only says it', async ({ page }) => {
+  await fixture(page);
+  await open(page);
+  const unavailable = page.locator('#android-app-promotion');
+  await expect(unavailable).toBeDisabled();
+  await expect(unavailable).toHaveAccessibleDescription(/Available once ChitChat for Android is on Google Play\./);
+  const look = (locator) => locator.evaluate((node) => [getComputedStyle(node).borderTopStyle, getComputedStyle(node).color]);
+  const [edge, words] = await look(unavailable);
+  const [usableEdge, usableWords] = await look(page.locator('select:enabled').first());
+  expect([edge, usableEdge]).toEqual(['dashed', 'solid']);
+  expect(words).not.toBe(usableWords);
+  await page.emulateMedia({ forcedColors: 'active' });
+  expect((await look(unavailable))[0]).toBe('dashed');
+});
+
 test('System status: every card filled, the rate-limit table, and the plain note', async ({ page }) => {
   await fixture(page);
   await page.goto('/admin-status.php');
