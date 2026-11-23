@@ -21,6 +21,8 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <link rel="stylesheet" href="/assets/css/auth.css">
 </head>
 <body>
+  <!-- #422: the sign-in pages size their layout to the text (auth.css: .auth-frame). -->
+  <div class="auth-frame">
   <main class="auth-shell auth-shell-single">
     <?= \ChitChat\View\Lockup::html($config, 'step-up-complete-brand', horizontal: true) ?>
     <section class="auth-card" aria-labelledby="step-up-complete-title">
@@ -30,6 +32,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
       <p>You can close this window and return to <?= $appName ?>.</p>
     </section>
   </main>
+  </div>
   <script type="module" src="/assets/js/step-up-complete.js"></script>
 </body>
 </html>

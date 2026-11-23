@@ -54,6 +54,8 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <div id="announcer" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></div>
   <div id="app-loading" class="app-loading" role="status">Loading <?= $appName ?>…</div>
 
+  <!-- #422: the sign-in pages size their layout to the text (auth.css: .auth-frame). -->
+  <div class="auth-frame">
   <main id="auth-shell" class="auth-shell hidden">
     <div class="auth-layout">
       <!-- S3 (#169): the installation's lockup is the headline (#227, web only).
@@ -211,6 +213,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
     <p class="auth-android-app" data-android-app="sign-in" hidden></p>
     <?= \ChitChat\View\PoweredBy::html($config, accessibilityFeedback: true) ?>
   </main>
+  </div>
 
   <?= \ChitChat\View\AppShell::open('rooms', 'conversation', 'Skip to conversation', true, config: $config) ?>
   <div id="chat-shell" class="chat-shell hidden" data-panes data-list="sidebar" data-toggle="drawer-toggle" data-close="drawer-close" data-backdrop="drawer-backdrop" data-title="room-title" data-list-name="Rooms" data-deep-link="room_id">
