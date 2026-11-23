@@ -11,16 +11,26 @@ use ChitChat\Config;
  * android_app_promotion), but it only takes effect once STORE_URL is set, which a later release
  * does when the Play listing is public. Until then nothing is exposed anywhere, and the
  * setting can't be switched on.
+ *
+ * The links prefill the app's "Where do you chat?" with this server (contract agreed with
+ * ChitChat Mobile on #417): the Play link carries it as an install referrer, and the intent
+ * link opens an installed app with it. The app only prefills; the person still confirms. The
+ * referrer key, the scheme and its host are fixed with the app.
  */
 final class AndroidAppPromotion
 {
     /**
-     * The Play listing, a plain URL without tracking or personal parameters. Null until the
-     * listing is public; then 'https://play.google.com/store/apps/details?id=de.networkxxiii.chitchat'.
+     * The Play listing, without tracking or personal parameters. Null until the listing is
+     * public; then 'https://play.google.com/store/apps/details?id=de.networkxxiii.chitchat'.
      *
      * @var ?string
      */
     public const STORE_URL = null;
+
+    public const PACKAGE = 'de.networkxxiii.chitchat';
+    private const REFERRER_KEY = 'chitchat_server';
+    private const SCHEME = 'chitchat';
+    private const SCHEME_HOST = 'connect';
 
     /** Whether the setting can take effect at all: the store URL is known. */
     public static function available(?string $storeUrl = self::STORE_URL): bool
@@ -30,21 +40,31 @@ final class AndroidAppPromotion
 
     /**
      * session.php's android_app: null unless the setting is on and the store URL is known.
-     * server_address is the bare host members type into the app, or null when APP_ORIGIN is unset.
+     * Without an address (APP_ORIGIN unset or not https), store_url is the plain listing and
+     * there's no open_url.
      *
-     * @return array{store_url:string, server_address:?string}|null
+     * @return array{store_url:string, open_url:?string, server_address:?string}|null
      */
     public static function toPublic(bool $enabled, Config $config, ?string $storeUrl = self::STORE_URL): ?array
     {
         if (!$enabled || $storeUrl === null) {
             return null;
         }
-        return ['store_url' => $storeUrl, 'server_address' => self::serverAddress($config)];
+        $address = self::serverAddress($config);
+        if ($address === null) {
+            return ['store_url' => $storeUrl, 'open_url' => null, 'server_address' => null];
+        }
+        $store = $storeUrl . '&referrer=' . rawurlencode(self::REFERRER_KEY . '=' . $address);
+        $open = 'intent://' . self::SCHEME_HOST . '?server=' . rawurlencode($address)
+            . '#Intent;scheme=' . self::SCHEME . ';package=' . self::PACKAGE
+            . ';S.browser_fallback_url=' . rawurlencode($store) . ';end';
+        return ['store_url' => $store, 'open_url' => $open, 'server_address' => $address];
     }
 
     /**
-     * The server's address as members type it into the app: APP_ORIGIN's host, with its port only
-     * when that isn't the scheme's default. No scheme, path or trailing slash. Only ever from
+     * The server's address as members type it into the app: APP_ORIGIN's host, lowercase, with
+     * ":port" only when a port is given and isn't 443. No scheme, path or trailing slash. Null
+     * when APP_ORIGIN is unset or isn't https (only local development). Only ever from
      * APP_ORIGIN, never from the request's Host header, which the client controls.
      */
     public static function serverAddress(Config $config): ?string
@@ -53,12 +73,12 @@ final class AndroidAppPromotion
             return null;
         }
         $parts = parse_url($config->applicationOrigin);
-        if (!is_array($parts) || !isset($parts['scheme'], $parts['host']) || $parts['host'] === '') {
+        if (!is_array($parts) || !isset($parts['scheme'], $parts['host']) || $parts['host'] === ''
+            || strtolower($parts['scheme']) !== 'https') {
             return null;
         }
         $host = strtolower($parts['host']);
         $port = $parts['port'] ?? null;
-        $default = strtolower($parts['scheme']) === 'http' ? 80 : 443;
-        return $port === null || $port === $default ? $host : $host . ':' . $port;
+        return $port === null || $port === 443 ? $host : $host . ':' . $port;
     }
 }
