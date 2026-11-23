@@ -16,9 +16,15 @@ final class SystemSettingsService
 {
     private readonly AuditLogger $audit;
 
-    /** @param ?Config $config for the MAINTENANCE_MAX_AGE_HOURS fallback (26 without one) */
-    public function __construct(private readonly PDO $pdo, private readonly ?Config $config = null)
-    {
+    /**
+     * @param ?Config $config for the MAINTENANCE_MAX_AGE_HOURS fallback (26 without one)
+     * @param ?string $androidStoreUrl ChitChat for Android's store URL (#417); tests pass one
+     */
+    public function __construct(
+        private readonly PDO $pdo,
+        private readonly ?Config $config = null,
+        private readonly ?string $androidStoreUrl = AndroidAppPromotion::STORE_URL,
+    ) {
         $this->audit = new AuditLogger($pdo);
     }
 
@@ -48,6 +54,8 @@ final class SystemSettingsService
         ?int $backupMaxAgeHours = null,
         // false leaves it unchanged; null clears the setting so MAINTENANCE_MAX_AGE_HOURS applies again (#312).
         int|false|null $maintenanceMaxAgeHours = false,
+        // null leaves it unchanged (#417).
+        ?bool $androidAppPromotion = null,
     ): array {
         $this->requireSuperAdministrator($actor);
         $this->validateDays('room_message_retention_days', $roomMessageRetentionDays, true);
@@ -68,6 +76,10 @@ final class SystemSettingsService
         }
         if (is_int($maintenanceMaxAgeHours)) {
             $this->validateRange('maintenance_max_age_hours', $maintenanceMaxAgeHours, MaintenanceMaxAge::MINIMUM, MaintenanceMaxAge::MAXIMUM);
+        }
+        // Until the Play listing is public there's nothing to point to (#417); switching it off is always allowed.
+        if ($androidAppPromotion === true && !AndroidAppPromotion::available($this->androidStoreUrl)) {
+            throw new ApiException(409, 'android_app_unavailable', 'ChitChat for Android is not on Google Play yet.');
         }
 
         $this->pdo->beginTransaction();
@@ -97,6 +109,7 @@ SET registration_enabled = :registration_enabled,
     backup_max_age_hours = COALESCE(CAST(:backup_max_age_hours AS integer), backup_max_age_hours),
     maintenance_max_age_hours = CASE WHEN CAST(:maintenance_max_age_keep AS boolean) THEN maintenance_max_age_hours
         ELSE CAST(:maintenance_max_age_hours AS integer) END,
+    android_app_promotion = COALESCE(CAST(:android_app_promotion AS boolean), android_app_promotion),
     updated_at = NOW()
 WHERE id = 1
 SQL);
@@ -137,6 +150,11 @@ SQL);
                 ':maintenance_max_age_hours',
                 is_int($maintenanceMaxAgeHours) ? $maintenanceMaxAgeHours : null,
                 is_int($maintenanceMaxAgeHours) ? PDO::PARAM_INT : PDO::PARAM_NULL,
+            );
+            $statement->bindValue(
+                ':android_app_promotion',
+                $androidAppPromotion,
+                $androidAppPromotion === null ? PDO::PARAM_NULL : PDO::PARAM_BOOL,
             );
             $statement->execute();
             $new = $this->load();
@@ -180,6 +198,7 @@ SELECT registration_enabled::int,
        username_reservation_days,
        backup_max_age_hours,
        maintenance_max_age_hours,
+       android_app_promotion::int,
        updated_at
 FROM system_settings
 WHERE id = 1
@@ -215,6 +234,10 @@ SQL);
             // MAINTENANCE_MAX_AGE_HOURS fallback (#312).
             'maintenance_max_age_hours' => $maintenance['hours'],
             'maintenance_max_age_source' => $maintenance['source'],
+            // Whether to point members to ChitChat for Android (#417). The saved choice: it has no
+            // effect until AndroidAppPromotion::STORE_URL is set, which android_app_available says.
+            'android_app_promotion' => (int) $row['android_app_promotion'] === 1,
+            'android_app_available' => AndroidAppPromotion::available($this->androidStoreUrl),
             'updated_at' => (string) $row['updated_at'],
         ];
     }

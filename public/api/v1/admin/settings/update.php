@@ -55,6 +55,7 @@ Endpoint::run($config, static function () use ($config): ApiResult {
         usernameReservationDays: Request::optionalInteger($payload, 'username_reservation_days'),
         backupMaxAgeHours: Request::optionalInteger($payload, 'backup_max_age_hours'),
         maintenanceMaxAgeHours: $maintenanceMaxAge,
+        androidAppPromotion: array_key_exists('android_app_promotion', $payload) ? Request::boolean($payload, 'android_app_promotion') : null,
     );
 
     return ApiResult::ok(['settings' => $settings]);

@@ -30,12 +30,16 @@ Response:
     "backup_max_age_hours": 26,
     "maintenance_max_age_hours": 26,
     "maintenance_max_age_source": "environment",
+    "android_app_promotion": false,
+    "android_app_available": false,
     "updated_at": "2026-07-17 00:00:00+00"
   }
 }
 ```
 
 A retention value of `0` means permanent retention. The grace and operational-ledger values must be positive. `deleted_room_grace_days` is how long a deleted room stays restorable before maintenance removes it permanently; `0` keeps deleted rooms until they are restored. `guest_access_enabled` lets visitors look around without an account, in rooms that allow guests (see [Guest access](guest-access.md)). `username_reservation_days` (0–3650) is how long a username a moderator removed stays unclaimable after the account chose its new one; it is always held while the change is pending, and `0` releases it as soon as the new name is chosen (see [Required username changes](username-change.md)). `backup_max_age_hours` (0–720, default 26) is how old the newest recorded successful backup may be before System status and `/metrics.php` report backups as overdue; `0` turns backup tracking off (see [Backup freshness](../operations/observability.md#backup-freshness)). `maintenance_max_age_hours` (1–720) is how old the newest successful destructive maintenance run may be before it is reported as overdue (#312). The response gives the effective value, with `maintenance_max_age_source`: `"setting"` once a value has been saved here, or `"environment"` while the `MAINTENANCE_MAX_AGE_HOURS` fallback default (26 when unset) applies.
+
+`android_app_promotion` is whether to point members to ChitChat for Android, the generic app on Google Play (#417). It defaults to `false`. When it's on, the sign-in page and the You list show the app, and session.php's [`android_app`](session.md#chitchat-for-android) carries the store link, a link that opens an installed app with this server prefilled, and the server's address. `android_app_available` is read-only. It says whether this release knows the app's Play listing, and it is `false` until a later release adds it. Until then `android_app_promotion` can't be switched on (see below), and nothing is shown even if it's `true`.
 
 ## Update settings
 
@@ -47,7 +51,7 @@ X-CSRF-Token: <session token>
 
 Requires active privileged step-up. Without recent verification the endpoint returns HTTP 403 with `step_up_required`; no setting or audit record is changed. The bundled browser asks for the current password and retries the update once after successful verification.
 
-The request must include every field returned above except `updated_at`; `deleted_room_grace_days`, `guest_access_enabled`, `username_reservation_days`, `backup_max_age_hours` and `maintenance_max_age_hours` are optional and left unchanged when omitted. `maintenance_max_age_hours: null` clears the saved value, so the `MAINTENANCE_MAX_AGE_HOURS` fallback default applies again. `maintenance_max_age_source` is read-only. **Send `maintenance_max_age_hours` only when the administrator changed it.** Posting back the value you loaded while `maintenance_max_age_source` is `"environment"` would save the fallback as a fixed setting, so later changes to `MAINTENANCE_MAX_AGE_HOURS` would no longer apply. Switching `guest_access_enabled` off ends every guest session at once:
+The request must include every field returned above except `updated_at`; `deleted_room_grace_days`, `guest_access_enabled`, `username_reservation_days`, `backup_max_age_hours`, `maintenance_max_age_hours` and `android_app_promotion` are optional and left unchanged when omitted. `android_app_available` is read-only. `maintenance_max_age_hours: null` clears the saved value, so the `MAINTENANCE_MAX_AGE_HOURS` fallback default applies again. `maintenance_max_age_source` is read-only. **Send `maintenance_max_age_hours` only when the administrator changed it.** Posting back the value you loaded while `maintenance_max_age_source` is `"environment"` would save the fallback as a fixed setting, so later changes to `MAINTENANCE_MAX_AGE_HOURS` would no longer apply. Switching `guest_access_enabled` off ends every guest session at once:
 
 ```json
 {
@@ -66,6 +70,8 @@ The request must include every field returned above except `updated_at`; `delete
 The response returns the complete updated settings object. The old and new snapshots are written to the audit log in the same transaction. The earlier step-up success has its own authentication audit record; it does not replace the settings-change audit.
 
 Setting `mfa_required_for_admin_roles` from `false` to `true` additionally requires every currently active `super_admin`, `admin`, `chat_admin`, and `global_moderator` account to already have passkey MFA enrolled and at least one unused recovery code. If any qualifying account is missing either, the request is rejected with `409 administrators_missing_mfa` and the count of accounts still missing enrollment, before any setting changes or audit record is written. Turning the policy back off has no such precondition.
+
+Setting `android_app_promotion` to `true` while `android_app_available` is `false` is rejected with `409 android_app_unavailable`, before any setting changes or audit record is written. Setting it to `false` is always allowed.
 
 Changing settings does not immediately delete data. The operator must run `php bin/maintenance-cleanup`; see `docs/operations/maintenance.md`.
 

@@ -14,6 +14,8 @@ window.addEventListener('DOMContentLoaded', () => {
     'settings-form',
     'registration-enabled',
     'guest-access-enabled',
+    'android-app-promotion',
+    'android-app-unavailable',
     'admin-mfa-required',
     'room-retention',
     'dm-retention',
@@ -109,7 +111,20 @@ function renderSettings(settings) {
   elements['username-reservation'].required = reservation;
   elements['username-reservation'].value = reservation ? String(settings.username_reservation_days) : '';
   elements['settings-updated'].textContent = `Last changed ${formatDateTime(settings.updated_at)}.`;
+  elements['android-app-promotion'].value = settings.android_app_promotion ? '1' : '0';
+  syncAndroidAppPromotion();
   renderHealthChecks(settings);
+}
+
+// ChitChat for Android (#417): it can be switched on only once the server knows the Play
+// listing (android_app_available); until then the select stays disabled with its note.
+function androidAppAvailable() {
+  return currentSettings?.android_app_available === true;
+}
+
+function syncAndroidAppPromotion() {
+  elements['android-app-promotion'].disabled = !androidAppAvailable();
+  elements['android-app-unavailable'].hidden = androidAppAvailable();
 }
 
 // Health checks (#310, #312), when the server has them. The maintenance age is sent only
@@ -163,6 +178,10 @@ async function saveSettings(event) {
   }
   if (Number.isInteger(currentSettings?.backup_max_age_hours)) {
     payload.backup_max_age_hours = numberValue('backup-max-age');
+  }
+  // Sent only when it can be switched on; otherwise the saved value stays as it is.
+  if (androidAppAvailable()) {
+    payload.android_app_promotion = elements['android-app-promotion'].value === '1';
   }
   if (maintenanceAgeChange === 'clear') payload.maintenance_max_age_hours = null;
   else if (maintenanceAgeChange === 'set' && elements['maintenance-max-age'].value !== '') {
@@ -340,6 +359,8 @@ function numberValue(id) {
 
 function setBusy(busy) {
   setFormBusy(elements['settings-form'], busy);
+  // Re-enabling every control mustn't enable ChitChat for Android before it's available.
+  if (!busy) syncAndroidAppPromotion();
 }
 
 function setFormBusy(form, busy) {
