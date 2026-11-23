@@ -39,6 +39,30 @@ final class AndroidAppPromotionTest extends TestCase
         self::assertNull(AndroidAppPromotion::toPublic(true, $this->config(['applicationOrigin' => 'https://chat.example.org']), null));
     }
 
+    public function testOnceSetTheStoreUrlIsTheDocumentedPlayListing(): void
+    {
+        $storeUrl = (new \ReflectionClassConstant(AndroidAppPromotion::class, 'STORE_URL'))->getValue();
+        if ($storeUrl === null) {
+            self::markTestSkipped('STORE_URL is null until the Play listing is public.');
+        }
+        // The release that sets it: the plain listing, no tracking or personal parameters.
+        self::assertSame(self::STORE, $storeUrl);
+    }
+
+    public function testAnEmptyStoreUrlCountsAsUnknown(): void
+    {
+        self::assertFalse(AndroidAppPromotion::available(''));
+        self::assertNull(AndroidAppPromotion::toPublic(true, $this->config(['applicationOrigin' => 'https://chat.example.org']), ''));
+    }
+
+    public function testTheReferrerStartsTheQueryWhenTheListingHasNone(): void
+    {
+        $links = AndroidAppPromotion::toPublic(true, $this->config(['applicationOrigin' => 'https://chat.example.org']), 'https://play.example/app');
+        self::assertIsArray($links);
+        self::assertSame('https://play.example/app?referrer=chitchat_server%3Dchat.example.org', $links['store_url']);
+        self::assertStringEndsWith(';S.browser_fallback_url=' . rawurlencode($links['store_url']) . ';end', (string) $links['open_url']);
+    }
+
     public function testNothingWhenSwitchedOff(): void
     {
         self::assertTrue(AndroidAppPromotion::available(self::STORE));

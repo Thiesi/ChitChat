@@ -32,10 +32,10 @@ final class AndroidAppPromotion
     private const SCHEME = 'chitchat';
     private const SCHEME_HOST = 'connect';
 
-    /** Whether the setting can take effect at all: the store URL is known. */
+    /** Whether the setting can take effect at all: the store URL is known (an empty one isn't). */
     public static function available(?string $storeUrl = self::STORE_URL): bool
     {
-        return $storeUrl !== null;
+        return $storeUrl !== null && $storeUrl !== '';
     }
 
     /**
@@ -47,14 +47,15 @@ final class AndroidAppPromotion
      */
     public static function toPublic(bool $enabled, Config $config, ?string $storeUrl = self::STORE_URL): ?array
     {
-        if (!$enabled || $storeUrl === null) {
+        if (!$enabled || $storeUrl === null || !self::available($storeUrl)) {
             return null;
         }
         $address = self::serverAddress($config);
         if ($address === null) {
             return ['store_url' => $storeUrl, 'open_url' => null, 'server_address' => null];
         }
-        $store = $storeUrl . '&referrer=' . rawurlencode(self::REFERRER_KEY . '=' . $address);
+        $separator = str_contains($storeUrl, '?') ? '&' : '?';
+        $store = $storeUrl . $separator . 'referrer=' . rawurlencode(self::REFERRER_KEY . '=' . $address);
         $open = 'intent://' . self::SCHEME_HOST . '?server=' . rawurlencode($address)
             . '#Intent;scheme=' . self::SCHEME . ';package=' . self::PACKAGE
             . ';S.browser_fallback_url=' . rawurlencode($store) . ';end';
