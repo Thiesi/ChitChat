@@ -12,6 +12,16 @@ select:focus {
   outline-offset: 2px;
 }
 
+/* A select that can't be used looks it, not only its note (#417's setting before the app is
+   on Google Play): a dashed edge, which forced colours keep, on the ground rather than the
+   field's fill, with muted words. */
+select:disabled {
+  border-style: dashed;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
 .optional-label {
   color: var(--text-muted);
   font-size: 0.78rem;
