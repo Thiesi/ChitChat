@@ -150,16 +150,31 @@ test('cancelling clears the setup from the page; an expired setup says to start 
   await expect(block(page).locator('.totp-key-value')).toHaveCount(0);
 });
 
+// The expiry tests below control the page's clock instead of racing it (#423): the setup ends
+// SETUP_LEAD after it starts, far longer than any runner needs to reach Confirm, and the clock
+// is jumped past that only once the confirm is under way. A real 800 ms expiry made slow
+// WebKit runners lose the setup before Confirm was clicked.
+const SETUP_LEAD = 30_000;
+const expiringBegin = (id) => () => ({ enrollment_id: id, secret: SECRET, otpauth_uri: URI, expires_at: new Date(Date.now() + SETUP_LEAD).toISOString() });
+const confirmCalls = (state) => state.calls.filter((call) => call.path === 'account/mfa/totp/confirm.php').length;
+
 // The local five-minute timer must never swallow a confirm the server accepted.
 test('a confirm answered after the local expiry still shows success and the first recovery codes', async ({ page }) => {
-  await fixture(page, { overrides: {
-    'account/mfa/totp/begin.php': () => ({ enrollment_id: 'enr-9', secret: SECRET, otpauth_uri: URI, expires_at: new Date(Date.now() + 800).toISOString() }),
-    'account/mfa/totp/confirm.php': () => new Promise((resolve) => setTimeout(() => resolve({ mfa: mfaApp, recovery_codes: ['AAAA-BBBB'] }), 2000)),
+  let answer;
+  const answered = new Promise((resolve) => { answer = resolve; });
+  await page.clock.install();
+  const state = await fixture(page, { overrides: {
+    'account/mfa/totp/begin.php': expiringBegin('enr-9'),
+    'account/mfa/totp/confirm.php': () => answered.then(() => ({ mfa: mfaApp, recovery_codes: ['AAAA-BBBB'] })),
   } });
   await page.goto('/account.php#security');
   await block(page).getByRole('button', { name: 'Set up an authenticator app' }).click();
   await block(page).getByLabel('Code from the app').fill('246802');
   await block(page).getByRole('button', { name: 'Confirm' }).click();
+  // The setup expires locally while the server is still answering the confirm.
+  await expect.poll(() => confirmCalls(state)).toBe(1);
+  await page.clock.fastForward(SETUP_LEAD + 1_000);
+  answer();
   await expect(page.getByRole('heading', { name: 'Save your recovery codes now' })).toBeVisible();
   await page.getByRole('button', { name: 'I saved them' }).click();
   await expect(block(page).getByRole('button', { name: 'Remove authenticator app' })).toBeVisible();
@@ -168,8 +183,9 @@ test('a confirm answered after the local expiry still shows success and the firs
 
 test('a step-up finished after the local expiry still confirms the setup it started', async ({ page }) => {
   let confirms = 0;
+  await page.clock.install();
   const state = await fixture(page, { mfa: mfaApp, overrides: {
-    'account/mfa/totp/begin.php': () => ({ enrollment_id: 'enr-7', secret: SECRET, otpauth_uri: URI, expires_at: new Date(Date.now() + 800).toISOString() }),
+    'account/mfa/totp/begin.php': expiringBegin('enr-7'),
     'account/mfa/totp/confirm.php': () => (++confirms === 1 ? error(403, 'step_up_required', 'Confirm it’s you.') : { mfa: mfaApp, recovery_codes: [] }),
   } });
   await page.goto('/account.php#security');
@@ -178,7 +194,8 @@ test('a step-up finished after the local expiry still confirms the setup it star
   await block(page).getByRole('button', { name: 'Confirm' }).click();
   const dialog = page.getByRole('dialog', { name: 'Confirm with multi-factor authentication' });
   await expect(dialog).toBeVisible();
-  await page.waitForTimeout(1200);
+  // The setup expires locally while the step-up dialog is still open.
+  await page.clock.fastForward(SETUP_LEAD + 1_000);
   await dialog.getByLabel('Code from your authenticator app').fill('445566');
   await dialog.getByRole('button', { name: 'Use code' }).click();
   await expect(block(page)).toContainText('Your new authenticator app is set up.');
