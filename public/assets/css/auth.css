@@ -5,6 +5,15 @@
    one honey glow behind the mark; the seasonal decoration (#242) sits behind
    the lockup and never on the mark itself. Colours come from tokens.css. */
 
+/* #422: the page's width steps (the band, the phone card, the stacked tabs) are measured in
+   the page's own text, not the browser's default size: a media query's rem never grows when
+   only the text does (text-only zoom, a reader's own font size), so at 200% the desktop
+   columns, the band's lockup and the two tabs kept layouts their words no longer fit. A
+   container query's rem is the root's actual size. The frame is the page's full width with
+   no padding of its own, so at 100% each step falls where its media query did; a classic
+   scrollbar, where the page scrolls, now counts against the width. */
+.auth-frame { container: auth / inline-size; }
+
 .auth-shell {
   display: grid;
   min-height: 100vh;
@@ -355,7 +364,7 @@
 
 /* ---- Narrower than a desktop: the intro is a band above the card ---- */
 
-@media (max-width: 63.99rem) {
+@container auth (max-width: 63.99rem) {
   .auth-layout {
     grid-template-columns: minmax(0, 30rem);
     justify-content: center;
@@ -387,7 +396,7 @@
   .auth-intro:has(.auth-season:not([hidden])) .auth-band-art { display: none; }
 }
 
-@media (max-width: 34rem) {
+@container auth (max-width: 34rem) {
   /* #256: the band's pebbles crowded the edge and pulled the lockup off centre; the glow stays. */
   .auth-band-art { display: none; }
   .auth-shell { gap: 1rem; padding: 1rem; }
@@ -397,11 +406,11 @@
 
 /* Sign in / Register stack only where two labels can't share a row: below 320 (#256; a 360
    phone fits both). */
-@media (max-width: 19.99rem) {
+@container auth (max-width: 19.99rem) {
   .auth-tabs { grid-template-columns: 1fr; border-radius: 1.2rem; }
 }
 
-@media (max-width: 24rem) {
+@container auth (max-width: 24rem) {
   /* The lockup scales down so the installation's name fits beside its mark. */
   .auth-intro .lockup { gap: 0.6rem; }
   .auth-intro .lockup-mark img { width: 2.25rem; height: 2.25rem; }

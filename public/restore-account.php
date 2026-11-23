@@ -25,6 +25,8 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
   <link rel="stylesheet" href="/assets/css/auth.css">
 </head>
 <body>
+  <!-- #422: the sign-in pages size their layout to the text (auth.css: .auth-frame). -->
+  <div class="auth-frame">
   <main class="auth-shell auth-shell-single">
     <?= \ChitChat\View\Lockup::html($config, 'restore-brand', horizontal: true) ?>
     <section class="auth-card" aria-labelledby="restore-title">
@@ -57,6 +59,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
     </section>
     <?= \ChitChat\View\PoweredBy::html($config, accessibilityFeedback: true) ?>
   </main>
+  </div>
   <script type="module" src="/assets/js/restore-account.js"></script>
   <script type="module" src="/assets/js/password-reveal.js"></script>
   <script type="module" src="/assets/js/accessibility-feedback.js"></script>

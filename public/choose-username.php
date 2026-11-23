@@ -25,6 +25,8 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
 <body>
   <!-- A moderator required a new username (#164): the onboarding card (S3),
        one field, and back to the conversation once it's chosen. -->
+  <!-- #422: the sign-in pages size their layout to the text (auth.css: .auth-frame). -->
+  <div class="auth-frame">
   <main class="auth-shell auth-shell-single">
     <?= \ChitChat\View\Lockup::html($config, 'choose-username-brand', horizontal: true) ?>
     <section class="auth-card" aria-labelledby="choose-username-title">
@@ -52,6 +54,7 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
     </section>
     <?= \ChitChat\View\PoweredBy::html($config, accessibilityFeedback: true) ?>
   </main>
+  </div>
   <script type="module" src="/assets/js/choose-username.js"></script>
   <script type="module" src="/assets/js/accessibility-feedback.js"></script>
 </body>

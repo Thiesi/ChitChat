@@ -113,6 +113,58 @@ test('a long installation name wraps, never truncates, and fits at 320px and at 
   }
 });
 
+// #422: 200% text where only the text grows (text-only zoom, a reader's own font size): the
+// root's size doubles but a media query's rem stays at 16px, so the page has to measure its
+// steps in its own text. Nothing runs off the side, the wordmark stays on screen, both tabs
+// stay inside their control, and on a desktop the intro steps above the card, not under it.
+test('at 200% text the sign-in page reflows: the wordmark, both tabs and the card stay on screen', async ({ page }) => {
+  await fixture(page);
+  const measure = () => page.evaluate(() => {
+    const width = window.innerWidth;
+    const name = document.querySelector('.auth-intro .lockup-name').getBoundingClientRect();
+    const tabs = document.querySelector('.auth-tabs').getBoundingClientRect();
+    const card = document.querySelector('.auth-card').getBoundingClientRect();
+    const tabsOut = [...document.querySelectorAll('.auth-tabs button')].some((b) => {
+      const box = b.getBoundingClientRect();
+      return box.left < tabs.left - 0.5 || box.right > tabs.right + 0.5;
+    });
+    return {
+      scroll: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      name: name.left >= 0 && name.right <= width,
+      tabs: !tabsOut,
+      // The intro never sits under the card: it ends above it, or beside it.
+      apart: name.bottom <= card.top || name.right <= card.left,
+    };
+  });
+  const fits = { scroll: 0, name: true, tabs: true, apart: true };
+  for (const width of [320, 390, 1024, 1280]) {
+    await page.setViewportSize({ width, height: 800 });
+    await open(page);
+    await page.evaluate(() => { document.documentElement.style.fontSize = '32px'; });
+    for (const tab of ['Register', 'Sign in']) {
+      await page.getByRole('tab', { name: tab }).click();
+      await settled(page);
+      expect(await measure(), `${width} ${tab}`).toEqual(fits);
+    }
+  }
+  // A long name wraps beside its mark; it doesn't push the page sideways either.
+  await page.setViewportSize({ width: 390, height: 800 });
+  await open(page);
+  await page.evaluate((name) => {
+    document.documentElement.style.fontSize = '32px';
+    document.querySelector('.auth-intro .lockup-name').textContent = name;
+  }, LONG_NAME);
+  await settled(page);
+  expect(await measure(), '390 long name').toEqual(fits);
+  // At 100% the steps fall where they always have: two columns at 1024, the band below.
+  for (const [width, columns] of [[1024, 2], [1023, 1]]) {
+    await page.setViewportSize({ width, height: 800 });
+    await open(page);
+    const count = await page.locator('.auth-layout').evaluate((node) => getComputedStyle(node).gridTemplateColumns.split(' ').length);
+    expect(count, `${width} at 100%`).toBe(columns);
+  }
+});
+
 test('16px fields and pill buttons, so phones don’t zoom and every step has one clear primary', async ({ page }) => {
   await fixture(page);
   await page.setViewportSize({ width: 360, height: 800 });
