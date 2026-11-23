@@ -479,3 +479,12 @@ form:has(.attachment-selection > button:not(.hidden)) .attachment-button {
   }
 }
 
+
+/* ChitChat for Android (#417): Google's badge, unmodified, with the clear space its art
+   carries; the trademark line beneath, on a line of its own. */
+.play-badge { display: inline-block; border-radius: 0.6rem; line-height: 0; }
+.play-badge img { display: block; width: auto; height: 3.75rem; }
+.play-trademark { display: block; color: var(--text-muted); font-size: var(--type-caption); line-height: 1.4; }
+/* On Android only: open an installed app with this server. A 44px tall target. */
+.android-app-open { display: block; font-size: var(--type-label); }
+.android-app-open a { display: inline-block; padding-block: 0.75rem; font-weight: 600; }
