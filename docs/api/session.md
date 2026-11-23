@@ -70,11 +70,24 @@ The independent top-level `attachments` policy is documented in
 
 ## ChitChat for Android
 
-`android_app` is `null` or `{"store_url": "https://play.google.com/store/apps/details?id=…", "server_address": "chat.example.org"}`. The bundled web client uses it to point members to ChitChat for Android ([system settings](system-settings.md#read-settings), #417).
+`android_app` is `null` or an object. The bundled web client uses it to point members to ChitChat for Android ([system settings](system-settings.md#read-settings), #417):
+
+```json
+{
+  "store_url": "https://play.google.com/store/apps/details?id=de.networkxxiii.chitchat&referrer=chitchat_server%3Dchat.example.org",
+  "open_url": "intent://connect?server=chat.example.org#Intent;scheme=chitchat;package=de.networkxxiii.chitchat;S.browser_fallback_url=https%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dde.networkxxiii.chitchat%26referrer%3Dchitchat_server%253Dchat.example.org;end",
+  "server_address": "chat.example.org"
+}
+```
+
 - **When it's an object:** only when a Super-Administrator switched the setting on and this release knows the app's Play listing. Until a release adds that listing, it is always `null`.
-- **`server_address`:** the address members type into the app. It's the host of `APP_ORIGIN`, with its port only when that isn't the scheme's default, and no scheme, path or trailing slash. It is never taken from the request's `Host` header. It is `null` when `APP_ORIGIN` isn't set.
+- **`server_address`:** the address members type into the app. It's the host of `APP_ORIGIN`, lowercase, with `:port` only when a port is given and isn't 443, and never a path. It is never taken from the request's `Host` header. It is `null` when `APP_ORIGIN` isn't set or isn't `https` (local development).
+- **`store_url`:** the Play listing. With an address, it carries the referrer `chitchat_server=<server_address>`, so a newly installed app can prefill this server. Without one, it's the plain listing.
+- **`open_url`:** an Android intent link that opens an installed app with this server prefilled, falling back to `store_url`. It is `null` without an address.
+- **Encoding:** both links are built with RFC 3986 encoding. The referrer key `chitchat_server`, the scheme `chitchat` and its host `connect` are a fixed contract with the app.
+- **Prefill only:** the app fills in "Where do you chat?" and the person confirms. It never connects or signs in by itself.
 - **Presence:** the key appears in every payload, signed out, signed in and for guests.
-- **It's optional:** native apps don't need it, and no client may depend on it. A missing field means show nothing.
+- **It's optional:** native apps don't read it, and no client may depend on it. A missing field means show nothing.
 
 ## Revision-review privacy disclosure
 
