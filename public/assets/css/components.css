@@ -487,4 +487,4 @@ form:has(.attachment-selection > button:not(.hidden)) .attachment-button {
 .play-trademark { display: block; color: var(--text-muted); font-size: var(--type-caption); line-height: 1.4; }
 /* On Android only: open an installed app with this server. A 44px tall target. */
 .android-app-open { display: block; font-size: var(--type-label); }
-.android-app-open a { display: inline-block; padding-block: 0.75rem; font-weight: 600; }
+.android-app-open a { display: inline-flex; align-items: center; min-height: var(--target-min); font-weight: 600; }
