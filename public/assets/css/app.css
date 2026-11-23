@@ -1702,9 +1702,9 @@ button.user-name.mention { padding: 0 0.2rem; border-radius: 0.25rem; background
   /* Keyboard advice (Enter sends…) is for keyboards; on a phone this narrow it was five lines. */
   .composer-help { display: none; }
 
-  /* B4: the room's name first. Its lantern and the member count give way, and the
-     "N here now" line keeps to one line instead of wrapping under the name. */
-  .room-heading h2 .lantern { display: none; }
+  /* B4: the room's name first. The member count gives way, and the "N here now" line
+     keeps to one line instead of wrapping under the name. The lantern stays, as it has
+     since Lantern Next L1. */
   .room-heading p.room-meta-line { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   #members-count { display: none; }
   .header-button { min-width: 2.5rem; padding-inline: 0.3rem; }
