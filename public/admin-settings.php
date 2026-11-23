@@ -93,6 +93,21 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
         <p class="admin-muted">
           Lets visitors look around without an account, in rooms that allow guests. Each visit is a numbered guest that ends after two idle hours or a day at most. Switching it off ends every visit.
         </p>
+        <!-- #417: disabled, with its note, until the Play listing is public (android_app_available). -->
+        <label>
+          <span>Point members to ChitChat for Android</span>
+          <select id="android-app-promotion" aria-describedby="android-app-promotion-note" disabled>
+            <option value="0">Disabled</option>
+            <option value="1">Enabled</option>
+          </select>
+        </label>
+        <p id="android-app-promotion-note" class="admin-muted">
+          Shows ChitChat for Android on Google Play on the sign-in page, and this server's address under You for typing into the app.
+          <span id="android-app-unavailable">Available once ChitChat for Android is on Google Play.</span>
+<?php if ($config->nativeAndroidApps === []): ?>
+          Passkeys and browser sign-in in the app also need <code>NATIVE_ANDROID_APPS</code> on the server; see <a href="https://github.com/Thiesi/ChitChat/blob/main/docs/operations/passkeys.md" target="_blank" rel="noopener noreferrer">Passkeys<span class="visually-hidden">, in a new tab</span></a>.
+<?php endif; ?>
+        </p>
         <label>
           <span>Require MFA for administrative roles</span>
           <select id="admin-mfa-required">

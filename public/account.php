@@ -71,6 +71,8 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
           <li data-member-only><a class="you-section-link" href="#privacy" data-section="privacy">Privacy and data</a></li>
           <li data-member-only><a class="you-section-link" href="#account" data-section="account">Account</a></li>
         </ul>
+        <!-- #417: ChitChat for Android, filled from session.php's android_app; stays hidden while that's null. -->
+        <div class="you-android-app" data-android-app="account" hidden></div>
         <!-- #219: filled from session.php by accessibility-feedback.js; stays hidden when the operator turned it off. -->
         <p class="you-feedback" data-accessibility-feedback hidden></p>
       </nav>

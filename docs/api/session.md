@@ -68,6 +68,14 @@ The independent top-level `attachments` policy is documented in
 
 `accessibility_feedback` is `{"url": "…"}` or `null`: where "Report an accessibility problem" leads ([system settings](system-settings.md#accessibility-feedback)). The `url` is already resolved: the ChitChat project's issue form unless a Super-Administrator saved their own `https:` page or `mailto:` address. It is `null` only when the link has been switched off. It is present in every payload, signed out, signed in and for guests, because the problem may be with signing in. Clients open it outside the app (a new browser tab with `noopener noreferrer`, or the system's mail app for `mailto:`) and show nothing for `null`. On older servers a missing field means no link.
 
+## ChitChat for Android
+
+`android_app` is `null` or `{"store_url": "https://play.google.com/store/apps/details?id=…", "server_address": "chat.example.org"}`. The bundled web client uses it to point members to ChitChat for Android ([system settings](system-settings.md#read-settings), #417).
+- **When it's an object:** only when a Super-Administrator switched the setting on and this release knows the app's Play listing. Until a release adds that listing, it is always `null`.
+- **`server_address`:** the address members type into the app. It's the host of `APP_ORIGIN`, with its port only when that isn't the scheme's default, and no scheme, path or trailing slash. It is never taken from the request's `Host` header. It is `null` when `APP_ORIGIN` isn't set.
+- **Presence:** the key appears in every payload, signed out, signed in and for guests.
+- **It's optional:** native apps don't need it, and no client may depend on it. A missing field means show nothing.
+
 ## Revision-review privacy disclosure
 
 `privacy.message_revisions` retains its existing fields but corrects

@@ -207,6 +207,8 @@ $appName = htmlspecialchars(\ChitChat\Admin\ApplicationNameService::resolve($con
         <p id="auth-error" class="error-text" role="alert"></p>
       </section>
     </div>
+    <!-- #417: "Also on Android", filled from session.php's android_app; stays hidden while that's null. -->
+    <p class="auth-android-app" data-android-app="sign-in" hidden></p>
     <?= \ChitChat\View\PoweredBy::html($config, accessibilityFeedback: true) ?>
   </main>
 

@@ -56,6 +56,7 @@ SET registration_enabled = TRUE,
     sign_in_decoration = 'off',
     accessibility_feedback_enabled = TRUE,
     accessibility_feedback_url = NULL,
+    android_app_promotion = FALSE,
     updated_at = NOW()
 WHERE id = 1
 SQL);

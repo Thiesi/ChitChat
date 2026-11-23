@@ -34,7 +34,7 @@ Endpoint::run($config, static function () use ($config): ApiResult {
         : null;
     $statement = $pdo->query(<<<'SQL'
 SELECT registration_enabled::int, direct_message_retention_days, sign_in_decoration,
-       accessibility_feedback_enabled::int, accessibility_feedback_url
+       accessibility_feedback_enabled::int, accessibility_feedback_url, android_app_promotion::int
 FROM system_settings
 WHERE id = 1
 SQL);
@@ -80,6 +80,9 @@ SQL);
             (int) $policy['accessibility_feedback_enabled'] === 1,
             $policy['accessibility_feedback_url'] === null ? null : (string) $policy['accessibility_feedback_url'],
         ),
+        // ChitChat for Android (#417): {store_url, server_address} or null. Null unless the operator
+        // switched it on and the Play listing is public; server_address comes only from APP_ORIGIN.
+        'android_app' => \ChitChat\Admin\AndroidAppPromotion::toPublic((int) $policy['android_app_promotion'] === 1, $config),
         'registration_enabled' => (int) $policy['registration_enabled'] === 1 && !(new LockdownService($pdo))->status()['enabled'],
         // Public, so the sign-in page can explain a maintenance lockdown.
         'lockdown' => (static function (array $status): array {
